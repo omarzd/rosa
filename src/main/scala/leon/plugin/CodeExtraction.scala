@@ -671,6 +671,7 @@ trait CodeExtraction extends Extractors {
           }
 
           case ExInt32Literal(v) => IntLiteral(v).setType(Int32Type)
+          case ExFloat64Literal(v) => FloatLiteral(v).setType(Float64Type)
           case ExBooleanLiteral(v) => BooleanLiteral(v).setType(BooleanType)
           case ExUnitLiteral() => UnitLiteral
           case ExLocally(body) => rec(body)
@@ -738,12 +739,49 @@ trait CodeExtraction extends Extractors {
           case ExAnd(l, r) => And(rec(l), rec(r)).setType(BooleanType)
           case ExOr(l, r) => Or(rec(l), rec(r)).setType(BooleanType)
           case ExNot(e) => Not(rec(e)).setType(BooleanType)
-          case ExUMinus(e) => UMinus(rec(e)).setType(Int32Type)
-          case ExPlus(l, r) => Plus(rec(l), rec(r)).setType(Int32Type)
-          case ExMinus(l, r) => Minus(rec(l), rec(r)).setType(Int32Type)
-          case ExTimes(l, r) => Times(rec(l), rec(r)).setType(Int32Type)
-          case ExDiv(l, r) => Division(rec(l), rec(r)).setType(Int32Type)
-          case ExMod(l, r) => Modulo(rec(l), rec(r)).setType(Int32Type)
+          case ExUMinus(e) =>
+            val rTree = rec(e)
+            rTree.getType match {
+              case Float64Type => FUMinus(rTree).setType(Float64Type)
+              case _ => UMinus(rTree).setType(Int32Type)
+            }
+          case ExPlus(l, r) =>
+            val rl = rec(l)
+            val rr = rec(r)
+            (rl.getType, rr.getType) match {
+              case (_, Float64Type) | (Float64Type, _) => FPlus(rl, rr).setType(Float64Type)
+              case _ => Plus(rl, rr).setType(Int32Type)
+            }
+          case ExMinus(l, r) =>
+            val rl = rec(l)
+            val rr = rec(r)
+            (rl.getType, rr.getType) match {
+              case (_, Float64Type) | (Float64Type, _) => FMinus(rl, rr).setType(Float64Type)
+              case _ => Minus(rl, rr).setType(Int32Type)
+            }
+          case ExTimes(l, r) => 
+            val rl = rec(l)
+            val rr = rec(r)
+            (rl.getType, rr.getType) match {
+              case (_, Float64Type) | (Float64Type, _) => FTimes(rl, rr).setType(Float64Type)
+              case _ => Times(rl, rr).setType(Int32Type)
+            }
+          case ExDiv(l, r) =>
+            val rl = rec(l)
+            val rr = rec(r)
+            (rl.getType, rr.getType) match {
+              case (_, Float64Type) | (Float64Type, _) => FDivision(rl, rr).setType(Float64Type)
+              case _ => Division(rl, rr).setType(Int32Type)
+            } 
+          case ExMod(l, r) =>
+            val rl = rec(l)
+            val rr = rec(r)
+            (rl.getType, rr.getType) match {
+              case (_, Float64Type) | (Float64Type, _) =>
+                unit.error(NoPosition, "Modulo operator is not supported for floats.")
+                throw new Exception("aouch")
+              case _ => Modulo(rl, rr).setType(Int32Type)
+            }
           case ExEquals(l, r) => {
             val rl = rec(l)
             val rr = rec(r)
@@ -1071,6 +1109,7 @@ trait CodeExtraction extends Extractors {
 
     def rec(tr: Type): purescala.TypeTrees.TypeTree = tr match {
       case tpe if tpe == IntClass.tpe => Int32Type
+      case tpe if tpe == DoubleClass.tpe => Float64Type
       case tpe if tpe == BooleanClass.tpe => BooleanType
       case tpe if tpe == UnitClass.tpe => UnitType
       case tpe if tpe == NothingClass.tpe => BottomType

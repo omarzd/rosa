@@ -391,6 +391,10 @@ object Trees {
     val fixedType = Int32Type
   }
 
+  case class FloatLiteral(value: Double) extends Literal[Double] with FixedType {
+    val fixedType = Float64Type
+  }
+
   case class BooleanLiteral(value: Boolean) extends Literal[Boolean] with FixedType {
     val fixedType = BooleanType
   }
@@ -464,6 +468,24 @@ object Trees {
   case class GreaterEquals(lhs: Expr, rhs: Expr) extends Expr with FixedType {
     val fixedType = BooleanType
   }
+
+  /* Floating-point arithmetic */
+  case class FPlus(lhs: Expr, rhs: Expr) extends Expr with FixedType {
+    val fixedType = Float64Type
+  }
+  case class FMinus(lhs: Expr, rhs: Expr) extends Expr with FixedType { 
+    val fixedType = Float64Type
+  }
+  case class FUMinus(expr: Expr) extends Expr with FixedType { 
+    val fixedType = Float64Type
+  }
+  case class FTimes(lhs: Expr, rhs: Expr) extends Expr with FixedType { 
+    val fixedType = Float64Type
+  }
+  case class FDivision(lhs: Expr, rhs: Expr) extends Expr with FixedType { 
+    val fixedType = Float64Type
+  }
+  
 
   /* Set expressions */
   case class FiniteSet(elements: Seq[Expr]) extends Expr 

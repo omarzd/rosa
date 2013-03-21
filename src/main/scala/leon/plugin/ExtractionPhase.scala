@@ -35,6 +35,8 @@ object ExtractionPhase extends LeonPhase[List[String], Program] {
 
       runner.program match {
         case Some(p) =>
+          println("finished extraction, output program: ")
+          println(p)
           p
         case None =>
           ctx.reporter.fatalError("Error while compiling.")

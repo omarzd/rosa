@@ -366,6 +366,14 @@ trait Extractors {
       }
     }
 
+    object ExFloat64Literal {
+      def unapply(tree: Literal): Option[Double] = tree match {
+        case Literal(c @ Constant(i)) if c.tpe == DoubleClass.tpe => Some(c.doubleValue)
+        case _ => None
+      }
+    }
+
+
     object ExUnitLiteral {
       def unapply(tree: Literal): Boolean = tree match {
         case Literal(c @ Constant(_)) if c.tpe == UnitClass.tpe => true
@@ -412,6 +420,14 @@ trait Extractors {
         case _ => None
       }
     }
+
+    object ExFloat64Identifier {
+      def unapply(tree: Ident): Option[String] = tree match {
+        case i: Ident if i.symbol.tpe == DoubleClass.tpe => Some(i.symbol.name.toString)
+        case _ => None
+      }
+    }
+
 
     object ExAnd {
       def unapply(tree: Apply): Option[(Tree,Tree)] = tree match {
