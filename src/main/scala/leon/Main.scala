@@ -12,7 +12,8 @@ object Main {
       xlang.XlangAnalysisPhase,
       synthesis.SynthesisPhase,
       termination.TerminationPhase,
-      verification.AnalysisPhase
+      verification.AnalysisPhase,
+      floats.CertificationPhase
     )
   }
 
@@ -28,8 +29,9 @@ object Main {
       LeonFlagOptionDef ("xlang",        "--xlang",       "Support for extra program constructs (imperative,...)"),
       LeonFlagOptionDef ("parse",        "--parse",       "Checks only whether the program is valid PureScala"),
       LeonValueOptionDef("debug",        "--debug=[1-5]", "Debug level"),
-      LeonFlagOptionDef ("help",         "--help",        "Show help")
-
+      LeonFlagOptionDef ("help",         "--help",        "Show help"),
+  
+      LeonFlagOptionDef ("floats",       "--floats",      "Check floating-point constraints")
       //  Unimplemented Options:
       //
       //  LeonFlagOptionDef("uniqid",        "--uniqid",             "When pretty-printing purescala trees, show identifiers IDs"),
@@ -112,6 +114,9 @@ object Main {
         settings = settings.copy(synthesis = false, xlang = false, verify = false)
       case LeonFlagOption("help") =>
         displayHelp(reporter)
+      case LeonFlagOption("floats") =>
+        settings = settings.copy(termination = false, xlang = false, verify = false,
+          synthesis = false, floats = true)
       case _ =>
     }
 
@@ -138,6 +143,8 @@ object Main {
         xlang.XlangAnalysisPhase
       } else if (settings.verify) {
         verification.AnalysisPhase
+      } else if (settings.floats) {
+        floats.CertificationPhase
       } else {
         NoopPhase()
       }
