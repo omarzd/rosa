@@ -485,7 +485,10 @@ object Trees {
   case class FDivision(lhs: Expr, rhs: Expr) extends Expr with FixedType { 
     val fixedType = Float64Type
   }
-  
+ 
+  case class AbsRoundoff(expr: Expr) extends Expr with FixedType {
+    val fixedType = Float64Type
+  }
 
   /* Set expressions */
   case class FiniteSet(elements: Seq[Expr]) extends Expr 

@@ -1,14 +1,17 @@
+import leon.NumericUtils._
 
 
 object DoubleFun {
 
-  def literal(): Double = 4.5
+  //def literal(): Double = 4.5
 
   def arithmetic(x: Double, y: Double, z: Double): Double = {
+    require(x >= -5 && x <= 5 && y >= -5 && y <= 5 && z >= -5 && z <= 5)
     x * y + z / (y - x) * (-x) + 4.5
-  } ensuring (res => res > 0)
+  } ensuring (res => absRoundoff(res) <= 6.0)
 
-  def ifThenElse(x: Double, y: Double, z: Double): Double = {
+  /*def ifThenElse(x: Double, y: Double, z: Double): Double = {
+    require(x >= -5 && x <= 5 && y >= -5 && y <= 5 && z >= -5 && z <= 5)
     val s = (x + y + z) / 2.0
 
     if (s > 10.0) {
@@ -16,5 +19,6 @@ object DoubleFun {
     } else {
       ((x+(y+z)) * (z-(x-y)) * (z+(x-y)) * (x+(y-z))) / 4.0
     }
-  } ensuring (res => res > 0)
+  } ensuring (res => (res > 0 && absRoundoff(res) <= 1e-10))
+  */
 }

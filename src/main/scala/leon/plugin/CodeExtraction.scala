@@ -499,7 +499,6 @@ trait CodeExtraction extends Extractors {
     }
 
     def rec(tr: Tree): Expr = {
-      
       val (nextExpr, rest) = tr match {
         case Block(Block(e :: es1, l1) :: es2, l2) => (e, Some(Block(es1 ++ Seq(l1) ++ es2, l2)))
         case Block(e :: Nil, last) => (e, Some(last))
@@ -782,6 +781,12 @@ trait CodeExtraction extends Extractors {
                 throw new Exception("aouch")
               case _ => Modulo(rl, rr).setType(Int32Type)
             }
+
+          case ExAbsRoundoff(arg) =>
+            // TODO: only allow double literals as rhs for now
+            AbsRoundoff(rec(arg)).setType(Float64Type)
+
+
           case ExEquals(l, r) => {
             val rl = rec(l)
             val rr = rec(r)

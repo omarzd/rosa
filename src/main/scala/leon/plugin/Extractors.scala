@@ -494,6 +494,15 @@ trait Extractors {
       }
     }
 
+    object ExAbsRoundoff {
+      def unapply(tree: Apply): Option[Tree] = tree match {
+        case Apply(ExSelected("leon", "NumericUtils", "absRoundoff"), List(rhs)) =>
+          Some(rhs)
+        case _ => None
+      }
+
+    }
+
     object ExUMinus {
       def unapply(tree: Select): Option[Tree] = tree match {
         case Select(t, n) if (n == nme.UNARY_-) => Some(t)
