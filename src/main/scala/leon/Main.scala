@@ -13,7 +13,7 @@ object Main {
       synthesis.SynthesisPhase,
       termination.TerminationPhase,
       verification.AnalysisPhase,
-      floats.CertificationPhase
+      numerics.CertificationPhase
     )
   }
 
@@ -31,7 +31,7 @@ object Main {
       LeonValueOptionDef("debug",        "--debug=[1-5]", "Debug level"),
       LeonFlagOptionDef ("help",         "--help",        "Show help"),
   
-      LeonFlagOptionDef ("floats",       "--floats",      "Check floating-point constraints")
+      LeonFlagOptionDef ("numerics",       "--numerics",      "Check floating-point constraints")
       //  Unimplemented Options:
       //
       //  LeonFlagOptionDef("uniqid",        "--uniqid",             "When pretty-printing purescala trees, show identifiers IDs"),
@@ -114,9 +114,9 @@ object Main {
         settings = settings.copy(synthesis = false, xlang = false, verify = false)
       case LeonFlagOption("help") =>
         displayHelp(reporter)
-      case LeonFlagOption("floats") =>
+      case LeonFlagOption("numerics") =>
         settings = settings.copy(termination = false, xlang = false, verify = false,
-          synthesis = false, floats = true)
+          synthesis = false, numerics = true)
       case _ =>
     }
 
@@ -143,8 +143,8 @@ object Main {
         xlang.XlangAnalysisPhase
       } else if (settings.verify) {
         verification.AnalysisPhase
-      } else if (settings.floats) {
-        floats.CertificationPhase
+      } else if (settings.numerics) {
+        numerics.CertificationPhase
       } else {
         NoopPhase()
       }

@@ -1,5 +1,5 @@
 package leon
-package floats
+package numerics
 
 import purescala.Common._
 import purescala.Definitions._
