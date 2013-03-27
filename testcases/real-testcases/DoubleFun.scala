@@ -9,7 +9,7 @@ object DoubleFun {
     require(x >= -5 && x <= 5 && y >= -5 && y <= 5 && z >= -5 && z <= 5)
     val err = absRoundoff(3.5)
     x * y + z / (y - x) * (-x) + 4.5
-  } ensuring (res => absRoundoff(res) <= 6.0)
+  } ensuring (res => (absRoundoff(res) <= 1e-7 && res <= 3.4))
 
   /*def ifThenElse(x: Double, y: Double, z: Double): Double = {
     require(x >= -5 && x <= 5 && y >= -5 && y <= 5 && z >= -5 && z <= 5)
