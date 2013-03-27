@@ -7,16 +7,12 @@ import purescala.Trees._
 import purescala.TreeOps._
 import purescala.TypeTrees._
 
-import leon.verification.VerificationReport
-
-object CertificationPhase extends LeonPhase[Program,VerificationReport] {
+object CertificationPhase extends LeonPhase[Program,CertificationReport] {
   val name = "Certification"
   val description = "Floating-point certification"
 
 
-  /*override val definedOptions: Set[LeonOptionDef] = Set(
-
-  )*/
+  /*override val definedOptions: Set[LeonOptionDef] = Set( )*/
 
   def generateVerificationConditions(reporter: Reporter, program: Program):
     List[VerificationCondition] = {
@@ -35,11 +31,11 @@ object CertificationPhase extends LeonPhase[Program,VerificationReport] {
   }
 
   def checkVerificationConditions(reporter: Reporter, vcs: Seq[VerificationCondition]):
-    VerificationReport = {
-    VerificationReport.emptyReport
+    CertificationReport = {
+    CertificationReport.emptyReport
   }
 
-  def run(ctx: LeonContext)(program: Program): VerificationReport = {
+  def run(ctx: LeonContext)(program: Program): CertificationReport = {
     val reporter = ctx.reporter
     reporter.info("Running Certification phase")
 

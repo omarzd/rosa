@@ -172,6 +172,11 @@ object Main {
         case report: termination.TerminationReport =>
           reporter.info(report.summaryString)
 
+        case report: numerics.CertificationReport =>
+          reporter.info(report.summaryString)
+
+
+
         case _ =>
       }
     } catch {
