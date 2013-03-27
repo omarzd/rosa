@@ -32,7 +32,14 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
 
   def checkVerificationConditions(reporter: Reporter, vcs: Seq[VerificationCondition]):
     CertificationReport = {
-    CertificationReport.emptyReport
+
+    for(vc <- vcs) {
+      reporter.info("Now checking VC of function " + vc.funDef.id.name)
+
+      //val funValue = evaluateExpression(vc.expr)
+
+    }
+    new CertificationReport(vcs)
   }
 
   def run(ctx: LeonContext)(program: Program): CertificationReport = {

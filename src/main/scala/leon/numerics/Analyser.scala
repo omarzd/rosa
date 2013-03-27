@@ -49,7 +49,8 @@ class Analyser(reporter: Reporter) {
           Seq.empty
         } else {
           // everything seems to be fine
-          Seq(VerificationCondition(bounds, body, outputRange, rndoff))
+
+          Seq(VerificationCondition(funDef, bounds, body, outputRange, rndoff))
         }
       }
     }
