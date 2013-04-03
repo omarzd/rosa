@@ -1,6 +1,8 @@
 package leon
 package purescala
 
+import ceres.common.Rational
+
 /** AST definitions for Pure Scala. */
 object Trees {
   import Common._
@@ -393,6 +395,11 @@ object Trees {
 
   case class FloatLiteral(value: Double) extends Literal[Double] with FixedType {
     val fixedType = Float64Type
+  }
+
+  // only used internally in numerics
+  case class RationalLiteral(value: Rational) extends Literal[Rational] with FixedType {
+    val fixedType = RationalType
   }
 
   case class BooleanLiteral(value: Boolean) extends Literal[Boolean] with FixedType {

@@ -36,7 +36,8 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
     for(vc <- vcs) {
       reporter.info("Now checking VC of function " + vc.funDef.id.name)
 
-      //val funValue = evaluateExpression(vc.expr)
+      //val variables = ...
+      //val res = evaluateExpression(variables, vc.expr)
 
     }
     new CertificationReport(vcs)
@@ -48,9 +49,7 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
 
     val vcs = generateVerificationConditions(reporter, program)
     reporter.info("Generated " + vcs.size + " verification conditions")
-    println("=======  VCs: ======")
-    println(vcs)
     checkVerificationConditions(reporter, vcs)
   }
-  
+
 }

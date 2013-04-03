@@ -162,6 +162,7 @@ object TypeTrees {
   case object BooleanType extends TypeTree
   case object Int32Type extends TypeTree
   case object Float64Type extends TypeTree
+  case object RationalType extends TypeTree
   case object UnitType extends TypeTree
 
   class TupleType private (val bases: Seq[TypeTree]) extends TypeTree {
