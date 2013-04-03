@@ -33,12 +33,23 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
   def checkVerificationConditions(reporter: Reporter, vcs: Seq[VerificationCondition]):
     CertificationReport = {
 
+    val evaluator = new Evaluator(reporter)
+
     for(vc <- vcs) {
       reporter.info("Now checking VC of function " + vc.funDef.id.name)
 
-      //val variables = ...
-      //val res = evaluateExpression(variables, vc.expr)
+      val variables = evaluator.variables2xfloats(vc.inputs)
+      try {
+        val res = evaluator.inXFloats(vc.expr, variables)
+        reporter.info("result: " + res)
+       }
+       catch {
+         case UnsupportedFragmentException(msg) =>
+           reporter.info(msg)
 
+         case ceres.common.DivisionByZeroException(msg) =>
+          reporter.info(msg)
+       }
     }
     new CertificationReport(vcs)
   }
