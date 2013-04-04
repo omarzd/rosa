@@ -7,6 +7,8 @@ import purescala.Trees._
 
 import ceres.common.{Rational}
 
+import Sat._
+
 case class VerificationCondition(val funDef: FunDef, val inputs: Map[Variable,
   ParRange], val expr: Expr, postCondition: Expr) {
   //, val output: Option[ParRange] = None,
@@ -14,7 +16,10 @@ case class VerificationCondition(val funDef: FunDef, val inputs: Map[Variable,
 
   //assert( !(output.isEmpty && absRoundoff.isEmpty), "Empty VC, nothing to prove!")
 
+  // for safekeeping the value of the expression
+  var res: Option[XFloat] = None
+
   var time: Option[Double] = None
-  var value: Option[Boolean] = None
+  var status: Sat = Unknown
 
 }

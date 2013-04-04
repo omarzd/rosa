@@ -42,6 +42,8 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
       try {
         val res = evaluator.inXFloats(vc.expr, variables)
         reporter.info("result: " + res)
+
+        // TODO: check this against the postcondition
        }
        catch {
          case UnsupportedFragmentException(msg) =>
