@@ -20,7 +20,7 @@ class Prover(reporter: Reporter) {
        case UnsupportedFragmentException(msg) =>
          reporter.info(msg)
 
-       case DivisionByZeroException(msg) =>
+       case ceres.affine.DivisionByZeroException(msg) =>
         reporter.info(msg)
      }
     vc

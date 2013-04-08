@@ -5,7 +5,7 @@ package object numerics {
 
   case class UnsupportedFragmentException(msg: String) extends Exception(msg)
 
-  case class DivisionByZeroException(msg: String) extends Exception(msg)
+  //case class DivisionByZeroException(msg: String) extends Exception(msg)
 
   object Sat extends Enumeration {
     type Sat = Value
