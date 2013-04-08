@@ -41,12 +41,16 @@ object BoundsIterator {
 
       // check that initial bounds are valid
       checkBounds(solver, tree, a, b) match {
-        case (UNSAT, UNSAT) =>
+        case (UNSAT, UNSAT, msg) =>
           if (verbose) {
             println("Initial bounds check successful.")
           }
-        case _ =>
+        case (_, _, msg) =>
           println("!!! WARNING: initial bounds are not sound!")
+          println("expr:" + leon.purescala.PrettyPrinter(tree))
+          println("var constr: " + varCons)
+          println("range: [" + a + ", " + b + "]")
+          println("msg: " + msg)
       }
 
 
@@ -64,7 +68,7 @@ object BoundsIterator {
      
       // Remove this check once we're fairly sure it all works:
       checkBounds(solver, tree, newLowerBound, newUpperBound) match {
-        case (UNSAT, UNSAT) =>
+        case (UNSAT, UNSAT, msg) =>
           if (verbose) {
             println("Final bounds are sound.")
           }
@@ -78,10 +82,11 @@ object BoundsIterator {
   }
   
   def checkBounds(solver: BoundsSolver, tree: Expr,
-    lowBound: Rational, upBound: Rational): (Sat, Sat) = {
+    lowBound: Rational, upBound: Rational): (Sat, Sat, String) = {
     val resLow = solver.checkLowerBound(tree, lowBound)
     val resUp = solver.checkUpperBound(tree, upBound)
-    (resLow, resUp)    
+    val diagnoseString = resLow._2 + "\n" + resUp._2
+    (resLow._1, resUp._1, diagnoseString)    
   }
 
   
@@ -101,7 +106,7 @@ object BoundsIterator {
         println("checked lwr bound: " + mid + ", with result: " + res)
       }
         
-      res match {
+      res._1 match {
         case SAT => getLowerBound(a, mid, solver, tree, count + 1)
         case UNSAT => getLowerBound(mid, b, solver, tree, count + 1)
         case Unknown => // Return safe answer
@@ -126,7 +131,7 @@ object BoundsIterator {
         println("checked upp bound: " + mid + ", with result: " + res)
       }
 
-      res match {
+      res._1 match {
         case SAT => getUpperBound(mid, b, solver, tree, count + 1)
         case UNSAT => getUpperBound(a, mid, solver, tree, count + 1)
         case Unknown => // Return safe answer

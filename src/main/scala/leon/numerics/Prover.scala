@@ -38,7 +38,10 @@ class Prover(reporter: Reporter) {
 
   def inXFloats(tree: Expr, vars: Map[Variable, XFloat]): XFloat = tree match {
     case v @ Variable(id) => vars(v)
-    case RationalLiteral(value) => XFloat(value) 
+    // not sure where this could come from atm...
+    case RationalLiteral(v) => XFloat(v) 
+    case IntLiteral(v) => XFloat(v.toDouble)
+    case FloatLiteral(v) => XFloat(v)
     case FUMinus(rhs) => - inXFloats(rhs, vars)
     case FPlus(lhs, rhs) => inXFloats(lhs, vars) + inXFloats(rhs, vars)
     case FMinus(lhs, rhs) => inXFloats(lhs, vars) - inXFloats(rhs, vars)

@@ -20,6 +20,7 @@ import purescala.Trees._
 class BoundsSolver {
 
   var verbose = false
+  var diagnose = true
 
   val z3cfg = new Z3Config(
     "MODEL" -> true,
@@ -66,12 +67,18 @@ class BoundsSolver {
     solver.assertCnstr(boundsInZ3)
   }
 
-  def checkLowerBound(expr: Expr, bound: Rational): Sat = {
+  def checkLowerBound(expr: Expr, bound: Rational): (Sat, String) = {
     val exprInZ3 = exprToz3(expr, variables)
     val boundMin = scaleToIntsDown(bound)
-
+    var diagnoseString = ""
+   
     solver.push
     solver.assertCnstr(z3.mkLT(exprInZ3, z3.mkReal(boundMin.n.toInt, boundMin.d.toInt)))
+
+    if (verbose) println("checking: " + solver.getAssertions.toSeq.mkString(",\n"))
+    if (diagnose) diagnoseString += ("L: checking: " + solver.getAssertions.toSeq.mkString(",\n"))
+
+
     val resLower = solver.check
    
     val res = resLower match {
@@ -85,15 +92,20 @@ class BoundsSolver {
         Unknown
     }
     solver.pop(1)
-    res
+    (res, diagnoseString)
   }
 
-  def checkUpperBound(expr: Expr, bound: Rational): Sat = {
+  def checkUpperBound(expr: Expr, bound: Rational): (Sat, String) = {
     val exprInZ3 = exprToz3(expr, variables)
     val boundMax = scaleToIntsUp(bound)
+    var diagnoseString = ""
 
     solver.push
     solver.assertCnstr(z3.mkGT(exprInZ3, z3.mkReal(boundMax.n.toInt, boundMax.d.toInt)))
+
+    if (verbose) println("checking: " + solver.getAssertions.toSeq.mkString(",\n"))
+    if (diagnose) diagnoseString += ("U: checking: " + solver.getAssertions.toSeq.mkString(",\n"))
+
     val resUpper = solver.check
     
     val res = resUpper match {
@@ -107,7 +119,7 @@ class BoundsSolver {
         Unknown
     }
     solver.pop(1)
-    res
+    (res, diagnoseString)
   }
 
   // FIXME: conversion from BigInt to Int not safe
