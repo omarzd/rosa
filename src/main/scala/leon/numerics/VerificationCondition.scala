@@ -9,10 +9,12 @@ import ceres.common.{Rational}
 
 import Sat._
 
+/**
+  Something we need to prove.
+  @param 
+*/
 case class VerificationCondition(val funDef: FunDef, val inputs: Map[Variable,
   ParRange], val expr: Expr, postCondition: Expr) {
-  //, val output: Option[ParRange] = None,
-  //val absRoundoff: Option[Rational] = None) {
 
   //assert( !(output.isEmpty && absRoundoff.isEmpty), "Empty VC, nothing to prove!")
 
