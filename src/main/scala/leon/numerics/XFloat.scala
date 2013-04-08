@@ -1,7 +1,8 @@
 package leon
 package numerics
 
-import ceres.common.{Rational, RationalInterval, RationalForm}
+import ceres.common.{Rational, RationalInterval}
+import ceres.affine.{RationalForm}
 import Rational._
 import RationalForm._
 

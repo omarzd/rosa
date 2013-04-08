@@ -1,7 +1,8 @@
 package leon
 package numerics
 
-import ceres.common.{Rational, Interval, RationalInterval, RationalForm}
+import ceres.common.{Rational, Interval, RationalInterval}
+import ceres.affine.{RationalForm}
 
 import purescala.Trees._
 

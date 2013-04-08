@@ -5,7 +5,27 @@ import ceres.common.Rational
 
 import purescala.Trees._
 
-class Evaluator(reporter: Reporter) {
+class Prover(reporter: Reporter) {
+
+
+  def check(vc: VerificationCondition): VerificationCondition = {
+    reporter.info("Now checking VC of function " + vc.funDef.id.name)
+
+    val variables = variables2xfloats(vc.inputs)
+    try {
+      val exprResult = inXFloats(vc.expr, variables)
+      reporter.info("result: " + exprResult)
+     }
+     catch {
+       case UnsupportedFragmentException(msg) =>
+         reporter.info(msg)
+
+       case DivisionByZeroException(msg) =>
+        reporter.info(msg)
+     }
+    vc
+  }
+
 
   def variables2xfloats(vars: Map[Variable, ParRange]): Map[Variable, XFloat] = {
 

@@ -14,6 +14,10 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
 
   /*override val definedOptions: Set[LeonOptionDef] = Set( )*/
 
+  /*
+    Since we can have more than one VC for each function, we need to make sure
+    that we cover everything, i.e. we don't show only a subpart.
+  */
   def generateVerificationConditions(reporter: Reporter, program: Program):
     List[VerificationCondition] = {
 
@@ -24,34 +28,22 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
     for(funDef <- program.definedFunctions.toList) {
 
       if (funDef.body.isDefined) {
+        // for now, this only generate 1 VC per function, i.e. we accept only
+        // simple mathematical expressions
         allVCs ++= analyser.generateVCs(funDef)
       }
     }
     allVCs.toList
   }
 
+
   def checkVerificationConditions(reporter: Reporter, vcs: Seq[VerificationCondition]):
     CertificationReport = {
 
-    val evaluator = new Evaluator(reporter)
+    val prover = new Prover(reporter)
 
     for(vc <- vcs) {
-      reporter.info("Now checking VC of function " + vc.funDef.id.name)
-
-      val variables = evaluator.variables2xfloats(vc.inputs)
-      try {
-        val res = evaluator.inXFloats(vc.expr, variables)
-        reporter.info("result: " + res)
-
-        // TODO: check this against the postcondition
-       }
-       catch {
-         case UnsupportedFragmentException(msg) =>
-           reporter.info(msg)
-
-         case ceres.common.DivisionByZeroException(msg) =>
-          reporter.info(msg)
-       }
+      prover.check(vc) 
     }
     new CertificationReport(vcs)
   }
