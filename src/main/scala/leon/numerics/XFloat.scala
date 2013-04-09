@@ -21,10 +21,10 @@ object XFloat {
 
   // double constant (we include rdoff error)
   def apply(d: Double): XFloat = {
-    val rd = Rational(d)
+    val rd = rationalFromReal(d)
     val newRange = XInterval(rd)
     val rndoff = roundoff(rd)
-    val newError = addNoise(rndoff, new RationalForm(Rational(0l, 1l)))
+    val newError = addNoise(new RationalForm(Rational.zero), rndoff)
     return new XFloat(newRange, newError)
   }
 
@@ -39,7 +39,7 @@ object XFloat {
   def apply(v: Variable, a: Rational, b: Rational): XFloat = {
     val newRange = XInterval(v, a, b)
     val rndoff = roundoff(RationalInterval(a, b)) // another version of that fnc?
-    val newError = addNoise(rndoff, new RationalForm(Rational(0l, 1l)))
+    val newError = addNoise(new RationalForm(Rational.zero), rndoff)
     return new XFloat(newRange, newError)
   }
 
@@ -85,7 +85,7 @@ class XFloat(val realRange: XInterval, val error: RationalForm) {
   def +(y: XFloat): XFloat = {
     val newRange = this.realRange + y.realRange
     val rndoff = roundoff(newRange.interval)
-    val newError = addNoise(rndoff, this.error + y.error)
+    val newError = addNoise(this.error + y.error, rndoff)
     if(verbose) println("\naddition, newRange: " + newRange)
     if(verbose) println("            roundoff: " + rndoff)
     return new XFloat(newRange, newError)
@@ -94,7 +94,7 @@ class XFloat(val realRange: XInterval, val error: RationalForm) {
   def -(y: XFloat): XFloat = {
     val newRange = this.realRange - y.realRange
     val rndoff = roundoff(newRange.interval)
-    val newError = addNoise(rndoff, this.error - y.error)
+    val newError = addNoise(this.error - y.error, rndoff)
     if(verbose) println("\nsubtraction, newRange: " + newRange)
     if(verbose) println("               roundoff: " + rndoff)
     return new XFloat(newRange, newError)
@@ -108,7 +108,7 @@ class XFloat(val realRange: XInterval, val error: RationalForm) {
     val yAA = RationalForm(y.realRange.interval)
     val yErr = y.error
     val xErr = this.error
-    val newError = addNoise(rndoff, xAA*yErr + yAA*xErr + xErr*yErr)
+    val newError = addNoise(xAA*yErr + yAA*xErr + xErr*yErr, rndoff)
     if(verbose) println("\nmultiplication, newRange: " + newRange)
     if(verbose) println("                  roundoff: " + rndoff)
     return new XFloat(newRange, newError)
@@ -134,7 +134,7 @@ class XFloat(val realRange: XInterval, val error: RationalForm) {
     
     val newRange = this.realRange / y.realRange
     val rndoff = roundoff(newRange.interval)
-    val newError = addNoise(rndoff, xAA*gErr + kAA*xErr + xErr*gErr)
+    val newError = addNoise(xAA*gErr + kAA*xErr + xErr*gErr, rndoff)
     if(verbose) println("\ndivision, newRange: " + newRange)
     if(verbose) println("            roundoff: " + rndoff)
     return new XFloat(newRange, newError)

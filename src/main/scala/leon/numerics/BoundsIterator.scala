@@ -26,6 +26,32 @@ object BoundsIterator {
   val precision = Rational(0.0001)
   val maxIterationsBinary = 20 
 
+  var reporter: Reporter = null
+  
+  def setReporter(rep: Reporter) = reporter = rep
+
+  // which: initial or final
+  def printBoundsResult(res: (Sat, Sat, String), which: String) = res match {
+    case (SAT, SAT, msg) =>
+      if (reporter != null)
+        reporter.error("!!! ERROR: both " + which + " bounds are not sound!" +
+          "\nmsg: " + msg + "\n ------------------")
+    case (SAT, _, msg) =>
+      if (reporter != null)
+        reporter.error("!!! ERROR: " + which + " lower bound is not sound!" +
+          "\nmsg: " + msg + "\n ------------------")
+    case (_, SAT, msg) =>
+      if (reporter != null)
+        reporter.error("!!! ERROR: " + which + " upper bound is not sound!" +
+          "\nmsg: " + msg + "\n ------------------")
+    case (UNSAT, UNSAT, msg) =>
+      if (verbose) {
+        println(which + " bounds check successful.")
+      }
+    case _ =>
+      println("WARNING: cannot check "+which+" bounds.")
+  }
+
  // TODO: Should choose the correct strategy (i.e. maybe first do a quick check
    // whether binary search makes sense
   def tightenRange(varCons: Map[Variable, RationalInterval], tree: Expr,
@@ -40,19 +66,7 @@ object BoundsIterator {
       val b = initialBound.xhi
 
       // check that initial bounds are valid
-      checkBounds(solver, tree, a, b) match {
-        case (UNSAT, UNSAT, msg) =>
-          if (verbose) {
-            println("Initial bounds check successful.")
-          }
-        case (_, _, msg) =>
-          println("!!! WARNING: initial bounds are not sound!")
-          println("expr:" + leon.purescala.PrettyPrinter(tree))
-          println("var constr: " + varCons)
-          println("range: [" + a + ", " + b + "]")
-          println("msg: " + msg)
-      }
-
+      printBoundsResult(checkBounds(solver, tree, a, b), "initial")
 
       if (verbose) {
         println("\nComputing range for " + tree)
@@ -67,14 +81,8 @@ object BoundsIterator {
       val newUpperBound = getUpperBound(a, b, solver, tree, 0)
      
       // Remove this check once we're fairly sure it all works:
-      checkBounds(solver, tree, newLowerBound, newUpperBound) match {
-        case (UNSAT, UNSAT, msg) =>
-          if (verbose) {
-            println("Final bounds are sound.")
-          }
-        case _ =>
-          println("!!! WARNING: final bounds are not sound!")
-      }
+      printBoundsResult(checkBounds(solver, tree, newLowerBound, newUpperBound), "final")
+
       return RationalInterval(newLowerBound, newUpperBound)
     }
     // This can happen for constants

@@ -50,6 +50,9 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
 
   def run(ctx: LeonContext)(program: Program): CertificationReport = {
     val reporter = ctx.reporter
+
+    BoundsIterator.setReporter(reporter)
+
     reporter.info("Running Certification phase")
 
     val vcs = generateVerificationConditions(reporter, program)

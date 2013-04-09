@@ -40,7 +40,7 @@ class Prover(reporter: Reporter) {
     case v @ Variable(id) => vars(v)
     // not sure where this could come from atm...
     case RationalLiteral(v) => XFloat(v) 
-    case IntLiteral(v) => XFloat(v.toDouble)
+    case IntLiteral(v) => XFloat(v)
     case FloatLiteral(v) => XFloat(v)
     case FUMinus(rhs) => - inXFloats(rhs, vars)
     case FPlus(lhs, rhs) => inXFloats(lhs, vars) + inXFloats(rhs, vars)

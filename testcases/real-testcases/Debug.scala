@@ -3,11 +3,11 @@
 
 object Debug {
 
-  def matyas(x: Double, y: Double): Double  = {
-    require(-9 <= x && x <= -5 && 1 <= y && y <= 3)
-    0.26*(x*x + y*y) - 0.48*x*y
+  def bspline0(u: Double): Double = {
+    require(0 <= u && u <= 1)
+    (1 - u) * (1 - u) * (1 - u) * (1.0/6.0)
   } ensuring (res => res >= -56020.0)
 
-
+  
   
 }
