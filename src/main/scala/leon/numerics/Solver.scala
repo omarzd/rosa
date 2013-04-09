@@ -17,7 +17,7 @@ import purescala.Trees._
  */
 
 // keeps only one Z3 solver around
-class BoundsSolver {
+class Solver {
 
   var verbose = false
   var diagnose = true
@@ -122,7 +122,28 @@ class BoundsSolver {
     (res, diagnoseString)
   }
 
-  // FIXME: conversion from BigInt to Int not safe
+
+  def check(expr: Expr): Sat = {
+    solver.push
+    val cnstr = exprToz3(expr, Map.empty)
+    solver.assertCnstr(cnstr)
+    val res = solver.check match {
+      case Some(true) =>
+        if (verbose) println("--> cond: SAT")
+        SAT
+      case Some(false) =>
+        if (verbose) println("--> cond: UNSAT")
+        UNSAT
+      case None =>
+        println("!!! WARNING: Z3 SOLVER FAILED")
+        Unknown
+    }
+    solver.pop(1)
+    res
+  }
+
+
+  // TODO: conversion from BigInt to Int not safe
   private def exprToz3(expr: Expr, varMap: Map[Variable, Z3AST]): Z3AST = expr match {
     case RationalLiteral(v) =>
       // Not sound

@@ -38,7 +38,7 @@ object BoundsIterator {
     //val varCons = getVariableConstraints(tree)
 
     if (!varCons.isEmpty) {
-      val solver = new BoundsSolver
+      val solver = new Solver
       solver.addVariables(varCons)
 
       val a = initialBound.xlo
@@ -68,7 +68,7 @@ object BoundsIterator {
     return initialBound
   }
   
-  def checkBounds(solver: BoundsSolver, tree: Expr,
+  def checkBounds(solver: Solver, tree: Expr,
     lowBound: Rational, upBound: Rational): (Sat, Sat, String) = {
     val resLow = solver.checkLowerBound(tree, lowBound)
     val resUp = solver.checkUpperBound(tree, upBound)
@@ -79,7 +79,7 @@ object BoundsIterator {
   
   // start with b being the upperBound
   // Invariant: the lower bound is always sound, and the upper bound not
-  def getLowerBound(a: Rational, b: Rational, solver: BoundsSolver,
+  def getLowerBound(a: Rational, b: Rational, solver: Solver,
     tree: Expr, count: Int): Rational = {
     // Enclosure of bound is precise enough
     if (b-a < precision || count > maxIterationsBinary) {
@@ -103,7 +103,7 @@ object BoundsIterator {
   }
 
   //TODO: Invariant the upper bound is always sound, the lower bnd not
-  def getUpperBound(a: Rational, b: Rational, solver: BoundsSolver,
+  def getUpperBound(a: Rational, b: Rational, solver: Solver,
     tree: Expr, count: Int): Rational = {
 
     // Enclosure of bound is precise enough
