@@ -11,6 +11,11 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
   val name = "Certification"
   val description = "Floating-point certification"
 
+  /*
+    TODO: decide when we go from doubles to rationals, in the VC generation
+    or only during checking?
+
+  */
 
   /*override val definedOptions: Set[LeonOptionDef] = Set( )*/
 

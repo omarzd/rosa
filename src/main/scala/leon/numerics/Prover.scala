@@ -12,9 +12,13 @@ class Prover(reporter: Reporter) {
     reporter.info("Now checking VC of function " + vc.funDef.id.name)
 
     val variables = variables2xfloats(vc.inputs)
+
     try {
       val exprResult = inXFloats(vc.expr, variables)
       reporter.info("result: " + exprResult)
+
+      //TODO: check against the postcondition
+
      }
      catch {
        case UnsupportedFragmentException(msg) =>
@@ -26,20 +30,19 @@ class Prover(reporter: Reporter) {
     vc
   }
 
-
+  // We can only create variables if we have both bounds defined.
+  // We assume that the numbers written down by the user are meant to be reals.
   def variables2xfloats(vars: Map[Variable, ParRange]): Map[Variable, XFloat] = {
-
     vars.collect {
       case (k, v) if (v.isDefined) =>
-        // TODO: this should be rounded outwards
-        k -> XFloat(k, Rational(v.lo.get), Rational(v.hi.get))
+        k -> XFloat(k, Rational.rationalFromReal(v.lo.get),
+          Rational.rationalFromReal(v.hi.get))
     }
   }
 
   def inXFloats(tree: Expr, vars: Map[Variable, XFloat]): XFloat = tree match {
     case v @ Variable(id) => vars(v)
-    // not sure where this could come from atm...
-    case RationalLiteral(v) => XFloat(v) 
+    case RationalLiteral(v) => XFloat(v) // not sure where this could come from atm...
     case IntLiteral(v) => XFloat(v)
     case FloatLiteral(v) => XFloat(v)
     case FUMinus(rhs) => - inXFloats(rhs, vars)

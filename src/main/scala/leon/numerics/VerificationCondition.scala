@@ -15,7 +15,10 @@ import Sat._
 */
 case class VerificationCondition(val funDef: FunDef, val inputs: Map[Variable,
   ParRange], val expr: Expr, postCondition: Expr) {
-
+  /*
+    We keep the expressions as given in the code, thus they contain doubles.
+    The prover has to make sure that those are handled correctly. 
+  */
   //assert( !(output.isEmpty && absRoundoff.isEmpty), "Empty VC, nothing to prove!")
 
   // for safekeeping the value of the expression

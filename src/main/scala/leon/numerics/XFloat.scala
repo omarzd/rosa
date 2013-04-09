@@ -122,7 +122,7 @@ class XFloat(val realRange: XInterval, val error: RationalForm) {
       
 
     // Compute approximation
-    val kAA = RationalForm((XInterval(1.0) / y.realRange).interval)
+    val kAA = RationalForm((XInterval(Rational(1l)) / y.realRange).interval)
     val xAA = RationalForm(this.realRange.interval)
     val xErr = this.error
 

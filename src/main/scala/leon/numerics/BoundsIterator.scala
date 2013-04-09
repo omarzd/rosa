@@ -23,34 +23,13 @@ import scala.collection.immutable.HashMap
 object BoundsIterator {
   val maxIterationsLinear = 100
   var verbose = false 
-  val precision = Rational(0.0001)
+  val precision = Rational.rationalFromReal(0.0001)
   val maxIterationsBinary = 20 
 
   var reporter: Reporter = null
   
   def setReporter(rep: Reporter) = reporter = rep
 
-  // which: initial or final
-  def printBoundsResult(res: (Sat, Sat, String), which: String) = res match {
-    case (SAT, SAT, msg) =>
-      if (reporter != null)
-        reporter.error("!!! ERROR: both " + which + " bounds are not sound!" +
-          "\nmsg: " + msg + "\n ------------------")
-    case (SAT, _, msg) =>
-      if (reporter != null)
-        reporter.error("!!! ERROR: " + which + " lower bound is not sound!" +
-          "\nmsg: " + msg + "\n ------------------")
-    case (_, SAT, msg) =>
-      if (reporter != null)
-        reporter.error("!!! ERROR: " + which + " upper bound is not sound!" +
-          "\nmsg: " + msg + "\n ------------------")
-    case (UNSAT, UNSAT, msg) =>
-      if (verbose) {
-        println(which + " bounds check successful.")
-      }
-    case _ =>
-      println("WARNING: cannot check "+which+" bounds.")
-  }
 
  // TODO: Should choose the correct strategy (i.e. maybe first do a quick check
    // whether binary search makes sense
@@ -107,7 +86,7 @@ object BoundsIterator {
       return a
     }
     else {
-      val mid = a + (b - a) / Rational(2)
+      val mid = a + (b - a) / Rational(2l)
       val res = solver.checkLowerBound(tree, mid)
       
       if (verbose) {
@@ -132,7 +111,7 @@ object BoundsIterator {
       return b
     }
     else {
-      val mid = a + (b - a) / Rational(2)
+      val mid = a + (b - a) / Rational(2l)
       val res = solver.checkUpperBound(tree, mid)
 
       if (verbose) {
@@ -146,6 +125,28 @@ object BoundsIterator {
           return b
       }
     }
+  }
+
+  // which: initial or final
+  def printBoundsResult(res: (Sat, Sat, String), which: String) = res match {
+    case (SAT, SAT, msg) =>
+      if (reporter != null)
+        reporter.error("!!! ERROR: both " + which + " bounds are not sound!" +
+          "\nmsg: " + msg + "\n ------------------")
+    case (SAT, _, msg) =>
+      if (reporter != null)
+        reporter.error("!!! ERROR: " + which + " lower bound is not sound!" +
+          "\nmsg: " + msg + "\n ------------------")
+    case (_, SAT, msg) =>
+      if (reporter != null)
+        reporter.error("!!! ERROR: " + which + " upper bound is not sound!" +
+          "\nmsg: " + msg + "\n ------------------")
+    case (UNSAT, UNSAT, msg) =>
+      if (verbose) {
+        println(which + " bounds check successful.")
+      }
+    case _ =>
+      println("WARNING: cannot check "+which+" bounds.")
   }
 
   /*
@@ -212,23 +213,4 @@ object BoundsIterator {
   }
 */
 
-  /*private def getVariableConstraints(tree: Expr): Map[String, RationalInterval] = tree match {
-    case v @ RVar(name, range) => Map(name -> range)
-    case RConst(value) => new HashMap[String, RationalInterval]
-    case RNeg(rhs) => getVariableConstraints(rhs)
-    case RAdd(lhs, rhs) =>
-      getVariableConstraints(lhs) ++ getVariableConstraints(rhs)
-    case RSub(lhs, rhs) =>
-      getVariableConstraints(lhs) ++ getVariableConstraints(rhs)
-    case RMult(lhs, rhs) =>
-      getVariableConstraints(lhs) ++ getVariableConstraints(rhs)
-    case RDiv(lhs, rhs) =>
-      getVariableConstraints(lhs) ++ getVariableConstraints(rhs)
-    case _ => return null
-    //case CDiv(lhs, rhs) => eval(lhs, varMap) / eval(rhs, varMap)
-    //case CInv(expr) => eval(expr, varMap).inverse()
-  }*/
-
-  
 }
-

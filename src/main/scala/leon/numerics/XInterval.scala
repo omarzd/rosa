@@ -7,15 +7,17 @@ import ceres.affine.{RationalForm}
 import purescala.Trees._
 
 object XInterval {
-  def apply(d: Double) = new XInterval(Map.empty, RationalLiteral(Rational(d)),
-    new RationalForm(Rational(d)))
+  //def apply(d: Double) = new XInterval(Map.empty,
+  //  RationalLiteral(Rational.rationalFromReal(d)),
+  //  new RationalForm(Rational.rationalFromReal(d)))
   def apply(r: Rational) = new XInterval(Map.empty, RationalLiteral(r),
     new RationalForm(r))
 
-  def apply(v: Variable, a: Double, b: Double) = {
-    val int = RationalInterval(Rational(a), Rational(b))
-    new XInterval(Map(v -> int), v, RationalForm(int))
-  }
+  //def apply(v: Variable, a: Double, b: Double) = {
+  //  val int = RationalInterval(Rational.rationalFromReal(a),
+  //                              Rational.rationalFromReal(b))
+  //  new XInterval(Map(v -> int), v, RationalForm(int))
+  //}
 
   def apply(v: Variable, a: Rational, b: Rational) = {
     val int = RationalInterval(a, b)
@@ -24,10 +26,11 @@ object XInterval {
   // there is duplication here
   // This method allows us to define the affine forms such that several
   // uses of the same variable will have the same affine form (same indices)
-  def apply(v: Variable, a: Double, b: Double, aform: RationalForm) = {
-    val int = RationalInterval(Rational(a), Rational(b))
-    new XInterval(Map(v -> int), v, aform)
-  }
+  //def apply(v: Variable, a: Double, b: Double, aform: RationalForm) = {
+  //  val int = RationalInterval(Rational.rationalFromReal(a),
+  //                              Rational.rationalFromReal(b))
+  //  new XInterval(Map(v -> int), v, aform)
+  //}
 }
 
 
