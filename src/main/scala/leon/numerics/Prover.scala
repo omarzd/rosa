@@ -7,22 +7,27 @@ import purescala.Trees._
 import purescala.Common._
 import purescala.TypeTrees.RationalType
 
+
 object Prover {
 
   val resAbsRoundoff: Variable =
     Variable(FreshIdentifier("_resAbsRoundoff").setType(RationalType))
 }
 
-class Prover(reporter: Reporter) {
+class Prover(reporter: Reporter, ctx: LeonContext, solver: NumericSolver) {
   import Prover._
 
   // check always pushes and pops so we can reuse one single solver
-  val solver = new Solver
+  //val solver = new NumericSolver
+  // solver.setProgram()
 
   def check(vc: VerificationCondition): VerificationCondition = {
     reporter.info("Now checking VC of function " + vc.funDef.id.name)
 
     val variables = variables2xfloats(vc.inputs)
+
+    solver.push
+    solver.assertCnstr(vc.precondition)
 
     try {
       val exprResult: XFloat = inXFloats(vc.expr, variables)
@@ -52,14 +57,16 @@ class Prover(reporter: Reporter) {
         val result = solver.check(condition)
         reporter.info("VC is " + result)
         vc.status = result*/
-     }
-     catch {
-       case UnsupportedFragmentException(msg) =>
-         reporter.info(msg)
+      }
+      catch {
+        case UnsupportedFragmentException(msg) =>
+          reporter.info(msg)
 
-       case ceres.affine.DivisionByZeroException(msg) =>
-        reporter.info(msg)
-     }
+        case ceres.affine.DivisionByZeroException(msg) =>
+          reporter.info(msg)
+      }
+    // drop the VC precondition
+    solver.pop
     vc
   }
 
@@ -71,15 +78,15 @@ class Prover(reporter: Reporter) {
     vars.collect {
       case (k, v) if (v.isDefined) =>
         k -> XFloat(k, Rational.rationalFromReal(v.lo.get),
-          Rational.rationalFromReal(v.hi.get))
+          Rational.rationalFromReal(v.hi.get), solver)
     }
   }
 
   private def inXFloats(tree: Expr, vars: Map[Variable, XFloat]): XFloat = tree match {
     case v @ Variable(id) => vars(v)
-    case RationalLiteral(v) => XFloat(v) // not sure where this could come from atm...
-    case IntLiteral(v) => XFloat(v)
-    case FloatLiteral(v) => XFloat(v)
+    case RationalLiteral(v) => XFloat(v, solver) // not sure where this could come from atm...
+    case IntLiteral(v) => XFloat(v, solver)
+    case FloatLiteral(v) => XFloat(v, solver)
     case FUMinus(rhs) => - inXFloats(rhs, vars)
     case FPlus(lhs, rhs) => inXFloats(lhs, vars) + inXFloats(rhs, vars)
     case FMinus(lhs, rhs) => inXFloats(lhs, vars) - inXFloats(rhs, vars)

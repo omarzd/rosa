@@ -13,8 +13,8 @@ import Sat._
   Something we need to prove.
   @param 
 */
-case class VerificationCondition(val funDef: FunDef, val inputs: Map[Variable,
-  ParRange], val expr: Expr, postCondition: Expr) {
+case class VerificationCondition(val precondition: Expr, val expr: Expr,
+  val postcondition: Expr, val funDef: FunDef, val inputs: Map[Variable, ParRange])  {
   /*
     We keep the expressions as given in the code, thus they contain doubles.
     The prover has to make sure that those are handled correctly. 

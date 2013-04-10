@@ -7,6 +7,7 @@ import ceres.common.{RationalInterval, Rational}
 import Rational._
 
 import purescala.Trees._
+import purescala.Definitions._
 
 import scala.collection.immutable.HashMap
 
@@ -22,24 +23,30 @@ import scala.collection.immutable.HashMap
 
 object BoundsIterator {
   val maxIterationsLinear = 100
-  var verbose = false 
+  var verbose = false
   val precision = Rational.rationalFromReal(0.0001)
   val maxIterationsBinary = 20 
 
-  var reporter: Reporter = null
-  
+  // TODO: It may be easier just to assign a solver
+  private var reporter: Reporter = null
+ /* private var leonContext: LeonContext = null 
+  private var program: Program = null
   def setReporter(rep: Reporter) = reporter = rep
-
+  def setContext(ctx: LeonContext) = leonContext = ctx
+  def setProgram(p: Program) = program = p
+*/
 
  // TODO: Should choose the correct strategy (i.e. maybe first do a quick check
    // whether binary search makes sense
-  def tightenRange(varCons: Map[Variable, RationalInterval], tree: Expr,
+  def tightenRange(solver: NumericSolver, varCons: Map[Variable, RationalInterval], tree: Expr,
     initialBound: RationalInterval): RationalInterval = {
     //val varCons = getVariableConstraints(tree)
 
     if (!varCons.isEmpty) {
-      val solver = new Solver
-      solver.addVariables(varCons)
+      /*val solver = new NumericSolver(leonContext)
+      solver.setProgram(program)
+      solver.initZ3
+      solver.addVariables(varCons)*/
 
       val a = initialBound.xlo
       val b = initialBound.xhi
@@ -68,7 +75,7 @@ object BoundsIterator {
     return initialBound
   }
   
-  def checkBounds(solver: Solver, tree: Expr,
+  def checkBounds(solver: NumericSolver, tree: Expr,
     lowBound: Rational, upBound: Rational): (Sat, Sat, String) = {
     val resLow = solver.checkLowerBound(tree, lowBound)
     val resUp = solver.checkUpperBound(tree, upBound)
@@ -79,7 +86,7 @@ object BoundsIterator {
   
   // start with b being the upperBound
   // Invariant: the lower bound is always sound, and the upper bound not
-  def getLowerBound(a: Rational, b: Rational, solver: Solver,
+  def getLowerBound(a: Rational, b: Rational, solver: NumericSolver,
     tree: Expr, count: Int): Rational = {
     // Enclosure of bound is precise enough
     if (b-a < precision || count > maxIterationsBinary) {
@@ -103,7 +110,7 @@ object BoundsIterator {
   }
 
   //TODO: Invariant the upper bound is always sound, the lower bnd not
-  def getUpperBound(a: Rational, b: Rational, solver: Solver,
+  def getUpperBound(a: Rational, b: Rational, solver: NumericSolver,
     tree: Expr, count: Int): Rational = {
 
     // Enclosure of bound is precise enough
@@ -174,7 +181,7 @@ object BoundsIterator {
         //println("\n ----------------- ")
         val newBound = RationalInterval(currentBound.xlo + stepSize,
               currentBound.xhi - stepSize)
-        val solver = new Solver
+        val solver = new NumericSolver
 
         if (i % 5 == 0) println("iteration: " + i + " checking bounds: " + newBound)
         val res = solver.checkBound(varCons, tree, newBound)

@@ -41,6 +41,7 @@ trait AbstractZ3Solver extends solvers.IncrementalSolverBuilder {
 
   protected[leon] var intSort: Z3Sort = null
   protected[leon] var boolSort: Z3Sort = null
+  protected[leon] var realSort: Z3Sort = null
   protected[leon] var setSorts: Map[TypeTree, Z3Sort] = Map.empty
   protected[leon] var mapSorts: Map[TypeTree, Z3Sort] = Map.empty
   protected[leon] var unitSort: Z3Sort = null
@@ -122,6 +123,7 @@ trait AbstractZ3Solver extends solvers.IncrementalSolverBuilder {
 
       intSort = z3.mkIntSort
       boolSort = z3.mkBoolSort
+      realSort = z3.mkRealSort
 
       def typeToSortRef(tt: TypeTree): ADTSortReference = tt match {
         case BooleanType => RegularSort(boolSort)
@@ -168,6 +170,7 @@ trait AbstractZ3Solver extends solvers.IncrementalSolverBuilder {
     
     intSort = z3.mkIntSort
     boolSort = z3.mkBoolSort
+    realSort = z3.mkRealSort
     setSorts = Map.empty
     setCardFuns = Map.empty
 
@@ -271,6 +274,9 @@ trait AbstractZ3Solver extends solvers.IncrementalSolverBuilder {
   protected[leon] def typeToSort(tt: TypeTree): Z3Sort = tt match {
     case Int32Type => intSort
     case BooleanType => boolSort
+    // TODO: remove? this probably is quite right, not sure where one needs it anyway
+    case Float64Type => realSort
+    case RationalType => realSort
     case UnitType => unitSort
     case AbstractClassType(cd) => adtSorts(cd)
     case CaseClassType(cd) => {
@@ -421,6 +427,15 @@ trait AbstractZ3Solver extends solvers.IncrementalSolverBuilder {
         case Not(e) => z3.mkNot(rec(e))
         case IntLiteral(v) => z3.mkInt(v, intSort)
         case BooleanLiteral(v) => if (v) z3.mkTrue() else z3.mkFalse()
+        case FloatLiteral(v) =>
+          val rational = ceres.common.Rational.rationalFromReal(v)
+          // This should actually already be fine
+          val scaledValue = ceres.common.Rational.scaleToIntsDown(rational)
+          z3.mkReal(scaledValue.n.toInt, scaledValue.d.toInt)
+        case RationalLiteral(v) =>
+          // TODO: not sound
+          val scaledValue = ceres.common.Rational.scaleToIntsDown(v)
+          z3.mkReal(scaledValue.n.toInt, scaledValue.d.toInt)
         case UnitLiteral => unitValue
         case Equals(l, r) => z3.mkEq(rec(l), rec(r))
         case Plus(l, r) => z3.mkAdd(rec(l), rec(r))
@@ -429,6 +444,11 @@ trait AbstractZ3Solver extends solvers.IncrementalSolverBuilder {
         case Division(l, r) => z3.mkDiv(rec(l), rec(r))
         case Modulo(l, r) => z3.mkMod(rec(l), rec(r))
         case UMinus(e) => z3.mkUnaryMinus(rec(e))
+        case FUMinus(rhs) => z3.mkUnaryMinus(rec(rhs))
+        case FPlus(l, r) => z3.mkAdd(rec(l), rec(r))
+        case FMinus(l, r) => z3.mkSub(rec(l), rec(r))
+        case FTimes(l, r) => z3.mkMul(rec(l), rec(r))
+        case FDivision(l, r) => z3.mkDiv(rec(l), rec(r))
         case LessThan(l, r) => z3.mkLT(rec(l), rec(r))
         case LessEquals(l, r) => z3.mkLE(rec(l), rec(r))
         case GreaterThan(l, r) => z3.mkGT(rec(l), rec(r))

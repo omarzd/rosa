@@ -9,32 +9,46 @@ import scala.collection.immutable.HashMap
 import Sat._
 
 import purescala.Trees._
+import purescala.Definitions._
+import solvers.z3._
+import solvers._
 
 /* TODO:
    - make this break if z3 has wrong version.
    - conversion from BigInt to Int not safe when constructing expression
-   - 
+      (the code for that is now in solver.z3.AbstractZ3Solver) 
  */
 
 // keeps only one Z3 solver around
-class Solver {
+// extending the uninterpreted solver takes care of the functionmap related details
+class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3Solver(context) {
+  override val name = "numeric solver"
+  override val description = "Z3 solver with some numeric convenience methods"
 
   var verbose = false
   var diagnose = true
 
-  val z3cfg = new Z3Config(
+  override protected[leon] val z3cfg = new Z3Config(
     "MODEL" -> true,
     "TIMEOUT" -> 500,
     "TYPE_CHECK" -> true,
     "WELL_SORTED_CHECK" -> true
   )
 
-  var z3 = new Z3Context(z3cfg)
-  val realSort = z3.mkRealSort
+  setProgram(prog)
+  initZ3
 
-  val solver = z3.mkSolver
+  var solver = z3.mkSolver
+
+  /*override def initZ3() {
+    super.initZ3
+    //realSort = z3.mkRealSort
+    solver = z3.mkSolver
+  }*/
 
   var variables: Map[Variable, Z3AST] = Map.empty
+
+  // TODO this can be done differently
 
   // one way, we can't remove them again
   def addVariables(varConstraints: Map[Variable, RationalInterval]) = {
@@ -67,8 +81,22 @@ class Solver {
     solver.assertCnstr(boundsInZ3)
   }
 
+  //this should replace the call addVariables at some point
+  def assertCnstr(expr: Expr) = {
+    val exprInZ3 = toZ3Formula(expr).get
+    solver.assertCnstr(exprInZ3)
+  }
+
+  def push = {
+    solver.push
+  }
+
+  def pop = {
+    solver.pop(1)
+  }
+
   def checkLowerBound(expr: Expr, bound: Rational): (Sat, String) = {
-    val exprInZ3 = exprToz3(expr, variables)
+    val exprInZ3 = toZ3Formula(expr).get //exprToz3(expr, variables)
     val boundMin = scaleToIntsDown(bound)
     var diagnoseString = ""
    
@@ -96,7 +124,7 @@ class Solver {
   }
 
   def checkUpperBound(expr: Expr, bound: Rational): (Sat, String) = {
-    val exprInZ3 = exprToz3(expr, variables)
+    val exprInZ3 = toZ3Formula(expr).get //exprToz3(expr, variables)
     val boundMax = scaleToIntsUp(bound)
     var diagnoseString = ""
 
@@ -125,7 +153,7 @@ class Solver {
 
   def check(expr: Expr): Sat = {
     solver.push
-    val cnstr = exprToz3(expr, Map.empty)
+    val cnstr = toZ3Formula(expr).get //exprToz3(expr, Map.empty)
     solver.assertCnstr(cnstr)
     val res = solver.check match {
       case Some(true) =>
@@ -144,14 +172,14 @@ class Solver {
 
 
   // TODO: conversion from BigInt to Int not safe
-  private def exprToz3(expr: Expr, varMap: Map[Variable, Z3AST]): Z3AST = expr match {
+  /*private def exprToz3(expr: Expr, varMap: Map[Variable, Z3AST]): Z3AST = expr match {
     case RationalLiteral(v) =>
       // Not sound
       val c = scaleToIntsDown(v)
-      /*println("n: " + v.n)
+      println("n: " + v.n)
       println(v.n.toInt)
       println("d: " + v.d)
-      println(v.d.toInt)*/
+      println(v.d.toInt)
       z3.mkReal(c.n.toInt, c.d.toInt)
     case v @ Variable(id) => varMap(v)
     case FUMinus(rhs) => z3.mkUnaryMinus(exprToz3(rhs, varMap))
@@ -159,6 +187,6 @@ class Solver {
     case FMinus(lhs, rhs) => z3.mkSub(exprToz3(lhs, varMap), exprToz3(rhs, varMap))
     case FTimes(lhs, rhs) => z3.mkMul(exprToz3(lhs, varMap), exprToz3(rhs, varMap))
     case FDivision(lhs, rhs) => z3.mkDiv(exprToz3(lhs, varMap), exprToz3(rhs, varMap))
-  }
+  }*/
 
 }

@@ -20,27 +20,27 @@ import java.math.{BigInteger, BigDecimal}
 object XFloat {
 
   // double constant (we include rdoff error)
-  def apply(d: Double): XFloat = {
+  def apply(d: Double, solver: NumericSolver): XFloat = {
     val rd = rationalFromReal(d)
-    val newRange = XInterval(rd)
+    val newRange = XInterval(rd, solver)
     val rndoff = roundoff(rd)
     val newError = addNoise(new RationalForm(Rational.zero), rndoff)
-    return new XFloat(newRange, newError)
+    return new XFloat(newRange, newError, solver)
   }
 
   // constant
-  def apply(r: Rational): XFloat = {
-    val newRange = XInterval(r)
+  def apply(r: Rational, solver: NumericSolver): XFloat = {
+    val newRange = XInterval(r, solver)
     val newError = new RationalForm(Rational(0l, 1l))
-    return new XFloat(newRange, newError)
+    return new XFloat(newRange, newError, solver)
   }
 
   // variable
-  def apply(v: Variable, a: Rational, b: Rational): XFloat = {
-    val newRange = XInterval(v, a, b)
+  def apply(v: Variable, a: Rational, b: Rational, solver: NumericSolver): XFloat = {
+    val newRange = XInterval(v, a, b, solver)
     val rndoff = roundoff(RationalInterval(a, b)) // another version of that fnc?
     val newError = addNoise(new RationalForm(Rational.zero), rndoff)
-    return new XFloat(newRange, newError)
+    return new XFloat(newRange, newError, solver)
   }
 
   // Unit roundoff
@@ -61,7 +61,7 @@ object XFloat {
 }
 
 
-class XFloat(val realRange: XInterval, val error: RationalForm) {
+class XFloat(val realRange: XInterval, val error: RationalForm, solver: NumericSolver) {
   import XFloat._
 
   // This assertion is incorrect, because we use an optimization for
@@ -77,7 +77,7 @@ class XFloat(val realRange: XInterval, val error: RationalForm) {
     return max(abs(i.xlo), abs(i.xhi))
   }
 
-  def unary_-(): XFloat = new XFloat(-realRange, -error)
+  def unary_-(): XFloat = new XFloat(-realRange, -error, solver)
 
   //i.e. compute new real range, propagate errors, add new roundoff
   // To be 100% correct, there is also a contribution from the old errors,
@@ -88,7 +88,7 @@ class XFloat(val realRange: XInterval, val error: RationalForm) {
     val newError = addNoise(this.error + y.error, rndoff)
     if(verbose) println("\naddition, newRange: " + newRange)
     if(verbose) println("            roundoff: " + rndoff)
-    return new XFloat(newRange, newError)
+    return new XFloat(newRange, newError, solver)
   }
 
   def -(y: XFloat): XFloat = {
@@ -97,7 +97,7 @@ class XFloat(val realRange: XInterval, val error: RationalForm) {
     val newError = addNoise(this.error - y.error, rndoff)
     if(verbose) println("\nsubtraction, newRange: " + newRange)
     if(verbose) println("               roundoff: " + rndoff)
-    return new XFloat(newRange, newError)
+    return new XFloat(newRange, newError, solver)
   }
 
   def *(y: XFloat): XFloat = {
@@ -109,9 +109,10 @@ class XFloat(val realRange: XInterval, val error: RationalForm) {
     val yErr = y.error
     val xErr = this.error
     val newError = addNoise(xAA*yErr + yAA*xErr + xErr*yErr, rndoff)
+    if (verbose) println("multiplication: " + this.realRange.tree + "  *  " + y.realRange.tree)
     if(verbose) println("\nmultiplication, newRange: " + newRange)
     if(verbose) println("                  roundoff: " + rndoff)
-    return new XFloat(newRange, newError)
+    return new XFloat(newRange, newError, solver)
   }
 
   // TODO: check the constant thing is fine
@@ -122,7 +123,7 @@ class XFloat(val realRange: XInterval, val error: RationalForm) {
       
 
     // Compute approximation
-    val kAA = RationalForm((XInterval(Rational(1l)) / y.realRange).interval)
+    val kAA = RationalForm((XInterval(Rational(1l), solver) / y.realRange).interval)
     val xAA = RationalForm(this.realRange.interval)
     val xErr = this.error
 
@@ -137,7 +138,7 @@ class XFloat(val realRange: XInterval, val error: RationalForm) {
     val newError = addNoise(xAA*gErr + kAA*xErr + xErr*gErr, rndoff)
     if(verbose) println("\ndivision, newRange: " + newRange)
     if(verbose) println("            roundoff: " + rndoff)
-    return new XFloat(newRange, newError)
+    return new XFloat(newRange, newError, solver)
   }
 
   override def toString: String = this.interval.toString + " - (" +
