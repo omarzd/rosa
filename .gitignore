@@ -10,3 +10,6 @@ target
 
 # synthesis
 derivation*.dot
+
+# Mac
+.DS_STORE
