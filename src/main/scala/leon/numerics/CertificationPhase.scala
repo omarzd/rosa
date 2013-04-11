@@ -11,12 +11,6 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
   val name = "Certification"
   val description = "Floating-point certification"
 
-  /*
-    TODO: decide when we go from doubles to rationals, in the VC generation
-    or only during checking?
-
-  */
-
   /*override val definedOptions: Set[LeonOptionDef] = Set( )*/
 
   /*
@@ -42,10 +36,12 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
   }
 
 
-  def checkVerificationConditions(reporter: Reporter, vcs: Seq[VerificationCondition]):
+  def checkVerificationConditions(reporter: Reporter, vcs: Seq[VerificationCondition],
+    ctx: LeonContext, program: Program):
     CertificationReport = {
 
-    val prover = new Prover(reporter)
+    val solver = new NumericSolver(ctx, program)
+    val prover = new Prover(reporter, ctx, solver)
 
     for(vc <- vcs) {
       prover.check(vc) 
@@ -56,13 +52,15 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
   def run(ctx: LeonContext)(program: Program): CertificationReport = {
     val reporter = ctx.reporter
 
-    BoundsIterator.setReporter(reporter)
-
+    /*BoundsIterator.setReporter(reporter)
+    BoundsIterator.setContext(ctx)
+    BoundsIterator.setProgram(program)
+    */
     reporter.info("Running Certification phase")
 
     val vcs = generateVerificationConditions(reporter, program)
     reporter.info("Generated " + vcs.size + " verification conditions")
-    checkVerificationConditions(reporter, vcs)
+    checkVerificationConditions(reporter, vcs, ctx, program)
   }
 
 }

@@ -34,7 +34,7 @@ class Analyser(reporter: Reporter) {
     } else {
       val bounds = extractVariableBounds(pre.get)
       reporter.info("found variable bounds: " + bounds)
-      Seq(VerificationCondition(funDef, bounds, body, post.get))
+      Seq(VerificationCondition(pre.get, body, post.get, funDef, bounds))
     }
   }
 

@@ -10,8 +10,8 @@ object XInterval {
   //def apply(d: Double) = new XInterval(Map.empty,
   //  RationalLiteral(Rational.rationalFromReal(d)),
   //  new RationalForm(Rational.rationalFromReal(d)))
-  def apply(r: Rational) = new XInterval(Map.empty, RationalLiteral(r),
-    new RationalForm(r))
+  def apply(r: Rational, solver: NumericSolver) = new XInterval(Map.empty, RationalLiteral(r),
+    new RationalForm(r), solver)
 
   //def apply(v: Variable, a: Double, b: Double) = {
   //  val int = RationalInterval(Rational.rationalFromReal(a),
@@ -19,9 +19,9 @@ object XInterval {
   //  new XInterval(Map(v -> int), v, RationalForm(int))
   //}
 
-  def apply(v: Variable, a: Rational, b: Rational) = {
+  def apply(v: Variable, a: Rational, b: Rational, solver: NumericSolver) = {
     val int = RationalInterval(a, b)
-    new XInterval(Map(v -> int), v, RationalForm(int))
+    new XInterval(Map(v -> int), v, RationalForm(int), solver)
   }
   // there is duplication here
   // This method allows us to define the affine forms such that several
@@ -39,39 +39,44 @@ object XInterval {
   Returns intervals sound wrt. to reals, not floats.
  */
 class XInterval(val variables: Map[Variable, RationalInterval],
-  val tree: Expr, val approx: RationalForm) {
+  val tree: Expr, val approx: RationalForm, solver: NumericSolver) {
 
   // TODO: we could (sanity) check that approx is indeed AA(tree)
 
-  def unary_-(): XInterval = new XInterval(variables, FUMinus(tree), -approx)
+  def unary_-(): XInterval = new XInterval(variables, FUMinus(tree), -approx, solver)
 
   def +(y: XInterval): XInterval =
     new XInterval(this.variables ++ y.variables, FPlus(this.tree, y.tree),
-      this.approx + y.approx)
+      this.approx + y.approx, solver)
 
   def -(y: XInterval): XInterval =
     new XInterval(this.variables ++ y.variables, FMinus(this.tree, y.tree),
-      this.approx - y.approx)
+      this.approx - y.approx, solver)
 
-  def *(y: XInterval): XInterval =
+  def *(y: XInterval): XInterval = {
+    /*println("multiplying " + this.tree + "  *  " + y.tree)
+    println("approx. x :" + approx.x0 + "  -  " + approx.noise)
+    println("approx. y :" + y.approx.x0 + "  -  " + y.approx.noise)
+    */
     new XInterval(this.variables ++ y.variables, FTimes(this.tree, y.tree),
-      this.approx * y.approx)
+      this.approx * y.approx, solver)
+  }
 
   def /(y: XInterval): XInterval =
     new XInterval(this.variables ++ y.variables, FDivision(this.tree, y.tree),
-      this.approx / y.approx)
+      this.approx / y.approx, solver)
 
   override def toString: String = //"%s -> %s".format(interval.toString, tree.toString)
     interval.toString
 
   def interval: RationalInterval = {
-    BoundsIterator.tightenRange(variables, tree, new RationalInterval(approx.intervalDouble))
+    BoundsIterator.tightenRange(solver, variables, tree, new RationalInterval(approx.intervalDouble))
   }
 
   // TODO: cache results
   def intervalDouble: Interval = {
     //val newIntLinear = IntervalBounds.determineRangeLinear(tree, new RationalInterval(approx.interval))
-    val newIntBinary = BoundsIterator.tightenRange(variables, tree, new RationalInterval(approx.intervalDouble))
+    val newIntBinary = BoundsIterator.tightenRange(solver, variables, tree, new RationalInterval(approx.intervalDouble))
     //newIntBinary.toInterval
     approx.intervalDouble
   }
