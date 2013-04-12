@@ -430,6 +430,7 @@ trait AbstractZ3Solver extends solvers.IncrementalSolverBuilder {
         case FloatLiteral(v) =>
           val rational = ceres.common.Rational.rationalFromReal(v)
           // This should actually already be fine
+          //val scaledValue = rational
           val scaledValue = ceres.common.Rational.scaleToIntsDown(rational)
           z3.mkReal(scaledValue.n.toInt, scaledValue.d.toInt)
         case RationalLiteral(v) =>

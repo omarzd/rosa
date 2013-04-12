@@ -38,16 +38,16 @@ object BoundsIterator {
 
  // TODO: Should choose the correct strategy (i.e. maybe first do a quick check
    // whether binary search makes sense
-  def tightenRange(solver: NumericSolver, varCons: Map[Variable, RationalInterval], tree: Expr,
-    initialBound: RationalInterval): RationalInterval = {
-    //val varCons = getVariableConstraints(tree)
+  def tightenRange(solver: NumericSolver, tree: Expr, initialBound: RationalInterval): RationalInterval = tree match {
+    // Nothing to do for constants
+    case IntLiteral(v) => initialBound
+    case RationalLiteral(v) => initialBound
+    case FloatLiteral(v) => initialBound
 
-    if (!varCons.isEmpty) {
-      /*val solver = new NumericSolver(leonContext)
-      solver.setProgram(program)
-      solver.initZ3
-      solver.addVariables(varCons)*/
+    // Also nothing to do for variables
+    case Variable(id) => initialBound
 
+    case _ =>
       val a = initialBound.xlo
       val b = initialBound.xhi
 
@@ -60,19 +60,15 @@ object BoundsIterator {
         println("\n============Looking for lowerbound")
       }
       val newLowerBound = getLowerBound(a, b, solver, tree, 0)
-      
+    
       if (verbose) {
         println("\n============Looking for upperbound")
       }
       val newUpperBound = getUpperBound(a, b, solver, tree, 0)
-     
+   
       // Remove this check once we're fairly sure it all works:
       printBoundsResult(checkBounds(solver, tree, newLowerBound, newUpperBound), "final")
-
-      return RationalInterval(newLowerBound, newUpperBound)
-    }
-    // This can happen for constants
-    return initialBound
+      RationalInterval(newLowerBound, newUpperBound)
   }
   
   def checkBounds(solver: NumericSolver, tree: Expr,
@@ -93,7 +89,16 @@ object BoundsIterator {
       return a
     }
     else {
+      if (verbose) {
+        println(a + "      -    " +b)
+        println("a: " + a.toFractionString)
+        println("b: " + b.toFractionString)
+      }
       val mid = a + (b - a) / Rational(2l)
+      if (verbose) {
+        println("mid: " + mid)
+        println("mid: " + mid.toFractionString)
+      }
       val res = solver.checkLowerBound(tree, mid)
       
       if (verbose) {

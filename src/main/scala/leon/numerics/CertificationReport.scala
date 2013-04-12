@@ -6,16 +6,23 @@ object CertificationReport {
 
 
   private val infoHeader: String = " |---------|\n" +
-                                   "| Summary |-" + ("-" * 37) + "|\n" +
+                                   "| Summary |-" + ("-" * 64) + "|\n" +
                                    "|_________|"
 
-  private val infoSep: String = "|" + ("_" * 48) + "|\n"
+  private val infoSep: String = "|" + ("_" * 75) + "|\n"
 
   private def infoLine(vc: VerificationCondition): String = {
-    "|%-25s  %-10s %-10s|".format(
+    "|%-25s  %-10s %-10s %-26s|\n|    %-30s |".format(
       vc.funDef.id.toString,
       vc.status,
-      vc.time)
+      vc.time,
+      " ",
+      formatResult(vc.res))
+  }
+
+  private def formatResult(res: Option[XFloat]): String = res match {
+    case Some(xf) => xf.toString
+    case None => "[?, ?]"
   }
 }
 
