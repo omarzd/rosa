@@ -30,11 +30,10 @@ class Prover(reporter: Reporter, ctx: LeonContext, solver: NumericSolver) {
     solver.assertCnstr(vc.precondition)
 
     try {
+      val t1 = System.nanoTime
       val exprResult: XFloat = inXFloats(vc.expr, variables)
-      reporter.info("result: " + exprResult)
-      vc.res = Some(exprResult.toString)
 
-      /*
+      /* 
       val resBound = exprResult.interval
       val resCondition =
         And(LessEquals(ResultVariable(), RationalLiteral(resBound.xhi)),
@@ -47,16 +46,24 @@ class Prover(reporter: Reporter, ctx: LeonContext, solver: NumericSolver) {
       // postcondition is not empty, otherwise this VC would not exist
       val condition =
         if (vc.funDef.precondition.isEmpty) {
-          Implies(And(resCondition, rndoffCondition), vc.postCondition)
+          Implies(And(resCondition, rndoffCondition), vc.postcondition)
         } else {
           // TODO: maybe filter out irrelevant stuff from the precondition/postcondition?
           Implies(And(vc.funDef.precondition.get, And(resCondition, rndoffCondition)),
-            vc.postCondition)
+            vc.postcondition)
         }
 
         val result = solver.check(condition)
         reporter.info("VC is " + result)
-        vc.status = result*/
+        vc.status = result
+        */
+        val t2 = System.nanoTime
+        val dt = ((t2 - t1) / 1000000) / 1000.0 // should be secs
+
+        reporter.info("result: " + exprResult)
+        vc.res = Some(exprResult.toString)
+        vc.time = Some(dt)
+
       }
       catch {
         case UnsupportedFragmentException(msg) =>

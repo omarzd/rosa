@@ -12,10 +12,10 @@ object CertificationReport {
   private val infoSep: String = "|" + ("_" * 78) + "|\n"
 
   private def infoLine(vc: VerificationCondition): String = {
-    "|%-25s  %-10s %-10s %-29s|\n|    %-33s |".format(
+    "|%-25s  %-10s %-10s %-29s|\n|    %-38s |".format(
       vc.funDef.id.toString,
       vc.status,
-      vc.time,
+      formatTime(vc.time),
       " ",
       formatResult(vc.res))
   }
@@ -24,6 +24,12 @@ object CertificationReport {
     case Some(xf) => xf
     case None => "[?, ?]"
   }
+
+  private def formatTime(time: Option[Double]): String = time match {
+    case Some(xf) => xf.toString
+    case None => " - "
+  }
+
 }
 
 // TODO: look at Verification report and copy...
