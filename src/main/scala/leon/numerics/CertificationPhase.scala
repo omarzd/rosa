@@ -11,8 +11,6 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
   val name = "Certification"
   val description = "Floating-point certification"
 
-  /*override val definedOptions: Set[LeonOptionDef] = Set( )*/
-
   /*
     Since we can have more than one VC for each function, we need to make sure
     that we cover everything, i.e. we don't show only a subpart.
@@ -52,10 +50,6 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
   def run(ctx: LeonContext)(program: Program): CertificationReport = {
     val reporter = ctx.reporter
 
-    /*BoundsIterator.setReporter(reporter)
-    BoundsIterator.setContext(ctx)
-    BoundsIterator.setProgram(program)
-    */
     reporter.info("Running Certification phase")
 
     val vcs = generateVerificationConditions(reporter, program)

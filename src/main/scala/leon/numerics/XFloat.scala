@@ -8,7 +8,6 @@ import RationalForm._
 
 import purescala.Trees._
 
-// This can go once we fix the contruction below
 import java.math.{BigInteger, BigDecimal}
 
 /**
@@ -91,9 +90,7 @@ class XFloat(val tree: Expr, val approxRange: RationalForm, val error: RationalF
 
   def unary_-(): XFloat = new XFloat(FUMinus(tree), -approxRange, -error, solver)
 
-  //i.e. compute new real range, propagate errors, add new roundoff
-  // To be 100% correct, there is also a contribution from the old errors,
-  // (this.error + y.error) * \delta^2
+  // To be 100% correct, there is also a contribution from the old errors, (this.error + y.error) * \delta^2
   def +(y: XFloat): XFloat = {
     val newTree = FPlus(this.tree, y.tree)
     val newApprox = this.approxRange + y.approxRange
@@ -101,8 +98,7 @@ class XFloat(val tree: Expr, val approxRange: RationalForm, val error: RationalF
     val newRange = getTightInterval(newTree, newApprox)
     val rndoff = roundoff(newRange)
     val newError = addNoise(this.error + y.error, rndoff)
-    if(verbose) println("\naddition, newRange: " + newRange)
-    if(verbose) println("            roundoff: " + rndoff)
+    if(verbose) println("\naddition, newRange: " + newRange + "\n roundoff: " + rndoff)
     return new XFloat(newTree, newApprox, newError, solver)
   }
 
@@ -113,8 +109,7 @@ class XFloat(val tree: Expr, val approxRange: RationalForm, val error: RationalF
     val newRange = getTightInterval(newTree, newApprox)
     val rndoff = roundoff(newRange)
     val newError = addNoise(this.error - y.error, rndoff)
-    if(verbose) println("\nsubtraction, newRange: " + newRange)
-    if(verbose) println("               roundoff: " + rndoff)
+    if(verbose) println("\nsubtraction, newRange: " + newRange + "\n roundoff: " + rndoff)
     return new XFloat(newTree, newApprox, newError, solver)
   }
 
@@ -131,8 +126,7 @@ class XFloat(val tree: Expr, val approxRange: RationalForm, val error: RationalF
     val xErr = this.error
     val newError = addNoise(xAA*yErr + yAA*xErr + xErr*yErr, rndoff)
     if (verbose) println("multiplication: " + this.tree + "  *  " + y.tree)
-    if(verbose) println("\nmultiplication, newRange: " + newRange)
-    if(verbose) println("                  roundoff: " + rndoff)
+    if(verbose) println("\nmultiplication, newRange: " + newRange + "\n roundoff: " + rndoff)
     return new XFloat(newTree, newApprox, newError, solver)
   }
 
@@ -145,14 +139,12 @@ class XFloat(val tree: Expr, val approxRange: RationalForm, val error: RationalF
     // Compute approximation
     val tightInverse = getTightInterval(FDivision(IntLiteral(1), y.tree), y.approxRange.inverse)
     val kAA = RationalForm(tightInverse)
-
     val xAA = RationalForm(this.realInterval)
     val xErr = this.error
 
     val yInt = y.interval
     val a = min(abs(yInt.xlo), abs(yInt.xhi))
-    // make this negOne constant or sth like that
-    val errorMultiplier = Rational(-1l, 1l) / (a*a)
+    val errorMultiplier = negOne / (a*a)
     val gErr = y.error * new RationalForm(errorMultiplier)
     
     // Now do the multiplication x * (1/y)
@@ -176,18 +168,7 @@ class XFloat(val tree: Expr, val approxRange: RationalForm, val error: RationalF
     // it may be for now enough to check that it still has some constraints
     assert(solver.getNumScopes > 0, "Trying to tighten interval but no scopes left!")
 
-    //println("\ncomputing tight range for " + tree)
-    val appInt = approx.interval
-    //println("initial range: " + appInt)
-    //println(appInt.xlo.toFractionString + "   -  " + appInt.xhi.toFractionString)
-
-    /*if (tree.toString == "(((2.625 - x) + (((x * y) * (x * y)) * (x * y))) * ((2.625 - x) + (((x * y) * (x * y)) * (x * y))))" ) {
-      BoundsIterator.verbose = true
-    }*/
-
-    // Fix the scaling issue
-    val res = solver.tightenRange(tree, new RationalInterval(approx.intervalDouble))
-    //BoundsIterator.verbose = false
-    res
+    // TODO: Fix the scaling issue, so that we can remove this extra constructor
+    solver.tightenRange(tree, new RationalInterval(approx.intervalDouble))
   }
 }
