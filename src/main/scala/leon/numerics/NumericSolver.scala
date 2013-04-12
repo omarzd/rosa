@@ -13,6 +13,11 @@ import purescala.Definitions._
 import solvers.z3._
 import solvers._
 
+object NumericSolver {
+
+}
+
+
 /* TODO:
    - make this break if z3 has wrong version.
    - conversion from BigInt to Int not safe when constructing expression

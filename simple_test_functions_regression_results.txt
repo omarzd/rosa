@@ -1,76 +1,52 @@
+qi'
 [info] [ Info  ] Running Certification phase
-[info] [ Info  ] -----> Analysing function bspline3...
-[info] [ Info  ] found variable bounds: Map(u -> [0,1])
-[info] [ Info  ] -----> Analysing function rigidBody1...
-[info] [ Info  ] found variable bounds: Map(x1 -> [-15,15], x2 -> [-15,15], x3 -> [-15,15])
-[info] [ Info  ] -----> Analysing function bspline1...
-[info] [ Info  ] found variable bounds: Map(u -> [0,1])
-[info] [ Info  ] -----> Analysing function goldstein...
-[info] [ Info  ] found variable bounds: Map(x -> [-1.5,0.5], y -> [0.5,1.5])
-[info] [ Info  ] -----> Analysing function rigidBody2...
-[info] [ Info  ] found variable bounds: Map(x1 -> [-15,15], x2 -> [-15,15], x3 -> [-15,15])
 [info] [ Info  ] -----> Analysing function motzkin...
 [info] [ Info  ] found variable bounds: Map(x -> [-5.6,1.3], y -> [45.3,63], z -> [3.2,15.7])
-[info] [ Info  ] -----> Analysing function beales...
-[info] [ Info  ] found variable bounds: Map(x -> [-4,0.5], y -> [1.5,4.45])
-[info] [ Info  ] -----> Analysing function bspline0...
-[info] [ Info  ] found variable bounds: Map(u -> [0,1])
-[info] [ Info  ] -----> Analysing function doppler...
-[info] [ Info  ] found variable bounds: Map(u -> [-100,100], v -> [20,20000], T -> [-30,50])
+[info] [ Info  ] -----> Analysing function rigidBody1...
+[info] [ Info  ] found variable bounds: Map(x1 -> [-15,15], x2 -> [-15,15], x3 -> [-15,15])
+[info] [ Info  ] -----> Analysing function rigidBody2...
+[info] [ Info  ] found variable bounds: Map(x1 -> [-15,15], x2 -> [-15,15], x3 -> [-15,15])
+[info] [ Info  ] -----> Analysing function matyas...
+[info] [ Info  ] found variable bounds: Map(x -> [-9,-5], y -> [1,3])
 [info] [ Info  ] -----> Analysing function camel...
 [info] [ Info  ] found variable bounds: Map(x -> [-5,5], y -> [-5,5])
 [info] [ Info  ] -----> Analysing function bspline2...
 [info] [ Info  ] found variable bounds: Map(u -> [0,1])
+[info] [ Info  ] -----> Analysing function bspline0...
+[info] [ Info  ] found variable bounds: Map(u -> [0,1])
+[info] [ Info  ] -----> Analysing function bspline1...
+[info] [ Info  ] found variable bounds: Map(u -> [0,1])
+[info] [ Info  ] -----> Analysing function bspline3...
+[info] [ Info  ] found variable bounds: Map(u -> [0,1])
 [info] [ Info  ] -----> Analysing function booths...
 [info] [ Info  ] found variable bounds: Map(x -> [-9,-5], y -> [1,3])
-[info] [ Info  ] -----> Analysing function matyas...
-[info] [ Info  ] found variable bounds: Map(x -> [-9,-5], y -> [1,3])
+[info] [ Info  ] -----> Analysing function beales...
+[info] [ Info  ] found variable bounds: Map(x -> [-4,0.5], y -> [1.5,4.45])
+[info] [ Info  ] -----> Analysing function goldstein...
+[info] [ Info  ] found variable bounds: Map(x -> [-1.5,0.5], y -> [0.5,1.5])
 [info] [ Info  ] -----> Analysing function jetEngine...
 [info] [ Info  ] found variable bounds: Map(x1 -> [-5,5], x2 -> [-20,5])
+[info] [ Info  ] -----> Analysing function doppler...
+[info] [ Info  ] found variable bounds: Map(u -> [-100,100], v -> [20,20000], T -> [-30,50])
 [info] [ Info  ] Generated 14 verification conditions
-[info] [ Info  ] Now checking VC of function bspline3
-[info] [ Info  ] result: [-5.086263020965382e-06, 0.1666666666666668] - (1.295260195396016e-16)(abs)
-[info] [ Info  ] Now checking VC of function rigidBody1
-[info] [ Info  ] result: [-705.0000000000006, 705.0000000000006] - (5.578870698741412e-13)(abs)
-[info] [ Info  ] Now checking VC of function bspline1
-[info] [ Info  ] result: [0.1666628519693998, 0.6667200724283865] - (1.184245516230026e-15)(abs)
-[info] [ Info  ] Now checking VC of function goldstein
-[info] !!! WARNING: Z3 SOLVER FAILED
-[info] !!! WARNING: Z3 SOLVER FAILED
-[info] !!! WARNING: Z3 SOLVER FAILED
-[info] !!! WARNING: Z3 SOLVER FAILED
-[info] !!! WARNING: Z3 SOLVER FAILED
-[info] !!! WARNING: Z3 SOLVER FAILED
-[info] !!! WARNING: Z3 SOLVER FAILED
-[info] !!! WARNING: Z3 SOLVER FAILED
-[info] !!! WARNING: Z3 SOLVER FAILED
-[info] !!! WARNING: Z3 SOLVER FAILED
-[info] !!! WARNING: Z3 SOLVER FAILED
-[info] !!! WARNING: Z3 SOLVER FAILED
-[info] !!! WARNING: Z3 SOLVER FAILED
-[info] !!! WARNING: Z3 SOLVER FAILED
-[info] !!! WARNING: Z3 SOLVER FAILED
-[info] !!! WARNING: Z3 SOLVER FAILED
-[info] !!! WARNING: Z3 SOLVER FAILED
-[info] [ Info  ] result: [-2161.96724892938, 351662.8131091024] - (1.275404180265496e-08)(abs)
-[info] [ Info  ] Now checking VC of function rigidBody2
-[info] [ Info  ] result: [-56010.05252838141, 58740.00000000007] - (6.565081811515938e-11)(abs)
+[error] WARNING: Error setting MBQI: unknown parameter 'mbqi'
 [info] [ Info  ] Now checking VC of function motzkin
 [info] [ Info  ] result: [-61.13473177314764, 491463819.0344583] - (8.215377152686824e-07)(abs)
-[info] [ Info  ] Now checking VC of function beales
+[info] [ Info  ] Now checking VC of function rigidBody1
+[info] [ Info  ] result: [-705.0000000000006, 705.0000000000006] - (5.578870698741412e-13)(abs)
+[info] [ Info  ] Now checking VC of function rigidBody2
+[info] [ Info  ] result: [-56010.05252838141, 58740.00000000007] - (6.565081811515938e-11)(abs)
+[info] [ Info  ] Now checking VC of function matyas
+[info] [ Info  ] result: [9.159963684082005, 36.36000000000003] - (2.681854738284529e-14)(abs)
+[info] [ Info  ] Now checking VC of function camel
+[info] [ Info  ] result: [-0.001017252609436912, 2047.916825612391] - (5.199776097100683e-12)(abs)
+[info] [ Info  ] Now checking VC of function bspline2
 [info] !!! WARNING: Z3 SOLVER FAILED
 [info] !!! WARNING: Z3 SOLVER FAILED
 [info] !!! WARNING: Z3 SOLVER FAILED
 [info] !!! WARNING: Z3 SOLVER FAILED
 [info] !!! WARNING: Z3 SOLVER FAILED
-[info] !!! WARNING: Z3 SOLVER FAILED
-[info] !!! WARNING: Z3 SOLVER FAILED
-[info] !!! WARNING: Z3 SOLVER FAILED
-[info] !!! WARNING: Z3 SOLVER FAILED
-[info] !!! WARNING: Z3 SOLVER FAILED
-[info] !!! WARNING: Z3 SOLVER FAILED
-[info] !!! WARNING: Z3 SOLVER FAILED
-[info] [ Info  ] result: [3.669606807042411, 31836658.23622909] - (9.191321009005603e-08)(abs)
+[info] [ Info  ] result: [0.166620890299478, 0.9166666666666676] - (1.136951643378319e-15)(abs)
 [info] [ Info  ] Now checking VC of function bspline0
 [info] !!! WARNING: Z3 SOLVER FAILED
 [info] !!! WARNING: Z3 SOLVER FAILED
@@ -95,36 +71,10 @@
 [info] !!! WARNING: Z3 SOLVER FAILED
 [info] WARNING: cannot check final bounds.
 [info] [ Info  ] result: [-0.06250000000000024, 0.1666666666666669] - (2.405483220021173e-16)(abs)
-[info] [ Info  ] Now checking VC of function doppler
-[info] !!! WARNING: Z3 SOLVER FAILED
-[info] !!! WARNING: Z3 SOLVER FAILED
-[info] !!! WARNING: Z3 SOLVER FAILED
-[info] !!! WARNING: Z3 SOLVER FAILED
-[info] [ Info  ] result: [-137.6385796994893, -0.0337732998160032] - (1.958494969932472e-12)(abs)
-[info] [ Info  ] Now checking VC of function camel
-[info] [ Info  ] result: [-0.001017252609436912, 2047.916825612391] - (5.199776097100683e-12)(abs)
-[info] [ Info  ] Now checking VC of function bspline2
-[info] !!! WARNING: Z3 SOLVER FAILED
-[info] !!! WARNING: Z3 SOLVER FAILED
-[info] !!! WARNING: Z3 SOLVER FAILED
-[info] WARNING: cannot check final bounds.
-[info] !!! WARNING: Z3 SOLVER FAILED
-[info] !!! WARNING: Z3 SOLVER FAILED
-[info] !!! WARNING: Z3 SOLVER FAILED
-[info] WARNING: cannot check final bounds.
-[info] !!! WARNING: Z3 SOLVER FAILED
-[info] !!! WARNING: Z3 SOLVER FAILED
-[info] !!! WARNING: Z3 SOLVER FAILED
-[info] WARNING: cannot check final bounds.
-[info] !!! WARNING: Z3 SOLVER FAILED
-[info] !!! WARNING: Z3 SOLVER FAILED
-[info] !!! WARNING: Z3 SOLVER FAILED
-[info] WARNING: cannot check final bounds.
-[info] !!! WARNING: Z3 SOLVER FAILED
-[info] !!! WARNING: Z3 SOLVER FAILED
-[info] !!! WARNING: Z3 SOLVER FAILED
-[info] WARNING: cannot check final bounds.
-[info] [ Info  ] result: [0.166620890299478, 0.9166666666666676] - (1.136951643378319e-15)(abs)
+[info] [ Info  ] Now checking VC of function bspline1
+[info] [ Info  ] result: [0.1666628519693998, 0.6667200724283865] - (1.184245516230026e-15)(abs)
+[info] [ Info  ] Now checking VC of function bspline3
+[info] [ Info  ] result: [-5.086263020965382e-06, 0.1666666666666668] - (1.295260195396016e-16)(abs)
 [info] [ Info  ] Now checking VC of function booths
 [info] !!! WARNING: Z3 SOLVER FAILED
 [info] !!! WARNING: Z3 SOLVER FAILED
@@ -134,11 +84,68 @@
 [info] !!! WARNING: Z3 SOLVER FAILED
 [info] !!! WARNING: Z3 SOLVER FAILED
 [info] [ Info  ] result: [175.2187499999992, 680.0000000000008] - (8.153477892847152e-13)(abs)
-[info] [ Info  ] Now checking VC of function matyas
-[info] [ Info  ] result: [9.159963684082005, 36.36000000000003] - (2.681854738284529e-14)(abs)
+[info] [ Info  ] Now checking VC of function beales
+[info] !!! WARNING: Z3 SOLVER FAILED
+[info] !!! WARNING: Z3 SOLVER FAILED
+[info] !!! WARNING: Z3 SOLVER FAILED
+[info] !!! WARNING: Z3 SOLVER FAILED
+[info] !!! WARNING: Z3 SOLVER FAILED
+[info] !!! WARNING: Z3 SOLVER FAILED
+[info] !!! WARNING: Z3 SOLVER FAILED
+[info] !!! WARNING: Z3 SOLVER FAILED
+[info] !!! WARNING: Z3 SOLVER FAILED
+[info] !!! WARNING: Z3 SOLVER FAILED
+[info] !!! WARNING: Z3 SOLVER FAILED
+[info] !!! WARNING: Z3 SOLVER FAILED
+[info] [ Info  ] result: [3.669606807042411, 31836658.23622909] - (9.191321009005603e-08)(abs)
+[info] [ Info  ] Now checking VC of function goldstein
+[info] !!! WARNING: Z3 SOLVER FAILED
+[info] !!! WARNING: Z3 SOLVER FAILED
+[info] !!! WARNING: Z3 SOLVER FAILED
+[info] !!! WARNING: Z3 SOLVER FAILED
+[info] !!! WARNING: Z3 SOLVER FAILED
+[info] !!! WARNING: Z3 SOLVER FAILED
+[info] !!! WARNING: Z3 SOLVER FAILED
+[info] !!! WARNING: Z3 SOLVER FAILED
+[info] !!! WARNING: Z3 SOLVER FAILED
+[info] !!! WARNING: Z3 SOLVER FAILED
+[info] !!! WARNING: Z3 SOLVER FAILED
+[info] !!! WARNING: Z3 SOLVER FAILED
+[info] !!! WARNING: Z3 SOLVER FAILED
+[info] !!! WARNING: Z3 SOLVER FAILED
+[info] !!! WARNING: Z3 SOLVER FAILED
+[info] !!! WARNING: Z3 SOLVER FAILED
+[info] !!! WARNING: Z3 SOLVER FAILED
+[info] [ Info  ] result: [-2161.96724892938, 351662.8131091024] - (1.275404180265496e-08)(abs)
 [info] [ Info  ] Now checking VC of function jetEngine
 [info] !!! WARNING: Z3 SOLVER FAILED
 [info] !!! WARNING: Z3 SOLVER FAILED
+[info] WARNING: cannot check initial bounds.
+[info] !!! WARNING: Z3 SOLVER FAILED
+[info] !!! WARNING: Z3 SOLVER FAILED
+[info] !!! WARNING: Z3 SOLVER FAILED
+[info] WARNING: cannot check final bounds.
+[info] !!! WARNING: Z3 SOLVER FAILED
+[info] !!! WARNING: Z3 SOLVER FAILED
+[info] !!! WARNING: Z3 SOLVER FAILED
+[info] !!! WARNING: Z3 SOLVER FAILED
+[info] !!! WARNING: Z3 SOLVER FAILED
+[info] WARNING: cannot check initial bounds.
+[info] !!! WARNING: Z3 SOLVER FAILED
+[info] !!! WARNING: Z3 SOLVER FAILED
+[info] !!! WARNING: Z3 SOLVER FAILED
+[info] WARNING: cannot check final bounds.
+[info] !!! WARNING: Z3 SOLVER FAILED
+[info] !!! WARNING: Z3 SOLVER FAILED
+[info] !!! WARNING: Z3 SOLVER FAILED
+[info] !!! WARNING: Z3 SOLVER FAILED
+[info] !!! WARNING: Z3 SOLVER FAILED
+[info] !!! WARNING: Z3 SOLVER FAILED
+[info] WARNING: cannot check initial bounds.
+[info] !!! WARNING: Z3 SOLVER FAILED
+[info] !!! WARNING: Z3 SOLVER FAILED
+[info] !!! WARNING: Z3 SOLVER FAILED
+[info] WARNING: cannot check final bounds.
 [info] !!! WARNING: Z3 SOLVER FAILED
 [info] !!! WARNING: Z3 SOLVER FAILED
 [info] !!! WARNING: Z3 SOLVER FAILED
@@ -147,38 +154,66 @@
 [info] !!! WARNING: Z3 SOLVER FAILED
 [info] !!! WARNING: Z3 SOLVER FAILED
 [info] !!! WARNING: Z3 SOLVER FAILED
+[info] WARNING: cannot check initial bounds.
+[info] !!! WARNING: Z3 SOLVER FAILED
+[info] !!! WARNING: Z3 SOLVER FAILED
+[info] !!! WARNING: Z3 SOLVER FAILED
+[info] WARNING: cannot check final bounds.
 [info] !!! WARNING: Z3 SOLVER FAILED
 [info] !!! WARNING: Z3 SOLVER FAILED
 [info] !!! WARNING: Z3 SOLVER FAILED
 [info] !!! WARNING: Z3 SOLVER FAILED
 [info] !!! WARNING: Z3 SOLVER FAILED
+[info] WARNING: cannot check initial bounds.
 [info] !!! WARNING: Z3 SOLVER FAILED
 [info] !!! WARNING: Z3 SOLVER FAILED
 [info] !!! WARNING: Z3 SOLVER FAILED
-[info] !!! WARNING: Z3 SOLVER FAILED
-[info] !!! WARNING: Z3 SOLVER FAILED
-[info] !!! WARNING: Z3 SOLVER FAILED
+[info] WARNING: cannot check final bounds.
 [info] !!! WARNING: Z3 SOLVER FAILED
 [info] !!! WARNING: Z3 SOLVER FAILED
 [info] !!! WARNING: Z3 SOLVER FAILED
 [info] !!! WARNING: Z3 SOLVER FAILED
 [info] [ Info  ] result: [-1780.36779095154, 4820.019826348348] - (1.657322831762064e-08)(abs)
+[info] [ Info  ] Now checking VC of function doppler
+[info] !!! WARNING: Z3 SOLVER FAILED
+[info] !!! WARNING: Z3 SOLVER FAILED
+[info] !!! WARNING: Z3 SOLVER FAILED
+[info] WARNING: cannot check initial bounds.
+[info] !!! WARNING: Z3 SOLVER FAILED
+[info] WARNING: cannot check final bounds.
+[info] !!! WARNING: Z3 SOLVER FAILED
+[info] !!! WARNING: Z3 SOLVER FAILED
+[info] [ Info  ] result: [-137.6385796994893, -0.0337732998160032] - (1.958494969932472e-12)(abs)
 [info] [ Info  ] |---------|
-[info]           | Summary |--------------------------------------|
+[info]           | Summary |--------------------------------------------------------------------|
 [info]           |_________|
-[info]           |bspline3                   UNKNOWN    None      |
-[info]           |rigidBody1                 UNKNOWN    None      |
-[info]           |bspline1                   UNKNOWN    None      |
-[info]           |goldstein                  UNKNOWN    None      |
-[info]           |rigidBody2                 UNKNOWN    None      |
-[info]           |motzkin                    UNKNOWN    None      |
-[info]           |beales                     UNKNOWN    None      |
-[info]           |bspline0                   UNKNOWN    None      |
-[info]           |doppler                    UNKNOWN    None      |
-[info]           |camel                      UNKNOWN    None      |
-[info]           |bspline2                   UNKNOWN    None      |
-[info]           |booths                     UNKNOWN    None      |
-[info]           |matyas                     UNKNOWN    None      |
-[info]           |jetEngine                  UNKNOWN    None      |
-[info]           |________________________________________________|
-[info] 
+[info]           |motzkin                    UNKNOWN    None                                 |
+[info]           |    [-323297686.6456049, 506050107.5054258] - (8.215377152686824e-07)(abs) |
+[info]           |rigidBody1                 UNKNOWN    None                                 |
+[info]           |    [-705.0000000000006, 705.0000000000006] - (5.578870698741412e-13)(abs) |
+[info]           |rigidBody2                 UNKNOWN    None                                 |
+[info]           |    [-57390.00000000007, 58740.00000000007] - (6.565081811515938e-11)(abs) |
+[info]           |matyas                     UNKNOWN    None                                 |
+[info]           |    [5.939999999999974, 36.36000000000003] - (2.681854738284529e-14)(abs) |
+[info]           |camel                      UNKNOWN    None                                 |
+[info]           |    [-0.001017252609436912, 3032.291666666672] - (5.199776097100683e-12)(abs) |
+[info]           |bspline2                   UNKNOWN    None                                 |
+[info]           |    [-0.02083333333333447, 0.9166666666666676] - (1.136951643378319e-15)(abs) |
+[info]           |bspline0                   UNKNOWN    None                                 |
+[info]           |    [-0.06250000000000024, 0.1666666666666669] - (2.405483220021173e-16)(abs) |
+[info]           |bspline1                   UNKNOWN    None                                 |
+[info]           |    [-0.08333333333333451, 0.9791666666666676] - (1.184245516230026e-15)(abs) |
+[info]           |bspline3                   UNKNOWN    None                                 |
+[info]           |    [-0.06250000000000012, 0.1666666666666668] - (1.295260195396016e-16)(abs) |
+[info]           |booths                     UNKNOWN    None                                 |
+[info]           |    [122.9999999999992, 680.0000000000008] - (8.153477892847152e-13)(abs) |
+[info]           |beales                     UNKNOWN    None                                 |
+[info]           |    [-26.12983848184986, 31836658.23622909] - (9.191321009005603e-08)(abs) |
+[info]           |goldstein                  UNKNOWN    None                                 |
+[info]           |    [2.089897254533555, 3081984.453125013] - (1.275404180265496e-08)(abs) |
+[info]           |jetEngine                  UNKNOWN    None                                 |
+[info]           |    [-2236030.800665697, 2243586.057692324] - (1.657322831762064e-08)(abs) |
+[info]           |doppler                    UNKNOWN    None                                 |
+[info]           |    [-282.4762120545645, 133.5391308606491] - (1.958494969932472e-12)(abs) |
+[info]           |______________________________________________________________________________|
+
