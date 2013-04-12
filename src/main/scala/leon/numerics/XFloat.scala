@@ -21,26 +21,24 @@ object XFloat {
 
   // double constant (we include rdoff error)
   def apply(d: Double, solver: NumericSolver): XFloat = {
-    val rd = rationalFromReal(d)
-    val newRange = XInterval(rd, solver)
-    val rndoff = roundoff(rd)
+    val r = rationalFromReal(d)
+    val rndoff = roundoff(r)
     val newError = addNoise(new RationalForm(Rational.zero), rndoff)
-    return new XFloat(newRange, newError, solver)
+    return new XFloat(RationalLiteral(r), new RationalForm(r), newError, solver)
   }
 
   // constant
   def apply(r: Rational, solver: NumericSolver): XFloat = {
-    val newRange = XInterval(r, solver)
-    val newError = new RationalForm(Rational(0l, 1l))
-    return new XFloat(newRange, newError, solver)
+    val newError = new RationalForm(Rational.zero)
+    return new XFloat(RationalLiteral(r), new RationalForm(r), newError, solver)
   }
 
   // variable
-  def apply(v: Variable, a: Rational, b: Rational, solver: NumericSolver): XFloat = {
-    val newRange = XInterval(v, a, b, solver)
-    val rndoff = roundoff(RationalInterval(a, b)) // another version of that fnc?
+  def apply(v: Variable, range: RationalInterval, solver: NumericSolver): XFloat = {
+    val approx = RationalForm(range)
+    val rndoff = roundoff(range) // another version of that fnc?
     val newError = addNoise(new RationalForm(Rational.zero), rndoff)
-    return new XFloat(newRange, newError, solver)
+    return new XFloat(v, approx, newError, solver)
   }
 
   // Unit roundoff
@@ -58,18 +56,30 @@ object XFloat {
   }
 
   val verbose = false
+
 }
 
-
-class XFloat(val realRange: XInterval, val error: RationalForm, solver: NumericSolver) {
+/**
+  A datatype for range arithmetic that keeps track of floating-point roundoff
+  errors.
+  The solver has to be "preconfigured" with the precondition including bounds
+  on variables.
+  @param tree expression tree
+  @param approxRange approximation of the real-valued range
+  @param floating-point roundoff errors
+  @param solver the Z3 solver used to determine precise real-valued ranges
+ */
+class XFloat(val tree: Expr, val approxRange: RationalForm, val error: RationalForm,
+  solver: NumericSolver) {
   import XFloat._
 
-  // This assertion is incorrect, because we use an optimization for
-  // computing multiplications for RationalForm
-  //assert(error.x0 == Rational(0.0), "midpoint of errors is: " + error.x0)
-
   def interval: RationalInterval = {
-    realRange.interval + error.interval
+    realInterval + error.interval
+  }
+
+  // TODO: cache this
+  def realInterval: RationalInterval = {
+    getTightInterval(tree, approxRange) 
   }
 
   def maxRoundoff: Rational = {
@@ -77,45 +87,53 @@ class XFloat(val realRange: XInterval, val error: RationalForm, solver: NumericS
     return max(abs(i.xlo), abs(i.xhi))
   }
 
-  def unary_-(): XFloat = new XFloat(-realRange, -error, solver)
+  def unary_-(): XFloat = new XFloat(FUMinus(tree), -approxRange, -error, solver)
 
   //i.e. compute new real range, propagate errors, add new roundoff
   // To be 100% correct, there is also a contribution from the old errors,
   // (this.error + y.error) * \delta^2
   def +(y: XFloat): XFloat = {
-    val newRange = this.realRange + y.realRange
-    val rndoff = roundoff(newRange.interval)
+    val newTree = FPlus(this.tree, y.tree)
+    val newApprox = this.approxRange + y.approxRange
+
+    val newRange = getTightInterval(newTree, newApprox)
+    val rndoff = roundoff(newRange)
     val newError = addNoise(this.error + y.error, rndoff)
     if(verbose) println("\naddition, newRange: " + newRange)
     if(verbose) println("            roundoff: " + rndoff)
-    return new XFloat(newRange, newError, solver)
+    return new XFloat(newTree, newApprox, newError, solver)
   }
 
   def -(y: XFloat): XFloat = {
-    val newRange = this.realRange - y.realRange
-    val rndoff = roundoff(newRange.interval)
+    val newTree = FMinus(this.tree, y.tree)
+    val newApprox = this.approxRange - y.approxRange
+
+    val newRange = getTightInterval(newTree, newApprox)
+    val rndoff = roundoff(newRange)
     val newError = addNoise(this.error - y.error, rndoff)
     if(verbose) println("\nsubtraction, newRange: " + newRange)
     if(verbose) println("               roundoff: " + rndoff)
-    return new XFloat(newRange, newError, solver)
+    return new XFloat(newTree, newApprox, newError, solver)
   }
 
   def *(y: XFloat): XFloat = {
-    val newRange = this.realRange * y.realRange
-    val rndoff = roundoff(newRange.interval)
+    val newTree = FTimes(this.tree, y.tree)
+    val newApprox = this.approxRange * y.approxRange
+
+    val newRange = getTightInterval(newTree, newApprox)
+    val rndoff = roundoff(newRange)
     
-    val xAA = RationalForm(this.realRange.interval)
-    val yAA = RationalForm(y.realRange.interval)
+    val xAA = RationalForm(this.realInterval)
+    val yAA = RationalForm(y.realInterval)
     val yErr = y.error
     val xErr = this.error
     val newError = addNoise(xAA*yErr + yAA*xErr + xErr*yErr, rndoff)
-    if (verbose) println("multiplication: " + this.realRange.tree + "  *  " + y.realRange.tree)
+    if (verbose) println("multiplication: " + this.tree + "  *  " + y.tree)
     if(verbose) println("\nmultiplication, newRange: " + newRange)
     if(verbose) println("                  roundoff: " + rndoff)
-    return new XFloat(newRange, newError, solver)
+    return new XFloat(newTree, newApprox, newError, solver)
   }
 
-  // TODO: check the constant thing is fine
   def /(y: XFloat): XFloat = {
     // TODO: catch division by zero
 
@@ -123,8 +141,10 @@ class XFloat(val realRange: XInterval, val error: RationalForm, solver: NumericS
       
 
     // Compute approximation
-    val kAA = RationalForm((XInterval(Rational(1l), solver) / y.realRange).interval)
-    val xAA = RationalForm(this.realRange.interval)
+    val tightInverse = getTightInterval(FDivision(IntLiteral(1), y.tree), y.approxRange.inverse)
+    val kAA = RationalForm(tightInverse)
+
+    val xAA = RationalForm(this.realInterval)
     val xErr = this.error
 
     val yInt = y.interval
@@ -133,15 +153,35 @@ class XFloat(val realRange: XInterval, val error: RationalForm, solver: NumericS
     val errorMultiplier = Rational(-1l, 1l) / (a*a)
     val gErr = y.error * new RationalForm(errorMultiplier)
     
-    val newRange = this.realRange / y.realRange
-    val rndoff = roundoff(newRange.interval)
+    // Now do the multiplication x * (1/y)
+    val newTree = FDivision(this.tree, y.tree)
+    val newApprox = this.approxRange / y.approxRange
+
+    val newRange = getTightInterval(newTree, newApprox)
+    val rndoff = roundoff(newRange)
+    
     val newError = addNoise(xAA*gErr + kAA*xErr + xErr*gErr, rndoff)
     if(verbose) println("\ndivision, newRange: " + newRange)
     if(verbose) println("            roundoff: " + rndoff)
-    return new XFloat(newRange, newError, solver)
+    return new XFloat(newTree, newApprox, newError, solver)
   }
 
   override def toString: String = this.interval.toString + " - (" +
     this.maxRoundoff + ")(abs)" 
 
+  private def getTightInterval(tree: Expr, approx: RationalForm): RationalInterval = {
+    //println("\ncomputing tight range for " + tree)
+    val appInt = approx.interval
+    //println("initial range: " + appInt)
+    //println(appInt.xlo.toFractionString + "   -  " + appInt.xhi.toFractionString)
+
+    /*if (tree.toString == "(((2.625 - x) + (((x * y) * (x * y)) * (x * y))) * ((2.625 - x) + (((x * y) * (x * y)) * (x * y))))" ) {
+      BoundsIterator.verbose = true
+    }*/
+
+    // Fix the scaling issue
+    val res = BoundsIterator.tightenRange(solver, tree, new RationalInterval(approx.intervalDouble))
+    //BoundsIterator.verbose = false
+    res
+  }
 }

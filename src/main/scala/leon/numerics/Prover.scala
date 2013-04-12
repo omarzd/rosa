@@ -1,7 +1,7 @@
 package leon
 package numerics
 
-import ceres.common.Rational
+import ceres.common.{RationalInterval, Rational}
 
 import purescala.Trees._
 import purescala.Common._
@@ -77,8 +77,10 @@ class Prover(reporter: Reporter, ctx: LeonContext, solver: NumericSolver) {
   private def variables2xfloats(vars: Map[Variable, ParRange]): Map[Variable, XFloat] = {
     vars.collect {
       case (k, v) if (v.isDefined) =>
-        k -> XFloat(k, Rational.rationalFromReal(v.lo.get),
-          Rational.rationalFromReal(v.hi.get), solver)
+        k -> XFloat(k,
+                    RationalInterval(Rational.rationalFromReal(v.lo.get),
+                                     Rational.rationalFromReal(v.hi.get)),
+                    solver)
     }
   }
 
