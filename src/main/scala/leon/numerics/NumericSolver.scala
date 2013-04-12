@@ -15,6 +15,11 @@ import solvers._
 
 object NumericSolver {
 
+  val maxIterationsLinear = 100
+  var verbose = false
+  val precision = Rational.rationalFromReal(0.0001)
+  val maxIterationsBinary = 20 
+
 }
 
 
@@ -24,9 +29,9 @@ object NumericSolver {
       (the code for that is now in solver.z3.AbstractZ3Solver) 
  */
 
-// keeps only one Z3 solver around
-// extending the uninterpreted solver takes care of the functionmap related details
 class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3Solver(context) {
+  import NumericSolver._
+  
   override val name = "numeric solver"
   override val description = "Z3 solver with some numeric convenience methods"
 
@@ -43,65 +48,53 @@ class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3
   setProgram(prog)
   initZ3
 
-  var solver = z3.mkSolver
-
-  /*override def initZ3() {
-    super.initZ3
-    //realSort = z3.mkRealSort
-    solver = z3.mkSolver
-  }*/
-
-  var variables: Map[Variable, Z3AST] = Map.empty
-
-  // TODO this can be done differently
-
-  // one way, we can't remove them again
-  def addVariables(varConstraints: Map[Variable, RationalInterval]) = {
-    val newVars: Map[Variable, Z3AST] = varConstraints.map(s =>
-      (s._1, z3.mkFreshConst(s._1.id.name, realSort))
-    )
-    variables = variables ++ newVars
-    if (verbose) { 
-      println("Added new variables: " + newVars)
-      println("New var map: " + variables)
-    }
-
-    val intRanges = varConstraints.map( s =>
-      (s._1, RationalInterval(scaleToIntsDown(s._2.xlo), scaleToIntsUp(s._2.xhi)))
-    )
-    if (verbose) println("ranges:    " + varConstraints)
-    if (verbose) println("intRanges: " + intRanges)
-    // We need to approximate the BigRational to Rational
-    val boundsList: Map[Variable, Z3AST] = varConstraints.map(s =>
-      (s._1, z3.mkAnd(z3.mkGE(variables(s._1),
-          z3.mkReal(intRanges(s._1).xlo.n.toInt, intRanges(s._1).xlo.d.toInt)),
-        z3.mkLE(variables(s._1),
-          z3.mkReal(intRanges(s._1).xhi.n.toInt, intRanges(s._1).xhi.d.toInt))))
-    )
- 
-    val boundsInZ3: Z3AST = boundsList.foldLeft(z3.mkTrue)(
-        (a, m) => z3.mkAnd(a, m._2))
-    if (verbose) println("bounds: " + boundsInZ3)
-
-    solver.assertCnstr(boundsInZ3)
-  }
-
-  //this should replace the call addVariables at some point
-  def assertCnstr(expr: Expr) = {
-    val exprInZ3 = toZ3Formula(expr).get
-    solver.assertCnstr(exprInZ3)
-  }
+  val solver = z3.mkSolver
 
   def push = {
     solver.push
+    if (verbose) println("solver, pushed")
   }
 
   def pop = {
-    solver.pop(1)
+    solver.pop()
+    if (verbose) println("solver, popped")
   }
 
+  def getNumScopes: Int = {
+    solver.getNumScopes
+  }
+  
+  def assertCnstr(expr: Expr) = {
+    val exprInZ3 = toZ3Formula(expr).get
+    solver.assertCnstr(exprInZ3)
+    if (verbose) println("Added constraint: " + exprInZ3)
+  }
+
+  /**
+   * Checks the given expression for satisfiability.
+   */
+  def check(expr: Expr): Sat = {
+    solver.push
+    val cnstr = toZ3Formula(expr).get
+    solver.assertCnstr(cnstr)
+    val res = solver.check match {
+      case Some(true) =>
+        if (verbose) println("--> cond: SAT")
+        SAT
+      case Some(false) =>
+        if (verbose) println("--> cond: UNSAT")
+        UNSAT
+      case None =>
+        println("!!! WARNING: Z3 SOLVER FAILED")
+        Unknown
+    }
+    solver.pop()
+    res
+  }
+
+
   def checkLowerBound(expr: Expr, bound: Rational): (Sat, String) = {
-    val exprInZ3 = toZ3Formula(expr).get //exprToz3(expr, variables)
+    val exprInZ3 = toZ3Formula(expr).get
     val boundMin = scaleToIntsDown(bound)
     var diagnoseString = ""
    
@@ -124,12 +117,12 @@ class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3
       case None => println("!!! WARNING: Z3 SOLVER FAILED")
         Unknown
     }
-    solver.pop(1)
+    solver.pop()
     (res, diagnoseString)
   }
 
   def checkUpperBound(expr: Expr, bound: Rational): (Sat, String) = {
-    val exprInZ3 = toZ3Formula(expr).get //exprToz3(expr, variables)
+    val exprInZ3 = toZ3Formula(expr).get
     val boundMax = scaleToIntsUp(bound)
     var diagnoseString = ""
 
@@ -151,47 +144,138 @@ class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3
       case None => println("!!! WARNING: Z3 SOLVER FAILED")
         Unknown
     }
-    solver.pop(1)
+    solver.pop()
     (res, diagnoseString)
   }
-
-
-  def check(expr: Expr): Sat = {
-    solver.push
-    val cnstr = toZ3Formula(expr).get //exprToz3(expr, Map.empty)
-    solver.assertCnstr(cnstr)
-    val res = solver.check match {
-      case Some(true) =>
-        if (verbose) println("--> cond: SAT")
-        SAT
-      case Some(false) =>
-        if (verbose) println("--> cond: UNSAT")
-        UNSAT
-      case None =>
-        println("!!! WARNING: Z3 SOLVER FAILED")
-        Unknown
-    }
-    solver.pop(1)
-    res
+ 
+  def checkBounds(tree: Expr, lowBound: Rational, upBound: Rational): (Sat, Sat, String) = {
+    val resLow = checkLowerBound(tree, lowBound)
+    val resUp = checkUpperBound(tree, upBound)
+    val diagnoseString = resLow._2 + "\n" + resUp._2
+    (resLow._1, resUp._1, diagnoseString)    
   }
 
+   // TODO: Should choose the correct strategy (i.e. maybe first do a quick check
+   // whether binary search makes sense
+  def tightenRange(tree: Expr, initialBound: RationalInterval): RationalInterval = tree match {
+    // Nothing to do for constants
+    case IntLiteral(v) => initialBound
+    case RationalLiteral(v) => initialBound
+    case FloatLiteral(v) => initialBound
 
-  // TODO: conversion from BigInt to Int not safe
-  /*private def exprToz3(expr: Expr, varMap: Map[Variable, Z3AST]): Z3AST = expr match {
-    case RationalLiteral(v) =>
-      // Not sound
-      val c = scaleToIntsDown(v)
-      println("n: " + v.n)
-      println(v.n.toInt)
-      println("d: " + v.d)
-      println(v.d.toInt)
-      z3.mkReal(c.n.toInt, c.d.toInt)
-    case v @ Variable(id) => varMap(v)
-    case FUMinus(rhs) => z3.mkUnaryMinus(exprToz3(rhs, varMap))
-    case FPlus(lhs, rhs) => z3.mkAdd(exprToz3(lhs, varMap), exprToz3(rhs, varMap))
-    case FMinus(lhs, rhs) => z3.mkSub(exprToz3(lhs, varMap), exprToz3(rhs, varMap))
-    case FTimes(lhs, rhs) => z3.mkMul(exprToz3(lhs, varMap), exprToz3(rhs, varMap))
-    case FDivision(lhs, rhs) => z3.mkDiv(exprToz3(lhs, varMap), exprToz3(rhs, varMap))
-  }*/
+    // Also nothing to do for variables
+    case Variable(id) => initialBound
 
+    case _ =>
+      val a = initialBound.xlo
+      val b = initialBound.xhi
+
+      printBoundsResult(checkBounds(tree, a, b), "initial")
+
+      if (verbose) {
+        println("\nComputing range for " + tree)
+        println("starting from  [" + a + ", " + b + "]")
+        println("\n============Looking for lowerbound")
+      }
+      val newLowerBound = getLowerBound(a, b, tree, 0)
+    
+      if (verbose) println("\n============Looking for upperbound")
+
+      val newUpperBound = getUpperBound(a, b, tree, 0)
+   
+      printBoundsResult(checkBounds(tree, newLowerBound, newUpperBound), "final")
+      RationalInterval(newLowerBound, newUpperBound)
+  }
+   
+  // start with b being the upperBound
+  // TODO: Invariant: the lower bound is always sound, and the upper bound not
+  private def getLowerBound(a: Rational, b: Rational, tree: Expr, count: Int): Rational = {
+    // Enclosure of bound is precise enough
+    if (b-a < precision || count > maxIterationsBinary) {
+      return a
+    }
+    else {
+      if (verbose) {
+        println(a + "      -    " +b)
+        println("a: " + a.toFractionString)
+        println("b: " + b.toFractionString)
+      }
+      val mid = a + (b - a) / Rational(2l)
+      if (verbose) {
+        println("mid: " + mid)
+        println("mid: " + mid.toFractionString)
+      }
+      val res = checkLowerBound(tree, mid)
+      
+      if (verbose) println("checked lwr bound: " + mid + ", with result: " + res)
+        
+      res._1 match {
+        case SAT => getLowerBound(a, mid, tree, count + 1)
+        case UNSAT => getLowerBound(mid, b, tree, count + 1)
+        case Unknown => // Return safe answer
+          return a
+      }
+    }
+  }
+
+  //TODO: Invariant the upper bound is always sound, the lower bnd not
+  private def getUpperBound(a: Rational, b: Rational, tree: Expr, count: Int): Rational = {
+
+    // Enclosure of bound is precise enough
+    if (b-a < precision || count > maxIterationsBinary) {
+      return b
+    }
+    else {
+      val mid = a + (b - a) / Rational(2l)
+      val res = checkUpperBound(tree, mid)
+
+      if (verbose) {
+        println("checked upp bound: " + mid + ", with result: " + res)
+      }
+
+      res._1 match {
+        case SAT => getUpperBound(mid, b, tree, count + 1)
+        case UNSAT => getUpperBound(a, mid, tree, count + 1)
+        case Unknown => // Return safe answer
+          return b
+      }
+    }
+  }
+
+  // which: initial or final
+  private def printBoundsResult(res: (Sat, Sat, String), which: String) = res match {
+    case (SAT, SAT, msg) =>
+      if (reporter != null)
+        reporter.error("!!! ERROR: both " + which + " bounds are not sound!" +
+          "\nmsg: " + msg + "\n ------------------")
+      if (verbose) {
+        println("!!! ERROR: both " + which + " bounds are not sound!" +
+          "\nmsg: " + msg + "\n ------------------")
+        throw new ArithmeticException("ouch")
+      }
+    case (SAT, _, msg) =>
+      if (reporter != null)
+        reporter.error("!!! ERROR: " + which + " lower bound is not sound!" +
+          "\nmsg: " + msg + "\n ------------------")
+      if (verbose) {
+        println("!!! ERROR: " + which + " bounds are not sound!" +
+          "\nmsg: " + msg + "\n ------------------")    
+        throw new ArithmeticException("ouch")
+      }
+    case (_, SAT, msg) =>
+      if (reporter != null)
+        reporter.error("!!! ERROR: " + which + " upper bound is not sound!" +
+          "\nmsg: " + msg + "\n ------------------")
+      if (verbose) {
+        println("!!! ERROR: " + which + " bounds are not sound!" +
+          "\nmsg: " + msg + "\n ------------------")
+        throw new ArithmeticException("ouch")
+      }
+    case (UNSAT, UNSAT, msg) =>
+      if (verbose) {
+        println(which + " bounds check successful.")
+      }
+    case _ =>
+      println("WARNING: cannot check "+which+" bounds.")
+  }
 }

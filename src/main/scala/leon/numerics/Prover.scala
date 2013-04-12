@@ -32,7 +32,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, solver: NumericSolver) {
     try {
       val exprResult: XFloat = inXFloats(vc.expr, variables)
       reporter.info("result: " + exprResult)
-      vc.res = Some(exprResult)
+      vc.res = Some(exprResult.toString)
 
       /*
       val resBound = exprResult.interval

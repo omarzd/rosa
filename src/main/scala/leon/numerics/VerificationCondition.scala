@@ -22,7 +22,7 @@ case class VerificationCondition(val precondition: Expr, val expr: Expr,
   //assert( !(output.isEmpty && absRoundoff.isEmpty), "Empty VC, nothing to prove!")
 
   // for safekeeping the value of the expression
-  var res: Option[XFloat] = None
+  var res: Option[String] = None
 
   var time: Option[Double] = None
   var status: Sat = Unknown

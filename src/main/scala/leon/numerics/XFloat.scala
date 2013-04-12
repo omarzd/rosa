@@ -64,6 +64,8 @@ object XFloat {
   errors.
   The solver has to be "preconfigured" with the precondition including bounds
   on variables.
+  NOTE: this means that once you popped the preconditions, you cannot get any
+  useful bounds anymore.
   @param tree expression tree
   @param approxRange approximation of the real-valued range
   @param floating-point roundoff errors
@@ -170,6 +172,10 @@ class XFloat(val tree: Expr, val approxRange: RationalForm, val error: RationalF
     this.maxRoundoff + ")(abs)" 
 
   private def getTightInterval(tree: Expr, approx: RationalForm): RationalInterval = {
+    // TODO: check that the call to the solver is valid.
+    // it may be for now enough to check that it still has some constraints
+    assert(solver.getNumScopes > 0, "Trying to tighten interval but no scopes left!")
+
     //println("\ncomputing tight range for " + tree)
     val appInt = approx.interval
     //println("initial range: " + appInt)
@@ -180,7 +186,7 @@ class XFloat(val tree: Expr, val approxRange: RationalForm, val error: RationalF
     }*/
 
     // Fix the scaling issue
-    val res = BoundsIterator.tightenRange(solver, tree, new RationalInterval(approx.intervalDouble))
+    val res = solver.tightenRange(tree, new RationalInterval(approx.intervalDouble))
     //BoundsIterator.verbose = false
     res
   }

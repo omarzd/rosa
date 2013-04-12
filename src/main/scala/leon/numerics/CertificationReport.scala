@@ -20,8 +20,8 @@ object CertificationReport {
       formatResult(vc.res))
   }
 
-  private def formatResult(res: Option[XFloat]): String = res match {
-    case Some(xf) => xf.toString
+  private def formatResult(res: Option[String]): String = res match {
+    case Some(xf) => xf
     case None => "[?, ?]"
   }
 }
