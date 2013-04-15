@@ -8,6 +8,7 @@ import purescala.Trees._
 import ceres.common.{Rational}
 
 import Sat._
+import Valid._
 
 /**
   Something we need to prove.
@@ -20,6 +21,6 @@ case class VerificationCondition(val precondition: Expr, val expr: Expr,
   var res: Option[String] = None
 
   var time: Option[Double] = None
-  var status: Sat = Unknown
+  var status: Valid = DUNNO
 
 }

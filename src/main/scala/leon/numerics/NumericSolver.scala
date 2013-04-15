@@ -8,6 +8,7 @@ import z3.scala._
 import scala.collection.immutable.HashMap
 import Sat._
 
+import purescala.Common._
 import purescala.Trees._
 import purescala.Definitions._
 import solvers.z3._
@@ -72,21 +73,25 @@ class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3
 
   /**
    * Checks the given expression for satisfiability.
+   
+   TODO: map Z3 model to Scala Map
    */
-  def check(expr: Expr): Sat = {
+  def check(expr: Expr): (Sat, Z3Model) = {
     solver.push
     val cnstr = toZ3Formula(expr).get
     solver.assertCnstr(cnstr)
-    val res = solver.check match {
+    val res: (Sat, Z3Model) = solver.check match {
       case Some(true) =>
         if (verbose) println("--> cond: SAT")
-        SAT
+        val model = solver.getModel
+        if (verbose) println("Model found: " + model)
+        (SAT, model)
       case Some(false) =>
         if (verbose) println("--> cond: UNSAT")
-        UNSAT
+        (UNSAT, null)
       case None =>
         println("!!! WARNING: Z3 SOLVER FAILED")
-        Unknown
+        (Unknown, null)
     }
     solver.pop()
     res

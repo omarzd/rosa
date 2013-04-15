@@ -8,10 +8,16 @@ package object numerics {
 
   object Sat extends Enumeration {
     type Sat = Value
-    // caps so it does not clash with the type name
     val SAT = Value("SAT")
     val UNSAT = Value("UNSAT")
-    val Unknown = Value("UNKNOWN")
+    val Unknown = Value("Unknown")
+  }
+
+  object Valid extends Enumeration {
+    type Valid = Value
+    val VALID = Value("VALID")
+    val INVALID = Value("INVALID")
+    val DUNNO = Value("Unknown")
   }
 
 
