@@ -14,3 +14,25 @@ beales:     [-26.12983848184986, 31836658.23622909]   - (9.191321009005603e-08)(
 goldstein:  [2.089897254533555, 3081984.453125013]    - (1.275404180265496e-08)(abs)
 jetEngine:  [-2236030.800665697, 2243586.057692324]   - (1.657322831762064e-08)(abs)
 doppler:    [-282.4762120545645, 133.5391308606491]   - (1.958494969932472e-12)(abs)
+
+
+Status/Bestandsaufnahme:
+
+
+bspline0:   Not sure      19.195
+bspline1:   Valid         0.737
+bspline2:   Not sure      27.844        (huge fraction returned as counterexample)
+bspline3:   Not sure      0.283
+
+doppler:    Not sure      5.272
+
+rigidBody1:  
+rigidBody2:
+jetEngine:
+
+motzkin:    
+matyas:     
+camel:      
+booths:     
+beales:     
+goldstein:  
