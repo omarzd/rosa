@@ -7,7 +7,7 @@ object Debug {
   def bspline1(u: Double): Double = {
     require(0 <= u && u <= 1)
     (3 * u*u*u - 6 * u*u + 4) * (1/6.0)
-  } ensuring (res => res >= 0.15 && absRoundoff(res) <= 1e-10)
+  } ensuring (res => res <= 0.15 && absRoundoff(res) <= 1e-10)
 
   /*def beales(x: Double, y: Double): Double = {
     require(-4 <= x && x <= 0.5 && 1.5 <= y && y <= 4.45)

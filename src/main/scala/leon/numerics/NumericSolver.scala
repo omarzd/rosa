@@ -10,6 +10,7 @@ import Sat._
 
 import purescala.Common._
 import purescala.Trees._
+import purescala.TreeOps._
 import purescala.Definitions._
 import solvers.z3._
 import solvers._
@@ -64,8 +65,11 @@ class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3
   def getNumScopes: Int = {
     solver.getNumScopes
   }
+
+  private var variables = Set[Identifier]()
   
   def assertCnstr(expr: Expr) = {
+    variables ++= variablesOf(expr)
     val exprInZ3 = toZ3Formula(expr).get
     solver.assertCnstr(exprInZ3)
     if (verbose) println("Added constraint: " + exprInZ3)
@@ -78,13 +82,15 @@ class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3
    */
   def check(expr: Expr): (Sat, Z3Model) = {
     solver.push
+    variables ++= variablesOf(expr)
     val cnstr = toZ3Formula(expr).get
     solver.assertCnstr(cnstr)
     val res: (Sat, Z3Model) = solver.check match {
       case Some(true) =>
         if (verbose) println("--> cond: SAT")
         val model = solver.getModel
-        if (verbose) println("Model found: " + model)
+        println("Model found: " + model)
+        println("mapping: " + modelToMap(model, variables))
         (SAT, model)
       case Some(false) =>
         if (verbose) println("--> cond: UNSAT")
