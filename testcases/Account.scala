@@ -9,5 +9,5 @@ object Account {
   def toSavings(x : Int, a : Acc) : Acc = {
     require (x >= 0 && a.checking >= x)
     Acc(a.checking - x, a.savings + x)
-  } ensuring (res => (res.checking >= 0 && sameTotal(a, res)))
+  } ensuring (res => (res.checking >= 3 && sameTotal(a, res)))
 }

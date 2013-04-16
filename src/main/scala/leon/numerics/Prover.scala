@@ -55,7 +55,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, solver: NumericSolver) {
       val t1 = System.nanoTime
       val exprResult: XFloat = inXFloats(vc.expr, variables)
 
-      val simpleCond = simpleTactic(exprResult.interval, exprResult.maxRoundoff, body, post)
+      /*val simpleCond = simpleTactic(exprResult.interval, exprResult.maxRoundoff, body, post)
       reporter.info("trying the simple tactic")
            
       val resultSimple = solver.check(Not(simpleCond))
@@ -65,7 +65,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, solver: NumericSolver) {
       reporter.info("trying the more general tactic")
     
       val resultGeneral = solver.check(Not(genCond))
-      parseResult(resultGeneral)
+      parseResult(resultGeneral)*/
 
       val t2 = System.nanoTime
       val dt = ((t2 - t1) / 1000000) / 1000.0 // should be secs

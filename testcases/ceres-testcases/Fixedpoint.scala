@@ -16,7 +16,7 @@ object Fixedpoint {
     require(x1 <= 15 && x1 >= -15 && x2 <= 15 && x2 >= -15 &&
             x3 <= 15 && x3 >= -15)
     2*x1*x2*x3 + 3*x3*x3 - x2*x1*x2*x3 + 3*x3*x3 - x2
-  } ensuring (res => res >= -56020.0)
+  } ensuring (res => res >= -32000.0)  //fits into 16 bits
 
 
   def jetEngine(x1: Double, x2: Double): Double = {
@@ -25,7 +25,7 @@ object Fixedpoint {
     ((3*x1*x1 + 2*x2 - x1)/(x1*x1 + 1) - 3) + x1*x1*(4*((3*x1*x1 + 2*x2 - x1)/(x1*x1 + 1))-6))*
     (x1*x1 + 1) + 3*x1*x1*((3*x1*x1 + 2*x2 - x1)/(x1*x1 + 1)) + x1*x1*x1 + x1 +
     3*((3*x1*x1 + 2*x2 -x1)/(x1*x1 + 1)))
-  } ensuring (res => res >= -56020.0)
+  } ensuring (res => res >= -32000.0)  //fits into 16 bits
 
 
 
