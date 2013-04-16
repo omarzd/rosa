@@ -44,7 +44,7 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
     val notFound = functionsToAnalyse -- analysedFunctions
     notFound.foreach(fn => reporter.error("Did not find function \"" + fn + "\" though it was marked for analysis."))
 
-    allVCs.toList
+    allVCs.toList.sortWith((vc1, vc2) => vc1.funDef.id.name < vc2.funDef.id.name)
   }
 
 
