@@ -17,7 +17,8 @@ package object numerics {
     type Valid = Value
     val VALID = Value("VALID")
     val INVALID = Value("INVALID")
-    val DUNNO = Value("Unknown")
+    val NOT_SURE = Value("Not sure")  //computed range may be too large
+    val DUNNO = Value("Unknown")  //Z3 failed or something like that
   }
 
 

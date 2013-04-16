@@ -38,6 +38,7 @@ class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3
   override val description = "Z3 solver with some numeric convenience methods"
 
   var verbose = false
+  var printWarnings = false
   var diagnose = true
 
   override protected[leon] val z3cfg = new Z3Config(
@@ -89,14 +90,12 @@ class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3
       case Some(true) =>
         if (verbose) println("--> cond: SAT")
         val model = solver.getModel
-        println("Model found: " + model)
-        //println("mapping: " + modelToMap(model, variables))
-        (SAT, model)
+        (SAT, solver.getModel)
       case Some(false) =>
         if (verbose) println("--> cond: UNSAT")
         (UNSAT, null)
       case None =>
-        println("!!! WARNING: Z3 SOLVER FAILED")
+        if (printWarnings) println("!!! WARNING: Z3 SOLVER FAILED")
         (Unknown, null)
     }
     solver.pop()
@@ -125,7 +124,7 @@ class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3
       case Some(false) =>
         if (verbose) println("--> lower bound: UNSAT")
         UNSAT
-      case None => println("!!! WARNING: Z3 SOLVER FAILED")
+      case None => if (printWarnings) println("!!! WARNING: Z3 SOLVER FAILED")
         Unknown
     }
     solver.pop()
@@ -152,7 +151,7 @@ class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3
       case Some(false) =>
         if (verbose) println("--> upper bound: UNSAT")
         UNSAT
-      case None => println("!!! WARNING: Z3 SOLVER FAILED")
+      case None => if (printWarnings) println("!!! WARNING: Z3 SOLVER FAILED")
         Unknown
     }
     solver.pop()
@@ -287,6 +286,6 @@ class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3
         println(which + " bounds check successful.")
       }
     case _ =>
-      println("WARNING: cannot check "+which+" bounds.")
+      if (printWarnings) println("WARNING: cannot check "+which+" bounds.")
   }
 }

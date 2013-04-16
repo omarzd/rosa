@@ -29,15 +29,15 @@ class Prover(reporter: Reporter, ctx: LeonContext, solver: NumericSolver) {
       result match {
         case (UNSAT, model) =>
           reporter.info(">>> VALID <<<")
-          vc.status = VALID
+          vc.updateStatus(VALID, reporter)
         case (SAT, model) =>
           reporter.info("Found counter-example: ")
           reporter.info(model)
-          reporter.error(">>> INVALID <<<")
-          vc.status = INVALID
+          reporter.warning(">>> NOT SURE <<<")
+          vc.updateStatus(NOT_SURE, reporter)
         case (Unknown, model) =>
           reporter.info(">>> Don't know <<<")
-          vc.status = DUNNO
+          vc.updateStatus(DUNNO, reporter)
       }
     }
 
@@ -56,16 +56,16 @@ class Prover(reporter: Reporter, ctx: LeonContext, solver: NumericSolver) {
       val exprResult: XFloat = inXFloats(vc.expr, variables)
 
       val simpleCond = simpleTactic(exprResult.interval, exprResult.maxRoundoff, body, post)
-      if (verbose) println("simple condition: " + simpleCond)
+      reporter.info("trying the simple tactic")
            
-      val result = solver.check(Not(simpleCond))
-      parseResult(result)  
+      val resultSimple = solver.check(Not(simpleCond))
+      parseResult(resultSimple)  
  
       val genCond = generalTactic(exprResult.maxRoundoff, pre, body, post)
-      if (verbose) println("\ngeneral condition:" + genCond)
+      reporter.info("trying the more general tactic")
     
-      val result1 = solver.check(Not(genCond))
-      parseResult(result1)
+      val resultGeneral = solver.check(Not(genCond))
+      parseResult(resultGeneral)
 
       val t2 = System.nanoTime
       val dt = ((t2 - t1) / 1000000) / 1000.0 // should be secs

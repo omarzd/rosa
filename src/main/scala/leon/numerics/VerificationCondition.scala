@@ -23,4 +23,13 @@ case class VerificationCondition(val precondition: Expr, val expr: Expr,
   var time: Option[Double] = None
   var status: Valid = DUNNO
 
+  // for easier debugging with different tactics
+  def updateStatus(newStatus: Valid, reporter: Reporter) = (status, newStatus) match {
+    case (VALID, INVALID) | (INVALID, VALID) => reporter.error("Found both VALID and INVALID!")
+    case (VALID, _) => status = VALID
+    case (_, VALID) => status = VALID
+    case (DUNNO, _) => status = newStatus 
+    case (_, DUNNO) => status = status
+    case _ => status = newStatus
+  }
 }
