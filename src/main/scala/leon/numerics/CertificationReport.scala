@@ -32,7 +32,6 @@ object CertificationReport {
 
 }
 
-// TODO: look at Verification report and copy...
 case class CertificationReport(val vcs: Seq[VerificationCondition]) {
   import CertificationReport._
 

@@ -151,47 +151,40 @@ class DefaultEvaluator(ctx : LeonContext, prog : Program) extends Evaluator(ctx,
         }
         case Plus(l,r) => (rec(ctx,l), rec(ctx,r)) match {
           case (IntLiteral(i1), IntLiteral(i2)) => IntLiteral(i1 + i2)
+          case (FloatLiteral(i1), FloatLiteral(i2)) => FloatLiteral(i1 + i2)
+          case (IntLiteral(i1), FloatLiteral(i2)) => FloatLiteral(i1 + i2)
+          case (FloatLiteral(i1), IntLiteral(i2)) => FloatLiteral(i1 + i2)
           case (le,re) => throw EvalError(typeErrorMsg(le, Int32Type))
         }
         case Minus(l,r) => (rec(ctx,l), rec(ctx,r)) match {
           case (IntLiteral(i1), IntLiteral(i2)) => IntLiteral(i1 - i2)
+          case (FloatLiteral(i1), FloatLiteral(i2)) => FloatLiteral(i1 - i2)
+          case (IntLiteral(i1), FloatLiteral(i2)) => FloatLiteral(i1 - i2)
+          case (FloatLiteral(i1), IntLiteral(i2)) => FloatLiteral(i1 - i2)
           case (le,re) => throw EvalError(typeErrorMsg(le, Int32Type))
         }
         case UMinus(e) => rec(ctx,e) match {
           case IntLiteral(i) => IntLiteral(-i)
+          case FloatLiteral(i) => FloatLiteral(-i)
           case re => throw EvalError(typeErrorMsg(re, Int32Type))
         }
         case Times(l,r) => (rec(ctx,l), rec(ctx,r)) match {
           case (IntLiteral(i1), IntLiteral(i2)) => IntLiteral(i1 * i2)
+          case (FloatLiteral(i1), FloatLiteral(i2)) => FloatLiteral(i1 * i2)
+          case (IntLiteral(i1), FloatLiteral(i2)) => FloatLiteral(i1 * i2)
+          case (FloatLiteral(i1), IntLiteral(i2)) => FloatLiteral(i1 * i2)
           case (le,re) => throw EvalError(typeErrorMsg(le, Int32Type))
         }
         case Division(l,r) => (rec(ctx,l), rec(ctx,r)) match {
           case (IntLiteral(i1), IntLiteral(i2)) =>
             if(i2 != 0) IntLiteral(i1 / i2) else throw RuntimeError("Division by 0.")
-          case (le,re) => throw EvalError(typeErrorMsg(le, Int32Type))
-        }
-        case FPlus(l,r) => (rec(ctx,l), rec(ctx,r)) match {
-          case (FloatLiteral(i1), FloatLiteral(i2)) => FloatLiteral(i1 + i2)
-          case (le,re) => throw EvalError(typeErrorMsg(le, Float64Type))
-        }
-        case FMinus(l,r) => (rec(ctx,l), rec(ctx,r)) match {
-          case (FloatLiteral(i1), FloatLiteral(i2)) => FloatLiteral(i1 - i2)
-          case (le,re) => throw EvalError(typeErrorMsg(le, Float64Type))
-        }
-        case FUMinus(e) => rec(ctx,e) match {
-          case FloatLiteral(i) => FloatLiteral(-i)
-          case re => throw EvalError(typeErrorMsg(re, Float64Type))
-        }
-        case FTimes(l,r) => (rec(ctx,l), rec(ctx,r)) match {
-          case (FloatLiteral(i1), FloatLiteral(i2)) => FloatLiteral(i1 * i2)
-          case (le,re) => throw EvalError(typeErrorMsg(le, Float64Type))
-        }
-        case FDivision(l,r) => (rec(ctx,l), rec(ctx,r)) match {
           // division by zero produces Infinity, no errors
           case (FloatLiteral(i1), FloatLiteral(i2)) => FloatLiteral(i1 / i2)
-          case (le,re) => throw EvalError(typeErrorMsg(le, Float64Type))
+          case (IntLiteral(i1), FloatLiteral(i2)) => FloatLiteral(i1 / i2)
+          case (FloatLiteral(i1), IntLiteral(i2)) => FloatLiteral(i1 / i2)
+          case (le,re) => throw EvalError(typeErrorMsg(le, Int32Type))
         }
-        case Modulo(l,r) => (rec(ctx,l), rec(ctx,r)) match {
+       case Modulo(l,r) => (rec(ctx,l), rec(ctx,r)) match {
           case (IntLiteral(i1), IntLiteral(i2)) => 
             if(i2 != 0) IntLiteral(i1 % i2) else throw RuntimeError("Modulo by 0.")
           case (le,re) => throw EvalError(typeErrorMsg(le, Int32Type))

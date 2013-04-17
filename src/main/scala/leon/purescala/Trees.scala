@@ -477,7 +477,7 @@ object Trees {
   }
 
   /* Floating-point arithmetic */
-  case class FPlus(lhs: Expr, rhs: Expr) extends Expr with FixedType {
+  /*case class FPlus(lhs: Expr, rhs: Expr) extends Expr with FixedType {
     val fixedType = Float64Type
   }
   case class FMinus(lhs: Expr, rhs: Expr) extends Expr with FixedType { 
@@ -491,7 +491,7 @@ object Trees {
   }
   case class FDivision(lhs: Expr, rhs: Expr) extends Expr with FixedType { 
     val fixedType = Float64Type
-  }
+  }*/
  
   case class AbsRoundoff(expr: Expr) extends Expr with FixedType {
     val fixedType = Float64Type

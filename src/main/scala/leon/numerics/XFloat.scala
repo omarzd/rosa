@@ -88,11 +88,11 @@ class XFloat(val tree: Expr, val approxRange: RationalForm, val error: RationalF
     return max(abs(i.xlo), abs(i.xhi))
   }
 
-  def unary_-(): XFloat = new XFloat(FUMinus(tree), -approxRange, -error, solver)
+  def unary_-(): XFloat = new XFloat(UMinus(tree), -approxRange, -error, solver)
 
   // To be 100% correct, there is also a contribution from the old errors, (this.error + y.error) * \delta^2
   def +(y: XFloat): XFloat = {
-    val newTree = FPlus(this.tree, y.tree)
+    val newTree = Plus(this.tree, y.tree)
     val newApprox = this.approxRange + y.approxRange
 
     val newRange = getTightInterval(newTree, newApprox)
@@ -103,7 +103,7 @@ class XFloat(val tree: Expr, val approxRange: RationalForm, val error: RationalF
   }
 
   def -(y: XFloat): XFloat = {
-    val newTree = FMinus(this.tree, y.tree)
+    val newTree = Minus(this.tree, y.tree)
     val newApprox = this.approxRange - y.approxRange
 
     val newRange = getTightInterval(newTree, newApprox)
@@ -114,7 +114,7 @@ class XFloat(val tree: Expr, val approxRange: RationalForm, val error: RationalF
   }
 
   def *(y: XFloat): XFloat = {
-    val newTree = FTimes(this.tree, y.tree)
+    val newTree = Times(this.tree, y.tree)
     val newApprox = this.approxRange * y.approxRange
 
     val newRange = getTightInterval(newTree, newApprox)
@@ -137,7 +137,7 @@ class XFloat(val tree: Expr, val approxRange: RationalForm, val error: RationalF
       
 
     // Compute approximation
-    val tightInverse = getTightInterval(FDivision(IntLiteral(1), y.tree), y.approxRange.inverse)
+    val tightInverse = getTightInterval(Division(IntLiteral(1), y.tree), y.approxRange.inverse)
     val kAA = RationalForm(tightInverse)
     val xAA = RationalForm(this.realInterval)
     val xErr = this.error
@@ -148,7 +148,7 @@ class XFloat(val tree: Expr, val approxRange: RationalForm, val error: RationalF
     val gErr = y.error * new RationalForm(errorMultiplier)
     
     // Now do the multiplication x * (1/y)
-    val newTree = FDivision(this.tree, y.tree)
+    val newTree = Division(this.tree, y.tree)
     val newApprox = this.approxRange / y.approxRange
 
     val newRange = getTightInterval(newTree, newApprox)

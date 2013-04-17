@@ -158,11 +158,11 @@ class Prover(reporter: Reporter, ctx: LeonContext, solver: NumericSolver) {
     case RationalLiteral(v) => XFloat(v, solver) // not sure where this could come from atm...
     case IntLiteral(v) => XFloat(v, solver)
     case FloatLiteral(v) => XFloat(v, solver)
-    case FUMinus(rhs) => - inXFloats(rhs, vars)
-    case FPlus(lhs, rhs) => inXFloats(lhs, vars) + inXFloats(rhs, vars)
-    case FMinus(lhs, rhs) => inXFloats(lhs, vars) - inXFloats(rhs, vars)
-    case FTimes(lhs, rhs) => inXFloats(lhs, vars) * inXFloats(rhs, vars)
-    case FDivision(lhs, rhs) => inXFloats(lhs, vars) / inXFloats(rhs, vars)
+    case UMinus(rhs) => - inXFloats(rhs, vars)
+    case Plus(lhs, rhs) => inXFloats(lhs, vars) + inXFloats(rhs, vars)
+    case Minus(lhs, rhs) => inXFloats(lhs, vars) - inXFloats(rhs, vars)
+    case Times(lhs, rhs) => inXFloats(lhs, vars) * inXFloats(rhs, vars)
+    case Division(lhs, rhs) => inXFloats(lhs, vars) / inXFloats(rhs, vars)
     case _ =>
       throw UnsupportedFragmentException("Can't handle: " + tree.getClass)
       null

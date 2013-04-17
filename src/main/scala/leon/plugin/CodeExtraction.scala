@@ -741,35 +741,35 @@ trait CodeExtraction extends Extractors {
           case ExUMinus(e) =>
             val rTree = rec(e)
             rTree.getType match {
-              case Float64Type => FUMinus(rTree).setType(Float64Type)
+              case Float64Type => UMinus(rTree).setType(Float64Type)
               case _ => UMinus(rTree).setType(Int32Type)
             }
           case ExPlus(l, r) =>
             val rl = rec(l)
             val rr = rec(r)
             (rl.getType, rr.getType) match {
-              case (_, Float64Type) | (Float64Type, _) => FPlus(rl, rr).setType(Float64Type)
+              case (_, Float64Type) | (Float64Type, _) => Plus(rl, rr).setType(Float64Type)
               case _ => Plus(rl, rr).setType(Int32Type)
             }
           case ExMinus(l, r) =>
             val rl = rec(l)
             val rr = rec(r)
             (rl.getType, rr.getType) match {
-              case (_, Float64Type) | (Float64Type, _) => FMinus(rl, rr).setType(Float64Type)
+              case (_, Float64Type) | (Float64Type, _) => Minus(rl, rr).setType(Float64Type)
               case _ => Minus(rl, rr).setType(Int32Type)
             }
           case ExTimes(l, r) => 
             val rl = rec(l)
             val rr = rec(r)
             (rl.getType, rr.getType) match {
-              case (_, Float64Type) | (Float64Type, _) => FTimes(rl, rr).setType(Float64Type)
+              case (_, Float64Type) | (Float64Type, _) => Times(rl, rr).setType(Float64Type)
               case _ => Times(rl, rr).setType(Int32Type)
             }
           case ExDiv(l, r) =>
             val rl = rec(l)
             val rr = rec(r)
             (rl.getType, rr.getType) match {
-              case (_, Float64Type) | (Float64Type, _) => FDivision(rl, rr).setType(Float64Type)
+              case (_, Float64Type) | (Float64Type, _) => Division(rl, rr).setType(Float64Type)
               case _ => Division(rl, rr).setType(Int32Type)
             } 
           case ExMod(l, r) =>

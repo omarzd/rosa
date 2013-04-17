@@ -15,12 +15,6 @@ object OptimizationFunctions {
     (2.625 - x + x*y*(x*y)*(x*y))*(2.625 - x + x*y*(x*y)*(x*y))
   } ensuring (res => res >= -56020.0)
 
-  def goldstein(x: Double, y: Double): Double = {
-    require(-1.5 <= x && x <= 0.5 && 0.5 <= y && y <= 1.5)
-    (1 + (x + y + 1)*(x + y + 1) *(19 - 14*x + 3*x*x - 14*y + 6*x*y + 3*y*y)) *
-    (30 + (2*x - 3*y)*(2*x - 3*y) * (18 - 32*x + 12*x*x +48*y - 36*x*y + 27*y*y))
-  } ensuring (res => res >= -56020.0)
-
   def booths(x: Double, y: Double): Double = {
     require(-9 <= x && x <= -5 && 1 <= y && y <= 3)
     (x + 2*y -7)*(x + 2*y -7) + (2*x + y -5)*(2*x + y -5)
@@ -31,6 +25,12 @@ object OptimizationFunctions {
     2*x*x - 1.05*x*x*x*x + (x*x*x*x*x*x)/6 + x*y + y*y
   } ensuring (res => res >= -56020.0)
 
+  def goldstein(x: Double, y: Double): Double = {
+    require(-1.5 <= x && x <= 0.5 && 0.5 <= y && y <= 1.5)
+    (1 + (x + y + 1)*(x + y + 1) *(19 - 14*x + 3*x*x - 14*y + 6*x*y + 3*y*y)) *
+    (30 + (2*x - 3*y)*(2*x - 3*y) * (18 - 32*x + 12*x*x +48*y - 36*x*y + 27*y*y))
+  } ensuring (res => res >= -56020.0)
+  
   def matyas(x: Double, y: Double): Double  = {
     require(-9 <= x && x <= -5 && 1 <= y && y <= 3)
     0.26*(x*x + y*y) - 0.48*x*y
