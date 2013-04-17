@@ -164,11 +164,10 @@ class XFloat(val tree: Expr, val approxRange: RationalForm, val error: RationalF
     this.maxRoundoff + ")(abs)" 
 
   private def getTightInterval(tree: Expr, approx: RationalForm): RationalInterval = {
-    // TODO: check that the call to the solver is valid.
-    // it may be for now enough to check that it still has some constraints
+    // Sanity check. If no scope is present, XFloat used without a precondition
+    // hence this will fail, as we then have no bounds for variables
     assert(solver.getNumScopes > 0, "Trying to tighten interval but no scopes left!")
 
-    // TODO: Fix the scaling issue, so that we can remove this extra constructor
-    solver.tightenRange(tree, new RationalInterval(approx.intervalDouble))
+    solver.tightenRange(tree, approx.interval)
   }
 }
