@@ -95,6 +95,7 @@ object PrettyPrinter {
     case Implies(l,r) => ppBinary(sb, l, r, " ==> ", lvl)              
     case UMinus(expr) => ppUnary(sb, expr, "-(", ")", lvl)
     case AbsRoundoff(expr) => ppUnary(sb, expr, "absRoundoff(", ")", lvl) 
+    case IntegerAsFloat(expr) => ppUnary(sb, expr, "(", ").tofloat", lvl)
     case Equals(l,r) => ppBinary(sb, l, r, " == ", lvl)
     case IntLiteral(v) => sb.append(v)
     case FloatLiteral(v) => sb.append(v)

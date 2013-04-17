@@ -163,6 +163,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, solver: NumericSolver) {
     case Minus(lhs, rhs) => inXFloats(lhs, vars) - inXFloats(rhs, vars)
     case Times(lhs, rhs) => inXFloats(lhs, vars) * inXFloats(rhs, vars)
     case Division(lhs, rhs) => inXFloats(lhs, vars) / inXFloats(rhs, vars)
+    // TODO: IntegerAsFloat
     case _ =>
       throw UnsupportedFragmentException("Can't handle: " + tree.getClass)
       null

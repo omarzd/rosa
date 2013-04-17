@@ -50,7 +50,11 @@ object TypeTrees {
 
     val fixedType: TypeTree
     override def getType: TypeTree = fixedType
-    override def setType(tt2: TypeTree) : self.type = this
+    override def setType(tt2: TypeTree) : self.type = {
+      if (tt2 != fixedType)
+        throw new TypeErrorException("Setting type " + tt2 + ", but type is fixed: " + fixedType)
+      this
+    }
   }
     
 

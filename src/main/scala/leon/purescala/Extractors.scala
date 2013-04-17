@@ -15,6 +15,7 @@ object Extractors {
       case Not(t) => Some((t,Not(_)))
       case UMinus(t) => Some((t,UMinus))
       case AbsRoundoff(t) => Some((t, AbsRoundoff))
+      case IntegerAsFloat(t) => Some((t, IntegerAsFloat))
       case SetCardinality(t) => Some((t,SetCardinality))
       case MultisetCardinality(t) => Some((t,MultisetCardinality))
       case MultisetToSet(t) => Some((t,MultisetToSet))

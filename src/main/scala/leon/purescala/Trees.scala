@@ -446,19 +446,29 @@ object Trees {
 
   /* Arithmetic */
   case class Plus(lhs: Expr, rhs: Expr) extends Expr with FixedType {
-    val fixedType = Int32Type
+    val fixedType =
+      if (lhs.getType == Float64Type || rhs.getType == Float64Type) Float64Type
+      else Int32Type
   }
   case class Minus(lhs: Expr, rhs: Expr) extends Expr with FixedType { 
-    val fixedType = Int32Type
+    val fixedType =
+      if (lhs.getType == Float64Type || rhs.getType == Float64Type) Float64Type
+      else Int32Type
   }
   case class UMinus(expr: Expr) extends Expr with FixedType { 
-    val fixedType = Int32Type
+    val fixedType =
+      if (expr.getType == Float64Type) Float64Type
+      else Int32Type
   }
   case class Times(lhs: Expr, rhs: Expr) extends Expr with FixedType { 
-    val fixedType = Int32Type
+    val fixedType =
+      if (lhs.getType == Float64Type || rhs.getType == Float64Type) Float64Type
+      else Int32Type
   }
   case class Division(lhs: Expr, rhs: Expr) extends Expr with FixedType { 
-    val fixedType = Int32Type
+    val fixedType =
+      if (lhs.getType == Float64Type || rhs.getType == Float64Type) Float64Type
+      else Int32Type
   }
   case class Modulo(lhs: Expr, rhs: Expr) extends Expr with FixedType { 
     val fixedType = Int32Type
@@ -476,22 +486,10 @@ object Trees {
     val fixedType = BooleanType
   }
 
-  /* Floating-point arithmetic */
-  /*case class FPlus(lhs: Expr, rhs: Expr) extends Expr with FixedType {
+  // Explicit cast from integers to floats
+  case class IntegerAsFloat(expr: Expr) extends Expr with FixedType {
     val fixedType = Float64Type
   }
-  case class FMinus(lhs: Expr, rhs: Expr) extends Expr with FixedType { 
-    val fixedType = Float64Type
-  }
-  case class FUMinus(expr: Expr) extends Expr with FixedType { 
-    val fixedType = Float64Type
-  }
-  case class FTimes(lhs: Expr, rhs: Expr) extends Expr with FixedType { 
-    val fixedType = Float64Type
-  }
-  case class FDivision(lhs: Expr, rhs: Expr) extends Expr with FixedType { 
-    val fixedType = Float64Type
-  }*/
  
   case class AbsRoundoff(expr: Expr) extends Expr with FixedType {
     val fixedType = Float64Type

@@ -137,7 +137,7 @@ class XFloat(val tree: Expr, val approxRange: RationalForm, val error: RationalF
       
 
     // Compute approximation
-    val tightInverse = getTightInterval(Division(IntLiteral(1), y.tree), y.approxRange.inverse)
+    val tightInverse = getTightInterval(Division(FloatLiteral(1.0), y.tree), y.approxRange.inverse)
     val kAA = RationalForm(tightInverse)
     val xAA = RationalForm(this.realInterval)
     val xErr = this.error
@@ -168,6 +168,7 @@ class XFloat(val tree: Expr, val approxRange: RationalForm, val error: RationalF
     // hence this will fail, as we then have no bounds for variables
     assert(solver.getNumScopes > 0, "Trying to tighten interval but no scopes left!")
 
+    //println("tightening: " + tree)
     solver.tightenRange(tree, approx.interval)
   }
 }

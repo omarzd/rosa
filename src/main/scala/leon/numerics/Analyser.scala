@@ -4,6 +4,7 @@ package numerics
 import purescala.Common._
 import purescala.Definitions._
 import purescala.Trees._
+import purescala.TreeOps._
 
 import ceres.common.{Rational}
 
@@ -34,10 +35,12 @@ class Analyser(reporter: Reporter) {
     } else {
       val bounds = extractVariableBounds(pre.get)
       reporter.info("found variable bounds: " + bounds)
+      reporter.info("expression to check: " + body)
       Seq(VerificationCondition(pre.get, body, post.get, funDef, bounds))
     }
   }
 
+  // TODO: issue warning when bound as x < 3.3 ??
   // For now only accept bound given as follows:
   // ... && x <= 8.9 && 7.8 <= x && ...
   private def extractVariableBounds(expr: Expr):

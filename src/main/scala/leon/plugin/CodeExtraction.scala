@@ -747,29 +747,70 @@ trait CodeExtraction extends Extractors {
           case ExPlus(l, r) =>
             val rl = rec(l)
             val rr = rec(r)
+
             (rl.getType, rr.getType) match {
-              case (_, Float64Type) | (Float64Type, _) => Plus(rl, rr).setType(Float64Type)
+              case (Float64Type, Float64Type) => Plus(rl, rr).setType(Float64Type)
+              case (Int32Type, Float64Type) =>
+                (rl, rr) match {
+                  case (IntLiteral(v), f) => Plus(FloatLiteral(v), f).setType(Float64Type)
+                  case (i, f) => Plus(IntegerAsFloat(i), f).setType(Float64Type)
+                }
+              case (Float64Type, Int32Type) =>
+                (rl, rr) match {
+                  case (f, IntLiteral(v)) => Plus(f, FloatLiteral(v)).setType(Float64Type)
+                  case (f, i) => Plus(f, IntegerAsFloat(i)).setType(Float64Type)
+                }
               case _ => Plus(rl, rr).setType(Int32Type)
             }
           case ExMinus(l, r) =>
             val rl = rec(l)
             val rr = rec(r)
             (rl.getType, rr.getType) match {
-              case (_, Float64Type) | (Float64Type, _) => Minus(rl, rr).setType(Float64Type)
+              case (Float64Type, Float64Type) => Minus(rl, rr).setType(Float64Type)
+              case (Int32Type, Float64Type) =>
+                (rl, rr) match {
+                  case (IntLiteral(v), f) => Minus(FloatLiteral(v), f).setType(Float64Type)
+                  case (i, f) => Minus(IntegerAsFloat(i), f).setType(Float64Type)
+                }
+              case (Float64Type, Int32Type) =>
+                (rl, rr) match {
+                  case (f, IntLiteral(v)) => Minus(f, FloatLiteral(v)).setType(Float64Type)
+                  case (f, i) => Minus(f, IntegerAsFloat(i)).setType(Float64Type)
+                }
               case _ => Minus(rl, rr).setType(Int32Type)
             }
           case ExTimes(l, r) => 
             val rl = rec(l)
             val rr = rec(r)
             (rl.getType, rr.getType) match {
-              case (_, Float64Type) | (Float64Type, _) => Times(rl, rr).setType(Float64Type)
+              case (Float64Type, Float64Type) => Times(rl, rr).setType(Float64Type)
+              case (Int32Type, Float64Type) =>
+                (rl, rr) match {
+                  case (IntLiteral(v), f) => Times(FloatLiteral(v), f).setType(Float64Type)
+                  case (i, f) => Times(IntegerAsFloat(i), f).setType(Float64Type)
+                }
+              case (Float64Type, Int32Type) =>
+                (rl, rr) match {
+                  case (f, IntLiteral(v)) => Times(f, FloatLiteral(v)).setType(Float64Type)
+                  case (f, i) => Times(f, IntegerAsFloat(i)).setType(Float64Type)
+                }
               case _ => Times(rl, rr).setType(Int32Type)
             }
           case ExDiv(l, r) =>
             val rl = rec(l)
             val rr = rec(r)
             (rl.getType, rr.getType) match {
-              case (_, Float64Type) | (Float64Type, _) => Division(rl, rr).setType(Float64Type)
+              case (Float64Type, Float64Type) => Division(rl, rr).setType(Float64Type)
+              case (Int32Type, Float64Type) =>
+                (rl, rr) match {
+                  case (IntLiteral(v), f) => Division(FloatLiteral(v), f).setType(Float64Type)
+                  case (i, f) => Division(IntegerAsFloat(i), f).setType(Float64Type)
+                }
+              case (Float64Type, Int32Type) =>
+                (rl, rr) match {
+                  case (f, IntLiteral(v)) => Division(f, FloatLiteral(v)).setType(Float64Type)
+                  case (f, i) => Division(f, IntegerAsFloat(i)).setType(Float64Type)
+                }
               case _ => Division(rl, rr).setType(Int32Type)
             } 
           case ExMod(l, r) =>
@@ -783,9 +824,12 @@ trait CodeExtraction extends Extractors {
             }
 
           case ExAbsRoundoff(arg) =>
-            // TODO: only allow double literals as rhs for now
-            AbsRoundoff(rec(arg)).setType(Float64Type)
-
+            val rarg = rec(arg)
+            if (rarg != Float64Type) {
+              unit.error(NoPosition, "AbsRoundoff is not supported for floats.")
+              throw new Exception("aouch")
+            }
+            AbsRoundoff(rarg).setType(Float64Type)
 
           case ExEquals(l, r) => {
             val rl = rec(l)
@@ -797,10 +841,55 @@ trait CodeExtraction extends Extractors {
             }).setType(BooleanType) 
           }
           case ExNotEquals(l, r) => Not(Equals(rec(l), rec(r)).setType(BooleanType)).setType(BooleanType)
-          case ExGreaterThan(l, r) => GreaterThan(rec(l), rec(r)).setType(BooleanType)
-          case ExGreaterEqThan(l, r) => GreaterEquals(rec(l), rec(r)).setType(BooleanType)
-          case ExLessThan(l, r) => LessThan(rec(l), rec(r)).setType(BooleanType)
-          case ExLessEqThan(l, r) => LessEquals(rec(l), rec(r)).setType(BooleanType)
+          case ExGreaterThan(l, r) =>
+            val rl = rec(l)
+            val rr = rec(r)
+            if (rl.getType == Float64Type || rr.getType == Float64Type) {
+              unit.error(NoPosition, "> operator is not supported for floats.")
+              throw new Exception("aouch")
+            }
+            GreaterThan(rl, rr).setType(BooleanType)
+          case ExGreaterEqThan(l, r) =>
+            val rl = rec(l)
+            val rr = rec(r)
+            (rl.getType, rr.getType) match { 
+              case (Int32Type, Float64Type) =>
+                (rl, rr) match {
+                  case (IntLiteral(v), f) => GreaterEquals(FloatLiteral(v), f).setType(BooleanType)
+                  case (i, f) => GreaterEquals(IntegerAsFloat(i), f).setType(BooleanType)
+                }
+              case (Float64Type, Int32Type) =>
+                (rl, rr) match {
+                  case (f, IntLiteral(v)) => GreaterEquals(f, FloatLiteral(v)).setType(BooleanType)
+                  case (f, i) => GreaterEquals(f, IntegerAsFloat(i)).setType(BooleanType)
+                }
+              case _ => GreaterEquals(rl, rr).setType(BooleanType)
+            }
+
+          case ExLessThan(l, r) =>
+            val rl = rec(l)
+            val rr = rec(r)
+            if (rl.getType == Float64Type || rr.getType == Float64Type) {
+              unit.error(NoPosition, "< operator is not supported for floats.")
+              throw new Exception("aouch")
+            }
+            LessThan(rec(l), rec(r)).setType(BooleanType)
+          case ExLessEqThan(l, r) =>
+            val rl = rec(l)
+            val rr = rec(r)
+            (rl.getType, rr.getType) match { 
+              case (Int32Type, Float64Type) =>
+                (rl, rr) match {
+                  case (IntLiteral(v), f) => LessEquals(FloatLiteral(v), f).setType(BooleanType)
+                  case (i, f) => LessEquals(IntegerAsFloat(i), f).setType(BooleanType)
+                }
+              case (Float64Type, Int32Type) =>
+                (rl, rr) match {
+                  case (f, IntLiteral(v)) => LessEquals(f, FloatLiteral(v)).setType(BooleanType)
+                  case (f, i) => LessEquals(f, IntegerAsFloat(i)).setType(BooleanType)
+                }
+              case _ => LessEquals(rl, rr).setType(BooleanType)
+            }
           case ExFiniteSet(tt, args) => {
             val underlying = scalaType2PureScala(unit, silent)(tt.tpe)
             FiniteSet(args.map(rec(_))).setType(SetType(underlying))
