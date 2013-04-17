@@ -9,6 +9,9 @@ import xlang.Trees._
 import purescala.TreeOps._
 import purescala.TypeTrees._
 
+import ceres.common.Rational
+import Rational._
+
 import scala.collection.mutable.{Map => MutableMap}
 import scala.collection.mutable.{Set => MutableSet}
 
@@ -695,6 +698,7 @@ trait AbstractZ3Solver extends solvers.IncrementalSolverBuilder {
           }
 
           case Z3NumeralAST(Some(v)) => IntLiteral(v)
+          case Z3NumeralRealAST(num, den) => RationalLiteral(Rational(num, den))
           case Z3NumeralAST(None) => {
             reporter.info("Cannot read exact model from Z3: Integer does not fit in machine word")
             reporter.info("Exiting procedure now")

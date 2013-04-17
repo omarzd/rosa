@@ -90,6 +90,7 @@ class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3
       case Some(true) =>
         if (verbose) println("--> cond: SAT")
         val model = solver.getModel
+        println("model: " + modelToMap(model, variables))
         (SAT, solver.getModel)
       case Some(false) =>
         if (verbose) println("--> cond: UNSAT")
