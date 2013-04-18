@@ -1,20 +1,14 @@
 package leon
 package numerics
 
+import purescala.Trees._
+
 import ceres.common.{Rational, RationalInterval}
 import ceres.affine.{RationalForm}
 import Rational._
 import RationalForm._
 
-import purescala.Trees._
-
 import java.math.{BigInteger, BigDecimal}
-
-/**
-  TODO:
-  - make this cache the interval values so we don't run Z3 unnecessarily
-
- */
 
 object XFloat {
 
@@ -44,7 +38,7 @@ object XFloat {
   val u = Rational(new BigInt(new BigInteger("1")),
     new BigInt(new BigInteger("2")).pow(53))
 
-  // Always return a positive number
+  // Always returns a positive number
   def roundoff(range: RationalInterval): Rational = {
     val maxAbs = max(abs(range.xlo), abs(range.xhi))
     return u * maxAbs 
@@ -74,18 +68,13 @@ class XFloat(val tree: Expr, val approxRange: RationalForm, val error: RationalF
   solver: NumericSolver) {
   import XFloat._
 
-  def interval: RationalInterval = {
-    realInterval + error.interval
-  }
+  lazy val realInterval: RationalInterval = getTightInterval(tree, approxRange)
 
-  // TODO: cache this
-  def realInterval: RationalInterval = {
-    getTightInterval(tree, approxRange) 
-  }
+  lazy val interval: RationalInterval = realInterval + error.interval
 
-  def maxRoundoff: Rational = {
+  lazy val maxRoundoff: Rational = {
     val i = error.interval
-    return max(abs(i.xlo), abs(i.xhi))
+    max(abs(i.xlo), abs(i.xhi))
   }
 
   def unary_-(): XFloat = new XFloat(UMinus(tree), -approxRange, -error, solver)

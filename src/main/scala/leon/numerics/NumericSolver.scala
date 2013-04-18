@@ -1,12 +1,7 @@
 package leon
 package numerics
 
-import ceres.common.{Rational, RationalInterval}
-import Rational._
-
 import z3.scala._
-import scala.collection.immutable.HashMap
-import Sat._
 
 import purescala.Common._
 import purescala.Trees._
@@ -14,6 +9,12 @@ import purescala.TreeOps._
 import purescala.Definitions._
 import solvers.z3._
 import solvers._
+import Sat._
+
+import ceres.common.{Rational, RationalInterval}
+import Rational._
+
+import scala.collection.immutable.HashMap
 
 object NumericSolver {
 
@@ -27,8 +28,7 @@ object NumericSolver {
 
 /* TODO:
    - make this break if z3 has wrong version.
-   - conversion from BigInt to Int not safe when constructing expression
-      (the code for that is now in solver.z3.AbstractZ3Solver) 
+ 
  */
 
 class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3Solver(context) {
