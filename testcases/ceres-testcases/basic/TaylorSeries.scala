@@ -77,12 +77,14 @@ object TaylorSeries {
     0.000158736*(x - 3.14)*(x - 3.14)*(x - 3.14)*(x - 3.14) 
   } ensuring (res => res <= 1.2)
 
-  def sqrt2(x: Double): Double = { // around 7.98
+  // 0.0000272113 is not representable as Int/Int
+  /*def sqrt2(x: Double): Double = { // around 7.98
     require(3.35 <= x && x <= 12.28)
     2.82489 + 0.176998*(x- 7.98) - 0.00554505*(x- 7.98)*(x- 7.98) +
     0.000347434*(x- 7.98)*(x- 7.98)*(x- 7.98) -
     0.0000272113*(x- 7.98)*(x- 7.98)*(x- 7.98)*(x- 7.98) 
   } ensuring (res => res <= 1.2)
+  */
 
   // sqrt(3*x - 0.3)
   def sqrt3(x: Double): Double = { // around 3.2
