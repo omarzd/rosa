@@ -16,6 +16,7 @@ class Analyser(reporter: Reporter) {
     var vcs: Seq[VerificationCondition] = Seq.empty
   
     val funName = funDef.id.name
+    reporter.info("")
     reporter.info("-----> Analysing function " + funName + "...")
     
     val pre = funDef.precondition
@@ -36,6 +37,8 @@ class Analyser(reporter: Reporter) {
       val bounds = extractVariableBounds(pre.get)
       reporter.info("found variable bounds: " + bounds)
       reporter.info("expression to check: " + body)
+      reporter.info("precondition: " + pre)
+      reporter.info("postcondition: " + post)
       Seq(VerificationCondition(pre.get, body, post.get, funDef, bounds))
     }
   }

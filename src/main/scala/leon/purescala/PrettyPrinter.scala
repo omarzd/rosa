@@ -99,7 +99,7 @@ object PrettyPrinter {
     case Equals(l,r) => ppBinary(sb, l, r, " == ", lvl)
     case IntLiteral(v) => sb.append(v)
     case FloatLiteral(v) => sb.append(v)
-    case RationalLiteral(v) => sb.append(v.toDouble)
+    case RationalLiteral(v) => sb.append(v.toDouble +"r")
     case BooleanLiteral(v) => sb.append(v)
     case StringLiteral(s) => sb.append("\"" + s + "\"")
     case UnitLiteral => sb.append("()")

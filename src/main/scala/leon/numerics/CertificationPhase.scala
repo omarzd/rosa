@@ -30,8 +30,7 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
 
     val analyser = new Analyser(reporter)
 
-    for(funDef <- program.definedFunctions.toList
-            if (functionsToAnalyse.isEmpty || functionsToAnalyse.contains(funDef.id.name))) {
+    for(funDef <- program.definedFunctions.toList if (functionsToAnalyse.isEmpty || functionsToAnalyse.contains(funDef.id.name))) {
       analysedFunctions += funDef.id.name
 
       if (funDef.body.isDefined) {

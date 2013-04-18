@@ -431,15 +431,24 @@ trait AbstractZ3Solver extends solvers.IncrementalSolverBuilder {
         case IntLiteral(v) => z3.mkInt(v, intSort)
         case BooleanLiteral(v) => if (v) z3.mkTrue() else z3.mkFalse()
         case FloatLiteral(v) =>
-          val rational = ceres.common.Rational.rationalFromReal(v)
-          // This should actually already be fine
-          //val scaledValue = rational
-          val scaledValue = ceres.common.Rational.scaleToIntsDown(rational)
-          z3.mkReal(scaledValue.n.toInt, scaledValue.d.toInt)
+          // These are constants defined in the code, only allow constants
+          // representable as Int/Int
+          val r = ceres.common.Rational.rationalFromReal(v)
+          if (!(r.n.abs < Int.MaxValue && r.d < Int.MaxValue)) {
+            throw numerics.UnsupportedFragmentException("Floating-point constants have to be " +
+              "representable as Int/Int.\n %s / %s (%s) is not.".format(
+                r.n.toString, r.d.toString, v.toString))
+          }
+          z3.mkReal(r.n.toInt, r.d.toInt)
         case RationalLiteral(v) =>
-          // TODO: not sound
-          val scaledValue = ceres.common.Rational.scaleToIntsDown(v)
-          z3.mkReal(scaledValue.n.toInt, scaledValue.d.toInt)
+          // Only allow Int/Int rationals until we figure out what to do about it 
+          if (!(v.n.abs < Int.MaxValue && v.d < Int.MaxValue)) {
+            throw numerics.UnsupportedFragmentException("Rational constants have to be " +
+              "representable as Int/Int.\n %s / %s (%s) is not.".format(
+                v.n.toString, v.d.toString, v.toString))
+          }
+          z3.mkReal(v.n.toInt, v.d.toInt)
+        
         case UnitLiteral => unitValue
         case Equals(l, r) => z3.mkEq(rec(l), rec(r))
         case Plus(l, r) => z3.mkAdd(rec(l), rec(r))
@@ -544,7 +553,7 @@ trait AbstractZ3Solver extends solvers.IncrementalSolverBuilder {
         case Distinct(exs) => z3.mkDistinct(exs.map(rec(_)): _*)
   
         case _ => {
-          reporter.warning("Can't handle this in translation to Z3: " + ex)
+          reporter.warning("Can't handle this in translation to Z3: " + ex + "  " + ex.getClass)
           throw new CantTranslateException
         }
       })
