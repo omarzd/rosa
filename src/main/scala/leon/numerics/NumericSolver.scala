@@ -20,16 +20,13 @@ object NumericSolver {
 
   val maxIterationsLinear = 100
   var verbose = false
+  // Does not have much of an impact compared to other issues
+  // TODO: This should probably be relative
   val precision = Rational.rationalFromReal(0.0001)
   val maxIterationsBinary = 20 
 
 }
 
-
-/* TODO:
-   - make this break if z3 has wrong version.
- 
- */
 
 class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3Solver(context) {
   import NumericSolver._
@@ -78,8 +75,6 @@ class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3
 
   /**
    * Checks the given expression for satisfiability.
-   
-   TODO: map Z3 model to Scala Map
    */
   def check(expr: Expr): (Sat, Z3Model) = {
     solver.push
@@ -114,7 +109,6 @@ class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3
 
     if (verbose) println("checking: " + solver.getAssertions.toSeq.mkString(",\n"))
     if (diagnose) diagnoseString += ("L: checking: " + solver.getAssertions.toSeq.mkString(",\n"))
-
 
     val resLower = solver.check
    
@@ -224,6 +218,7 @@ class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3
         case SAT => getLowerBound(a, mid, tree, count + 1)
         case UNSAT => getLowerBound(mid, b, tree, count + 1)
         case Unknown => // Return safe answer
+          //reporter.warning("Stopping (lower bnd) at iteration " + count)
           return a
       }
     }
@@ -248,6 +243,7 @@ class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3
         case SAT => getUpperBound(mid, b, tree, count + 1)
         case UNSAT => getUpperBound(a, mid, tree, count + 1)
         case Unknown => // Return safe answer
+          //reporter.warning("Stopping (upper bnd) at iteration " + count)
           return b
       }
     }

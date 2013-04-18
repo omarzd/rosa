@@ -12,9 +12,11 @@ import scala.collection.mutable.{Set => MutableSet}
 object CertificationPhase extends LeonPhase[Program,CertificationReport] {
   val name = "Certification"
   val description = "Floating-point certification"
+  var simulation = false
 
   override val definedOptions: Set[LeonOptionDef] = Set(
-    LeonValueOptionDef("functions", "--functions=f1:f2", "Limit verification to f1, f2,...")
+    LeonValueOptionDef("functions", "--functions=f1:f2", "Limit verification to f1, f2,..."),
+    LeonFlagOptionDef("simulation", "--simulation", "Run a simulation instead of proof")
   )
 
   /*
@@ -53,9 +55,11 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
 
     val solver = new NumericSolver(ctx, program)
     val prover = new Prover(reporter, ctx, solver)
+    val tools = new Tools(reporter)
 
     for(vc <- vcs) {
-      prover.check(vc) 
+      if (simulation) tools.compare(vc)
+      else prover.check(vc) 
     }
     new CertificationReport(vcs)
   }
@@ -65,10 +69,13 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
 
     var functionsToAnalyse = Set[String]()
 
+
     for (opt <- ctx.options) opt match {
       case LeonValueOption("functions", ListValue(fs)) =>
         functionsToAnalyse = Set() ++ fs
-
+      
+      case LeonFlagOption("simulation") =>
+        simulation = true
       case _ =>
     }
 

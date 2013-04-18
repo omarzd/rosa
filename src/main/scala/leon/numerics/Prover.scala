@@ -23,6 +23,7 @@ object Prover {
 class Prover(reporter: Reporter, ctx: LeonContext, solver: NumericSolver) {
   import Prover._
 
+
   def check(vc: VerificationCondition): VerificationCondition = {
 
     def parseResult(result: (Sat, Z3Model)) = {
@@ -152,7 +153,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, solver: NumericSolver) {
                     solver)
     }
   }
-
+  
   private def inXFloats(tree: Expr, vars: Map[Variable, XFloat]): XFloat = tree match {
     case v @ Variable(id) => vars(v)
     case RationalLiteral(v) => XFloat(v, solver) // not sure where this could come from atm...
@@ -168,7 +169,5 @@ class Prover(reporter: Reporter, ctx: LeonContext, solver: NumericSolver) {
       throw UnsupportedFragmentException("Can't handle: " + tree.getClass)
       null
   }
-
-
 
 }
