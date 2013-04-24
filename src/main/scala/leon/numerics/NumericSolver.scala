@@ -36,6 +36,7 @@ class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3
   var verbose = false
   var printWarnings = true
   var diagnose = true
+  var countTimeouts = 0
 
   override protected[leon] val z3cfg = new Z3Config(
     "MODEL" -> true,
@@ -91,6 +92,7 @@ class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3
         (UNSAT, null)
       case None =>
         if (printWarnings) println("!!! WARNING: Z3 SOLVER FAILED")
+        countTimeouts = countTimeouts + 1
         (Unknown, null)
     }
     solver.pop()
@@ -198,6 +200,23 @@ class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3
     }
   }
 
+  // Checking constraints of bounds, the variables have already been added
+  // to the solver.
+  private def checkConstraint: Sat = {
+    val resLower = solver.check
+   
+    resLower match {
+      case Some(true) =>
+        if (verbose) println("--> bound: SAT")
+        SAT
+      case Some(false) =>
+        if (verbose) println("--> bound: UNSAT")
+        UNSAT
+      case None => if (printWarnings) println("!!! WARNING: Z3 SOLVER FAILED")
+        countTimeouts = countTimeouts + 1
+        Unknown
+    }
+  }
 
   private def checkLowerBound(exprInZ3: Z3AST, bound: Rational): (Sat, String) = {
     var diagnoseString = ""
@@ -208,21 +227,11 @@ class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3
     if (verbose) println("checking: " + solver.getAssertions.toSeq.mkString(",\n"))
     if (diagnose) diagnoseString += ("L: checking: " + solver.getAssertions.toSeq.mkString(",\n"))
 
-    val resLower = solver.check
-   
-    val res = resLower match {
-      case Some(true) =>
-        if (verbose) println("--> lower bound: SAT")
-        SAT
-      case Some(false) =>
-        if (verbose) println("--> lower bound: UNSAT")
-        UNSAT
-      case None => if (printWarnings) println("!!! WARNING: Z3 SOLVER FAILED")
-        Unknown
-    }
+    val res = checkConstraint
     solver.pop()
     (res, diagnoseString)
   }
+
   private def checkUpperBound(exprInZ3: Z3AST, bound: Rational): (Sat, String) = {
     var diagnoseString = ""
 
@@ -232,18 +241,7 @@ class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3
     if (verbose) println("checking: " + solver.getAssertions.toSeq.mkString(",\n"))
     if (diagnose) diagnoseString += ("U: checking: " + solver.getAssertions.toSeq.mkString(",\n"))
 
-    val resUpper = solver.check
-    
-    val res = resUpper match {
-      case Some(true) =>
-        if (verbose) println("--> upper bound: SAT")
-        SAT
-      case Some(false) =>
-        if (verbose) println("--> upper bound: UNSAT")
-        UNSAT
-      case None => if (printWarnings) println("!!! WARNING: Z3 SOLVER FAILED")
-        Unknown
-    }
+    val res = checkConstraint
     solver.pop()
     (res, diagnoseString)
   }
@@ -252,21 +250,15 @@ class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3
   private def lowerBoundIsTight(exprInZ3: Z3AST, bound: Rational): Boolean = {
     solver.push
     solver.assertCnstr(z3.mkLT(exprInZ3, z3.mkNumeral(getNumeralString(bound + precision), realSort)))
-    val resLower = solver.check
    
     if (verbose) println("checking if lower bound is tight: " + solver.getAssertions.toSeq.mkString(",\n"))
-    val res = resLower match {
-      case Some(true) => // new bound is satisfiable, hence bound is tight
-        if (verbose) println("--> lower bound: SAT")
-        true
-      case Some(false) =>
-        if (verbose) println("--> lower bound: UNSAT")
-        false
-      case None => if (printWarnings) println("!!! WARNING: Z3 SOLVER FAILED")
-        false // we cannot say, but return false so we try to tighten anyway
-    }
+
+    val res = checkConstraint  
     solver.pop()
-    res
+    res match {
+      case SAT => true
+      case _ => false
+    }
   }
 
   private def upperBoundIsTight(exprInZ3: Z3AST, bound: Rational): Boolean = {
@@ -274,21 +266,15 @@ class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3
     solver.assertCnstr(z3.mkGT(exprInZ3, z3.mkNumeral(getNumeralString(bound - precision), realSort)))
 
     if (verbose) println("checking: " + solver.getAssertions.toSeq.mkString(",\n"))
-    val resUpper = solver.check
+    val res = checkConstraint
     
-    val res = resUpper match {
-      case Some(true) =>  // new bound is satisfiable, hence bound is tight
-        if (verbose) println("--> upper bound: SAT")
-        true
-      case Some(false) =>
-        if (verbose) println("--> upper bound: UNSAT")
-        false
-      case None => if (printWarnings) println("!!! WARNING: Z3 SOLVER FAILED")
-        false // we cannot say, but return false so we try to tighten anyway
-    }
     solver.pop()
-    res
+    res match {
+      case SAT => true
+      case _ => false
+    }
   }
+
 
 
 

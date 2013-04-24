@@ -22,6 +22,10 @@ case class VerificationCondition(val precondition: Expr, val expr: Expr,
 
   var time: Option[Double] = None
   var status: Valid = DUNNO
+  // For anything else, like debug info
+  var comments: String = ""
+
+  def addComment(s: String) = comments = comments + "\n" + s
 
   // for easier debugging with different tactics
   def updateStatus(newStatus: Valid, reporter: Reporter) = (status, newStatus) match {

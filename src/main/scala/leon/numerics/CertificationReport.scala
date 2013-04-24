@@ -12,12 +12,13 @@ object CertificationReport {
   private val infoSep: String = "|" + ("_" * 78) + "|\n"
 
   private def infoLine(vc: VerificationCondition): String = {
-    "|%-25s  %-10s %-10s %-29s|\n|    %-38s |".format(
+    "|%-25s  %-10s %-10s %-29s\n    %-38s \n %-80s".format(
       vc.funDef.id.toString,
       vc.status,
       formatTime(vc.time),
       " ",
-      formatResult(vc.res))
+      formatResult(vc.res),
+      vc.comments)
   }
 
   private def formatResult(res: Option[String]): String = res match {

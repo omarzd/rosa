@@ -54,6 +54,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, solver: NumericSolver) {
 
     try {
       val t1 = System.nanoTime
+      solver.countTimeouts = 0
       val exprResult: XFloat = inXFloats(vc.expr, variables)
 
       /*val simpleCond = simpleTactic(exprResult.interval, exprResult.maxRoundoff, body, post)
@@ -68,6 +69,8 @@ class Prover(reporter: Reporter, ctx: LeonContext, solver: NumericSolver) {
       val resultGeneral = solver.check(Not(genCond))
       parseResult(resultGeneral)*/
 
+      val numTimeouts = solver.countTimeouts
+      vc.addComment("Num timeouts: " + numTimeouts)
       val t2 = System.nanoTime
       val dt = ((t2 - t1) / 1000000) / 1000.0 // should be secs
 
