@@ -5,6 +5,7 @@ import ceres.common._
 import collection.mutable.Queue
 
 case class DivisionByZeroException(s: String) extends Exception
+case class MismatchedException(msg: String) extends Exception(msg)
 
 object Deviation {
   var currIndex: Int = 0
@@ -14,7 +15,7 @@ object Deviation {
     currIndex
   }
 
-  case class MismatchedIndicesException(msg: String) extends Exception(msg)
+  
 
   def apply(i: Int, v: Rational): Deviation = {
     if (v == Rational.zero) ZeroDev
@@ -61,13 +62,13 @@ case class ConstantDev(i: Int, v: Rational) extends Deviation(i) {
   assert( v != Rational.zero, "ConstantDev with zero value")
   
   def value = v
-  def unary_-(): Deviation = new ConstantDev(index, -v)
+  def unary_-(): Deviation = ConstantDev(index, -v)
   
   def +(other: Deviation): Deviation = other match {
     case ZeroDev => this
     case ConstantDev(i2, v2) if (i == i2) => Deviation(i, v + v2)
     case _ =>
-      throw MismatchedIndicesException("Index " + i + " does not match " + other.index)
+      throw MismatchedException("Indices or types don't match.")
       null
   }
 
@@ -75,11 +76,46 @@ case class ConstantDev(i: Int, v: Rational) extends Deviation(i) {
     case ZeroDev => this
     case ConstantDev(i2, v2) if (i == i2) => Deviation(i, v - v2)
     case _ =>
-      throw MismatchedIndicesException("Index " + i + " does not match " + other.index)
+      throw MismatchedException("Indices or types don't match.")
       null
   }
 
   def *(factor: Rational): Deviation = Deviation(i, v * factor)
+
+}
+
+/**
+  Keeps track of it's history, ie which initial indices it has been computed from.
+  @param history list of indices of noise terms this one has been computed from
+  For example, if you multiply x1e1 * x2e2 = (x1*x2)*e3 [1,2].
+  Multiple indices are possible, [1,1] for example stands for e1*e1.
+  We don't do this for all inputs and uncertainties, as we only interested in those
+  from inputs.
+ */
+case class VariableDev(i: Int, v: Rational, history: List[Int]) extends Deviation(i) {
+  assert( v != Rational.zero, "VariableDev with zero value")
+  // TODO: can go to abstract class
+  def value: Rational = v
+
+  def unary_-(): Deviation = VariableDev(index, -v, history)
+  
+  def +(other: Deviation): Deviation = other match {
+    case ZeroDev => this
+    case VariableDev(i2, v2, h2) if (index == i2 && history == h2) =>
+      VariableDev(index, v + v2, history)
+    case _ => throw MismatchedException("Indices or types don't match.")
+      null
+  }
+
+  def -(other: Deviation): Deviation = other match {
+    case ZeroDev => this
+    case VariableDev(i2, v2, h2) if (index == i2 && history == h2) =>
+      VariableDev(index, v - v2, history)
+    case _ => throw MismatchedException("Indices or types don't match.")
+      null
+  }
+
+  def *(factor: Rational): Deviation = VariableDev(index, v * factor, history)
 
 }
 
