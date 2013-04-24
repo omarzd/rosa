@@ -17,7 +17,7 @@ object Prover {
   val resAbsRoundoff: Variable =
     Variable(FreshIdentifier("_resAbsRoundoff").setType(RationalType))
 
-  val verbose = false
+  val verbose = true
 }
 
 class Prover(reporter: Reporter, ctx: LeonContext, solver: NumericSolver) {

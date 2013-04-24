@@ -2,20 +2,92 @@ package leon.numerics.affine
 
 import ceres.common._
 
-
 import collection.mutable.Queue
 
 case class DivisionByZeroException(s: String) extends Exception
 
-case class Deviation(index: Int, value: Rational) {
-  def unary_-(): Deviation = new Deviation(index, -value)
+object Deviation {
+  var currIndex: Int = 0
+  def newIndex: Int = {
+    currIndex += 1
+    assert(currIndex != Int.MaxValue, "Affine indices just ran out...")
+    currIndex
+  }
+
+  case class MismatchedIndicesException(msg: String) extends Exception(msg)
+
+  def apply(i: Int, v: Rational): Deviation = {
+    if (v == Rational.zero) ZeroDev
+    else ConstantDev(i, v)
+  }
+}
+
+import Deviation._
+
+/**
+  An uncertainty with a unique index (except ZeroDeviation) and a value.
+  The value may be positive and negative, thus indicating a direction.
+ */
+abstract class Deviation(val index: Int) {
+  
+  // max absolute value of this uncertainty
+  def value: Rational
+
+  def unary_-(): Deviation
+  def +(other: Deviation): Deviation
+  def -(other: Deviation): Deviation
+  def *(factor: Rational): Deviation
+
   override def toString: String = value.toDouble.toString + "e" + index
-  def toErrorString: String = value.toDouble.toString + "r" + index
+  //def toErrorString: String = value.toDouble.toString + "r" + index
+}
+
+/**
+  Special case of a deviation for zero values.
+  This is the only one that has a non-unique index.
+ */
+case object ZeroDev extends Deviation(Int.MaxValue) {
+  def value = Rational.zero
+  def unary_-(): Deviation = ZeroDev
+  def +(other: Deviation): Deviation = other
+  def -(other: Deviation): Deviation = -other
+  def *(factor: Rational): Deviation = ZeroDev
+}
+
+/**
+  Deviation with value defined by a constant.
+ */
+case class ConstantDev(i: Int, v: Rational) extends Deviation(i) {
+  assert( v != Rational.zero, "ConstantDev with zero value")
+  
+  def value = v
+  def unary_-(): Deviation = new ConstantDev(index, -v)
+  
+  def +(other: Deviation): Deviation = other match {
+    case ZeroDev => this
+    case ConstantDev(i2, v2) if (i == i2) => Deviation(i, v + v2)
+    case _ =>
+      throw MismatchedIndicesException("Index " + i + " does not match " + other.index)
+      null
+  }
+
+  def -(other: Deviation): Deviation = other match {
+    case ZeroDev => this
+    case ConstantDev(i2, v2) if (i == i2) => Deviation(i, v - v2)
+    case _ =>
+      throw MismatchedIndicesException("Index " + i + " does not match " + other.index)
+      null
+  }
+
+  def *(factor: Rational): Deviation = Deviation(i, v * factor)
+
 }
 
 object Utils {
+
+  // TODO: fold
   def sumQueue(q: Queue[Deviation]): Rational = {
-    var sum = Rational(0)
+    var sum = Rational.zero
     val iter = q.iterator
     while(iter.hasNext) {
       sum += Rational.abs(iter.next.value)
@@ -32,12 +104,15 @@ object Utils {
     val fy = (yi: Deviation) => { deviation += yi; val x = 0 }
 
     val fCouple = (xi: Deviation, yi: Deviation) => {
-      val zi =  xi.value + yi.value
-      if(zi != 0) deviation += new Deviation(xi.index, zi)
-      val x = 0
+      val zi =  xi + yi
+      zi match {
+        case ZeroDev => ;
+        case _ => deviation += zi
+      }
+      val x = 0  // TODO: can we get rid of this?
     }
-    RationalDoubleQueueIterator.iterate(iterX, iterY,
-      new Deviation(Int.MaxValue, Rational(0)), fx, fy, fCouple)
+    //println("addQueues")
+    RationalDoubleQueueIterator.iterate(iterX, iterY, ZeroDev, fx, fy, fCouple)
     return deviation
   }
 
@@ -50,12 +125,16 @@ object Utils {
     val fy = (yi: Deviation) => { deviation += -yi; val x = 0 }
 
     val fCouple = (xi: Deviation, yi: Deviation) => {
-      val zi =  xi.value - yi.value
-      if(zi != 0) deviation += new Deviation(xi.index, zi)
+      val zi =  xi - yi
+      zi match {
+        case ZeroDev => ;
+        case _ => deviation += zi
+      }
       val x = 0
     }
+    //println("subtractQueues")
     RationalDoubleQueueIterator.iterate(iterX, iterY,
-      new Deviation(Int.MaxValue, Rational(0)), fx, fy, fCouple)
+      ZeroDev, fx, fy, fCouple)
     return deviation
   }
 
@@ -65,23 +144,33 @@ object Utils {
     val iterX = xqueue.iterator
     val iterY = yqueue.iterator
 
-    val fx = (d: Deviation) => {
-      val zi =  b * d.value
-      if(zi != 0) deviation += new Deviation(d.index, zi)
+    val fx = (dev: Deviation) => {
+      val zi = dev * b
+      zi match {
+        case ZeroDev => ;
+        case _ => deviation += zi
+      }
       val x = 0
     }
-    val fy = (d: Deviation) => {
-      val zi =  a * d.value
-      if(zi != 0) deviation += new Deviation(d.index, zi)
+    val fy = (dev: Deviation) => {
+      val zi = dev * a
+      zi match {
+        case ZeroDev => ;
+        case _ => deviation += zi
+      }
       val x = 0
     }
     val fCouple = (xi: Deviation, yi: Deviation) => {
-      val zi = b * xi.value + a * yi.value
-      if(zi != 0) deviation += new Deviation(xi.index, zi)
+      val zi = xi * b + yi * a
+      zi match {
+        case ZeroDev => ;
+        case _ => deviation += zi
+      }
       val x = 0
     }
+    //println("multiplyQueues")
     RationalDoubleQueueIterator.iterate(iterX, iterY,
-      new Deviation(Int.MaxValue, Rational(0)), fx, fy, fCouple)
+      ZeroDev, fx, fy, fCouple)
     return deviation
   }
 
@@ -90,8 +179,11 @@ object Utils {
     val iter = queue.iterator
     while(iter.hasNext) {
       val xi = iter.next
-      val zi = factor * xi.value
-      if(zi != 0.0) deviation += Deviation(xi.index, zi)
+      val zi = xi * factor
+      zi match {
+        case ZeroDev => ;
+        case _ => deviation += zi
+      }
     }
     return deviation
   }
@@ -109,12 +201,12 @@ object Utils {
 
 }
 
+
 object RationalDoubleQueueIterator {
 
   def iterate(iterX: Iterator[Deviation], iterY: Iterator[Deviation],
     dummy: Deviation, fx: (Deviation) => Unit, fy: (Deviation) => Unit,
     fCouple: (Deviation, Deviation) => Unit): Unit = {
-
     var xi: Deviation = if(iterX.hasNext) iterX.next else dummy
     var yi: Deviation = if(iterY.hasNext) iterY.next else dummy
 

@@ -6,6 +6,7 @@ import XRationalForm._
 import collection.mutable.Queue
 
 import Utils._
+import Deviation._
 
 object XRationalForm {
   var maxNoiseCount = 200
@@ -28,12 +29,6 @@ object XRationalForm {
     new XRationalForm(x.x0, newTerms)
   }
 
-  var currIndex: Int = 0
-  def newIndex: Int = {
-    currIndex += 1
-    assert(currIndex != Int.MaxValue, "Affine indices just ran out...")
-    currIndex
-  }
 }
 
 /*
@@ -46,7 +41,7 @@ case class XRationalForm(val x0: Rational, var noise: Queue[Deviation]) {
 
   // Creating a range of values in fixed point format
   def this(r: Rational, un: Rational) =
-    this(r, new Queue[Deviation]() += Deviation(XRationalForm.newIndex, un))
+    this(r, new Queue[Deviation]() += Deviation(newIndex, un))
 
   if (noise.size > maxNoiseCount) {
     println("Packing noise terms")
@@ -131,7 +126,7 @@ case class XRationalForm(val x0: Rational, var noise: Queue[Deviation]) {
     val z0 = alpha * this.x0 + zeta
 
     var newTerms = multiplyQueue(noise, alpha)
-    if(delta != 0.0) newTerms += new Deviation(newIndex, delta)
+    if(delta != 0.0) newTerms += Deviation(newIndex, delta)
     return new XRationalForm(z0, newTerms)
   }
 
@@ -238,7 +233,7 @@ case class XRationalForm(val x0: Rational, var noise: Queue[Deviation]) {
       if(v.toDouble < threshold) newNoise += v
       else newDev += xi
     }
-    newDev += new Deviation(newIndex, newNoise)
+    newDev += Deviation(newIndex, newNoise)
     return newDev
   }
 
