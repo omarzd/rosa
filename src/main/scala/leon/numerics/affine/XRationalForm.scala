@@ -28,6 +28,18 @@ object XRationalForm {
     newTerms += Deviation(newIndex, n)
     new XRationalForm(x.x0, newTerms)
   }
+  
+  def addNoiseWithIndex(x: XRationalForm, n: Rational): (XRationalForm, Int) = {
+    println("Adding noise " + n)
+    val newTerms = new Queue[Deviation]()
+    var iter = x.noise.iterator
+    while(iter.hasNext) {
+      newTerms += iter.next
+    }
+    val index = newIndex
+    newTerms += VariableDev(index, n, List(index))
+    (new XRationalForm(x.x0, newTerms), index)
+  }
 
 }
 
@@ -44,7 +56,7 @@ case class XRationalForm(val x0: Rational, var noise: Queue[Deviation]) {
     this(r, new Queue[Deviation]() += Deviation(newIndex, un))
 
   if (noise.size > maxNoiseCount) {
-    println("Packing noise terms")
+    System.err.println("Packing noise terms")
     noise = packRationalNoiseTerms(noise)
   }
 
@@ -59,7 +71,10 @@ case class XRationalForm(val x0: Rational, var noise: Queue[Deviation]) {
   def intervalDouble = Interval(interval.xlo.toDouble, interval.xhi.toDouble)
 
   override def toString: String =
-    "[%f,%f]".format(intervalDouble.xlo, intervalDouble.xhi)
+    "[%.16f,%.16f]".format(intervalDouble.xlo, intervalDouble.xhi)
+
+  def longString: String =
+    "%s +/- %s".format(x0.toString, noise.toString)
 
   def absValue: XRationalForm = {
     if (Rational(0) <= x0) return this else return -this
@@ -137,7 +152,7 @@ case class XRationalForm(val x0: Rational, var noise: Queue[Deviation]) {
     return this * y.inverse
   }
 
-  private def multiplyNonlinearQueues(xqueue: Queue[Deviation], yqueue: Queue[Deviation]): Rational = {
+  /*private def multiplyNonlinearQueues(xqueue: Queue[Deviation], yqueue: Queue[Deviation]): Rational = {
     val indices = mergeIndices(getIndices(xqueue), getIndices(yqueue))
     var zqueue = Rational(0.0)
 
@@ -206,7 +221,7 @@ case class XRationalForm(val x0: Rational, var noise: Queue[Deviation]) {
     val set = x ++ y
     val list = set.toList.sorted
     return list.toArray
-  }
+  }*/
 
   private def packRationalNoiseTerms(queue: Queue[Deviation]): Queue[Deviation] = {
     var sum = sumQueue(queue)

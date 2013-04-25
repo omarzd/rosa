@@ -5,10 +5,12 @@ import purescala.Trees._
 
 import ceres.common.{Rational, RationalInterval}
 //import ceres.affine.{RationalForm}
-import affine.XRationalForm
+import affine._
 import Rational._
 import XRationalForm._
+import affine.Utils._
 
+import collection.mutable.Queue
 import java.math.{BigInteger, BigDecimal}
 
 object XFloat {
@@ -33,6 +35,13 @@ object XFloat {
     val rndoff = roundoff(range) // another version of that fnc?
     val newError = addNoise(new XRationalForm(Rational.zero), rndoff)
     return new XFloat(v, approx, newError, solver)
+  }
+
+  def withIndex(v: Variable, range: RationalInterval, solver: NumericSolver): (XFloat, Int) = {
+    val approx = XRationalForm(range)
+    val rndoff = roundoff(range) // another version of that fnc?
+    val (newError, index) = addNoiseWithIndex(new XRationalForm(Rational.zero), rndoff)
+    return (new XFloat(v, approx, newError, solver), index)
   }
 
   // Unit roundoff
@@ -78,6 +87,17 @@ class XFloat(val tree: Expr, val approxRange: XRationalForm, val error: XRationa
     max(abs(i.xlo), abs(i.xhi))
   }
 
+  def errorString(variables: Iterable[Int]): String = {
+    /*val (varErrors, otherErrors): (Queue[Deviation], Queue[Deviation]) =
+      error.noise.partition(
+        d =>
+          println("type: " + d.getClass);
+          d match { case v: VariableDev => true; case _ => false}
+      )*/
+    
+    "%s +/- %s".format(error.x0, error.noise.toString)
+  }
+
   def unary_-(): XFloat = new XFloat(UMinus(tree), -approxRange, -error, solver)
 
   // To be 100% correct, there is also a contribution from the old errors, (this.error + y.error) * \delta^2
@@ -117,6 +137,7 @@ class XFloat(val tree: Expr, val approxRange: XRationalForm, val error: XRationa
     val yAA = XRationalForm(y.realInterval)
     val yErr = y.error
     val xErr = this.error
+    
     val newError = addNoise(xAA*yErr + yAA*xErr + xErr*yErr, rndoff)
     if (verbose) println("multiplication: " + this.tree + "  *  " + y.tree)
     if(verbose) println("\nmultiplication, newRange: " + newRange + "\n roundoff: " + rndoff)

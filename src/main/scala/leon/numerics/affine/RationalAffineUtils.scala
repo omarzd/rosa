@@ -1,6 +1,7 @@
 package leon.numerics.affine
 
 import ceres.common._
+import Rational._
 
 import collection.mutable.Queue
 
@@ -93,7 +94,7 @@ case class ConstantDev(i: Int, v: Rational) extends Deviation(i) {
   from inputs.
  */
 case class VariableDev(i: Int, v: Rational, history: List[Int]) extends Deviation(i) {
-  assert( v != Rational.zero, "VariableDev with zero value")
+  //assert( v != Rational.zero, "VariableDev with zero value, index " + history)
   // TODO: can go to abstract class
   def value: Rational = v
 
@@ -115,8 +116,11 @@ case class VariableDev(i: Int, v: Rational, history: List[Int]) extends Deviatio
       null
   }
 
-  def *(factor: Rational): Deviation = VariableDev(index, v * factor, history)
+  def *(factor: Rational): Deviation = {
+    VariableDev(index, v * factor, history)
+  }
 
+  override def toString: String = value.toDouble.toString + "f" + index + "[" +history+"]"
 }
 
 object Utils {
@@ -234,7 +238,77 @@ object Utils {
     set
   }
 
+  def multiplyNonlinearQueues(xqueue: Queue[Deviation], yqueue: Queue[Deviation]): Rational = {
+    val indices = mergeIndices(getIndices(xqueue), getIndices(yqueue))
+    var zqueue = Rational(0.0)
 
+    var i = 0
+    while (i < indices.length) {
+      val iInd = indices(i)
+      // quadratic
+      val xi = xqueue.find((d: Deviation) => d.index == iInd) match {
+        case Some(d) => d.value; case None => Rational(0) }
+      val yi = yqueue.find((d: Deviation) => d.index == iInd) match {
+        case Some(d) => d.value; case None => Rational(0) }
+      val zii = xi * yi
+      if (zii != 0) zqueue += abs(zii)
+
+      var j = i + 1
+      while (j < indices.length) {
+        val jInd = indices(j)
+        val xj = xqueue.find((d: Deviation) => d.index == jInd) match {
+        case Some(d) => d.value; case None => Rational(0) }
+        val yj = yqueue.find((d: Deviation) => d.index == jInd) match {
+        case Some(d) => d.value; case None => Rational(0) }
+        val zij = xi * yj + xj * yi
+        if (zij != 0) zqueue += abs(zij)
+        j += 1
+      }
+      i += 1
+    }
+    zqueue
+  }
+
+  // Does a smarter computation of the quadratic terms
+  def multiplyNonlinearQueues2(xqueue: Queue[Deviation], yqueue: Queue[Deviation]): (Rational, Rational) = {
+    val indices = mergeIndices(getIndices(xqueue), getIndices(yqueue))
+    var zqueue = Rational(0.0)
+    var z0Addition = Rational(0.0)
+
+    var i = 0
+    while (i < indices.length) {
+      val iInd = indices(i)
+      // quadratic
+      val xi = xqueue.find((d: Deviation) => d.index == iInd) match {
+        case Some(d) => d.value; case None => Rational(0) }
+      val yi = yqueue.find((d: Deviation) => d.index == iInd) match {
+        case Some(d) => d.value; case None => Rational(0) }
+      val zii = xi * yi
+      z0Addition += zii / Rational(2.0)
+      if (zii != 0) zqueue += abs(zii / Rational(2.0))
+
+      var j = i + 1
+      while (j < indices.length) {
+        val jInd = indices(j)
+        val xj = xqueue.find((d: Deviation) => d.index == jInd) match {
+          case Some(d) => d.value; case None => Rational(0) }
+        val yj = yqueue.find((d: Deviation) => d.index == jInd) match {
+        case Some(d) => d.value; case None => Rational(0) }
+        val zij = xi * yj + xj * yi
+        if (zij != 0) zqueue += abs(zij)
+        j += 1
+      }
+      i += 1
+    }
+    (z0Addition, zqueue)
+  }
+
+
+  private def mergeIndices(x: Set[Int], y: Set[Int]): Array[Int] = {
+    val set = x ++ y
+    val list = set.toList.sorted
+    return list.toArray
+  }
 }
 
 

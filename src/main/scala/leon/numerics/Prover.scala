@@ -44,7 +44,11 @@ class Prover(reporter: Reporter, ctx: LeonContext, solver: NumericSolver) {
 
     reporter.info("Now checking VC of function " + vc.funDef.id.name)
 
-    val variables = variables2xfloats(vc.inputs)
+    val (variables, indices) = variables2xfloats(vc.inputs)
+
+    reporter.info("Variable-index map: " + indices)
+    vc.addComment("variables: " + indices.toString)
+
     val body = vc.expr
     val pre = vc.precondition
     val post = vc.postcondition
@@ -56,6 +60,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, solver: NumericSolver) {
       val t1 = System.nanoTime
       solver.countTimeouts = 0
       val exprResult: XFloat = inXFloats(vc.expr, variables)
+      //vc.addComment("errors: " + exprResult.errorString(indices.values))
 
       /*val simpleCond = simpleTactic(exprResult.interval, exprResult.maxRoundoff, body, post)
       reporter.info("trying the simple tactic")
@@ -147,7 +152,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, solver: NumericSolver) {
 
   // We can only create variables if we have both bounds defined.
   // We assume that the numbers written down by the user are meant to be reals.
-  private def variables2xfloats(vars: Map[Variable, ParRange]): Map[Variable, XFloat] = {
+  /*private def variables2xfloats(vars: Map[Variable, ParRange]): Map[Variable, XFloat] = {
     vars.collect {
       case (k, v) if (v.isDefined) =>
         k -> XFloat(k,
@@ -155,6 +160,28 @@ class Prover(reporter: Reporter, ctx: LeonContext, solver: NumericSolver) {
                                      Rational.rationalFromReal(v.hi.get)),
                     solver)
     }
+  }*/
+
+  /**
+    Converts partial ranges into XFloats.
+    Only converts those ranges that are fully defined.
+    Returns for each of those variables a XFloat and the index of its error.
+   */
+  private def variables2xfloats(vars: Map[Variable, ParRange]):
+    (Map[Variable, XFloat], Map[Variable, Int]) = {
+    var variableMap: Map[Variable, XFloat] = Map.empty
+    var indexMap: Map[Variable, Int] = Map.empty
+
+    for((k, v) <- vars) {
+      if (v.isDefined) {
+        val (xfloat, index) = XFloat.withIndex(k,
+          RationalInterval(Rational.rationalFromReal(v.lo.get), Rational.rationalFromReal(v.hi.get)),
+          solver)
+        variableMap = variableMap + (k -> xfloat) 
+        indexMap = indexMap + (k -> index)
+      }
+    }
+    (variableMap, indexMap)
   }
   
   private def inXFloats(tree: Expr, vars: Map[Variable, XFloat]): XFloat = tree match {
