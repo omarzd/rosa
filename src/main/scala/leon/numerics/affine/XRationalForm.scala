@@ -8,6 +8,9 @@ import collection.mutable.Queue
 import Utils._
 import Deviation._
 
+case class DivisionByZeroException(s: String) extends Exception
+
+
 object XRationalForm {
   var maxNoiseCount = 200
 
