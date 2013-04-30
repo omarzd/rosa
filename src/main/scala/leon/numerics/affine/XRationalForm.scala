@@ -1,5 +1,7 @@
-package leon.numerics.affine
+package leon
+package numerics.affine
 
+import purescala.Trees._
 import ceres.common.{Rational, RationalInterval, Interval}
 import Rational._
 import XRationalForm._
@@ -32,7 +34,8 @@ object XRationalForm {
     new XRationalForm(x.x0, newTerms)
   }
   
-  def addNoiseWithIndex(x: XRationalForm, n: Rational): (XRationalForm, Int) = {
+  def addNoiseWithIndex(x: XRationalForm, n: Rational):
+    (XRationalForm, Int) = {
     println("Adding noise " + n)
     val newTerms = new Queue[Deviation]()
     var iter = x.noise.iterator
@@ -40,7 +43,7 @@ object XRationalForm {
       newTerms += iter.next
     }
     val index = newIndex
-    newTerms += VariableDev(index, n, List(index))
+    newTerms += Deviation(index, List(index), n)
     (new XRationalForm(x.x0, newTerms), index)
   }
 

@@ -172,7 +172,7 @@ object Utils {
     (x1*y2 + x2*y2)e1e2 relationship
     @return (queue, error) queue of VarDevs and the remaining errors
    */
-  def multiplyNonlinearQueuesWithDependencies(xqueue: Queue[Deviation], yqueue: Queue[Deviation]):
+  /*def multiplyNonlinearQueuesWithDependencies(xqueue: Queue[Deviation], yqueue: Queue[Deviation]):
     (Queue[Deviation], Rational) = {
     val indices = mergeIndices(getIndices(xqueue), getIndices(yqueue))
     var zqueue = new Queue[Deviation]()
@@ -213,7 +213,7 @@ object Utils {
       i += 1
     }
     (zqueue, zerror)
-  }
+  }*/
 
 
 

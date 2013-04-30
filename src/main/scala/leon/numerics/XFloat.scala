@@ -87,7 +87,7 @@ class XFloat(val tree: Expr, val approxRange: XRationalForm, val error: XRationa
     max(abs(i.xlo), abs(i.xhi))
   }
 
-  def errorString(variables: Iterable[Int]): String = {
+  /*def errorString(variables: Iterable[Int]): String = {
     val (varErrors, otherErrors): (Queue[Deviation], Queue[Deviation]) =
       error.noise.partition(
         d => d match { case v: VariableDev => true; case _ => false}
@@ -96,7 +96,7 @@ class XFloat(val tree: Expr, val approxRange: XRationalForm, val error: XRationa
     println("varErrors: " + varErrors)
     println("otherErrors: " + otherErrors)
     "%s +/- %s +/- [%s]".format(error.x0, varErrors.toString, sumQueue(otherErrors))
-  }
+  }*/
 
   def unary_-(): XFloat = new XFloat(UMinus(tree), -approxRange, -error, solver)
 
