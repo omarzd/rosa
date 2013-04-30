@@ -88,14 +88,14 @@ class XFloat(val tree: Expr, val approxRange: XRationalForm, val error: XRationa
   }
 
   def errorString(variables: Iterable[Int]): String = {
-    /*val (varErrors, otherErrors): (Queue[Deviation], Queue[Deviation]) =
+    val (varErrors, otherErrors): (Queue[Deviation], Queue[Deviation]) =
       error.noise.partition(
-        d =>
-          println("type: " + d.getClass);
-          d match { case v: VariableDev => true; case _ => false}
-      )*/
-    
-    "%s +/- %s".format(error.x0, error.noise.toString)
+        d => d match { case v: VariableDev => true; case _ => false}
+      )
+    println("------------> ")
+    println("varErrors: " + varErrors)
+    println("otherErrors: " + otherErrors)
+    "%s +/- %s +/- [%s]".format(error.x0, varErrors.toString, sumQueue(otherErrors))
   }
 
   def unary_-(): XFloat = new XFloat(UMinus(tree), -approxRange, -error, solver)
@@ -126,7 +126,9 @@ class XFloat(val tree: Expr, val approxRange: XRationalForm, val error: XRationa
   }
 
   def *(y: XFloat): XFloat = {
-    if (verbose) println("Mult " + this + " with " + y)
+    if (verbose) println("Mult " + this.tree + " with " + y.tree)
+    if (verbose) println("x.error: " + this.error.longString)
+    if (verbose) println("y.error: " + y.error.longString)
     val newTree = Times(this.tree, y.tree)
     val newApprox = this.approxRange * y.approxRange
 
@@ -137,10 +139,12 @@ class XFloat(val tree: Expr, val approxRange: XRationalForm, val error: XRationa
     val yAA = XRationalForm(y.realInterval)
     val yErr = y.error
     val xErr = this.error
-    
+   
+    //One could also keep track of the input dependencies from xAA and yAA
+    // which may be larger than the nonlinear stuff
     val newError = addNoise(xAA*yErr + yAA*xErr + xErr*yErr, rndoff)
-    if (verbose) println("multiplication: " + this.tree + "  *  " + y.tree)
-    if(verbose) println("\nmultiplication, newRange: " + newRange + "\n roundoff: " + rndoff)
+    if (verbose) println("\nmultiplication, newRange: " + newRange + "\n roundoff: " + rndoff)
+    if (verbose) println("new error: " + newError.longString)
     return new XFloat(newTree, newApprox, newError, solver)
   }
 

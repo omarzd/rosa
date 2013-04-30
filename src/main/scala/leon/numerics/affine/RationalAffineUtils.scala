@@ -167,6 +167,55 @@ object Utils {
     (z0Addition, zqueue)
   }
 
+  /**
+    We cannot use the iterators above because they will miss the
+    (x1*y2 + x2*y2)e1e2 relationship
+    @return (queue, error) queue of VarDevs and the remaining errors
+   */
+  def multiplyNonlinearQueuesWithDependencies(xqueue: Queue[Deviation], yqueue: Queue[Deviation]):
+    (Queue[Deviation], Rational) = {
+    val indices = mergeIndices(getIndices(xqueue), getIndices(yqueue))
+    var zqueue = new Queue[Deviation]()
+    var zerror = Rational.zero
+
+    var i = 0
+    while (i < indices.length) {
+      val iInd = indices(i)
+      // quadratic
+      val xi: Deviation = xqueue.find((d: Deviation) => d.index == iInd) match {
+        case Some(d) => d; case None => dummyDev }
+      val yi: Deviation = yqueue.find((d: Deviation) => d.index == iInd) match {
+        case Some(d) => d; case None => dummyDev }
+      val zii = xi * yi
+      if (!zii.isZero) {
+        zii match {
+          case VariableDev(i, v, h) => zqueue += zii
+          case _ => zerror += abs(zii.value)
+        }
+      }
+
+      var j = i + 1
+      while (j < indices.length) {
+        val jInd = indices(j)
+        val xj = xqueue.find((d: Deviation) => d.index == jInd) match {
+          case Some(d) => d; case None => dummyDev }
+        val yj = yqueue.find((d: Deviation) => d.index == jInd) match {
+        case Some(d) => d; case None => dummyDev }
+        val zij = xi * yj + xj * yi
+        if (!zij.isZero) {
+          zij match { 
+            case VariableDev(i, v, h) => zqueue += zij
+            case _ => zerror += abs(zij.value)
+          }
+        }
+        j += 1
+      }
+      i += 1
+    }
+    (zqueue, zerror)
+  }
+
+
 
   private def mergeIndices(x: Set[Int], y: Set[Int]): Array[Int] = {
     val set = x ++ y

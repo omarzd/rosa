@@ -60,7 +60,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, solver: NumericSolver) {
       val t1 = System.nanoTime
       solver.countTimeouts = 0
       val exprResult: XFloat = inXFloats(vc.expr, variables)
-      //vc.addComment("errors: " + exprResult.errorString(indices.values))
+      vc.addComment("errors: " + exprResult.errorString(indices.values))
 
       /*val simpleCond = simpleTactic(exprResult.interval, exprResult.maxRoundoff, body, post)
       reporter.info("trying the simple tactic")

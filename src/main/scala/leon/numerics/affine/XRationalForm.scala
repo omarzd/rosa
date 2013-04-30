@@ -106,9 +106,16 @@ case class XRationalForm(val x0: Rational, var noise: Queue[Deviation]) {
 
   def *(y: XRationalForm): XRationalForm = {
     var z0 = this.x0 * y.x0
+
+    //var (zqueue, delta) =
+    //  multiplyNonlinearQueuesWithDependencies(this.noise, y.noise)
     var (z0Addition, delta) = multiplyNonlinearQueues2(this.noise, y.noise)
     z0 += z0Addition
-    val newTerms = multiplyQueues(this.x0, this.noise, y.x0, y.noise)
+    
+    //println("zqueue tyep: " + zqueue.getClass)
+    var newTerms: Queue[Deviation] = multiplyQueues(this.x0, this.noise, y.x0, y.noise)
+    //newTerms = newTerms ++ zqueue
+    //val sortedNewTerms: Queue[Deviation] = newTerms.sortBy(x => x.index)
     if(delta != 0)
       newTerms += Deviation(newIndex, delta)
     return new XRationalForm(z0, newTerms)

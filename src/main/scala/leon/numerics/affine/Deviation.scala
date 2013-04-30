@@ -20,6 +20,7 @@ object Deviation {
   val dummyDev = ConstantDev(Int.MaxValue, Rational.zero)
 }
 
+import Deviation._
 
 /**
   An uncertainty with a unique index (except ZeroDeviation) and a value.
@@ -32,6 +33,7 @@ abstract class Deviation(val index: Int, val value: Rational) {
   def +(other: Deviation): Deviation
   def -(other: Deviation): Deviation
   def *(factor: Rational): Deviation
+  def *(y: Deviation): Deviation
   def isZero: Boolean = (value == Rational.zero)
   override def toString: String = value.toDouble.toString + "e" + index
 }
@@ -56,6 +58,11 @@ case class ConstantDev(i: Int, v: Rational) extends Deviation(i, v) {
   }
 
   def *(factor: Rational): Deviation = Deviation(i, v * factor)
+
+  def *(y: Deviation): Deviation = y match {
+    case ConstantDev(j, w) => Deviation(newIndex, v * w)
+    case VariableDev(j, w, h) => VariableDev(newIndex, v * w, h)
+  }
 }
 
 /**
@@ -84,6 +91,11 @@ case class VariableDev(i: Int, v: Rational, history: List[Int]) extends Deviatio
   }
 
   def *(factor: Rational): Deviation = VariableDev(index, v * factor, history)
+
+  def *(y: Deviation): Deviation = y match {
+    case ConstantDev(j, w) => VariableDev(newIndex, v * w, history)
+    case VariableDev(j, w, h) => VariableDev(newIndex, v * w, history ++ h)
+  }
 
   override def toString: String = value.toDouble.toString + "f" + index + "[" +history+"]"
 }
