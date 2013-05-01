@@ -36,7 +36,6 @@ object XRationalForm {
   
   def addNoiseWithIndex(x: XRationalForm, n: Rational):
     (XRationalForm, Int) = {
-    println("Adding noise " + n)
     val newTerms = new Queue[Deviation]()
     var iter = x.noise.iterator
     while(iter.hasNext) {

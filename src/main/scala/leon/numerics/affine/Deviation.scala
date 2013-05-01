@@ -38,9 +38,10 @@ object Deviation {
     Deviation(Index(i, hist), Magnitude(v, variable))
 
 
-
   val dummyDev = Deviation(Index(Int.MaxValue, List.empty),
     Magnitude(Rational.zero, RationalLiteral(Rational.zero)))
+
+  var verbose = false
 }
 
 import Deviation._
@@ -61,6 +62,8 @@ case class Deviation(indx: Index, mgnt: Magnitude) {
               this.mgnt * y.mgnt)
   }
 
+  override def toString: String = "%se%d".format(value.toString, index)
+  
   def value: Rational = mgnt.value
   def index: Int = indx.freshIndex
   def isZero: Boolean = (mgnt.value == Rational.zero)
