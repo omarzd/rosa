@@ -13,3 +13,7 @@ derivation*.dot
 
 # Mac
 .DS_STORE
+
+# jars
+unmanaged/64/ceres_2.9.2-0.0.jar
+unmanaged/64/scalaz3_2.9.2-4.0a.jar

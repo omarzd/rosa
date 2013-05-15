@@ -1,0 +1,255 @@
+[info] [ Info  ] |---------|
+ | Summary |--------------------------------------------------------------------|
+ |_________|
+ |beales                     Unknown    8.989                                   
+     [3.669606808571406, 31836658.23622909] - (9.197263761514295e-08)(abs) 
+  
+ variables: Map(x -> 2, y -> 4)
+ Num timeouts: 17                                
+ |beales2                    Unknown    6.029                                   
+     [-7.371678896654728, 186501677.4900366] - (5.403315616885752e-07)(abs) 
+  
+ variables: Map(x -> 173, y -> 175)
+ Num timeouts: 9                             
+ |beales3                    Unknown    8.18                                    
+     [-22.99054232202834, 64610685.28884941] - (1.865440310349955e-07)(abs) 
+  
+ variables: Map(x -> 344, y -> 346)
+ Num timeouts: 16                            
+ |booths                     Unknown    3.455                                   
+     [175.2187499999992, 680.0000000000008] - (8.153478029069338e-13)(abs) 
+  
+ variables: Map(x -> 515, y -> 517)
+ Num timeouts: 8                             
+ |booths2                    Unknown    0.278                                   
+     [-0.0006041526816482624, 1832.000000000002] - (2.204903053999181e-12)(abs) 
+  
+ variables: Map(x -> 570, y -> 572)
+ Num timeouts: 0                             
+ |booths3                    Unknown    1.864                                   
+     [1.79944210052374, 785.7000000000012] - (1.162829867062072e-12)(abs) 
+  
+ variables: Map(x -> 625, y -> 627)
+ Num timeouts: 6                             
+ |bspline0                   Unknown    5.726                                   
+     [-0.06249997500000024, 0.1666666000000003] - (2.405482258861297e-16)(abs) 
+  
+ variables: Map(u -> 680)
+ Num timeouts: 14                                      
+ |bspline0_2                 Unknown    0.885                                   
+     [-0.1666894881744616, 20.83332500000002] - (2.312963715157627e-14)(abs) 
+  
+ variables: Map(u -> 708)
+ Num timeouts: 2                                       
+ |bspline0_3                 Unknown    0.199                                   
+     [-287.9998848000004, -0.1665460695220332] - (3.357313314174295e-13)(abs) 
+  
+ variables: Map(u -> 736)
+ Num timeouts: 0                                       
+ |bspline1                   Unknown    0.294                                   
+     [0.1666627853042591, 0.6667198057403576] - (1.184245042859800e-15)(abs) 
+  
+ variables: Map(u -> 764)
+ Num timeouts: 0                                       
+ |bspline1_2                 Unknown    0.278                                   
+     [-47.33331440000006, 0.6667279119688583] - (5.491901114472241e-14)(abs) 
+  
+ variables: Map(u -> 808)
+ Num timeouts: 0                                       
+ |bspline1_3                 Unknown    0.276                                   
+     [0.6662707147226155, 930.1667706025041] - (1.317298368170692e-12)(abs) 
+  
+ variables: Map(u -> 852)
+ Num timeouts: 0                                       
+ |bspline2                   Unknown    1.385                                   
+     [0.1666208236511219, 0.9166663000000012] - (1.136951188945362e-15)(abs) 
+  
+ variables: Map(u -> 896)
+ Num timeouts: 4                                       
+ |bspline2_2                 Unknown    0.431                                   
+     [-0.833347305109075, 38.16665140000005] - (5.092221042098801e-14)(abs) 
+  
+ variables: Map(u -> 947)
+ Num timeouts: 0                                       
+ |bspline2_3                 Unknown    0.326                                   
+     [-1007.333531959638, -0.8331110621925143] - (1.439644943780760e-12)(abs) 
+  
+ variables: Map(u -> 998)
+ Num timeouts: 0                                       
+ |bspline3                   Unknown    0.044                                   
+     [-5.086260986457651e-06, 0.1666666000000001] - (1.295259678066856e-16)(abs) 
+  
+ variables: Map(u -> 1049)
+ Num timeouts: 0                                      
+ |bspline3_2                 Unknown    0.134                                   
+     [-10.66666240000001, 1.333384298392495] - (8.289661980251810e-15)(abs) 
+  
+ variables: Map(u -> 1071)
+ Num timeouts: 0                                      
+ |bspline3_3                 Unknown    0.053                                   
+     [1.333132717221345, 366.1665202000003] - (2.845685907758412e-13)(abs) 
+  
+ variables: Map(u -> 1093)
+ Num timeouts: 0                                      
+ |camel                      Unknown    0.757                                   
+     [-0.001017252609655566, 2047.916825612391] - (5.488899733208363e-12)(abs) 
+  
+ variables: Map(x -> 1115, y -> 1117)
+ Num timeouts: 0                           
+ |camel2                     Unknown    1.432                                   
+     [-0.5308818320158921, 1163623.458870354] - (2.295597526578315e-09)(abs) 
+  
+ variables: Map(x -> 1218, y -> 1220)
+ Num timeouts: 0                           
+ |camel3                     Unknown    1.307                                   
+     [-0.05086183698628602, 143782.1149924605] - (2.953508572470099e-1)(abs) 
+  
+ variables: Map(x -> 1321, y -> 1323)
+ Num timeouts: 0                           
+ |cos                        Unknown    0.857                                   
+     [-1.425577387301318, 1.000044594567807] - (1.497284026514361e-14)(abs) 
+  
+ variables: Map(x -> 1424)
+ Num timeouts: 0                                      
+ |cos2                       Unknown    4.543                                   
+     [-0.4922592616946959, 216.8628235416287] - (5.643785668651501e-13)(abs) 
+  
+ variables: Map(x -> 1511)
+ Num timeouts: 8                                      
+ |cos3                       Unknown    14.146                                  
+     [-59.6278899600531, 0.9618583441064379] - (3.801966843344899e-13)(abs) 
+  
+ variables: Map(x -> 1649)
+ Num timeouts: 24                                     
+ |cosh6                      Unknown    0.751                                   
+     [0.9999286657327708, 5.215072735712806] - (5.223767714874589e-15)(abs) 
+  
+ variables: Map(x -> 1787)
+ Num timeouts: 0                                      
+ |doppler                    Unknown    2.06                                    
+     [-137.638579699491, -0.03377329981416987] - (3.772870755482482e-12)(abs) 
+  
+ variables: Map(u -> 1874, v -> 1876, T -> 1878)
+ Num timeouts: 4                
+ |doppler2                   Unknown    2.586                                   
+     [-230.9908309874949, -0.01986094177477081] - (1.102439227024582e-09)(abs) 
+  
+ variables: Map(u -> 1929, v -> 1931, T -> 1933)
+ Num timeouts: 4                
+ |doppler3                   Unknown    1.616                                   
+     [-83.06535389873845, -0.5073820426345859] - (7.136840270680081e-13)(abs) 
+  
+ variables: Map(u -> 1984, v -> 1986, T -> 1988)
+ Num timeouts: 4                
+ |exOverCosx                 Unknown    0.92                                    
+     [0.6786265643954208, 2.986160283168164] - (6.894882462311725e-15)(abs) 
+  
+ variables: Map(x -> 2039)
+ Num timeouts: 1                                      
+ |goldstein                  Unknown    12.885                                  
+     [-2161.96724892938, 351662.8131091024] - (1.275404703350824e-08)(abs) 
+  
+ variables: Map(x -> 2106, y -> 2108)
+ Num timeouts: 19                          
+ |jetEngine                  Unknown    28.975                                  
+     [-1780.367790966668, 4820.019826363501] - (3.171337277233501e-08)(abs) 
+  
+ variables: Map(x1 -> 2295, x2 -> 2297)
+ Num timeouts: 25                        
+ |matyas                     Unknown    0.253                                   
+     [9.159963684082005, 36.36000000000003] - (2.681854754732573e-14)(abs) 
+  
+ variables: Map(x -> 2600, y -> 2602)
+ Num timeouts: 0                           
+ |matyas2                    Unknown    0.615                                   
+     [-2.56910156250013, 176.8850000000001] - (1.298733373556932e-13)(abs) 
+  
+ variables: Map(x -> 2639, y -> 2641)
+ Num timeouts: 1                           
+ |matyas3                    Unknown    0.31                                    
+     [-1.293993047632447e-06, 70.17140000000005] - (5.141662670903486e-14)(abs) 
+  
+ variables: Map(x -> 2678, y -> 2680)
+ Num timeouts: 0                           
+ |motzkin                    Unknown    1.361                                   
+     [-61.13473175330942, 491463819.0344583] - (8.316213022040290e-07)(abs) 
+  
+ variables: Map(x -> 2717, y -> 2719, z -> 2721)
+ Num timeouts: 0                
+ |motzkin3                   Unknown    0.998                                   
+     [-115.686533712806, 182187931.6970944] - (3.081136704130404e-07)(abs) 
+  
+ variables: Map(x -> 2795, y -> 2797, z -> 2799)
+ Num timeouts: 0                
+ |rigidBody1                 Unknown    0.036                                   
+     [-705.0000000000006, 705.0000000000006] - (5.578870931781481e-13)(abs) 
+  
+ variables: Map(x1 -> 2873, x2 -> 2875, x3 -> 2877)
+ Num timeouts: 0             
+ |rigidBody1_2               Unknown    0.116                                   
+     [-2685.001396656039, 2815.000000000002] - (2.348122407277858e-12)(abs) 
+  
+ variables: Map(x1 -> 2902, x2 -> 2904, x3 -> 2906)
+ Num timeouts: 0             
+ |rigidBody1_3               Unknown    0.197                                   
+     [-1165.000000000001, 635.0004434585582] - (1.055822233842220e-12)(abs) 
+  
+ variables: Map(x1 -> 2931, x2 -> 2933, x3 -> 2935)
+ Num timeouts: 0             
+ |rigidBody2                 Unknown    0.836                                   
+     [-56010.05252838141, 58740.00000000007] - (6.565111133670656e-11)(abs) 
+  
+ variables: Map(x1 -> 2960, x2 -> 2962, x3 -> 2964)
+ Num timeouts: 0             
+ |rigidBody2_2               Unknown    1.988                                   
+     [-595325.5225300796, 479875.3239929683] - (6.829294357631453e-1)(abs) 
+  
+ variables: Map(x1 -> 3037, x2 -> 3039, x3 -> 3041)
+ Num timeouts: 0             
+ |rigidBody2_3               Unknown    1.294                                   
+     [-106230.0352191928, 223770.0000000003] - (2.498115331771531e-1)(abs) 
+  
+ variables: Map(x1 -> 3114, x2 -> 3116, x3 -> 3118)
+ Num timeouts: 0             
+ |sin                        Unknown    8.466                                   
+     [-1.387765197655502, 1.345917664129674] - (9.696607537865240e-16)(abs) 
+  
+ variables: Map(x -> 3191)
+ Num timeouts: 10                                     
+ |sin2                       Unknown    5.819                                   
+     [-0.7796738717681394, 1.000013704883259] - (8.553439276296383e-15)(abs) 
+  
+ variables: Map(x -> 3298)
+ Num timeouts: 10                                     
+ |sin3                       Unknown    5.923                                   
+     [0.105286118100197, 3.589273127234312] - (3.801888355625389e-14)(abs) 
+  
+ variables: Map(x -> 3436)
+ Num timeouts: 9                                      
+ |sinh7                      Unknown    0.771                                   
+     [-0.4653433534369832, 5.136358831515427] - (4.699711483681025e-15)(abs) 
+  
+ variables: Map(x -> 3574)
+ Num timeouts: 0                                      
+ |sqrt                       Unknown    16.572                                  
+     [1.166782218318263, 2.131077392943857] - (1.942144864179557e-15)(abs) 
+  
+ variables: Map(x -> 3681)
+ Num timeouts: 21                                     
+ |sqrt2                      Unknown    6.118                                   
+     [1.839532064660905, 3.501811897192507] - (2.868410085538626e-15)(abs) 
+  
+ variables: Map(x -> 3810)
+ Num timeouts: 14                                     
+ |sqrt3                      Unknown    1.702                                   
+     [0.2668868064756443, 4.520115731173221] - (2.766087148069646e-14)(abs) 
+  
+ variables: Map(x -> 3903)
+ Num timeouts: 1                                      
+ |tan5                       Unknown    0.16                                    
+     [-2.527390666666669, 2.527390666666669] - (2.070476383823429e-15)(abs) 
+  
+ variables: Map(x -> 3996)
+ Num timeouts: 0                                      
+ |______________________________________________________________________________|
+
