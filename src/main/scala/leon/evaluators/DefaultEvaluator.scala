@@ -9,6 +9,8 @@ import purescala.TypeTrees._
 
 import xlang.Trees._
 
+import ceres.common.Rational
+
 class DefaultEvaluator(ctx : LeonContext, prog : Program) extends Evaluator(ctx, prog) {
   val name = "evaluator"
   val description = "Recursive interpreter for PureScala expressions"
@@ -151,37 +153,37 @@ class DefaultEvaluator(ctx : LeonContext, prog : Program) extends Evaluator(ctx,
         }
         case Plus(l,r) => (rec(ctx,l), rec(ctx,r)) match {
           case (IntLiteral(i1), IntLiteral(i2)) => IntLiteral(i1 + i2)
-          case (FloatLiteral(i1), FloatLiteral(i2)) => FloatLiteral(i1 + i2)
-          case (IntLiteral(i1), FloatLiteral(i2)) => FloatLiteral(i1 + i2)
-          case (FloatLiteral(i1), IntLiteral(i2)) => FloatLiteral(i1 + i2)
+          case (RationalLiteral(i1), RationalLiteral(i2)) => RationalLiteral(i1 + i2)
+          case (IntLiteral(i1), RationalLiteral(i2)) => RationalLiteral(Rational(i1) + i2)
+          case (RationalLiteral(i1), IntLiteral(i2)) => RationalLiteral(i1 + Rational(i2))
           case (le,re) => throw EvalError(typeErrorMsg(le, Int32Type))
         }
         case Minus(l,r) => (rec(ctx,l), rec(ctx,r)) match {
           case (IntLiteral(i1), IntLiteral(i2)) => IntLiteral(i1 - i2)
-          case (FloatLiteral(i1), FloatLiteral(i2)) => FloatLiteral(i1 - i2)
-          case (IntLiteral(i1), FloatLiteral(i2)) => FloatLiteral(i1 - i2)
-          case (FloatLiteral(i1), IntLiteral(i2)) => FloatLiteral(i1 - i2)
+          case (RationalLiteral(i1), RationalLiteral(i2)) => RationalLiteral(i1 - i2)
+          case (IntLiteral(i1), RationalLiteral(i2)) => RationalLiteral(Rational(i1) - i2)
+          case (RationalLiteral(i1), IntLiteral(i2)) => RationalLiteral(i1 - Rational(i2))
           case (le,re) => throw EvalError(typeErrorMsg(le, Int32Type))
         }
         case UMinus(e) => rec(ctx,e) match {
           case IntLiteral(i) => IntLiteral(-i)
-          case FloatLiteral(i) => FloatLiteral(-i)
+          case RationalLiteral(i) => RationalLiteral(-i)
           case re => throw EvalError(typeErrorMsg(re, Int32Type))
         }
         case Times(l,r) => (rec(ctx,l), rec(ctx,r)) match {
           case (IntLiteral(i1), IntLiteral(i2)) => IntLiteral(i1 * i2)
-          case (FloatLiteral(i1), FloatLiteral(i2)) => FloatLiteral(i1 * i2)
-          case (IntLiteral(i1), FloatLiteral(i2)) => FloatLiteral(i1 * i2)
-          case (FloatLiteral(i1), IntLiteral(i2)) => FloatLiteral(i1 * i2)
+          case (RationalLiteral(i1), RationalLiteral(i2)) => RationalLiteral(i1 * i2)
+          case (IntLiteral(i1), RationalLiteral(i2)) => RationalLiteral(Rational(i1) * i2)
+          case (RationalLiteral(i1), IntLiteral(i2)) => RationalLiteral(i1 * Rational(i2))
           case (le,re) => throw EvalError(typeErrorMsg(le, Int32Type))
         }
         case Division(l,r) => (rec(ctx,l), rec(ctx,r)) match {
           case (IntLiteral(i1), IntLiteral(i2)) =>
             if(i2 != 0) IntLiteral(i1 / i2) else throw RuntimeError("Division by 0.")
           // division by zero produces Infinity, no errors
-          case (FloatLiteral(i1), FloatLiteral(i2)) => FloatLiteral(i1 / i2)
-          case (IntLiteral(i1), FloatLiteral(i2)) => FloatLiteral(i1 / i2)
-          case (FloatLiteral(i1), IntLiteral(i2)) => FloatLiteral(i1 / i2)
+          case (RationalLiteral(i1), RationalLiteral(i2)) => RationalLiteral(i1 / i2)
+          case (IntLiteral(i1), RationalLiteral(i2)) => RationalLiteral(Rational(i1) / i2)
+          case (RationalLiteral(i1), IntLiteral(i2)) => RationalLiteral(i1 / Rational(i2))
           case (le,re) => throw EvalError(typeErrorMsg(le, Int32Type))
         }
        case Modulo(l,r) => (rec(ctx,l), rec(ctx,r)) match {

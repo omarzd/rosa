@@ -277,9 +277,7 @@ trait AbstractZ3Solver extends solvers.IncrementalSolverBuilder {
   protected[leon] def typeToSort(tt: TypeTree): Z3Sort = tt match {
     case Int32Type => intSort
     case BooleanType => boolSort
-    // TODO: remove? this probably is quite right, not sure where one needs it anyway
-    case Float64Type => realSort
-    case RationalType => realSort
+    case RealType => realSort
     case UnitType => unitSort
     case AbstractClassType(cd) => adtSorts(cd)
     case CaseClassType(cd) => {
@@ -430,9 +428,6 @@ trait AbstractZ3Solver extends solvers.IncrementalSolverBuilder {
         case Not(e) => z3.mkNot(rec(e))
         case IntLiteral(v) => z3.mkInt(v, intSort)
         case BooleanLiteral(v) => if (v) z3.mkTrue() else z3.mkFalse()
-        case FloatLiteral(v) =>
-          val r = ceres.common.Rational.rationalFromReal(v)
-          z3.mkNumeral(r.n.toString + "/" + r.d.toString, realSort)
         case RationalLiteral(r) =>
           z3.mkNumeral(r.n.toString + "/" + r.d.toString, realSort)
         case UnitLiteral => unitValue

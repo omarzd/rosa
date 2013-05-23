@@ -421,12 +421,12 @@ trait Extractors {
       }
     }
 
-    object ExFloat64Identifier {
+    /*object ExFloat64Identifier {
       def unapply(tree: Ident): Option[String] = tree match {
         case i: Ident if i.symbol.tpe == DoubleClass.tpe => Some(i.symbol.name.toString)
         case _ => None
       }
-    }
+    }*/
 
 
     object ExAnd {
@@ -494,15 +494,6 @@ trait Extractors {
       }
     }
 
-    object ExAbsRoundoff {
-      def unapply(tree: Apply): Option[Tree] = tree match {
-        case Apply(ExSelected("leon", "NumericUtils", "absRoundoff"), List(rhs)) =>
-          Some(rhs)
-        case _ => None
-      }
-
-    }
-
     object ExUMinus {
       def unapply(tree: Select): Option[Tree] = tree match {
         case Select(t, n) if (n == nme.UNARY_-) => Some(t)
@@ -560,6 +551,41 @@ trait Extractors {
         case _ => None
       }
     }
+
+    object ExImplicitInt2Real {
+      def unapply(tree: Apply): Option[Int] = tree match {
+        case Apply(select, List(Literal(c @ Constant(i))))
+          if (select.toString == "leon.this.Real.int2real") =>
+          assert(c.tpe == IntClass.tpe)
+          Some(c.intValue)
+        case _ => None
+      }
+    }
+
+    object ExImplicitDouble2Real {
+      def unapply(tree: Apply): Option[Double] = tree match {
+        case Apply(select, List(Literal(c @ Constant(i))))
+          if (select.toString == "leon.this.Real.double2real") =>
+          assert(c.tpe == DoubleClass.tpe)
+          Some(c.doubleValue)
+        case _ => None
+      }
+    }
+
+    object ExNoise {
+      def unapply(tree: Apply): Option[Tree] = tree match {
+        case Apply(select, List(arg)) if (select.toString == "leon.Real.noise") => Some(arg) 
+        case _ => None
+      }
+    }
+    
+    object ExRoundoff {
+      def unapply(tree: Apply): Option[Tree] = tree match {
+        case Apply(select, List(arg)) if (select.toString == "leon.Real.roundoff") => Some(arg) 
+        case _ => None
+      }
+    }
+
 
     object ExPatternMatching {
       def unapply(tree: Match): Option[(Tree,List[CaseDef])] =

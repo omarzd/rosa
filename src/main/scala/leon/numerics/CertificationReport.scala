@@ -11,7 +11,7 @@ object CertificationReport {
 
   private val infoSep: String = "|" + ("_" * 78) + "|\n"
 
-  private def infoLine(vc: VerificationCondition): String = {
+ /* private def infoLine(vc: VerificationCondition): String = {
     "|%-25s  %-10s %-10s %-29s\n    %-38s \n %-80s".format(
       vc.funDef.id.toString,
       vc.status,
@@ -29,19 +29,20 @@ object CertificationReport {
   private def formatTime(time: Option[Double]): String = time match {
     case Some(xf) => xf.toString
     case None => " - "
-  }
+  }*/
 
 }
 
-case class CertificationReport(val vcs: Seq[VerificationCondition]) {
+case class CertificationReport(val fcs: Seq[FunctionConstraint]) {
   import CertificationReport._
 
-  def summaryString: String = if(vcs.length >= 0) {
+  def summaryString: String = "No summary yet"
+    /*if(vcs.length >= 0) {
     infoHeader +
     vcs.map(infoLine).mkString("\n", "\n", "\n") +
     infoSep +
     "..."
   } else {
     "No verification conditions were analyzed."
-  }
+  }*/
 }

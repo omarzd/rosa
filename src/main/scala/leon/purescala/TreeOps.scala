@@ -92,7 +92,6 @@ object TreeOps {
             n
         }
         case b @ BinaryOperator(t1,t2,recons) => {
-          println("Binary op!")
           val r1 = rec(t1)
           val r2 = rec(t2)
           if(r1 != t1 || r2 != t2)

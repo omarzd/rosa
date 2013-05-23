@@ -14,8 +14,9 @@ object Extractors {
     def unapply(expr: Expr) : Option[(Expr,(Expr)=>Expr)] = expr match {
       case Not(t) => Some((t,Not(_)))
       case UMinus(t) => Some((t,UMinus))
-      case AbsRoundoff(t) => Some((t, AbsRoundoff))
-      case IntegerAsFloat(t) => Some((t, IntegerAsFloat))
+      case Noise(t) => Some((t, Noise))
+      case Roundoff(t) => Some((t, Roundoff))
+      //case IntegerAsFloat(t) => Some((t, IntegerAsFloat))
       case SetCardinality(t) => Some((t,SetCardinality))
       case MultisetCardinality(t) => Some((t,MultisetCardinality))
       case MultisetToSet(t) => Some((t,MultisetToSet))

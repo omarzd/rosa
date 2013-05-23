@@ -393,13 +393,10 @@ object Trees {
     val fixedType = Int32Type
   }
 
-  case class FloatLiteral(value: Double) extends Literal[Double] with FixedType {
-    val fixedType = Float64Type
-  }
-
-  // only used internally in numerics
   case class RationalLiteral(value: Rational) extends Literal[Rational] with FixedType {
-    val fixedType = RationalType
+    def this(d: Double) = this(Rational(d))
+    def this(i: Int) = this(Rational(i))
+    val fixedType = RealType
   }
 
   case class BooleanLiteral(value: Boolean) extends Literal[Boolean] with FixedType {
@@ -447,27 +444,27 @@ object Trees {
   /* Arithmetic */
   case class Plus(lhs: Expr, rhs: Expr) extends Expr with FixedType {
     val fixedType =
-      if (lhs.getType == Float64Type || rhs.getType == Float64Type) Float64Type
+      if (lhs.getType == RealType || rhs.getType == RealType) RealType
       else Int32Type
   }
   case class Minus(lhs: Expr, rhs: Expr) extends Expr with FixedType { 
     val fixedType =
-      if (lhs.getType == Float64Type || rhs.getType == Float64Type) Float64Type
+      if (lhs.getType == RealType || rhs.getType == RealType) RealType
       else Int32Type
   }
   case class UMinus(expr: Expr) extends Expr with FixedType { 
     val fixedType =
-      if (expr.getType == Float64Type) Float64Type
+      if (expr.getType == RealType) RealType
       else Int32Type
   }
   case class Times(lhs: Expr, rhs: Expr) extends Expr with FixedType { 
     val fixedType =
-      if (lhs.getType == Float64Type || rhs.getType == Float64Type) Float64Type
+      if (lhs.getType == RealType || rhs.getType == RealType) RealType
       else Int32Type
   }
   case class Division(lhs: Expr, rhs: Expr) extends Expr with FixedType { 
     val fixedType =
-      if (lhs.getType == Float64Type || rhs.getType == Float64Type) Float64Type
+      if (lhs.getType == RealType || rhs.getType == RealType) RealType
       else Int32Type
   }
   case class Modulo(lhs: Expr, rhs: Expr) extends Expr with FixedType { 
@@ -487,12 +484,16 @@ object Trees {
   }
 
   // Explicit cast from integers to floats
-  case class IntegerAsFloat(expr: Expr) extends Expr with FixedType {
-    val fixedType = Float64Type
-  }
+  /*case class IntegerAsFloat(expr: Expr) extends Expr with FixedType {
+    val fixedType = RealType
+  }*/
  
-  case class AbsRoundoff(expr: Expr) extends Expr with FixedType {
-    val fixedType = Float64Type
+  case class Noise(expr: Expr) extends Expr with FixedType {
+    val fixedType = RealType
+  }
+
+  case class Roundoff(expr: Expr) extends Expr with FixedType {
+    val fixedType = RealType
   }
 
   /* Set expressions */

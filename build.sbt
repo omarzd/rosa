@@ -29,3 +29,5 @@ libraryDependencies += "com.typesafe.akka" % "akka-actor" % "2.0.4"
 fork in run := true
 
 fork in test := true
+
+mainClass in (Compile, run) := Some("leon.Main")
