@@ -421,14 +421,6 @@ trait Extractors {
       }
     }
 
-    /*object ExFloat64Identifier {
-      def unapply(tree: Ident): Option[String] = tree match {
-        case i: Ident if i.symbol.tpe == DoubleClass.tpe => Some(i.symbol.name.toString)
-        case _ => None
-      }
-    }*/
-
-
     object ExAnd {
       def unapply(tree: Apply): Option[(Tree,Tree)] = tree match {
         case Apply(s @ Select(lhs, _), List(rhs)) if (s.symbol == Boolean_and) =>
