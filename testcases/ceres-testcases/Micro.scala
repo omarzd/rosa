@@ -7,11 +7,11 @@ object Micro {
 
   def f1(x: Real): Real = {
     require(0 <= x && x <= 2.3)
-    x*x  
+    x+x+x 
   } ensuring (res => res <= 5.3)
 
 
-  def f2(x: Real): Real = {
+  /*def f2(x: Real): Real = {
     require(0 <= x && x <= 3 && noise(x) <= 1e-9)
     x*x
   } ensuring (res => res <= 5.3 && noise(res) <= 1e-8)
@@ -80,4 +80,5 @@ object Micro {
     val t1 = x*x
     f1(t1)
   } ensuring(res => res >= 0 && noise(res) <= 1e-15)
+  */
 }

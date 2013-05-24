@@ -18,6 +18,11 @@ class ConstraintGenerator(reporter:Reporter) {
     Variable(FreshIdentifier("#delta_" + deltaCounter))
   }
 
+  private def getFreshRndoffMultiplier: (Expr, Variable) = {
+    val delta = getNewDelta
+    (Plus(new RationalLiteral(1), delta) , delta)
+  }
+
   def constraintWithoutRoundoff(funDef: FunDef): FunctionConstraint = {
     val funName = funDef.id.name
     val pre = funDef.precondition
@@ -142,7 +147,8 @@ class ConstraintGenerator(reporter:Reporter) {
         Or(And(noisyCond, thenNoisy), And(Not(noisyCond), elseNoisy)))
 
     case UMinus(_) | Plus(_, _) | Minus(_, _) | Times(_, _) | Division(_, _) | FunctionInvocation(_, _) =>
-      (Equals(res, expr), Equals(buddy(res), replace(buddy, expr)))
+      val (rndExpr, deltas) = addRndoff(replace(buddy, expr))
+      (Equals(res, expr), Equals(buddy(res), rndExpr))
    
     case _=>
       reporter.warning("Dropping instruction: " + expr + ". Cannot handle it.")
@@ -150,4 +156,34 @@ class ConstraintGenerator(reporter:Reporter) {
       (BooleanLiteral(true), BooleanLiteral(true))
   }
 
+  // @return (constraint, deltas) (the expression with added roundoff, the deltas used)
+  private def addRndoff(expr: Expr): (Expr, List[Variable]) = expr match {
+    case Plus(x, y) =>
+      val (mult, delta) = getFreshRndoffMultiplier
+      val (xExpr, xDeltas) = addRndoff(x)
+      val (yExpr, yDeltas) = addRndoff(y)
+      (Times(Plus(xExpr, yExpr), mult), xDeltas ++ yDeltas ++ List(delta))
+
+    case Minus(x, y) =>
+      val (mult, delta) = getFreshRndoffMultiplier
+      val (xExpr, xDeltas) = addRndoff(x)
+      val (yExpr, yDeltas) = addRndoff(y)
+      (Times(Minus(xExpr, yExpr), mult), xDeltas ++ yDeltas ++ List(delta))
+
+    case Times(x, y) =>
+      val (mult, delta) = getFreshRndoffMultiplier
+      val (xExpr, xDeltas) = addRndoff(x)
+      val (yExpr, yDeltas) = addRndoff(y)
+      (Times(Times(xExpr, yExpr), mult), xDeltas ++ yDeltas ++ List(delta))
+
+    case Division(x, y) =>
+      val (mult, delta) = getFreshRndoffMultiplier
+      val (xExpr, xDeltas) = addRndoff(x)
+      val (yExpr, yDeltas) = addRndoff(y)
+      (Times(Division(xExpr, yExpr), mult), xDeltas ++ yDeltas ++ List(delta))
+
+    case v: Variable => (v, List())
+    case _=> (Error(""), List())    
+
+  }
 }
