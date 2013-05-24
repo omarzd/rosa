@@ -1,10 +1,15 @@
 package leon
 
 import ceres.common.{Rational, DirectedRounding}
+import java.math.{BigInteger}
+
 
 package object numerics {
 
-  case class UnsupportedFragmentException(msg: String) extends Exception(msg)
+  val unitRndoff = Rational(new BigInt(new BigInteger("1")),
+    new BigInt(new BigInteger("2")).pow(53))
+
+  /*case class UnsupportedFragmentException(msg: String) extends Exception(msg)
 
   object Sat extends Enumeration {
     type Sat = Value
@@ -20,5 +25,5 @@ package object numerics {
     val NOT_SURE = Value("Not sure")  //computed range may be too large
     val DUNNO = Value("Unknown")  //Z3 failed or something like that
   }
-
+  */
 }

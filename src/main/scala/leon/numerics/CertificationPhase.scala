@@ -25,14 +25,17 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
     var allFCs: Seq[FunctionConstraint] = Seq.empty
     val analysedFunctions: MutableSet[String] = MutableSet.empty
 
-    //val analyser = new Analyser(reporter)
+    val analyser = new ConstraintGenerator(reporter)
+    val sortedFncs =
+      if(functionsToAnalyse.isEmpty) program.definedFunctions.toList.sortWith((f1, f2) => f1.id.name < f2.id.name)
+      else program.definedFunctions.filter(f => functionsToAnalyse.contains(f.id.name)).sortWith(
+        (f1, f2) => f1.id.name < f2.id.name)
 
-    for(funDef <- program.definedFunctions.toList if (functionsToAnalyse.isEmpty || functionsToAnalyse.contains(funDef.id.name))) {
+    for(funDef <- sortedFncs) {
       analysedFunctions += funDef.id.name
 
       if (funDef.body.isDefined) {
-        reporter.info("function body: " + funDef)
-        //allVCs ++= analyser.generateVCs(funDef)
+        allFCs = allFCs :+ analyser.constraintWithoutRoundoff(funDef)
       }
     }
 

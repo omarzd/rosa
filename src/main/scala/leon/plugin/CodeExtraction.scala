@@ -505,7 +505,7 @@ trait CodeExtraction extends Extractors {
         case Block(e :: es, last) => (e, Some(Block(es, last)))
         case _ => (tr, None)
       }
-     
+
       val e2: Option[Expr] = nextExpr match {
         case ExCaseObject(sym) =>
           classesToClasses.get(sym) match {
@@ -746,6 +746,10 @@ trait CodeExtraction extends Extractors {
               case RealType => UMinus(rTree).setType(RealType)
               case _ => UMinus(rTree).setType(Int32Type)
             }
+          case ExUMinusReal(e) =>
+            val rTree = rec(e)
+            assert(rTree.getType == RealType)
+            UMinus(rTree).setType(RealType)
           case ExPlus(l, r) =>
             val rl = rec(l)
             val rr = rec(r)
@@ -832,7 +836,7 @@ trait CodeExtraction extends Extractors {
                 throw new Exception("aouch")
               case _ => Modulo(rl, rr).setType(Int32Type)
             }
-
+                
           case ExEquals(l, r) => {
             val rl = rec(l)
             val rr = rec(r)
@@ -1178,12 +1182,10 @@ trait CodeExtraction extends Extractors {
             MatchExpr(rs, rc).setType(rt).setPosInfo(pm.pos.line,pm.pos.column)
           }
 
-      
           // default behaviour is to complain :)
           case _ => {
             if(!silent) {
               reporter.info(tr.pos, "Could not extract as PureScala.", true)
-              println(e2)
             }
             throw ImpureCodeEncounteredException(tree)
           }
@@ -1201,7 +1203,6 @@ trait CodeExtraction extends Extractors {
       } else {
         psExpr
       }
-
       res
     }
     rec(tree)

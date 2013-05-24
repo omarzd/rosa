@@ -551,7 +551,7 @@ object TreeOps {
   // properly ordered.
   private type DefPair  = (Identifier,Expr) 
   private type DefPairs = List[DefPair] 
-  private def allLetDefinitions(expr: Expr) : DefPairs = treeCatamorphism[DefPairs](
+  def allLetDefinitions(expr: Expr) : DefPairs = treeCatamorphism[DefPairs](
     (e: Expr) => Nil,
     (s1: DefPairs, s2: DefPairs) => s1 ::: s2,
     (e: Expr, dps: DefPairs) => e match {

@@ -496,6 +496,10 @@ object Trees {
     val fixedType = RealType
   }
 
+  case class Abs(expr: Expr) extends Expr with FixedType {
+    val fixedType = RealType
+  }
+
   /* Set expressions */
   case class FiniteSet(elements: Seq[Expr]) extends Expr {
     val tpe = if (elements.isEmpty) None else leastUpperBound(elements.map(_.getType))
