@@ -35,7 +35,11 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
       analysedFunctions += funDef.id.name
 
       if (funDef.body.isDefined) {
-        allFCs = allFCs :+ analyser.constraintWithoutRoundoff(funDef)
+        val fc = new FunctionConstraint(funDef)
+
+        fc.fncConstraintWithRoundoff = Some(analyser.getConstraint(funDef, true))
+        fc.fncConstraintWithoutRoundoff = Some(analyser.getConstraint(funDef, false))
+        allFCs = allFCs :+ fc
       }
     }
 

@@ -17,17 +17,15 @@ object CertificationReport {
   //private val infoSep: String = "|" + ("_" * 78) + "|\n"
 
   private def infoLine(fc: FunctionConstraint): String = {
-    "%s \n %s".format(fc.funDef.id.toString, fc.constraint)
+    "\n%s \nwith R: %s\nw/o R:%s".format(
+      fc.funDef.id.toString,
+      formatOption(fc.fncConstraintWithRoundoff),
+      formatOption(fc.fncConstraintWithoutRoundoff))
   }
 
-  private def formatResult(res: Option[String]): String = res match {
-    case Some(xf) => xf
-    case None => "[?, ?]"
-  }
-
-  private def formatTime(time: Option[Double]): String = time match {
+   private def formatOption[T](res: Option[T]): String = res match {
     case Some(xf) => xf.toString
-    case None => " - "
+    case None => "[?, ?]"
   }
 
 }
