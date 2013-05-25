@@ -19,10 +19,10 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
     //LeonFlagOptionDef("simulation", "--simulation", "Run a simulation instead of proof")
   )
 
-  def generateFunctionConstraints(reporter: Reporter, program: Program,
-    functionsToAnalyse: Set[String]): List[FunctionConstraint] = {
+  def generateVCs(reporter: Reporter, program: Program,
+    functionsToAnalyse: Set[String]): List[VerificationCondition] = {
 
-    var allFCs: Seq[FunctionConstraint] = Seq.empty
+    var allVCs: Seq[VerificationCondition] = Seq.empty
     val analysedFunctions: MutableSet[String] = MutableSet.empty
 
     val analyser = new ConstraintGenerator(reporter)
@@ -35,37 +35,36 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
       analysedFunctions += funDef.id.name
 
       if (funDef.body.isDefined) {
-        val fc = new FunctionConstraint(funDef)
+        val fc = new VerificationCondition(funDef)
         val start = System.currentTimeMillis
         fc.fncConstraintWithRoundoff = Some(analyser.getConstraint(funDef, true))
         fc.fncConstraintRealArith = Some(analyser.getConstraint(funDef, false))
         val totalTime = (System.currentTimeMillis - start)
         fc.constraintGenTime = Some(totalTime)
-        allFCs = allFCs :+ fc
+        allVCs = allVCs :+ fc
       }
     }
 
     val notFound = functionsToAnalyse -- analysedFunctions
     notFound.foreach(fn => reporter.error("Did not find function \"" + fn + "\" though it was marked for analysis."))
 
-    allFCs.toList.sortWith((vc1, vc2) => vc1.funDef.id.name < vc2.funDef.id.name)
+    allVCs.toList
   }
 
-
-  /*def checkVerificationConditions(reporter: Reporter, vcs: Seq[VerificationCondition],
+  def checkVCs(reporter: Reporter, vcs: Seq[VerificationCondition],
     ctx: LeonContext, program: Program):
     CertificationReport = {
 
     val solver = new NumericSolver(ctx, program)
-    val prover = new Prover(reporter, ctx, solver)
-    val tools = new Tools(reporter)
+    //val prover = new Prover(reporter, ctx, solver)
+    //val tools = new Tools(reporter)
 
-    for(vc <- vcs) {
+    /*for(vc <- vcs) {
       if (simulation) tools.compare(vc)
-      else prover.check(vc) 
-    }
+      else prover.check(vc)
+    }*/
     new CertificationReport(vcs)
-  }*/
+  }
 
   def run(ctx: LeonContext)(program: Program): CertificationReport = {
     val reporter = ctx.reporter
@@ -76,7 +75,7 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
     for (opt <- ctx.options) opt match {
       case LeonValueOption("functions", ListValue(fs)) =>
         functionsToAnalyse = Set() ++ fs
-      
+
       //case LeonFlagOption("simulation") =>
       //  simulation = true
       case _ =>
@@ -84,10 +83,10 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
 
     reporter.info("Running Certification phase")
 
-    val fcs = generateFunctionConstraints(reporter, program, functionsToAnalyse)
+    val vcs = generateVCs(reporter, program, functionsToAnalyse)
     //reporter.info("Generated " + vcs.size + " verification conditions")
-    //checkVerificationConditions(reporter, vcs, ctx, program)
-    new CertificationReport(fcs)
+    checkVCs(reporter, vcs, ctx, program)
+    //new CertificationReport(fcs)
   }
 
 }

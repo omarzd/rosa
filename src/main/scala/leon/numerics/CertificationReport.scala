@@ -16,14 +16,14 @@ object CertificationReport {
 
   //private val infoSep: String = "|" + ("_" * 78) + "|\n"
 
-  private def infoLineVerbose(fc: FunctionConstraint): String = {
+  private def infoLineVerbose(fc: VerificationCondition): String = {
     "\n%s \nwith R: %s\nw/o R:%s".format(
       fc.funDef.id.toString,
       formatOption(fc.fncConstraintWithRoundoff),
       formatOption(fc.fncConstraintRealArith))
   }
 
-  private def infoLine(fc: FunctionConstraint): String = {
+  private def infoLine(fc: VerificationCondition): String = {
     "\n%s \nwith R: %s\nw/o R:%s\nconstraints generated in: %s ms".format(
       fc.funDef.id.toString,
       fc.formulaStats(fc.fncConstraintWithRoundoff),
@@ -39,7 +39,7 @@ object CertificationReport {
 
 }
 
-case class CertificationReport(val fcs: Seq[FunctionConstraint]) {
+case class CertificationReport(val fcs: Seq[VerificationCondition]) {
   import CertificationReport._
 
   def summaryString: String =

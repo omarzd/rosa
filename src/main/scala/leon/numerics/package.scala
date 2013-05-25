@@ -9,7 +9,7 @@ package object numerics {
   val unitRndoff = Rational(new BigInt(new BigInteger("1")),
     new BigInt(new BigInteger("2")).pow(53))
 
-  /*case class UnsupportedFragmentException(msg: String) extends Exception(msg)
+  //case class UnsupportedFragmentException(msg: String) extends Exception(msg)
 
   object Sat extends Enumeration {
     type Sat = Value
@@ -17,7 +17,7 @@ package object numerics {
     val UNSAT = Value("UNSAT")
     val Unknown = Value("Unknown")
   }
-
+/*
   object Valid extends Enumeration {
     type Valid = Value
     val VALID = Value("VALID")

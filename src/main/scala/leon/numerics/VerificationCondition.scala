@@ -6,7 +6,7 @@ import purescala.Trees._
 import purescala.TreeOps._
 
 // this will later also hold approximation info
-class FunctionConstraint(val funDef: FunDef) {
+class VerificationCondition(val funDef: FunDef) {
 
   var fncConstraintWithRoundoff: Option[Expr] = None
   var fncConstraintRealArith: Option[Expr] = None
