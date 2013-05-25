@@ -36,9 +36,11 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
 
       if (funDef.body.isDefined) {
         val fc = new FunctionConstraint(funDef)
-
+        val start = System.currentTimeMillis
         fc.fncConstraintWithRoundoff = Some(analyser.getConstraint(funDef, true))
-        fc.fncConstraintWithoutRoundoff = Some(analyser.getConstraint(funDef, false))
+        fc.fncConstraintRealArith = Some(analyser.getConstraint(funDef, false))
+        val totalTime = (System.currentTimeMillis - start)
+        fc.constraintGenTime = Some(totalTime)
         allFCs = allFCs :+ fc
       }
     }

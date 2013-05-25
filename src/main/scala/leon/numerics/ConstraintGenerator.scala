@@ -46,7 +46,7 @@ class ConstraintGenerator(reporter:Reporter) {
 
     //body
     val (c1, c2) =
-      if (withRoundoff) bodyConstrNoRoundoff(body, funcVars ++ localVars, resVar)
+      if (!withRoundoff) bodyConstrNoRoundoff(body, funcVars ++ localVars, resVar)
       else {
         val (realC, noisyC, deltas) = bodyConstrWholeShebang(body, funcVars ++ localVars, resVar)
         (realC, And(noisyC, constrainDeltas(deltas)))

@@ -16,6 +16,7 @@ object Extractors {
       case UMinus(t) => Some((t,UMinus))
       case Noise(t) => Some((t, Noise))
       case Roundoff(t) => Some((t, Roundoff))
+      case Abs(t) => Some((t, Abs))
       //case IntegerAsFloat(t) => Some((t, IntegerAsFloat))
       case SetCardinality(t) => Some((t,SetCardinality))
       case MultisetCardinality(t) => Some((t,MultisetCardinality))
