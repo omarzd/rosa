@@ -28,8 +28,7 @@ class ConstraintGenerator(reporter:Reporter) {
     val pre = funDef.precondition
     val post = funDef.postcondition
     val body = funDef.body.get
-    reporter.info("")
-    reporter.info("-----> Analysing function " + funName + "...")
+    
     if (verbose) {reporter.info("function body: " + body);  reporter.info("precondition: " + pre); reporter.info("postcondition: " + post)}
 
     val (resVar, funcVars, localVars) = getVariables(funDef.args, allLetDefinitions(body))

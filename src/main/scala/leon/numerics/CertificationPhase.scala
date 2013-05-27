@@ -35,6 +35,8 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
       analysedFunctions += funDef.id.name
 
       if (funDef.body.isDefined) {
+        reporter.info("")
+        reporter.info("-----> Analysing function " + funDef.id.name + "...")
         val fc = new VerificationCondition(funDef)
         val start = System.currentTimeMillis
         fc.fncConstraintWR = Some(analyser.getConstraint(funDef, true))
@@ -62,16 +64,17 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
     for(vc <- vcs) {
       //if (simulation) tools.compare(vc) else prover.check(vc)
 
+      // TODO: if no postcondition to check do specs generation, i.e. QE
+
       prover.check(vc)
- /*     reporter.info("checking VC of " + vc.funDef.id.name)
-      val validWithRndoff = solver.checkValid(vc.fncConstraintWithRoundoff.get)
-      val validRealArith = solver.checkValid(vc.fncConstraintRealArith.get)
-      reporter.info("valid with roundoff: " + validWithRndoff)
-      reporter.info("valid real arithm: " + validRealArith)
-  */
+
     }
     new CertificationReport(vcs)
   }
+
+  // No Reals should be left over
+  // Add the correct runtime checks
+  //def prepareFroCodeGeneration
 
   def run(ctx: LeonContext)(program: Program): CertificationReport = {
     val reporter = ctx.reporter

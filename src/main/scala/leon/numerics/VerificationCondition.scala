@@ -12,11 +12,13 @@ class VerificationCondition(val funDef: FunDef) {
 
   //WithRoundoff
   var fncConstraintWR: Option[Expr] = None
-  var validWR: Option[Valid] = None
+  var statusWR: Option[Valid] = None
+  var modelWR: Option[z3.scala.Z3Model] = None
 
   //Real arith only
   var fncConstraintRA: Option[Expr] = None
-  var validRA: Option[Valid] = None
+  var statusRA: Option[Valid] = None
+  var modelRA: Option[z3.scala.Z3Model] = None
 
   var constraintGenTime: Option[Long] = None
 }

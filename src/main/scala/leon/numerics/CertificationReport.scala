@@ -4,6 +4,7 @@ package numerics
 import purescala.TreeOps._
 import purescala.Trees._
 
+import Valid._
 
 object CertificationReport {
   def emptyReport: CertificationReport = new CertificationReport(Nil)
@@ -19,12 +20,12 @@ object CertificationReport {
   }
 
   private def infoLine(fc: VerificationCondition): String = {
-    "\n%s \nwith R: %s  (%s)\nw/o R:%s  (%s)\nconstraints generated in: %s ms".format(
+    "\n%s \nwith R: %s  %s\nw/o R:%s  %s\nconstraints generated in: %s ms".format(
       fc.funDef.id.toString,
       formulaStats(fc.fncConstraintWR),
-      formatOption(fc.validWR),
+      formatStatus(fc.statusWR, fc.modelWR),
       formulaStats(fc.fncConstraintRA),
-      formatOption(fc.validRA),
+      formatStatus(fc.statusRA, fc.modelWR),
       formatOption(fc.constraintGenTime))
   }
 
@@ -32,6 +33,12 @@ object CertificationReport {
   private def formatOption[T](res: Option[T]): String = res match {
     case Some(xf) => xf.toString
     case None => " -- "
+  }
+
+  private def formatStatus(status: Option[Valid], model: Option[z3.scala.Z3Model]) = (status, model) match {
+    case (Some(INVALID), Some(m)) => "(Invalid)\n  counterexample: " + m.toString
+    case (Some(x), _) => "(" + x.toString + ")"
+    case (None, _) => " -- "
   }
  
   private def formulaStats(expr: Option[Expr]): String = expr match {

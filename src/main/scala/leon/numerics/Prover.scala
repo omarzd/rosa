@@ -12,22 +12,29 @@ class Prover(reporter: Reporter, solver: NumericSolver) {
   
   def check(vc: VerificationCondition) = {
     reporter.info("checking VC of " + vc.funDef.id.name)
-   
-    vc.validWR = feelingLucky(vc.fncConstraintWR)
-    vc.validRA = feelingLucky(vc.fncConstraintRA)
+  
+    val (statusWR, modelWR) = feelingLucky(vc.fncConstraintWR)
+    val (statusRA, modelRA) = feelingLucky(vc.fncConstraintRA)
+
+
+    
+    vc.statusWR = statusWR
+    vc.modelWR = modelWR
+    vc.statusRA = statusRA
+    vc.modelRA = modelRA
 
   }
 
   // no approximation
-  def feelingLucky(expr: Option[Expr]): Option[Valid] = expr match {
+  def feelingLucky(expr: Option[Expr]): (Option[Valid], Option[z3.scala.Z3Model]) = expr match {
     case Some(c) =>
       val constraint = absTransform.transform(c)
       if (verbose) println("\n expr before: " + c)
       if (verbose) println("\n expr after: " + constraint)
       
       val (valid, model) = solver.checkValid(constraint)
-      Some(valid)
-    case None => None
+      (Some(valid), model)
+    case None => (None, None)
   }
 
 

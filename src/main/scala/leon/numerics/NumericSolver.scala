@@ -98,24 +98,23 @@ class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3
   }
 
   
-  def checkValid(expr: Expr): (Valid, Z3Model) = {
+  def checkValid(expr: Expr): (Valid, Option[Z3Model]) = {
     solver.push
     val variables = variablesOf(expr)
     val cnstr = toZ3Formula(Not(expr)).get
     solver.assertCnstr(cnstr)
-    val res: (Valid, Z3Model) = solver.check match {
+    val res: (Valid, Option[Z3Model]) = solver.check match {
       case Some(true) =>
         if (verbose) println("--> cond: SAT")
         val model = solver.getModel
-        //println("model: " + modelToMap(model, variables))
-        (INVALID, solver.getModel)
+        (INVALID, Some(solver.getModel))
       case Some(false) =>
         if (verbose) println("--> cond: UNSAT")
-        (VALID, null)
+        (VALID, None)
       case None =>
         if (printWarnings) println("!!! WARNING: Z3 SOLVER FAILED")
         countTimeouts = countTimeouts + 1
-        (DUNNO, null)
+        (DUNNO, None)
     }
     solver.pop()
     res
