@@ -15,7 +15,7 @@ class ConstraintGenerator(reporter:Reporter) {
   var deltaCounter = 0
   private def getNewDelta: Variable = {
     deltaCounter = deltaCounter + 1
-    Variable(FreshIdentifier("#delta_" + deltaCounter))
+    Variable(FreshIdentifier("#delta_" + deltaCounter)).setType(RealType)
   }
 
   private def getFreshRndoffMultiplier: (Expr, Variable) = {

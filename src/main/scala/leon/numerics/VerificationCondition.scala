@@ -4,22 +4,19 @@ package numerics
 import purescala.Definitions._
 import purescala.Trees._
 import purescala.TreeOps._
+import Valid._
+
 
 // this will later also hold approximation info
 class VerificationCondition(val funDef: FunDef) {
 
-  var fncConstraintWithRoundoff: Option[Expr] = None
-  var fncConstraintRealArith: Option[Expr] = None
+  //WithRoundoff
+  var fncConstraintWR: Option[Expr] = None
+  var validWR: Option[Valid] = None
+
+  //Real arith only
+  var fncConstraintRA: Option[Expr] = None
+  var validRA: Option[Valid] = None
+
   var constraintGenTime: Option[Long] = None
-
-  def formulaStats(expr: Option[Expr]): String = expr match {
-    case Some(e) =>
-      assert(variablesOf(e).size == allIdentifiers(e).size)
-      "%d variables, formula size: %d".format(variablesOf(e).size, formulaSize(e))
-    case None => " -- "
-  }
-
-
-
-
 }

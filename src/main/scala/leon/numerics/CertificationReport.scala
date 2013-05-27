@@ -1,40 +1,44 @@
 package leon
 package numerics
 
+import purescala.TreeOps._
+import purescala.Trees._
+
+
 object CertificationReport {
   def emptyReport: CertificationReport = new CertificationReport(Nil)
 
 
-  /*private val infoHeader: String = " |---------|\n" +
-                                   "| Summary |-" + ("-" * 67) + "|\n" +
-                                   "|_________|"
-  */
-
-  private val infoHeader: String = ("-" * 19) + ">" + ("*" * 20) + "\n" +
-                                   (" " * 20) + "*     Summary     *\n" +
-                                   (" " * 20) + ("*" * 20)
-
-  //private val infoSep: String = "|" + ("_" * 78) + "|\n"
+  private val infoHeader: String = ".\n" + (" " * 19) + ">     Summary     <\n"
 
   private def infoLineVerbose(fc: VerificationCondition): String = {
     "\n%s \nwith R: %s\nw/o R:%s".format(
       fc.funDef.id.toString,
-      formatOption(fc.fncConstraintWithRoundoff),
-      formatOption(fc.fncConstraintRealArith))
+      formatOption(fc.fncConstraintWR),
+      formatOption(fc.fncConstraintRA))
   }
 
   private def infoLine(fc: VerificationCondition): String = {
-    "\n%s \nwith R: %s\nw/o R:%s\nconstraints generated in: %s ms".format(
+    "\n%s \nwith R: %s  (%s)\nw/o R:%s  (%s)\nconstraints generated in: %s ms".format(
       fc.funDef.id.toString,
-      fc.formulaStats(fc.fncConstraintWithRoundoff),
-      fc.formulaStats(fc.fncConstraintRealArith),
+      formulaStats(fc.fncConstraintWR),
+      formatOption(fc.validWR),
+      formulaStats(fc.fncConstraintRA),
+      formatOption(fc.validRA),
       formatOption(fc.constraintGenTime))
   }
 
 
-   private def formatOption[T](res: Option[T]): String = res match {
+  private def formatOption[T](res: Option[T]): String = res match {
     case Some(xf) => xf.toString
-    case None => "[?, ?]"
+    case None => " -- "
+  }
+ 
+  private def formulaStats(expr: Option[Expr]): String = expr match {
+    case Some(e) =>
+      assert(variablesOf(e).size == allIdentifiers(e).size)
+      "%d variables, formula size: %d".format(variablesOf(e).size, formulaSize(e))
+    case None => " -- "
   }
 
 }

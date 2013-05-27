@@ -17,7 +17,7 @@ package object numerics {
     val UNSAT = Value("UNSAT")
     val Unknown = Value("Unknown")
   }
-/*
+
   object Valid extends Enumeration {
     type Valid = Value
     val VALID = Value("VALID")
@@ -25,5 +25,5 @@ package object numerics {
     val NOT_SURE = Value("Not sure")  //computed range may be too large
     val DUNNO = Value("Unknown")  //Z3 failed or something like that
   }
-  */
+
 }

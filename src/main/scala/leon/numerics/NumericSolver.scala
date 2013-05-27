@@ -10,25 +10,26 @@ import purescala.Definitions._
 import solvers.z3._
 import solvers._
 import Sat._
+import Valid._
 
 import ceres.common.{Rational, RationalInterval}
 import Rational._
 
 import scala.collection.immutable.HashMap
 
-object NumericSolver {
+/*object NumericSolver {
 
-  var verbose = false
+  ?? TODO: this should all be a parameter of the NumericSolver class!
+
   // Does not have much of an impact compared to other issues
   // TODO: This should probably be relative
   val precision = Rational.rationalFromReal(0.0001)
   val maxIterationsBinary = 20
 
-}
+}*/
 
 
 class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3Solver(context) {
-  import NumericSolver._
 
   override val name = "numeric solver"
   override val description = "Z3 solver with some numeric convenience methods"
@@ -64,21 +65,18 @@ class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3
     solver.getNumScopes
   }
 
-  private var variables = Set[Identifier]()
+  //private var variables = Set[Identifier]()
 
   def assertCnstr(expr: Expr) = {
-    variables ++= variablesOf(expr)
+    //variables ++= variablesOf(expr)
     val exprInZ3 = toZ3Formula(expr).get
     solver.assertCnstr(exprInZ3)
     if (verbose) println("Added constraint: " + exprInZ3)
   }
 
-  /**
-   * Checks the given expression for satisfiability.
-   */
-  def check(expr: Expr): (Sat, Z3Model) = {
+  def checkSat(expr: Expr): (Sat, Z3Model) = {
     solver.push
-    variables ++= variablesOf(expr)
+    val variables = variablesOf(expr)
     val cnstr = toZ3Formula(expr).get
     solver.assertCnstr(cnstr)
     val res: (Sat, Z3Model) = solver.check match {
@@ -98,6 +96,33 @@ class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3
     solver.pop()
     res
   }
+
+  
+  def checkValid(expr: Expr): (Valid, Z3Model) = {
+    solver.push
+    val variables = variablesOf(expr)
+    val cnstr = toZ3Formula(Not(expr)).get
+    solver.assertCnstr(cnstr)
+    val res: (Valid, Z3Model) = solver.check match {
+      case Some(true) =>
+        if (verbose) println("--> cond: SAT")
+        val model = solver.getModel
+        //println("model: " + modelToMap(model, variables))
+        (INVALID, solver.getModel)
+      case Some(false) =>
+        if (verbose) println("--> cond: UNSAT")
+        (VALID, null)
+      case None =>
+        if (printWarnings) println("!!! WARNING: Z3 SOLVER FAILED")
+        countTimeouts = countTimeouts + 1
+        (DUNNO, null)
+    }
+    solver.pop()
+    res
+  }
+
+
+
 /*
   def tightenRange(tree: Expr, initialBound: RationalInterval): RationalInterval = tree match {
     // Nothing to do for constants

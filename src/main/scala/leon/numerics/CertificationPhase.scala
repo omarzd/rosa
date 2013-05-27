@@ -37,8 +37,8 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
       if (funDef.body.isDefined) {
         val fc = new VerificationCondition(funDef)
         val start = System.currentTimeMillis
-        fc.fncConstraintWithRoundoff = Some(analyser.getConstraint(funDef, true))
-        fc.fncConstraintRealArith = Some(analyser.getConstraint(funDef, false))
+        fc.fncConstraintWR = Some(analyser.getConstraint(funDef, true))
+        fc.fncConstraintRA = Some(analyser.getConstraint(funDef, false))
         val totalTime = (System.currentTimeMillis - start)
         fc.constraintGenTime = Some(totalTime)
         allVCs = allVCs :+ fc
@@ -56,13 +56,20 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
     CertificationReport = {
 
     val solver = new NumericSolver(ctx, program)
-    //val prover = new Prover(reporter, ctx, solver)
+    val prover = new Prover(reporter, solver)
     //val tools = new Tools(reporter)
 
-    /*for(vc <- vcs) {
-      if (simulation) tools.compare(vc)
-      else prover.check(vc)
-    }*/
+    for(vc <- vcs) {
+      //if (simulation) tools.compare(vc) else prover.check(vc)
+
+      prover.check(vc)
+ /*     reporter.info("checking VC of " + vc.funDef.id.name)
+      val validWithRndoff = solver.checkValid(vc.fncConstraintWithRoundoff.get)
+      val validRealArith = solver.checkValid(vc.fncConstraintRealArith.get)
+      reporter.info("valid with roundoff: " + validWithRndoff)
+      reporter.info("valid real arithm: " + validRealArith)
+  */
+    }
     new CertificationReport(vcs)
   }
 
