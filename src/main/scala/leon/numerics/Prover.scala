@@ -15,8 +15,6 @@ class Prover(reporter: Reporter, solver: NumericSolver) {
   
     val (statusWR, modelWR) = feelingLucky(vc.fncConstraintWR)
     val (statusRA, modelRA) = feelingLucky(vc.fncConstraintRA)
-
-
     
     vc.statusWR = statusWR
     vc.modelWR = modelWR
@@ -38,6 +36,9 @@ class Prover(reporter: Reporter, solver: NumericSolver) {
   }
 
 
+  /*
+    Translates the Abs(x) tree node into two inequalities.
+  */
   class AbsTransformer extends TransformerWithPC {
     type C = Seq[Expr]
     val initC = Nil

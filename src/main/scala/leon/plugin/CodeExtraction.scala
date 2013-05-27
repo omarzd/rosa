@@ -1212,7 +1212,6 @@ trait CodeExtraction extends Extractors {
 
     def rec(tr: Type): purescala.TypeTrees.TypeTree = tr match {
       case tpe if tpe == IntClass.tpe => Int32Type
-      //case tpe if tpe == DoubleClass.tpe => RealType
       case tpe if tpe == BooleanClass.tpe => BooleanType
       case tpe if tpe == UnitClass.tpe => UnitType
       case tpe if tpe == NothingClass.tpe => BottomType

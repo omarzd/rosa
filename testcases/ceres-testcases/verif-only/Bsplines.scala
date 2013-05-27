@@ -7,7 +7,7 @@ import Real._
   L. Zhang, Y. Zhang, and W. Zhou. Tradeoff between Approximation Accuracy and
   Complexity for Range Analysis using Affine Arithmetic.
 */
-object BsplinesRealsOnly {
+object Bsplines {
 
   // TODO: it should be 1/6 throughout, but we cannot handle that atm.
 

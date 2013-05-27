@@ -1,6 +1,8 @@
 package leon
 package numerics
 
+import ceres.common.Interval
+
 import purescala.Common._
 import purescala.Definitions._
 import purescala.Trees._
@@ -12,28 +14,16 @@ import scala.collection.mutable.{Set => MutableSet}
 object CertificationPhase extends LeonPhase[Program,CertificationReport] {
   val name = "Certification"
   val description = "Floating-point certification"
-  //var simulation = false
 
   override val definedOptions: Set[LeonOptionDef] = Set(
-    LeonValueOptionDef("functions", "--functions=f1:f2", "Limit verification to f1, f2,...")
-    //LeonFlagOptionDef("simulation", "--simulation", "Run a simulation instead of proof")
+    LeonValueOptionDef("functions", "--functions=f1:f2", "Limit verification to f1, f2,..."),
+    LeonFlagOptionDef("simulation", "--simulation", "Run a simulation instead of verification")
   )
 
-  def generateVCs(reporter: Reporter, program: Program,
-    functionsToAnalyse: Set[String]): List[VerificationCondition] = {
-
+  def generateVCs(reporter: Reporter, functions: Seq[FunDef]): List[VerificationCondition] = {
     var allVCs: Seq[VerificationCondition] = Seq.empty
-    val analysedFunctions: MutableSet[String] = MutableSet.empty
-
     val analyser = new ConstraintGenerator(reporter)
-    val sortedFncs =
-      if(functionsToAnalyse.isEmpty) program.definedFunctions.toList.sortWith((f1, f2) => f1.id.name < f2.id.name)
-      else program.definedFunctions.filter(f => functionsToAnalyse.contains(f.id.name)).sortWith(
-        (f1, f2) => f1.id.name < f2.id.name)
-
-    for(funDef <- sortedFncs) {
-      analysedFunctions += funDef.id.name
-
+    for(funDef <- functions) {
       if (funDef.body.isDefined) {
         reporter.info("")
         reporter.info("-----> Analysing function " + funDef.id.name + "...")
@@ -47,56 +37,76 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
       }
     }
 
-    val notFound = functionsToAnalyse -- analysedFunctions
-    notFound.foreach(fn => reporter.error("Did not find function \"" + fn + "\" though it was marked for analysis."))
-
     allVCs.toList
   }
 
   def checkVCs(reporter: Reporter, vcs: Seq[VerificationCondition],
-    ctx: LeonContext, program: Program):
-    CertificationReport = {
+    ctx: LeonContext, program: Program): CertificationReport = {
 
     val solver = new NumericSolver(ctx, program)
     val prover = new Prover(reporter, solver)
     //val tools = new Tools(reporter)
 
     for(vc <- vcs) {
-      //if (simulation) tools.compare(vc) else prover.check(vc)
-
       // TODO: if no postcondition to check do specs generation, i.e. QE
 
       prover.check(vc)
 
     }
-    new CertificationReport(vcs)
+    new VerificationReport(vcs)
+  }
+
+  def simulate(reporter: Reporter, functions: Seq[FunDef]): SimulationReport = {
+    val simulator = new Simulator
+    var results: List[SimulationResult] = List.empty
+    for(funDef <- functions) {
+      if (funDef.body.isDefined) {
+        reporter.info("-----> Simulating function " + funDef.id.name + "...")
+        var variableBounds = Utils.getVariableBounds(funDef.precondition.get) 
+        results = results :+ simulator.simulate(funDef.id.name, funDef.body.get, variableBounds)
+      }
+    }
+    new SimulationReport(results)
   }
 
   // No Reals should be left over
   // Add the correct runtime checks
-  //def prepareFroCodeGeneration
+  //def prepareFroCodeGeneration { }
 
   def run(ctx: LeonContext)(program: Program): CertificationReport = {
     val reporter = ctx.reporter
 
     var functionsToAnalyse = Set[String]()
-
+    var simulation = false
 
     for (opt <- ctx.options) opt match {
       case LeonValueOption("functions", ListValue(fs)) =>
         functionsToAnalyse = Set() ++ fs
 
-      //case LeonFlagOption("simulation") =>
-      //  simulation = true
+      case LeonFlagOption("simulation") =>
+        simulation = true
       case _ =>
     }
 
-    reporter.info("Running Certification phase")
+    val sortedFncs =
+      if(functionsToAnalyse.isEmpty)
+        program.definedFunctions.toList.sortWith((f1, f2) => f1.id.name < f2.id.name)
+      else {
+        val toAnalyze = program.definedFunctions.filter(
+          f => functionsToAnalyse.contains(f.id.name)).sortWith(
+          (f1, f2) => f1.id.name < f2.id.name)
+        val notFound = functionsToAnalyse -- toAnalyze.map(fncDef => fncDef.id.name).toSet
+        notFound.foreach(fn => reporter.error("Did not find function \"" + fn + "\" though it was marked for analysis."))
+        toAnalyze
+      }
 
-    val vcs = generateVCs(reporter, program, functionsToAnalyse)
-    //reporter.info("Generated " + vcs.size + " verification conditions")
-    checkVCs(reporter, vcs, ctx, program)
-    //new CertificationReport(fcs)
+    if (simulation) {
+      simulate(reporter, sortedFncs)
+    } else {
+      reporter.info("Running Certification phase")
+      val vcs = generateVCs(reporter, sortedFncs)
+      checkVCs(reporter, vcs, ctx, program)
+    }
   }
 
 }

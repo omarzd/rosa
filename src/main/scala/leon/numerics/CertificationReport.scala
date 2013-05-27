@@ -1,25 +1,25 @@
 package leon
 package numerics
 
+import ceres.common.Interval
+
 import purescala.TreeOps._
 import purescala.Trees._
 
 import Valid._
 
 object CertificationReport {
-  def emptyReport: CertificationReport = new CertificationReport(Nil)
 
+  val infoHeader: String = ".\n" + (" " * 19) + ">     Summary     <\n"
 
-  private val infoHeader: String = ".\n" + (" " * 19) + ">     Summary     <\n"
-
-  private def infoLineVerbose(fc: VerificationCondition): String = {
+  def infoLineVerbose(fc: VerificationCondition): String = {
     "\n%s \nwith R: %s\nw/o R:%s".format(
       fc.funDef.id.toString,
       formatOption(fc.fncConstraintWR),
       formatOption(fc.fncConstraintRA))
   }
 
-  private def infoLine(fc: VerificationCondition): String = {
+  def infoLine(fc: VerificationCondition): String = {
     "\n%s \nwith R: %s  %s\nw/o R:%s  %s\nconstraints generated in: %s ms".format(
       fc.funDef.id.toString,
       formulaStats(fc.fncConstraintWR),
@@ -50,15 +50,34 @@ object CertificationReport {
 
 }
 
-case class CertificationReport(val fcs: Seq[VerificationCondition]) {
+abstract class CertificationReport {
+  def summaryString: String
+}
+
+case class VerificationReport(val fcs: Seq[VerificationCondition]) extends CertificationReport {
   import CertificationReport._
 
   def summaryString: String =
     if(fcs.length >= 0) {
-    infoHeader +
-    fcs.map(infoLine).mkString("\n", "\n", "\n") +
-    "..."
-  } else {
-    "Nothing to show."
+      infoHeader +
+      fcs.map(infoLine).mkString("\n", "\n", "\n")
+    } else {
+      "Nothing to show."
+    }
+}
+
+case class SimulationResult(funName: String, range: Interval, rndoff: Double) {
+  override def toString: String = "%s: %s    (%s)".format(funName, range.toString, rndoff.toString)
+}
+
+case class SimulationReport(results: Seq[SimulationResult]) extends CertificationReport {
+  import CertificationReport._
+
+  def summaryString: String = {
+    if(results.length >= 0) {
+      infoHeader + results.mkString("\n")
+    } else {
+      "Nothing to show."
+    }
   }
 }
