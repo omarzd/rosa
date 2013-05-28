@@ -7,8 +7,8 @@ import ceres.common._
 
 class Simulator {
 
-  val simSize = 10000//0000
-
+  val simSize = 10000000//0
+  println("Simulation size: " + simSize + "\n")
   // Roundoff error is just the roundoff error, i.e. using the path of the float
   // @return (max range of floating-point output, max roundoff error of output)
   def simulate(name: String, tree: Expr, vars: Map[Variable, RationalInterval]): SimulationResult = {

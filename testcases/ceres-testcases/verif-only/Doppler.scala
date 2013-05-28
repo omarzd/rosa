@@ -15,5 +15,18 @@ object Doppler {
     (- (331.4 + 0.6 * T) *v) / ((331.4 + 0.6*T + u)*(331.4 + 0.6*T + u))
   } ensuring (res => 0.0 <= res && res <= 138.0)
   // TODO: fix the postcondition 
+  
+  def doppler2(u: Real, v: Real, T: Real): Real = {
+    require(-125 <= u && u <= 125 && 15 <= v && v <= 25000 &&
+     -40 <= T && T <= 60)
+    (- (331.4 + 0.6 * T) *v) / ((331.4 + 0.6*T + u)*(331.4 + 0.6*T + u))
+  } ensuring (res => 0.0 <= res && res <= 138.0)
+
+  def doppler3(u: Real, v: Real, T: Real): Real = {
+    require(-30 <= u && u <= 120 && 320 <= v && v <= 20300 &&
+     -50 <= T && T <= 30)
+    (- (331.4 + 0.6 * T) *v) / ((331.4 + 0.6*T + u)*(331.4 + 0.6*T + u))
+  } ensuring (res => 0.0 <= res && res <= 138.0)
+
 
 }
