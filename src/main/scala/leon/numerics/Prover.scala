@@ -13,13 +13,11 @@ class Prover(reporter: Reporter, solver: NumericSolver) {
   def check(vc: VerificationCondition) = {
     reporter.info("checking VC of " + vc.funDef.id.name)
   
-    val (statusWR, modelWR) = feelingLucky(vc.fncConstraintWR)
-    val (statusRA, modelRA) = feelingLucky(vc.fncConstraintRA)
+    val (resWR, modelWR) = feelingLucky(vc.fncConstraintWR)
+    val (resRA, modelRA) = feelingLucky(vc.fncConstraintRA)
     
-    vc.statusWR = statusWR
-    vc.modelWR = modelWR
-    vc.statusRA = statusRA
-    vc.modelRA = modelRA
+    vc.statusWR = (resWR, modelWR)
+    vc.statusRA = (resRA, modelRA)
 
   }
 

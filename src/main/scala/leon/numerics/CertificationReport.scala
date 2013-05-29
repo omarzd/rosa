@@ -23,9 +23,9 @@ object CertificationReport {
     "\n%s \nwith R: %s  %s\nw/o R:%s  %s\nconstraints generated in: %s ms".format(
       fc.funDef.id.toString,
       formulaStats(fc.fncConstraintWR),
-      formatStatus(fc.statusWR, fc.modelWR),
+      formatStatus(fc.statusWR._1, fc.statusWR._2),
       formulaStats(fc.fncConstraintRA),
-      formatStatus(fc.statusRA, fc.modelWR),
+      formatStatus(fc.statusRA._1, fc.statusRA._2),
       formatOption(fc.constraintGenTime))
   }
 

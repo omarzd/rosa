@@ -33,5 +33,27 @@ object Bsplines {
     -u*u*u * 0.1666666
   } ensuring (res => -0.17 <= res && res <= 0.05 && noise(res) <= 1e-14)
 
+  def bspline0Tight(u: Real): Real = {
+    require(0 <= u && u <= 1 && roundoff(u))
+    (1 - u) * (1 - u) * (1 - u) * 0.1666666
+  } ensuring (res => 0 <= res && res <= 0.17 && noise(res) <= 1e-16)
+  
+
+  def bspline1Tight(u: Real): Real = {
+    require(0 <= u && u <= 1 && roundoff(u))
+    (3 * u*u*u - 6 * u*u + 4) * 0.1666666
+  } ensuring (res => 0.16 <= res && res <= 0.7 && noise(res) <= 1e-15)
+  
+
+  def bspline2Tight(u: Real): Real = {
+    require(0 <= u && u <= 1 && roundoff(u))
+    (-3 * u*u*u  + 3*u*u + 3*u + 1) * 0.1666666
+  } ensuring (res => 0.16 <= res && res <= 0.7 && noise(res) <= 1e-15)
+  
+  def bspline3Tight(u: Real): Real = {
+    require(0 <= u && u <= 1 && roundoff(u))
+    -u*u*u * 0.1666666
+  } ensuring (res => -0.17 <= res && res <= 0.0 && noise(res) <= 1e-16)
+
 
 }

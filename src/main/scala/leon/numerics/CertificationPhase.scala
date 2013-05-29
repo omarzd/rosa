@@ -20,22 +20,32 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
     LeonFlagOptionDef("simulation", "--simulation", "Run a simulation instead of verification")
   )
 
+  // Default: compute all missing specs
+  def prepareSpecs(reporter: Reporter, functions: Seq[FunDef]): List[VerificationCondition] = {
+    var vcs: List[VerificationCondition] = List.empty
+    val analyzer = new Analyser(reporter)
+    for (funDef <- functions if (funDef.body isDefined)) {
+      vcs = vcs :+ analyzer.analyzeThis(funDef)      
+    }
+    vcs
+  }
+
   def generateVCs(reporter: Reporter, functions: Seq[FunDef]): List[VerificationCondition] = {
     var allVCs: Seq[VerificationCondition] = Seq.empty
     val analyser = new ConstraintGenerator(reporter)
-    for(funDef <- functions) {
-      if (funDef.body.isDefined) {
-        reporter.info("")
-        reporter.info("-----> Analysing function " + funDef.id.name + "...")
-        val fc = new VerificationCondition(funDef)
-        val start = System.currentTimeMillis
-        fc.fncConstraintWR = Some(analyser.getConstraint(funDef, true))
-        fc.fncConstraintRA = Some(analyser.getConstraint(funDef, false))
-        val totalTime = (System.currentTimeMillis - start)
-        fc.constraintGenTime = Some(totalTime)
-        allVCs = allVCs :+ fc
-      }
-    }
+    for(funDef <- functions if (funDef.body.isDefined)) {
+      // TODO: why does the function body have to be defined?!
+      // We could also have functions that only function as API (e.g. closed source).
+      reporter.info("")
+      reporter.info("-----> Analysing function " + funDef.id.name + "...")
+      val fc = new VerificationCondition(funDef)
+      val start = System.currentTimeMillis
+      fc.fncConstraintWR = Some(analyser.getConstraint(funDef, true))
+      fc.fncConstraintRA = Some(analyser.getConstraint(funDef, false))
+      val totalTime = (System.currentTimeMillis - start)
+      fc.constraintGenTime = Some(totalTime)
+      allVCs = allVCs :+ fc
+  }
 
     allVCs.toList
   }
@@ -59,12 +69,10 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
   def simulate(reporter: Reporter, functions: Seq[FunDef]): SimulationReport = {
     val simulator = new Simulator
     var results: List[SimulationResult] = List.empty
-    for(funDef <- functions) {
-      if (funDef.body.isDefined) {
-        reporter.info("-----> Simulating function " + funDef.id.name + "...")
-        var variableBounds = Utils.getVariableBounds(funDef.precondition.get) 
-        results = results :+ simulator.simulate(funDef.id.name, funDef.body.get, variableBounds)
-      }
+    for(funDef <- functions if (funDef.body.isDefined)) {
+      reporter.info("-----> Simulating function " + funDef.id.name + "...")
+      var variableBounds = Utils.getVariableBounds(funDef.precondition.get) 
+      results = results :+ simulator.simulate(funDef.id.name, funDef.body.get, variableBounds)
     }
     new SimulationReport(results)
   }
