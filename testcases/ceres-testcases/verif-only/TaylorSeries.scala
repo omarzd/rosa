@@ -76,13 +76,15 @@ object TaylorSeries {
   } ensuring (res => -0.5 <= res && res <= 5.2 && noise(res) <= 1e-12)
 
   // Sim: [1.168748495960413,2.068836443423501]    (8.881784197001252E-16)
-  def sqrt(x: Real): Real = { // around 3.14
+  // Fails to time out
+  /*def sqrt(x: Real): Real = { // around 3.14
     require(1.35 <= x && x <= 4.28 && roundoff(x))
     1.772 + 0.282166*(x - 3.14) - 0.0224655*(x - 3.14)*(x - 3.14) +
     0.0035773*(x - 3.14)*(x - 3.14)*(x - 3.14) -
     0.000712043*(x - 3.14)*(x - 3.14)*(x - 3.14)*(x - 3.14) +
     0.000158736*(x - 3.14)*(x - 3.14)*(x - 3.14)*(x - 3.14) 
   } ensuring (res => 1.0 <= res && res <= 2.4 && noise(res) <= 1e-12)
+  */
 
   // 0.0000272113 is not representable as Int/Int
   /*def sqrt2(x: Real): Real = { // around 7.98

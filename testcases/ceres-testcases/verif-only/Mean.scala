@@ -4,7 +4,7 @@ import leon.Real
 import Real._
 
 
-object FEVSBenchmarks {
+object Mean {
 
   /*
     Computing the mean.
