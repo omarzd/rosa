@@ -12,37 +12,48 @@ import Valid._
 // It's one for each method, but may store several conditions to be proven.
 class VerificationCondition(val funDef: FunDef) {
 
+  // Info the user must have provided (for now)
+  var inputRanges: Map[Variable, RationalInterval] = Map.empty
+  var precondition: Option[Expr] = None
+
+ 
+  // pre and body
+  var preConstraint: Option[Expr] = None
+  var bodyConstraint: Option[Expr] = None
+  var postConstraint: Option[Expr] = None
+
   /*
-    Whole function constraints. These are the ones we ultimately need to prove.
-    WR: With Roundoff
-    RA: Real Arithmetic only
+    Constraints needed to prove.
+    WR: With Roundoff, RA: Real Arithmetic only
   */
-  var fncConstraintWR: Option[Expr] = None
+  var toCheck: List[Constraint] = List.empty
+
+  /*var fncConstraintWR: Option[Expr] = None
   var statusWR: (Option[Valid], Option[z3.scala.Z3Model]) = (None, None)
 
   var fncConstraintRA: Option[Expr] = None
   var statusRA: (Option[Valid], Option[z3.scala.Z3Model]) = (None, None)
-
-  
-  /*
-    Complete specification.
-    If the method has a postcondition already, we use it (for now).
-    We may also want to strenghten it (at some point).
-    Currently, each method needs to specify all input ranges completely.
-    We may want to infer those from calling methods at some point.
   */
-  // Keep a variable which is hopefully already typed. Saves maybe a few crashes.
-  var inputRanges: Map[Variable, RationalInterval] = Map.empty
-  var precondition: Option[Expr] = None
-  var postcondition: Option[Expr] = None
+ 
+  /*
+    Computed specification.
+  */
+  //var inferredPost: Option[Expr] = None
 
+ 
   /*
     Runtime specification.
   */
-  var runtimePre: Option[Expr] = None
-  var runtimePost: Option[Expr] = None
+  //var runtimePre: Option[Expr] = None
+  //var runtimePost: Option[Expr] = None
 
 
   /* Some stats */
-  var constraintGenTime: Option[Long] = None
+  var analysisTime: Option[Long] = None
+  var verificationTime:Option[Long] = None
+}
+
+case class Constraint(toProve: Expr) {
+  var status: Option[Valid] = None
+  var model: Option[z3.scala.Z3Model] = None
 }

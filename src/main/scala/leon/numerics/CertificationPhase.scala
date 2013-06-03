@@ -20,52 +20,35 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
     LeonFlagOptionDef("simulation", "--simulation", "Run a simulation instead of verification")
   )
 
-  // Default: compute all missing specs
-  def prepareSpecs(reporter: Reporter, functions: Seq[FunDef]): List[VerificationCondition] = {
-    var vcs: List[VerificationCondition] = List.empty
-    val analyzer = new Analyser(reporter)
-    for (funDef <- functions if (funDef.body isDefined)) {
-      vcs = vcs :+ analyzer.analyzeThis(funDef)      
-    }
-    vcs
-  }
-
+  // Construct implications to prove
   def generateVCs(reporter: Reporter, functions: Seq[FunDef]): List[VerificationCondition] = {
     var allVCs: Seq[VerificationCondition] = Seq.empty
-    val analyser = new ConstraintGenerator(reporter)
+    val analyser = new Analyser(reporter)
     for(funDef <- functions if (funDef.body.isDefined)) {
-      // TODO: why does the function body have to be defined?!
-      // We could also have functions that only function as API (e.g. closed source).
-      reporter.info("")
-      reporter.info("-----> Analysing function " + funDef.id.name + "...")
-      val fc = new VerificationCondition(funDef)
-      val start = System.currentTimeMillis
-      fc.fncConstraintWR = Some(analyser.getConstraint(funDef, true))
-      fc.fncConstraintRA = Some(analyser.getConstraint(funDef, false))
-      val totalTime = (System.currentTimeMillis - start)
-      fc.constraintGenTime = Some(totalTime)
-      allVCs = allVCs :+ fc
+      // TODO: why does the function body have to be defined?! We could also have functions that only function as API (e.g. closed source).
+
+      allVCs = allVCs :+ analyser.analyzeThis(funDef)
   }
 
     allVCs.toList
   }
 
+  // Only here should we do any kind of solving/computing
   def checkVCs(reporter: Reporter, vcs: Seq[VerificationCondition],
     ctx: LeonContext, program: Program): CertificationReport = {
 
-    val solver = new NumericSolver(ctx, program)
-    val prover = new Prover(reporter, solver)
+    val prover = new Prover(reporter, ctx, program)
     //val tools = new Tools(reporter)
 
     for(vc <- vcs) {
-      // TODO: if no postcondition to check do specs generation, i.e. QE
-
+      // TODO: if no postcondition to check do specs generation
       prover.check(vc)
 
     }
     new VerificationReport(vcs)
   }
 
+  // TODO: Add eval with intervals and smartfloats
   def simulate(reporter: Reporter, functions: Seq[FunDef]): SimulationReport = {
     val simulator = new Simulator
     var results: List[SimulationResult] = List.empty
@@ -81,6 +64,7 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
   // Add the correct runtime checks
   //def prepareFroCodeGeneration { }
 
+  // TODO: Code generation
   def run(ctx: LeonContext)(program: Program): CertificationReport = {
     val reporter = ctx.reporter
 

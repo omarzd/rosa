@@ -6,8 +6,10 @@ import java.math.{BigInteger}
 
 package object numerics {
 
+  //val unitRndoff = Rational(new BigInt(new BigInteger("1")),
+  //  new BigInt(new BigInteger("2")).pow(53))
   val unitRndoff = Rational(new BigInt(new BigInteger("1")),
-    new BigInt(new BigInteger("2")).pow(53))
+    new BigInt(new BigInteger("2")).pow(23))
 
   case class UnsupportedFragmentException(msg: String) extends Exception(msg)
 

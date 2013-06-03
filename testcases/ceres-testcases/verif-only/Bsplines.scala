@@ -29,9 +29,9 @@ object Bsplines {
   } ensuring (res => -0.02 <= res && res <= 0.89 && noise(res) <= 1e-14)
   
   def bspline3(u: Real): Real = {
-    require(0 <= u && u <= 1 && roundoff(u))
-    -u*u*u * 0.1666666
-  } ensuring (res => -0.17 <= res && res <= 0.05 && noise(res) <= 1e-14)
+    require(0 <= u && u <= 1 && noise(u) <= 1e-13)
+    -u*u*u / 6.0
+  } ensuring (res => -0.17 <= res && res <= 0.05 && noise(res) <= 1e-11)
 
   def bspline0Tight(u: Real): Real = {
     require(0 <= u && u <= 1 && roundoff(u))

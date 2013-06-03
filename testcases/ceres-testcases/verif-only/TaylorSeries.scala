@@ -70,10 +70,11 @@ object TaylorSeries {
   } ensuring (res => 0.1 <= res && res <= 3.6 && noise(res) <= 1e-12)
 
   // Sim: [-0.4653298002731128,5.136316766769693]    (2.6645352591003757E-15)
-  def sinh7(x: Real): Real = {
+  /*def sinh7(x: Real): Real = {
     require(-0.45 <= x && x <= 2.34 && roundoff(x))
     x + (x*x*x)/6.0 + (x*x*x*x*x)/120.0 + (x*x*x*x*x*x*x)/5040.0
   } ensuring (res => -0.5 <= res && res <= 5.2 && noise(res) <= 1e-12)
+  */
 
   // Sim: [1.168748495960413,2.068836443423501]    (8.881784197001252E-16)
   // Fails to time out

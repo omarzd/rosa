@@ -12,21 +12,17 @@ object CertificationReport {
 
   val infoHeader: String = ".\n" + (" " * 19) + ">     Summary     <\n"
 
-  def infoLineVerbose(fc: VerificationCondition): String = {
-    "\n%s \nwith R: %s\nw/o R:%s".format(
-      fc.funDef.id.toString,
-      formatOption(fc.fncConstraintWR),
-      formatOption(fc.fncConstraintRA))
-  }
+  def infoLine(vc: VerificationCondition): String = {
+    val constraints: String = vc.toCheck.foldLeft("")((str, c) =>
+      str + "\n     %d      %d      %s".format(
+        variablesOf(c.toProve).size, formulaSize(c.toProve), formatStatus(c.status, c.model)
+      ))
 
-  def infoLine(fc: VerificationCondition): String = {
-    "\n%s \nwith R: %s  %s\nw/o R:%s  %s\nconstraints generated in: %s ms".format(
-      fc.funDef.id.toString,
-      formulaStats(fc.fncConstraintWR),
-      formatStatus(fc.statusWR._1, fc.statusWR._2),
-      formulaStats(fc.fncConstraintRA),
-      formatStatus(fc.statusRA._1, fc.statusRA._2),
-      formatOption(fc.constraintGenTime))
+    "\n%s \n%s\nanalysis time: %sms".format(
+      vc.funDef.id.toString,
+      constraints,
+      formatOption(vc.analysisTime)
+    )
   }
 
 
@@ -41,12 +37,12 @@ object CertificationReport {
     case (None, _) => " -- "
   }
  
-  private def formulaStats(expr: Option[Expr]): String = expr match {
+  /*private def formulaStats(expr: Option[Expr]): String = expr match {
     case Some(e) =>
       assert(variablesOf(e).size == allIdentifiers(e).size)
       "%d variables, formula size: %d".format(variablesOf(e).size, formulaSize(e))
     case None => " -- "
-  }
+  }*/
 
 }
 

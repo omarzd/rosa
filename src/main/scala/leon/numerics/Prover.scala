@@ -1,36 +1,38 @@
 package leon
 package numerics
 
+import purescala.Definitions._
 import purescala.Trees._
 import purescala.TreeOps._
 
 import Valid._
 
-class Prover(reporter: Reporter, solver: NumericSolver) {
+class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
   val verbose = false
   val absTransform = new AbsTransformer
+  val solver = new NumericSolver(ctx, program)
   
   def check(vc: VerificationCondition) = {
     reporter.info("checking VC of " + vc.funDef.id.name)
-  
-    val (resWR, modelWR) = feelingLucky(vc.fncConstraintWR)
-    val (resRA, modelRA) = feelingLucky(vc.fncConstraintRA)
-    
-    vc.statusWR = (resWR, modelWR)
-    vc.statusRA = (resRA, modelRA)
+    val start = System.currentTimeMillis
+    for (constr <- vc.toCheck) {
+      val (res, model) = feelingLucky(constr.toProve)  
+      constr.status = res
+      constr.model = model
+    }
 
+    val totalTime = (System.currentTimeMillis - start)
+    vc.verificationTime = Some(totalTime)
   }
 
   // no approximation
-  def feelingLucky(expr: Option[Expr]): (Option[Valid], Option[z3.scala.Z3Model]) = expr match {
-    case Some(c) =>
-      val constraint = absTransform.transform(c)
-      if (verbose) println("\n expr before: " + c)
-      if (verbose) println("\n expr after: " + constraint)
-      
-      val (valid, model) = solver.checkValid(constraint)
-      (Some(valid), model)
-    case None => (None, None)
+  def feelingLucky(expr: Expr): (Option[Valid], Option[z3.scala.Z3Model]) = {
+    val constraint = absTransform.transform(expr)
+    if (verbose) println("\n expr before: " + expr)
+    if (verbose) println("\n expr after: " + constraint)
+    
+    val (valid, model) = solver.checkValid(constraint)
+    (Some(valid), model)
   }
 
 
