@@ -1,6 +1,7 @@
 package leon
 package numerics
 
+import purescala.Common._
 import purescala.Definitions._
 import purescala.Trees._
 import purescala.TreeOps._
@@ -26,7 +27,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
   }
 
   // no approximation
-  def feelingLucky(expr: Expr): (Option[Valid], Option[z3.scala.Z3Model]) = {
+  def feelingLucky(expr: Expr): (Option[Valid], Option[Map[Identifier, Expr]]) = {
     val constraint = absTransform.transform(expr)
     if (verbose) println("\n expr before: " + expr)
     if (verbose) println("\n expr after: " + constraint)

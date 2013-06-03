@@ -12,7 +12,7 @@ import purescala.Common._
 object Analyser {
   
   // whether we consider also roundoff errors
-  val withRoundoff = true
+  val withRoundoff = false
 
   private var deltaCounter = 0
   def getNewDelta: Variable = {

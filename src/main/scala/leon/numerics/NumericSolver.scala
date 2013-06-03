@@ -41,7 +41,7 @@ class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3
 
   override protected[leon] val z3cfg = new Z3Config(
     "MODEL" -> true,
-    "TIMEOUT" -> 2000,
+    "TIMEOUT" -> 500,
     "TYPE_CHECK" -> true,
     "WELL_SORTED_CHECK" -> true
   )
@@ -98,16 +98,16 @@ class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3
   }
 
   
-  def checkValid(expr: Expr): (Valid, Option[Z3Model]) = {
+  def checkValid(expr: Expr): (Valid, Option[Map[Identifier, Expr]]) = {
     solver.push
     val variables = variablesOf(expr)
     val cnstr = toZ3Formula(Not(expr)).get
     solver.assertCnstr(cnstr)
-    val res: (Valid, Option[Z3Model]) = solver.check match {
+    val res = solver.check match {
       case Some(true) =>
         if (verbose) println("--> cond: SAT")
         val model = solver.getModel
-        (INVALID, Some(solver.getModel))
+        (INVALID, Some(modelToMap(model, variables)))
       case Some(false) =>
         if (verbose) println("--> cond: UNSAT")
         (VALID, None)

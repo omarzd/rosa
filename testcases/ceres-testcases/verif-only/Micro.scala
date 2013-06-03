@@ -59,7 +59,7 @@ object Micro {
     t1 / t3
   } ensuring (res => 0.0 <= res && res <= 138.0)
 
-  def f8(u: Real, v: Real, T: Real): Real = {
+  /*def f8(u: Real, v: Real, T: Real): Real = {
     require(-100 <= u && u <= 100 && noise(u) <= 1e-6 && 20 <= v && v <= 20000 &&
      noise(v) <= 1e-8 && -30 <= T && T <= 50 && noise(T) <= 0.003)
     val t1 = - (331.4 + 0.6 * T) *v
@@ -67,6 +67,7 @@ object Micro {
     val t3 = t2 * t2
     t1 / t3
   } ensuring (res => 0.0 <= res && res <= 138.0 && noise(res) <= 1e-5)
+  */
 
   def f9(x: Real): Real = {
     require(0 <= x && x <= 2.3 && noise(x) <= 1e-14)

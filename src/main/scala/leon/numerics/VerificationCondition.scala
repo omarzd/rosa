@@ -3,6 +3,7 @@ package numerics
 
 import ceres.common._
 
+import purescala.Common._
 import purescala.Definitions._
 import purescala.Trees._
 import purescala.TreeOps._
@@ -55,5 +56,5 @@ class VerificationCondition(val funDef: FunDef) {
 
 case class Constraint(toProve: Expr) {
   var status: Option[Valid] = None
-  var model: Option[z3.scala.Z3Model] = None
+  var model: Option[Map[Identifier, Expr]] = None
 }

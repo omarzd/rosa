@@ -3,6 +3,7 @@ package numerics
 
 import ceres.common.Interval
 
+import purescala.Common._
 import purescala.TreeOps._
 import purescala.Trees._
 
@@ -31,7 +32,7 @@ object CertificationReport {
     case None => " -- "
   }
 
-  private def formatStatus(status: Option[Valid], model: Option[z3.scala.Z3Model]) = (status, model) match {
+  private def formatStatus(status: Option[Valid], model: Option[Map[Identifier, Expr]]) = (status, model) match {
     case (Some(INVALID), Some(m)) => "(Invalid)\n  counterexample: " + m.toString
     case (Some(x), _) => "(" + x.toString + ")"
     case (None, _) => " -- "
