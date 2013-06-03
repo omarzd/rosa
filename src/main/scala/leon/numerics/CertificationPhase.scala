@@ -52,8 +52,8 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
     val codeGen = new CodeGeneration(reporter, Float64)
     val newProgram = codeGen.specToCode(program, vcs)
     val newProgramAsString = ScalaPrinter(newProgram)
-    reporter.info("Generated program: ")
-    reporter.info(newProgramAsString)
+    reporter.info("Generated program with %d lines.".format(newProgramAsString.lines.length))
+    //reporter.info(newProgramAsString)
       
     val writer = new PrintWriter(new File("generated/" + newProgram.mainObject.id +".scala"))
     writer.write(newProgramAsString)

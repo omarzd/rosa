@@ -10,21 +10,51 @@ import purescala.Trees._
 import Valid._
 
 object CertificationReport {
+  val infoSep    : String = "╟" + ("┄" * 83) + "╢"
+  val infoFooter : String = "╚" + ("═" * 83) + "╝"
+  val infoHeader : String = ". ┌─────────┐\n" +
+                                    "╔═╡ Summary ╞" + ("═" * 71) + "╗\n" +
+                                    "║ └─────────┘" + (" " * 71) + "║"
 
-  val infoHeader: String = ".\n" + (" " * 19) + ">     Summary     <\n"
+  def infoLineCnstr(c: Constraint): String = (c.status, c.model) match {
+    case (Some(INVALID), Some(m)) =>
+      "║      %-10s %-10s %10s %-43s ║\n".format(
+        variablesOf(c.toProve).size,
+        formulaSize(c.toProve),
+        "INVALID", ""
+      ) + 
+      c.model.get.toSeq.map( x => "║ %-30s %-15s %-34s ║".format("", x._1, x._2)).mkString("\n")
+    case (Some(x), _) => 
+      "║      %-10s %-10s %10s %-43s ║".format(
+        variablesOf(c.toProve).size,
+        formulaSize(c.toProve),
+        x.toString, ""
+      )
+    case (None, _) => "║ %-30s %s %-30s ║".format("", " -- ", "")
+  }
 
   def infoLine(vc: VerificationCondition): String = {
+    "║ %-30s %-10s %-10s %-28s ║".format(
+      vc.funDef.id.toString,
+      formatOption(vc.analysisTime),
+      formatOption(vc.verificationTime),
+      "") +
+    vc.toCheck.map(infoLineCnstr).mkString("\n", "\n", "\n"+infoSep)
+  }
+
+  /*def infoLine(vc: VerificationCondition): String = {
     val constraints: String = vc.toCheck.foldLeft("")((str, c) =>
       str + "\n     %d      %d      %s".format(
         variablesOf(c.toProve).size, formulaSize(c.toProve), formatStatus(c.status, c.model)
       ))
 
-    "\n%s \n%s\nanalysis time: %sms".format(
+    "\n%s \n%s\nanalysis time: %sms\nverif. time: %sms".format(
       vc.funDef.id.toString,
       constraints,
-      formatOption(vc.analysisTime)
+      formatOption(vc.analysisTime),
+      formatOption(vc.verificationTime)
     )
-  }
+  }*/
 
 
   private def formatOption[T](res: Option[T]): String = res match {
