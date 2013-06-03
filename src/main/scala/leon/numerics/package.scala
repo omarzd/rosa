@@ -13,6 +13,12 @@ package object numerics {
 
   case class UnsupportedFragmentException(msg: String) extends Exception(msg)
 
+  object Precision extends Enumeration {
+    type Precision = Value
+    val Float64 = Value("Float64")
+    val Float32 = Value("Float32")
+  }
+
   object Sat extends Enumeration {
     type Sat = Value
     val SAT = Value("SAT")

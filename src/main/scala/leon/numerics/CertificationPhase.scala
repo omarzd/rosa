@@ -1,6 +1,8 @@
 package leon
 package numerics
 
+import java.io._
+
 import ceres.common.Interval
 
 import purescala.Common._
@@ -8,6 +10,8 @@ import purescala.Definitions._
 import purescala.Trees._
 import purescala.TreeOps._
 import purescala.TypeTrees._
+import Precision._
+import purescala.ScalaPrinter
 
 import scala.collection.mutable.{Set => MutableSet}
 
@@ -20,32 +24,40 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
     LeonFlagOptionDef("simulation", "--simulation", "Run a simulation instead of verification")
   )
 
-  // Construct implications to prove
-  def generateVCs(reporter: Reporter, functions: Seq[FunDef]): List[VerificationCondition] = {
+
+  def generateVCs(reporter: Reporter, functions: Seq[FunDef]): Seq[VerificationCondition] = {
     var allVCs: Seq[VerificationCondition] = Seq.empty
     val analyser = new Analyser(reporter)
     for(funDef <- functions if (funDef.body.isDefined)) {
       // TODO: why does the function body have to be defined?! We could also have functions that only function as API (e.g. closed source).
-
       allVCs = allVCs :+ analyser.analyzeThis(funDef)
+    }
+    allVCs
   }
 
-    allVCs.toList
-  }
-
-  // Only here should we do any kind of solving/computing
+  
+  // TODO: if no postcondition to check do specs generation
   def checkVCs(reporter: Reporter, vcs: Seq[VerificationCondition],
     ctx: LeonContext, program: Program): CertificationReport = {
-
     val prover = new Prover(reporter, ctx, program)
-    //val tools = new Tools(reporter)
 
-    for(vc <- vcs) {
-      // TODO: if no postcondition to check do specs generation
+    for(vc <- vcs)
       prover.check(vc)
-
-    }
+    
     new VerificationReport(vcs)
+  }
+
+  // TODO: add the correct runtime checks
+  def generateCode(reporter: Reporter, program: Program, vcs: Seq[VerificationCondition]) = {
+    val codeGen = new CodeGeneration(reporter, Float64)
+    val newProgram = codeGen.specToCode(program, vcs)
+    val newProgramAsString = ScalaPrinter(newProgram)
+    reporter.info("Generated program: ")
+    reporter.info(newProgramAsString)
+      
+    val writer = new PrintWriter(new File("generated/" + newProgram.mainObject.id +".scala"))
+    writer.write(newProgramAsString)
+    writer.close()
   }
 
   // TODO: Add eval with intervals and smartfloats
@@ -60,23 +72,16 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
     new SimulationReport(results)
   }
 
-  // No Reals should be left over
-  // Add the correct runtime checks
-  //def prepareFroCodeGeneration { }
-
-  // TODO: Code generation
+ 
   def run(ctx: LeonContext)(program: Program): CertificationReport = {
     val reporter = ctx.reporter
-
     var functionsToAnalyse = Set[String]()
     var simulation = false
-
+    reporter.info("Running Certification phase")
+    
     for (opt <- ctx.options) opt match {
-      case LeonValueOption("functions", ListValue(fs)) =>
-        functionsToAnalyse = Set() ++ fs
-
-      case LeonFlagOption("simulation") =>
-        simulation = true
+      case LeonValueOption("functions", ListValue(fs)) => functionsToAnalyse = Set() ++ fs
+      case LeonFlagOption("simulation") => simulation = true
       case _ =>
     }
 
@@ -95,10 +100,14 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
     if (simulation) {
       simulate(reporter, sortedFncs)
     } else {
-      reporter.info("Running Certification phase")
+      // TODO: try different precisions
       val vcs = generateVCs(reporter, sortedFncs)
-      checkVCs(reporter, vcs, ctx, program)
+      val report = checkVCs(reporter, vcs, ctx, program)
+      generateCode(reporter, program, vcs)
+      report
     }
+
+
   }
 
 }

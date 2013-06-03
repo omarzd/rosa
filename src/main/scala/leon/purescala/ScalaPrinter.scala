@@ -111,6 +111,7 @@ object ScalaPrinter {
     case BooleanLiteral(v) => sb.append(v)
     case StringLiteral(s) => sb.append("\"" + s + "\"")
     case UnitLiteral => sb.append("()")
+    case RationalLiteral(v) => sb.append(v)
 
     /* These two aren't really supported in Scala, but we know how to encode them. */
     case Implies(l,r) => pp(Or(Not(l), r), sb, lvl)
@@ -357,6 +358,8 @@ object ScalaPrinter {
     case Untyped => sb.append("???")
     case UnitType => sb.append("Unit")
     case Int32Type => sb.append("Int")
+    case Float64Type => sb.append("Double")
+    case Float32Type => sb.append("Float")
     case BooleanType => sb.append("Boolean")
     case ArrayType(bt) =>
       sb.append("Array[")
