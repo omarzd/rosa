@@ -36,8 +36,8 @@ object CertificationReport {
   def infoLine(vc: VerificationCondition): String = {
     "║ %-30s %-10s %-10s %-28s ║".format(
       vc.funDef.id.toString,
-      formatOption(vc.analysisTime),
-      formatOption(vc.verificationTime),
+      formatOption(vc.analysisTime)+"ms",
+      formatOption(vc.verificationTime)+"ms",
       "") +
     vc.toCheck.map(infoLineCnstr).mkString("\n", "\n", "\n"+infoSep)
   }

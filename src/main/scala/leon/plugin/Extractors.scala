@@ -572,8 +572,8 @@ trait Extractors {
     }
 
     object ExNoise {
-      def unapply(tree: Apply): Option[Tree] = tree match {
-        case Apply(select, List(arg)) if (select.toString == "leon.Real.noise") => Some(arg) 
+      def unapply(tree: Apply): Option[(Tree, Tree)] = tree match {
+        case Apply(select, List(arg1, arg2)) if (select.toString == "leon.Real.noise") => Some((arg1, arg2)) 
         case _ => None
       }
     }

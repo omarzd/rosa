@@ -4,8 +4,61 @@ package numerics
 import ceres.common._
 
 import purescala.Trees._
+import purescala.TreeOps._
 
 object Utils {
+  case class Record(lo: Option[Rational], up: Option[Rational], noise: Option[Rational]) {
+    def updateLo(newLo: Rational): Record = Record(Some(newLo), up, noise)
+    def updateUp(newUp: Rational): Record = Record(lo, Some(newUp), noise)
+    def updateNoise(newNoise: Rational): Record = Record(lo, up, Some(newNoise))
+  }
+  val emptyRecord = Record(None, None, None)
+
+  /*
+    
+  */
+  class AbsTransformer extends TransformerWithPC {
+    type C = Seq[Expr]
+    val initC = Nil
+    var map: Map[Variable, Record] = Map.empty
+
+    def register(e: Expr, path: C) = path :+ e
+
+    override def rec(e: Expr, path: C) = e match {
+      // a <= x
+      case LessEquals(RationalLiteral(lwrBnd), x @ Variable(name)) =>
+        map = map + (x -> map.getOrElse(x, emptyRecord).updateLo(lwrBnd)); e
+      // x <= b
+      case LessEquals(x @ Variable(name), RationalLiteral(uprBnd)) =>
+        map = map + (x -> map.getOrElse(x, emptyRecord).updateUp(uprBnd)); e 
+      // a <= x
+      case LessEquals(IntLiteral(lwrBnd), x @ Variable(name)) =>
+        map = map + (x -> map.getOrElse(x, emptyRecord).updateLo(Rational(lwrBnd))); e
+      // x <= b
+      case LessEquals(x @ Variable(name), IntLiteral(uprBnd)) =>
+        map = map + (x -> map.getOrElse(x, emptyRecord).updateUp(Rational(uprBnd))); e
+
+      // b >= x
+      case GreaterEquals(RationalLiteral(uprBnd), x @ Variable(name)) =>
+        map = map + (x -> map.getOrElse(x, emptyRecord).updateUp(uprBnd)); e
+      // x >= a
+      case GreaterEquals(x @ Variable(name), RationalLiteral(lwrBnd)) =>
+        map = map + (x -> map.getOrElse(x, emptyRecord).updateLo(lwrBnd)); e
+      // b >= x
+      case GreaterEquals(IntLiteral(uprBnd), x @ Variable(name)) =>
+        map = map + (x -> map.getOrElse(x, emptyRecord).updateUp(Rational(uprBnd))); e
+      // x >= a
+      case GreaterEquals(x @ Variable(name), IntLiteral(lwrBnd)) =>
+        map = map + (x -> map.getOrElse(x, emptyRecord).updateLo(Rational(lwrBnd))); e
+    
+      // TODO: roundoff and noise
+      case _ =>
+        super.rec(e, path)
+    }
+
+  }
+ 
+
 
   // Omits those variables whose bounds are not fully defined or doubly defined.
   def getVariableBounds(expr: Expr): Map[Variable, RationalInterval] = {

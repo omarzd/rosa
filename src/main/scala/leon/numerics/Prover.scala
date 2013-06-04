@@ -26,6 +26,9 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
     vc.verificationTime = Some(totalTime)
   }
 
+  
+
+
   // no approximation
   def feelingLucky(expr: Expr): (Option[Valid], Option[Map[Identifier, Expr]]) = {
     val constraint = absTransform.transform(expr)

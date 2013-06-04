@@ -12,14 +12,14 @@ object Micro {
 
 
   def f2(x: Real): Real = {
-    require(0 <= x && x <= 3 && noise(x) <= 1e-9)
+    require(0 <= x && x <= 3 && noise(x, 1e-9))
     x*x
-  } ensuring (res => res <= 5.3 && noise(res) <= 1e-8)
+  } ensuring (res => res <= 5.3 && noise(res, 1e-8))
 
   def f3(x: Real): Real = {
     require(0 <= x && x <= 2.3 && roundoff(x))
     x*x
-  } ensuring (res => res <= 5.3 && noise(res) <= 1e-8)
+  } ensuring (res => res <= 5.3 && noise(res, 1e-8))
 
   
   def f4(x: Real): Real = {
@@ -32,13 +32,13 @@ object Micro {
   } ensuring (res => res >= 0)
 
   def f5(x: Real): Real = {
-    require(0 <= x && x <= 2.3 && noise(x) <= 1e-7)
+    require(0 <= x && x <= 2.3 && noise(x, 1e-7))
     if (x * x <= 0) {
       2*x
     } else {
       5*x
     }
-  } ensuring (res => res >= 0 && noise(res) <= 1e-5)
+  } ensuring (res => res >= 0 && noise(res, 1e-5))
 
 
   def f6(x: Real): Real = {
@@ -48,7 +48,7 @@ object Micro {
     } else {
       5*x
     }
-  } ensuring (res => res >= 0 && noise(res) <= 1e-15)
+  } ensuring (res => res >= 0 && noise(res, 1e-15))
 
   def f7(u: Real, v: Real, T: Real): Real = {
     require(-100 <= u && u <= 100 && 20 <= v && v <= 20000 &&
@@ -71,16 +71,16 @@ object Micro {
 
   
   def f9(x: Real): Real = {
-    require(0 <= x && x <= 2.3 && noise(x) <= 1e-14)
+    require(0 <= x && x <= 2.3 && noise(x, 1e-14))
     val t1 = x*x
     val t2 = f1(t1) + x
     t1 + t2
-  } ensuring(res => res >= 0 && noise(res) <= 1e-15)
+  } ensuring(res => res >= 0 && noise(res, 1e-15))
 
   def f10(x: Real): Real = {
-    require(0 <= x && x <= 2.3 && noise(x) <= 1e-14)
+    require(0 <= x && x <= 2.3 && noise(x, 1e-14))
     val t1 = x*x
     f1(t1)
-  } ensuring(res => res >= 0 && noise(res) <= 1e-15)
+  } ensuring(res => res >= 0 && noise(res, 1e-15))
   
 }

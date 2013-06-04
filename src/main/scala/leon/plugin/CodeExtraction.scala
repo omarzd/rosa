@@ -900,8 +900,8 @@ trait CodeExtraction extends Extractors {
                 }
               case _ => LessEquals(rl, rr).setType(BooleanType)
             }
-          case ExNoise(t) => Noise(rec(t))
-          case ExRoundoff(t) => Roundoff(rec(t))
+          case ExNoise(t, n) => Noise(rec(t), rec(n)).setType(BooleanType)
+          case ExRoundoff(t) => Roundoff(rec(t)).setType(BooleanType)
           case ExFiniteSet(tt, args) => {
             val underlying = scalaType2PureScala(unit, silent)(tt.tpe)
             FiniteSet(args.map(rec(_))).setType(SetType(underlying))

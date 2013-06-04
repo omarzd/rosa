@@ -14,7 +14,6 @@ object Extractors {
     def unapply(expr: Expr) : Option[(Expr,(Expr)=>Expr)] = expr match {
       case Not(t) => Some((t,Not(_)))
       case UMinus(t) => Some((t,UMinus))
-      case Noise(t) => Some((t, Noise))
       case Roundoff(t) => Some((t, Roundoff))
       case Abs(t) => Some((t, Abs))
       //case IntegerAsFloat(t) => Some((t, IntegerAsFloat))
@@ -50,6 +49,7 @@ object Extractors {
       case Times(t1,t2) => Some((t1,t2,Times))
       case Division(t1,t2) => Some((t1,t2,Division))
       case Modulo(t1,t2) => Some((t1,t2,Modulo))
+      case Noise(t1, t2) => Some((t1,t2,Noise))
       case LessThan(t1,t2) => Some((t1,t2,LessThan))
       case GreaterThan(t1,t2) => Some((t1,t2,GreaterThan))
       case LessEquals(t1,t2) => Some((t1,t2,LessEquals))

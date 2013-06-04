@@ -53,7 +53,7 @@ object Analyser {
 class Analyser(reporter: Reporter) {
   import Analyser._
 
-  val verbose = false
+  val verbose = false 
 
   def analyzeThis(funDef: FunDef): VerificationCondition = {
     reporter.info("")
@@ -97,7 +97,7 @@ class Analyser(reporter: Reporter) {
       case None => reporter.warning("Forgotten postcondition?"); BooleanLiteral(true)
       case _ => reporter.warning("You've got a funny postcondition: " + funDef.postcondition); BooleanLiteral(true)
     }
-
+    if (verbose) reporter.info("postConstr: " + postConstraint)
     vc.toCheck = vc.toCheck :+ Constraint(Implies(And(Seq(preConstraint, cIdeal, cActual)), postConstraint))
 
     vc.preConstraint = Some(preConstraint)
@@ -115,34 +115,22 @@ class Analyser(reporter: Reporter) {
 
   // For now, this is all we allow
   private def constraintFromSpec(expr: Expr, buddy: Map[Variable, Variable], ress: Variable): Expr = expr match {
-    case LessThan(Noise(v @ Variable(id)), r @ RationalLiteral(value)) =>
-      LessThan(Abs(Minus(v, buddy(v))), r)
-
-    case GreaterThan(r @ RationalLiteral(value), Noise(v @ Variable(id))) =>
-      GreaterThan(r, Abs(Minus(v, buddy(v))))
-
-    case LessEquals(Noise(v @ Variable(id)), r @ RationalLiteral(value)) =>
-      LessEquals(Abs(Minus(v, buddy(v))), r)
-
-    case GreaterEquals(r @ RationalLiteral(value), Noise(v @ Variable(id))) =>
-      GreaterEquals(r, Abs(Minus(v, buddy(v))))
-
-    case LessThan(Noise(ResultVariable()), r @ RationalLiteral(value)) =>
-      LessThan(Abs(Minus(ress, buddy(ress))), r)
-
-    case GreaterThan(r @ RationalLiteral(value), Noise(ResultVariable())) =>
-      GreaterThan(r, Abs(Minus(ress, buddy(ress))))
-
-    case LessEquals(Noise(ResultVariable()), r @ RationalLiteral(value)) =>
-      LessEquals(Abs(Minus(ress, buddy(ress))), r)
-
-    case GreaterEquals(r @ RationalLiteral(value), Noise(ResultVariable())) =>
-      GreaterEquals(r, Abs(Minus(ress, buddy(ress))))
-
-    case LessThan(_, Noise(_)) | GreaterThan(Noise(_), _) | LessEquals(_, Noise(_)) | GreaterEquals(Noise(_), _) =>
-      reporter.warning("Doesn't make sense: " + expr)
-      Error("Lower bounding noise").setType(RealType)
-
+    case Noise(v @ Variable(id), r @ RationalLiteral(value)) =>
+      if (value < Rational.zero) {
+        reporter.warning("Noise must be positive.")
+        Error("negative noise").setType(BooleanType)
+      } else {
+        LessEquals(Abs(Minus(v, buddy(v))), r)
+      }  
+  
+    case Noise(ResultVariable(), r @ RationalLiteral(value)) =>
+      if (value < Rational.zero) {
+        reporter.warning("Noise must be positive.")
+        Error("negative noise").setType(BooleanType)
+      } else {
+        LessEquals(Abs(Minus(ress, buddy(ress))), r)
+      }
+    
     case LessThan(Variable(_), RationalLiteral(_)) | LessThan(RationalLiteral(_), Variable(_)) => expr
     case LessEquals(Variable(_), RationalLiteral(_)) | LessEquals(RationalLiteral(_), Variable(_)) => expr
     case GreaterThan(Variable(_), RationalLiteral(_)) | GreaterThan(RationalLiteral(_), Variable(_)) => expr
@@ -161,7 +149,7 @@ class Analyser(reporter: Reporter) {
 
     case _=>
       reporter.warning("Dunno what to do with this: " + expr)
-      Error("unknown constraint").setType(RealType)
+      Error("unknown constraint").setType(BooleanType)
   }
 
   // We could also do this path by path

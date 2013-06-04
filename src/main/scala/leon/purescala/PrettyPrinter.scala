@@ -81,10 +81,9 @@ class PrettyPrinter(sb: StringBuffer = new StringBuffer) {
     case Implies(l,r) => ppBinary(l, r, " ==> ", lvl)              
     case UMinus(expr) => ppUnary(expr, "-(", ")", lvl)
     case Equals(l,r) => ppBinary(l, r, " == ", lvl)
-    case Noise(expr) => ppUnary(expr, "noise(", ")", lvl)
+    case Noise(expr, n) => ppNary(Seq(expr, n), "noise(",",",")", lvl)
     case Roundoff(expr) => ppUnary(expr, "rndoff(", ")", lvl)
     case Abs(expr) => ppUnary(expr, "|", "|", lvl)
-    //case IntegerAsFloat(expr) => ppUnary(expr, "(", ").tofloat", lvl)
 
     case IntLiteral(v) => sb.append(v)
     case RationalLiteral(v) => sb.append(v.toDouble)

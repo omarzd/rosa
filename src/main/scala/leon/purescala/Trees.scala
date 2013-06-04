@@ -488,12 +488,12 @@ object Trees {
     val fixedType = RealType
   }*/
  
-  case class Noise(expr: Expr) extends Expr with FixedType {
-    val fixedType = RealType
+  case class Noise(expr: Expr, err: Expr) extends Expr with FixedType {
+    val fixedType = BooleanType
   }
 
   case class Roundoff(expr: Expr) extends Expr with FixedType {
-    val fixedType = RealType
+    val fixedType = BooleanType
   }
 
   case class Abs(expr: Expr) extends Expr with FixedType {

@@ -9,7 +9,7 @@ object TaylorSeries {
   def cos(x: Real): Real = {
     require(-1.24 <= x && x <= 3.5 && roundoff(x)) //, roundoff(x)
     1 - (x*x)/2.0 + (x*x*x*x)/24.0 - (x*x*x*x*x*x)/720.0
-  } ensuring (res => -1.43 <= res && res <= 1.0 && noise(res) <= 1e-12)
+  } ensuring (res => -1.43 <= res && res <= 1.0 && noise(res, 1e-12))
 
   // sin(x) * cos(x)
   // Sim: [-0.4920575622228202,216.8563439361969]    (1.7053025658242404E-13)
@@ -19,7 +19,7 @@ object TaylorSeries {
     0.596896*(x - 1.34)*(x - 1.34)*(x - 1.34) +
     0.148458*(x - 1.34)*(x - 1.34)*(x - 1.34)*(x - 1.34) -
     0.119379*(x - 1.34)*(x - 1.34)*(x - 1.34)*(x - 1.34)*(x - 1.34) 
-  } ensuring (res => -0.5 <= res && res <= 217.0 && noise(res) <= 1e-12)
+  } ensuring (res => -0.5 <= res && res <= 217.0 && noise(res, 1e-12))
 
   //cos(sqrt(x + 7.8) *2*x)
   // Sim: [-59.62687322193541,0.9618440785087154]    (3.552713678800501E-14)
@@ -29,25 +29,25 @@ object TaylorSeries {
     2.67303*(x + 3.4)*(x + 3.4)*(x + 3.4) -
     2.08817*(x + 3.4)*(x + 3.4)*(x + 3.4)*(x + 3.4) +
     0.438815*(x + 3.4)*(x + 3.4)*(x + 3.4)*(x + 3.4)*(x + 3.4)
-  } ensuring (res => -60.0 <= res && res <= 1.0 && noise(res) <= 1e-12)
+  } ensuring (res => -60.0 <= res && res <= 1.0 && noise(res, 1e-12))
 
   // Sim: [1.000000000000040,5.215020510086066]    (1.7763568394002505E-15)
   def cosh6(x: Real): Real = {
     require(-1.23 <= x && x <= 2.34 && roundoff(x))
     1 + (x*x)/2.0 + (x*x*x*x)/24.0 + (x*x*x*x*x*x)/720.0
-  } ensuring (res => 1.0 <= res && res <= 5.5 && noise(res) <= 1e-12)
+  } ensuring (res => 1.0 <= res && res <= 5.5 && noise(res, 1e-12))
 
   // Sim: [0.6786651176339717,2.986100724817679]    (1.3322676295501878E-15)
   def exOverCosx(x: Real): Real = {
     require(-1.5 <= x && x <= 0.8 && roundoff(x))
     1 + x + x*x + (2*x*x*x)/3.0 + (x*x*x*x)/2.0
-  } ensuring (res => 0.7 <= res && res <= 3.0 && noise(res) <= 1e-12)
+  } ensuring (res => 0.7 <= res && res <= 3.0 && noise(res, 1e-12))
 
   // Sim: [-0.9756807032849710,0.9579886390597153]    (2.220446049250313E-16)
   def sin(x: Real): Real = {
     require(-1.35 <= x && x <= 1.28 && roundoff(x))
     x - (x*x*x)/6.0 + (x*x*x*x*x)/120.0 - (x*x*x*x*x*x*x)/5040.0
-  } ensuring (res => -1.0 <= res && res <= 1.0 && noise(res) <= 1e-12)
+  } ensuring (res => -1.0 <= res && res <= 1.0 && noise(res, 1e-12))
 
   // sin(1.24*x - 0.087)
   // Sim: [-0.7796391511083967,1.000009916527744]    (1.1102230246251565E-15)
@@ -57,7 +57,7 @@ object TaylorSeries {
     0.136097*(x - 0.98)*(x - 0.98)*(x - 0.98) +
     0.0890169*(x - 0.98)*(x - 0.98)*(x - 0.98)*(x - 0.98) +
     0.0104631*(x - 0.98)*(x - 0.98)*(x - 0.98)*(x - 0.98)*(x - 0.98)
-  } ensuring (res => -0.8 <= res && res <= 1.0 && noise(res) <= 1e-12)
+  } ensuring (res => -0.8 <= res && res <= 1.0 && noise(res, 1e-12))
 
   // sin(x) * sin(x)
   // Sim: [0.1053730907077877,3.589088717014549]    (5.773159728050814E-15)
@@ -67,7 +67,7 @@ object TaylorSeries {
     0.296916*(x - 1.34)*(x - 1.34)*(x - 1.34) +
     0.298448*(x - 1.34)*(x - 1.34)*(x - 1.34)*(x - 1.34) +
     0.0593833*(x - 1.34)*(x - 1.34)*(x - 1.34)*(x - 1.34)*(x - 1.34) 
-  } ensuring (res => 0.1 <= res && res <= 3.6 && noise(res) <= 1e-12)
+  } ensuring (res => 0.1 <= res && res <= 3.6 && noise(res, 1e-12))
 
   // Sim: [-0.4653298002731128,5.136316766769693]    (2.6645352591003757E-15)
   /*def sinh7(x: Real): Real = {
@@ -103,12 +103,12 @@ object TaylorSeries {
     3.04959 + 0.491869*(x - 3.2) - 0.0396669*(x - 3.2)*(x - 3.2) +
     0.00639788*(x - 3.2)*(x - 3.2)*(x - 3.2) -
     0.0012899*(x - 3.2)*(x - 3.2)*(x - 3.2)*(x - 3.2)
-  } ensuring (res => 0.2 <= res && res <= 4.6 && noise(res) <= 1e-12)
+  } ensuring (res => 0.2 <= res && res <= 4.6 && noise(res, 1e-12))
 
   // Sim: [-2.527343255806877,2.527356134563472]    (8.881784197001252E-16)
   def tan5(x: Real): Real = {
     require(-1.3 <= x && x <= 1.3 && roundoff(x))
     x + (x*x*x)/3.0 + (2*x*x*x*x*x)/15.0
-  } ensuring (res => -2.5 <= res && res <= 2.6 && noise(res) <= 1e-12)
+  } ensuring (res => -2.5 <= res && res <= 2.6 && noise(res, 1e-12))
 
 }

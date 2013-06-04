@@ -66,11 +66,7 @@ class CodeGeneration(reporter: Reporter, precision: Precision) {
     def register(e: Expr, path: C) = path :+ e
 
     override def rec(e: Expr, path: C) = e match {
-      case LessEquals(Noise(_), RationalLiteral(_)) => BooleanLiteral(true)
-      case LessThan(Noise(_), RationalLiteral(_)) => BooleanLiteral(true)
-      case GreaterEquals(RationalLiteral(_), Abs(_)) => BooleanLiteral(true)
-      case GreaterThan(RationalLiteral(_), Abs(_)) => BooleanLiteral(true)
-
+      case Noise(_, _) => BooleanLiteral(true)
       case Roundoff(expr) => BooleanLiteral(true)
       case _ =>
         super.rec(e, path)
