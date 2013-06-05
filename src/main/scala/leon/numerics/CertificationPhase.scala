@@ -13,6 +13,8 @@ import purescala.TypeTrees._
 import Precision._
 import purescala.ScalaPrinter
 
+import Utils._
+
 import scala.collection.mutable.{Set => MutableSet}
 
 object CertificationPhase extends LeonPhase[Program,CertificationReport] {
@@ -64,11 +66,13 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
   def simulate(reporter: Reporter, functions: Seq[FunDef]): SimulationReport = {
     val simulator = new Simulator
     var results: List[SimulationResult] = List.empty
-    for(funDef <- functions if (funDef.body.isDefined)) {
+    /*for(funDef <- functions if (funDef.body.isDefined)) {
       reporter.info("-----> Simulating function " + funDef.id.name + "...")
-      var variableBounds = Utils.getVariableBounds(funDef.precondition.get) 
+      val collector = new VariableCollector
+      collector.transform(p)
+      var variableBounds = collector.recordMap
       results = results :+ simulator.simulate(funDef.id.name, funDef.body.get, variableBounds)
-    }
+    }*/
     new SimulationReport(results)
   }
 

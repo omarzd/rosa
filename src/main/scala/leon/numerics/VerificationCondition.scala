@@ -8,13 +8,14 @@ import purescala.Definitions._
 import purescala.Trees._
 import purescala.TreeOps._
 import Valid._
+import Utils._
 
 
 // It's one for each method, but may store several conditions to be proven.
 class VerificationCondition(val funDef: FunDef) {
 
   // Info the user must have provided (for now)
-  var inputRanges: Map[Variable, RationalInterval] = Map.empty
+  var inputs: Map[Variable, Record] = Map.empty
   var precondition: Option[Expr] = None
 
  

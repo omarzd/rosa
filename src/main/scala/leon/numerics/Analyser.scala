@@ -8,6 +8,7 @@ import purescala.TypeTrees._
 import purescala.TreeOps._
 import purescala.Definitions._
 import purescala.Common._
+import Utils._
 
 object Analyser {
   
@@ -62,7 +63,11 @@ class Analyser(reporter: Reporter) {
     val vc = new VerificationCondition(funDef)
     funDef.precondition match {
       case Some(p) =>
-        vc.inputRanges = Utils.getVariableBounds(p)
+        val collector = new VariableCollector
+        collector.transform(p)
+        vc.inputs = collector.recordMap
+        //if (verbose) 
+          reporter.info("inputs: " + vc.inputs)
         vc.precondition = Some(p)
       case None =>
         vc.precondition = Some(BooleanLiteral(true))

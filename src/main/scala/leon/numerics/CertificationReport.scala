@@ -8,6 +8,7 @@ import purescala.TreeOps._
 import purescala.Trees._
 
 import Valid._
+import Utils._
 
 object CertificationReport {
   val infoSep    : String = "╟" + ("┄" * 83) + "╢"
@@ -57,10 +58,10 @@ object CertificationReport {
   }*/
 
 
-  private def formatOption[T](res: Option[T]): String = res match {
+  /*def formatOption[T](res: Option[T]): String = res match {
     case Some(xf) => xf.toString
     case None => " -- "
-  }
+  }*/
 
   private def formatStatus(status: Option[Valid], model: Option[Map[Identifier, Expr]]) = (status, model) match {
     case (Some(INVALID), Some(m)) => "(Invalid)\n  counterexample: " + m.toString
