@@ -13,7 +13,7 @@ import Utils._
 object Analyser {
   
   // whether we consider also roundoff errors
-  val withRoundoff = false
+  val withRoundoff = true
 
   private var deltaCounter = 0
   def getNewDelta: Variable = {
@@ -26,17 +26,18 @@ object Analyser {
     (Plus(new RationalLiteral(1), delta) , delta)
   }
   
-  def constrainDeltas(deltas: List[Variable]): Expr = {
+  def constrainDeltas(deltas: List[Variable], eps: Variable): Expr = {
     val constraints = deltas.map(delta =>
-      And(LessEquals(RationalLiteral(-unitRndoff), delta),
-        LessEquals(delta, RationalLiteral(unitRndoff)))
+      And(LessEquals(UMinus(eps), delta),
+        LessEquals(delta, eps))
       )
-    And(constraints)
+    And(constraints ++ Seq(Equals(eps, RationalLiteral(unitRndoff))))
   }
 
   def getVariables(args: Seq[VarDecl], lets: List[(Identifier, Expr)]):
-    (Variable, Map[Variable, Variable], Map[Variable, Variable]) = {
+    (Variable, Map[Variable, Variable], Map[Variable, Variable], Variable) = {
     val resVar = Variable(FreshIdentifier("res")).setType(RealType)
+    val machineEps = Variable(FreshIdentifier("#eps")).setType(RealType)
 
     var funcVars: Map[Variable, Variable] =
       args.foldLeft(Map(resVar -> Variable(FreshIdentifier("#res_0")).setType(RealType)))(
@@ -46,7 +47,7 @@ object Analyser {
       (map, defpair) => map + (Variable(defpair._1).setType(RealType) ->
           Variable(FreshIdentifier("#"+defpair._1.name+"_0")).setType(RealType))
     )
-    (resVar, funcVars, localVars)
+    (resVar, funcVars, localVars, machineEps)
   }
 
 }
@@ -54,7 +55,7 @@ object Analyser {
 class Analyser(reporter: Reporter) {
   import Analyser._
 
-  val verbose = false 
+  val verbose = true 
 
   def analyzeThis(funDef: FunDef): VerificationCondition = {
     reporter.info("")
@@ -75,12 +76,12 @@ class Analyser(reporter: Reporter) {
     val body = funDef.body.get
 
     val start = System.currentTimeMillis
-    val (resVar, funcVars, localVars) = getVariables(funDef.args, allLetDefinitions(body))
+    val (resVar, funcVars, localVars, eps) = getVariables(funDef.args, allLetDefinitions(body))
 
     
     val preConstraint: Expr = vc.precondition match {
-      case Some(And(exprs)) => And(exprs.map(e => constraintFromSpec(e, funcVars, resVar)))
-      case Some(expr) => constraintFromSpec(expr, funcVars, resVar)
+      case Some(And(exprs)) => And(exprs.map(e => constraintFromSpec(e, funcVars, resVar, eps)))
+      case Some(expr) => constraintFromSpec(expr, funcVars, resVar, eps)
       case None => reporter.warning("Forgotten precondition?"); BooleanLiteral(true)
       case _ => reporter.warning("You've got a funny precondition: " + vc.precondition); BooleanLiteral(true)
     } 
@@ -91,14 +92,14 @@ class Analyser(reporter: Reporter) {
       if (!withRoundoff) bodyConstrNoRoundoff(body, funcVars ++ localVars, resVar)
       else {
         val (realC, noisyC, deltas) = bodyConstrWholeShebang(body, funcVars ++ localVars, resVar)
-        (realC, And(noisyC, constrainDeltas(deltas)))
+        (realC, And(noisyC, constrainDeltas(deltas, eps)))
       }
     if (verbose) reporter.info("\nbody constr Real : " + cIdeal)
     if (verbose) reporter.info("\nbody constr Noisy: " + cActual)
 
     val postConstraint: Expr = funDef.postcondition match {
-      case Some(And(exprs)) => And(exprs.map(e => constraintFromSpec(e, funcVars, resVar)))
-      case Some(expr) => constraintFromSpec(expr, funcVars, resVar)
+      case Some(And(exprs)) => And(exprs.map(e => constraintFromSpec(e, funcVars, resVar, eps)))
+      case Some(expr) => constraintFromSpec(expr, funcVars, resVar, eps)
       case None => reporter.warning("Forgotten postcondition?"); BooleanLiteral(true)
       case _ => reporter.warning("You've got a funny postcondition: " + funDef.postcondition); BooleanLiteral(true)
     }
@@ -119,7 +120,7 @@ class Analyser(reporter: Reporter) {
 
 
   // For now, this is all we allow
-  private def constraintFromSpec(expr: Expr, buddy: Map[Variable, Variable], ress: Variable): Expr = expr match {
+  private def constraintFromSpec(expr: Expr, buddy: Map[Variable, Variable], ress: Variable, eps: Variable): Expr = expr match {
     case Noise(v @ Variable(id), r @ RationalLiteral(value)) =>
       if (value < Rational.zero) {
         reporter.warning("Noise must be positive.")
@@ -149,9 +150,9 @@ class Analyser(reporter: Reporter) {
     case Roundoff(v @ Variable(id)) =>
       val delta = getNewDelta
       And(Seq(Equals(buddy(v), Times(Plus(new RationalLiteral(1), delta), v)),
-        LessEquals(RationalLiteral(-unitRndoff), delta),
-        LessEquals(delta, RationalLiteral(unitRndoff))))
-
+        LessEquals(UMinus(eps), delta),
+        LessEquals(delta, eps)))
+    
     case _=>
       reporter.warning("Dunno what to do with this: " + expr)
       Error("unknown constraint").setType(BooleanType)
