@@ -10,7 +10,11 @@ object Mean {
     Computing the mean.
     In the original benchmark, the numbers are read from a file.
   */
-  //invariant(meanSpec() <= meanImpl())
+
+
+  def invariant(x1: Real, x2: Real, x3: Real, x4: Real, x5: Real, x6: Real) = {
+    meanSpec(x1, x2, x3, x4, x5, x6) <= meanImpl(x1, x2, x3, x4, x5, x6)
+  } holds
 
   def meanSpec(x1: Real, x2: Real, x3: Real, x4: Real, x5: Real, x6: Real): Real = {
     require(x1 in [-1200, 1200])
