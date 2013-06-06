@@ -17,9 +17,15 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
     reporter.info("checking VC of " + vc.funDef.id.name)
     val start = System.currentTimeMillis
     for (constr <- vc.toCheck) {
+      println("pre: " + constr.pre)
+      println("body: " + constr.body)
+      println("post: " + constr.post)
+
+      /*val fullConstraint =
       val (res, model) = feelingLucky(constr.toProve)  
       constr.status = res
       constr.model = model
+      */
     }
 
     val totalTime = (System.currentTimeMillis - start)

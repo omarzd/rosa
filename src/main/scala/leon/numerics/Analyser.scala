@@ -10,53 +10,52 @@ import purescala.Definitions._
 import purescala.Common._
 import Utils._
 
-object Analyser {
-  
-  // whether we consider also roundoff errors
-  val withRoundoff = true
-
-  private var deltaCounter = 0
-  def getNewDelta: Variable = {
-    deltaCounter = deltaCounter + 1
-    Variable(FreshIdentifier("#delta_" + deltaCounter)).setType(RealType)
-  }
-  
-  def getFreshRndoffMultiplier: (Expr, Variable) = {
-    val delta = getNewDelta
-    (Plus(new RationalLiteral(1), delta) , delta)
-  }
-  
-  def constrainDeltas(deltas: List[Variable], eps: Variable): Expr = {
-    val constraints = deltas.map(delta =>
-      And(LessEquals(UMinus(eps), delta),
-        LessEquals(delta, eps))
-      )
-    And(constraints ++ Seq(Equals(eps, RationalLiteral(unitRndoff))))
-  }
-
-  def getVariables(args: Seq[VarDecl], lets: List[(Identifier, Expr)]):
-    (Variable, Map[Variable, Variable], Map[Variable, Variable], Variable) = {
-    val resVar = Variable(FreshIdentifier("res")).setType(RealType)
-    val machineEps = Variable(FreshIdentifier("#eps")).setType(RealType)
-
-    var funcVars: Map[Variable, Variable] =
-      args.foldLeft(Map(resVar -> Variable(FreshIdentifier("#res_0")).setType(RealType)))(
-        (map, nextArg) => map + (Variable(nextArg.id).setType(RealType) -> Variable(FreshIdentifier("#"+nextArg.id.name+"_0")).setType(RealType))
-      )
-    var localVars: Map[Variable, Variable] = lets.foldLeft(Map[Variable, Variable]())(
-      (map, defpair) => map + (Variable(defpair._1).setType(RealType) ->
-          Variable(FreshIdentifier("#"+defpair._1.name+"_0")).setType(RealType))
-    )
-    (resVar, funcVars, localVars, machineEps)
-  }
-
-}
 
 class Analyser(reporter: Reporter) {
-  import Analyser._
 
-  val verbose = true 
+  val verbose = true
 
+  // Currently the only constraint is the full function.
+  def analyzeThis(funDef: FunDef): VerificationCondition = {
+    reporter.info("")
+    reporter.info("-----> Analysing function " + funDef.id.name + "...")
+
+    val vc = new VerificationCondition(funDef)
+    funDef.precondition match {
+      case Some(p) =>
+        val collector = new VariableCollector
+        collector.transform(p)
+        vc.inputs = collector.recordMap
+        if (verbose) reporter.info("inputs: " + vc.inputs)
+        vc.precondition = Some(p)
+      case None =>
+        vc.precondition = Some(BooleanLiteral(true))
+    }
+
+    funDef.postcondition match {
+      case Some(post) =>
+        vc.toCheck = vc.toCheck :+ Constraint(
+          vc.precondition.get,
+          convertLetsToEquals(funDef.body.get),
+          post
+        )
+      case None => ;
+    }
+
+    vc
+  }
+
+  private def convertLetsToEquals(expr: Expr): Expr = expr match {
+    case IfExpr(cond, then, elze) =>
+      IfExpr(cond, convertLetsToEquals(then), convertLetsToEquals(elze))
+
+    case Let(binder, value, body) =>
+      And(Equals(Variable(binder), value), convertLetsToEquals(body))
+    case _ => expr
+      
+  }
+
+  /*
   def analyzeThis(funDef: FunDef): VerificationCondition = {
     reporter.info("")
     reporter.info("-----> Analysing function " + funDef.id.name + "...")
@@ -116,9 +115,9 @@ class Analyser(reporter: Reporter) {
     vc.analysisTime = Some(totalTime)
 
     vc
-  }
+  }*/
 
-
+/*
   // For now, this is all we allow
   private def constraintFromSpec(expr: Expr, buddy: Map[Variable, Variable], ress: Variable, eps: Variable): Expr = expr match {
     case Noise(v @ Variable(id), r @ RationalLiteral(value)) =>
@@ -220,28 +219,33 @@ class Analyser(reporter: Reporter) {
   // @return (constraint, deltas) (the expression with added roundoff, the deltas used)
   private def addRndoff(expr: Expr): (Expr, List[Variable]) = expr match {
     case Plus(x, y) =>
-      val (mult, delta) = getFreshRndoffMultiplier
       val (xExpr, xDeltas) = addRndoff(x)
       val (yExpr, yDeltas) = addRndoff(y)
-      (Times(Plus(xExpr, yExpr), mult), xDeltas ++ yDeltas ++ List(delta))
+      val u = Plus(xExpr, yExpr)
+      val (rndoff, delta) = getRndoff(u)
+
+      (Plus(u, rndoff), xDeltas ++ yDeltas ++ List(delta))
 
     case Minus(x, y) =>
-      val (mult, delta) = getFreshRndoffMultiplier
       val (xExpr, xDeltas) = addRndoff(x)
       val (yExpr, yDeltas) = addRndoff(y)
-      (Times(Minus(xExpr, yExpr), mult), xDeltas ++ yDeltas ++ List(delta))
+      val u = Minus(xExpr, yExpr)
+      val (rndoff, delta) = getRndoff(u)
+      (Plus(u, rndoff), xDeltas ++ yDeltas ++ List(delta))
 
     case Times(x, y) =>
-      val (mult, delta) = getFreshRndoffMultiplier
       val (xExpr, xDeltas) = addRndoff(x)
       val (yExpr, yDeltas) = addRndoff(y)
-      (Times(Times(xExpr, yExpr), mult), xDeltas ++ yDeltas ++ List(delta))
+      val u = Times(xExpr, yExpr)
+      val (rndoff, delta) = getRndoff(u)
+      (Plus(u, rndoff), xDeltas ++ yDeltas ++ List(delta))
 
     case Division(x, y) =>
-      val (mult, delta) = getFreshRndoffMultiplier
       val (xExpr, xDeltas) = addRndoff(x)
       val (yExpr, yDeltas) = addRndoff(y)
-      (Times(Division(xExpr, yExpr), mult), xDeltas ++ yDeltas ++ List(delta))
+      val u = Division(xExpr, yExpr)
+      val (rndoff, delta) = getRndoff(u)
+      (Plus(u, rndoff), xDeltas ++ yDeltas ++ List(delta))
 
     case UMinus(x) =>
       val (xExpr, xDeltas) = addRndoff(x)
@@ -277,6 +281,55 @@ class Analyser(reporter: Reporter) {
       (Error(""), List())
 
   }
+*/
+/*
+object Analyser {
+  
+  // whether we consider also roundoff errors
+  val withRoundoff = true
+
+  private var deltaCounter = 0
+  def getNewDelta: Variable = {
+    deltaCounter = deltaCounter + 1
+    Variable(FreshIdentifier("#delta_" + deltaCounter)).setType(RealType)
+  }*/
+  
+  /*def getFreshRndoffMultiplier: (Expr, Variable) = {
+    val delta = getNewDelta
+    (Plus(new RationalLiteral(1), delta) , delta)
+  }*/
+/*
+  def getRndoff(expr: Expr): (Expr, Variable) = {
+    val delta = getNewDelta
+    (Times(expr, delta), delta)
+  }
+  
+  def constrainDeltas(deltas: List[Variable], eps: Variable): Expr = {
+    val constraints = deltas.map(delta =>
+      And(LessEquals(UMinus(eps), delta),
+        LessEquals(delta, eps))
+      )
+    And(constraints ++ Seq(Equals(eps, RationalLiteral(unitRndoff))))
+  }
+
+  def getVariables(args: Seq[VarDecl], lets: List[(Identifier, Expr)]):
+    (Variable, Map[Variable, Variable], Map[Variable, Variable], Variable) = {
+    val resVar = Variable(FreshIdentifier("res")).setType(RealType)
+    val machineEps = Variable(FreshIdentifier("#eps")).setType(RealType)
+
+    var funcVars: Map[Variable, Variable] =
+      args.foldLeft(Map(resVar -> Variable(FreshIdentifier("#res_0")).setType(RealType)))(
+        (map, nextArg) => map + (Variable(nextArg.id).setType(RealType) -> Variable(FreshIdentifier("#"+nextArg.id.name+"_0")).setType(RealType))
+      )
+    var localVars: Map[Variable, Variable] = lets.foldLeft(Map[Variable, Variable]())(
+      (map, defpair) => map + (Variable(defpair._1).setType(RealType) ->
+          Variable(FreshIdentifier("#"+defpair._1.name+"_0")).setType(RealType))
+    )
+    (resVar, funcVars, localVars, machineEps)
+  }
+}
+*/
+
 
 
   // It is complete, if the result is bounded below and above and the noise is specified.
