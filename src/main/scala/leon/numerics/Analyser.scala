@@ -32,16 +32,19 @@ class Analyser(reporter: Reporter) {
         vc.precondition = Some(BooleanLiteral(true))
     }
 
+    // Preprocess body
+    vc.body = Some(convertLetsToEquals(addResult(funDef.body.get)))
+
     funDef.postcondition match {
       case Some(post) =>
         vc.toCheck = vc.toCheck :+ Constraint(
           vc.precondition.get,
-          convertLetsToEquals(funDef.body.get),
+          vc.body.get,
           post
         )
       case None => ;
     }
-    
+
     vc.funcArgs = vc.funDef.args.map(v => Variable(v.id).setType(RealType))
     vc.localVars = allLetDefinitions(funDef.body.get).map(letDef => Variable(letDef._1).setType(RealType))
     println("func args: " + vc.funcArgs)
@@ -50,17 +53,28 @@ class Analyser(reporter: Reporter) {
     vc
   }
 
+  // Has to run before we removed the lets!
+  // Basically the first free expression that is not an if or a let is the result
+  private def addResult(expr: Expr): Expr = expr match {
+    case IfExpr(cond, then, elze) => IfExpr(cond, addResult(then), addResult(elze))
+    case Let(binder, value, body) => Let(binder, value, addResult(body))
+    case UMinus(_) | Plus(_, _) | Minus(_, _) | Times(_, _) | Division(_, _) | FunctionInvocation(_, _) | Variable(_) =>
+      Equals(ResultVariable(), expr)
+    case _ => expr
+  }
+
   private def convertLetsToEquals(expr: Expr): Expr = expr match {
     case IfExpr(cond, then, elze) =>
       IfExpr(cond, convertLetsToEquals(then), convertLetsToEquals(elze))
 
     case Let(binder, value, body) =>
-      And(Equals(Variable(binder), value), convertLetsToEquals(body))
+      And(Equals(Variable(binder), convertLetsToEquals(value)), convertLetsToEquals(body))
+
     case _ => expr
 
   }
 
- 
+
 
   // It is complete, if the result is bounded below and above and the noise is specified.
 /*  private def isComplete(post: Expr): Boolean = {

@@ -135,7 +135,7 @@ object Utils {
     deltaCounter = deltaCounter + 1
     Variable(FreshIdentifier("#delta_" + deltaCounter)).setType(RealType)
   }
-  
+
   private def constrainDeltas(deltas: Seq[Variable], eps: Variable): Expr = {
     val constraints = deltas.map(delta =>
       And(LessEquals(UMinus(eps), delta),
@@ -352,7 +352,7 @@ object Utils {
       val (xExpr, xDeltas) = addRndoff(x)
       val (yExpr, yDeltas) = addRndoff(y)
       (Times(Division(xExpr, yExpr), mult), xDeltas ++ yDeltas ++ List(delta))
-   
+
     case UMinus(x) =>
       val (xExpr, xDeltas) = addRndoff(x)
       (UMinus(xExpr), xDeltas)
@@ -400,15 +400,15 @@ object Utils {
     (Map[Variable, XFloat], Map[Variable, Int]) = {
     var variableMap: Map[Variable, XFloat] = Map.empty
     var indexMap: Map[Variable, Int] = Map.empty
-   
+
     for((k, rec) <- vars) {
       if (rec.isComplete) {
         rec.rndoff match {
           case Some(true) =>
             val (xfloat, index) = XFloat.xFloatWithRoundoff(k,
                     RationalInterval(rec.lo.get, rec.up.get),
-                    solver) 
-            variableMap = variableMap + (k -> xfloat) 
+                    solver)
+            variableMap = variableMap + (k -> xfloat)
             indexMap = indexMap + (k -> index)
 
           case None =>
@@ -416,8 +416,8 @@ object Utils {
             val (xfloat, index) = XFloat.xFloatWithUncertain(k,
                     RationalInterval(rec.lo.get, rec.up.get),
                     solver,
-                    rec.noise.get, withRoundoff) 
-            variableMap = variableMap + (k -> xfloat) 
+                    rec.noise.get, withRoundoff)
+            variableMap = variableMap + (k -> xfloat)
             indexMap = indexMap + (k -> index)
         }
       }
@@ -441,52 +441,50 @@ object Utils {
       null
   }
 
-  // TODO: make immutable again
-  class Path {
-    var condition: Expr = BooleanLiteral(true)
-    var expression: Expr = BooleanLiteral(true)
+  case class Path(condition: Expr, expression: List[Expr]) {
 
-    def addCondition(c: Expr) = { condition = And(condition, c) }
+    def addCondition(c: Expr): Path =
+      Path(And(condition, c), expression)
 
     def addPath(p: Path): Path = {
-      val np = new Path
-      newExpr = And(expression, p.expression)
-      newCond = And(condition, p.condition)
+      Path(And(this.condition, p.condition), this.expression ++ p.expression)
+    }
+
+    def addEqualsToLast(e: Expr): Path = {
+      Path(condition, expression.init ++ List(Equals(e, expression.last)))
     }
   }
-  /* {
-    var range: Option[RationalInterval] = None 
-    var maxError: Option[Rational] = None
-    override def toString: String = "%s \n %s (%s)".format(
-     expression.mkString("^"), opt2str(range), opt2str(maxError))
-  }*/
 
   def collectPaths(expr: Expr): Set[Path] = expr match {
     case IfExpr(cond, then, elze) =>
-      val thenPaths = collectPaths(then)
-      thenPaths.foreach(p => p.addCondition(cond))
-      val elzePaths = collectPaths(then)
-      elzePaths.foreach(p => p.addCondition(negate(cond)))
+      val thenPaths = collectPaths(then).map(p => p.addCondition(cond))
+      val elzePaths = collectPaths(elze).map(p => p.addCondition(negate(cond)))
 
       thenPaths ++ elzePaths
 
     case And(args) =>
-      var paths: Set[Path] = collectPaths(args.head)
+      var currentPaths: Set[Path] = collectPaths(args.head)
 
       for (a <- args.tail) {
-        val nextPaths = collectPaths(a)
         var newPaths: Set[Path] = Set.empty
+
+        val nextPaths = collectPaths(a)
+
+        // TODO: in one loop?
         for (np <- nextPaths) {
-          for (cp <- paths) {
+          for (cp <- currentPaths) {
             newPaths = newPaths + cp.addPath(np)
           }
         }
-        paths = newPaths
+        currentPaths = newPaths
       }
-      paths
+      currentPaths
+
+    case Equals(e, f) =>
+      collectPaths(f).map(p => p.addEqualsToLast(e))
 
     case _ =>
-      Set(Path(BooleanLiteral(true), expr))
+      Set(Path(BooleanLiteral(true), List(expr)))
   }
 
 }

@@ -15,7 +15,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
   val solver = new NumericSolver(ctx, program)
 
   def check(vc: VerificationCondition) = {
-    reporter.info("checking VC of " + vc.funDef.id.name)
+    reporter.info("----------> checking VC of " + vc.funDef.id.name)
 
     val start = System.currentTimeMillis
     for (constr <- vc.toCheck) {
@@ -30,9 +30,9 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
 
       // If Z3 failed ...
       constr.status match {
-        case (None | Some(DUNNO) | Some(NOT_SURE)) => 
+        case (None | Some(DUNNO) | Some(NOT_SURE)) =>
           // ... try XFloat alone
-          val res = proveWithXFloat(constr, vc.inputs) 
+          val res = proveWithXFloat(constr, vc.inputs)
         case _ =>;
       }
 
@@ -55,9 +55,13 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
     //solver.assertCnstr(c.pre)
 
     // Create XFloat inputs
-    val (variables, indices) = variables2xfloats(inputs, solver) 
+    val (variables, indices) = variables2xfloats(inputs, solver)
     println("variables: " + variables)
     println("indices: " + indices)
+
+    val paths = collectPaths(c.body)
+    println("paths")
+    println(paths.mkString("\n"))
 
     // evaluate body
 

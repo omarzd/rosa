@@ -22,6 +22,7 @@ class VerificationCondition(val funDef: FunDef) {
   var funcArgs: Seq[Variable] = Seq.empty
   var localVars: Seq[Variable] = Seq.empty
   def allVariables: Seq[Variable] = funcArgs ++ localVars
+  var body: Option[Expr] = None
 
   // pre and body
   var preConstraint: Option[Expr] = None
