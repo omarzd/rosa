@@ -45,7 +45,7 @@ object Utils {
         recordMap = recordMap + (x -> recordMap.getOrElse(x, emptyRecord).updateLo(lwrBnd)); e
       // x <= b
       case LessEquals(x @ Variable(name), RationalLiteral(uprBnd)) =>
-        recordMap = recordMap + (x -> recordMap.getOrElse(x, emptyRecord).updateUp(uprBnd)); e 
+        recordMap = recordMap + (x -> recordMap.getOrElse(x, emptyRecord).updateUp(uprBnd)); e
       // a <= x
       case LessEquals(IntLiteral(lwrBnd), x @ Variable(name)) =>
         recordMap = recordMap + (x -> recordMap.getOrElse(x, emptyRecord).updateLo(Rational(lwrBnd))); e
@@ -65,7 +65,7 @@ object Utils {
       // x >= a
       case GreaterEquals(x @ Variable(name), IntLiteral(lwrBnd)) =>
         recordMap = recordMap + (x -> recordMap.getOrElse(x, emptyRecord).updateLo(Rational(lwrBnd))); e
-   
+
       case Noise(x @ Variable(id), RationalLiteral(value)) =>
         recordMap = recordMap + (x -> recordMap.getOrElse(x, emptyRecord).updateNoise(value)); e
 
@@ -80,7 +80,7 @@ object Utils {
     }
 
   }
- 
+
   // whether we consider also roundoff errors
   val withRoundoff = true
 
@@ -89,7 +89,7 @@ object Utils {
     deltaCounter = deltaCounter + 1
     Variable(FreshIdentifier("#delta_" + deltaCounter)).setType(RealType)
   }
-  
+
   /*def getFreshRndoffMultiplier: (Expr, Variable) = {
     val delta = getNewDelta
     (Plus(new RationalLiteral(1), delta) , delta)
@@ -99,8 +99,8 @@ object Utils {
     val delta = getNewDelta
     (Times(expr, delta), delta)
   }
-  
-  def constrainDeltas(deltas: List[Variable], eps: Variable): Expr = {
+
+  def constrainDeltas(deltas: Seq[Variable], eps: Variable): Expr = {
     val constraints = deltas.map(delta =>
       And(LessEquals(UMinus(eps), delta),
         LessEquals(delta, eps))
@@ -124,6 +124,43 @@ object Utils {
     (resVar, funcVars, localVars, machineEps)
   }
 
+  def exprToConstraint(funArgs: Seq[VarDecl], pre: Expr, body: Expr, post: Expr, reporter: Reporter): Expr = {
+    val (resVar, funcVars, localVars, eps) = getVariables(funArgs, allLetDefinitions(body))
+
+    val preConstraint: Expr = pre match {
+      case And(exprs) => And(exprs.map(e => constraintFromSpec(e, funcVars, resVar, eps)))
+      case expr => constraintFromSpec(expr, funcVars, resVar, eps)
+      //case None => reporter.warning("Forgotten precondition?"); BooleanLiteral(true)
+      //case _ => reporter.warning("You've got a funny precondition: " + vc.precondition); BooleanLiteral(true)
+    }
+    //if (verbose) reporter.info("preConstr: " + preConstraint)
+
+    //body
+    val (cIdeal, cActual) =
+      //if (!withRoundoff) bodyConstrNoRoundoff(body, funcVars ++ localVars, resVar)
+      //else {
+        {
+        val (realC, noisyC, deltas) = bodyConstrWholeShebang(body, funcVars ++ localVars, resVar)
+        (realC, And(noisyC, constrainDeltas(deltas, eps)))
+      }
+      //}
+    //if (verbose) reporter.info("\nbody constr Real : " + cIdeal)
+    //if (verbose) reporter.info("\nbody constr Noisy: " + cActual)
+
+    val postConstraint: Expr = post match {
+      case And(exprs) => And(exprs.map(e => constraintFromSpec(e, funcVars, resVar, eps)))
+      case expr => constraintFromSpec(expr, funcVars, resVar, eps)
+      //case None => reporter.warning("Forgotten postcondition?"); BooleanLiteral(true)
+      //case _ => reporter.warning("You've got a funny postcondition: " + funDef.postcondition); BooleanLiteral(true)
+    }
+    //if (verbose) reporter.info("postConstr: " + postConstraint)
+    Implies(And(Seq(preConstraint, cIdeal, cActual)), postConstraint)
+
+    //vc.preConstraint = Some(preConstraint)
+    //vc.bodyConstraint = Some(And(cIdeal, cActual))
+    //vc.postConstraint = Some(postConstraint)
+
+  }
 
 
 
@@ -135,8 +172,8 @@ object Utils {
         Error("negative noise").setType(BooleanType)
       } else {
         LessEquals(Abs(Minus(v, buddy(v))), r)
-      }  
-  
+      }
+
     case Noise(ResultVariable(), r @ RationalLiteral(value)) =>
       if (value < Rational.zero) {
         println("Noise must be positive.")
@@ -144,7 +181,7 @@ object Utils {
       } else {
         LessEquals(Abs(Minus(ress, buddy(ress))), r)
       }
-    
+
     case LessThan(Variable(_), RationalLiteral(_)) | LessThan(RationalLiteral(_), Variable(_)) => expr
     case LessEquals(Variable(_), RationalLiteral(_)) | LessEquals(RationalLiteral(_), Variable(_)) => expr
     case GreaterThan(Variable(_), RationalLiteral(_)) | GreaterThan(RationalLiteral(_), Variable(_)) => expr
@@ -160,15 +197,24 @@ object Utils {
       And(Seq(Equals(buddy(v), Times(Plus(new RationalLiteral(1), delta), v)),
         LessEquals(UMinus(eps), delta),
         LessEquals(delta, eps)))
-    
+
     case _=>
       println("Dunno what to do with this: " + expr)
       Error("unknown constraint").setType(BooleanType)
   }
 
+
+
+
   // We could also do this path by path
   // And this may be doable with a Transformer from TreeOps
-  private def bodyConstrNoRoundoff(expr: Expr, buddy: Map[Expr, Expr], res: Expr): (Expr, Expr) = expr match {
+  /*private def bodyConstrNoRoundoff(expr: Expr, buddy: Map[Expr, Expr], res: Expr): (Expr, Expr) = expr match {
+    case And(e1, e2) =>
+      val (e1Real, )
+      (And())
+
+    case Equals()
+
     case Let(id, valueExpr, rest) =>
       val letVar = Variable(id)
       val (restReal, restNoisy) = bodyConstrNoRoundoff(rest, buddy, res)
@@ -190,20 +236,38 @@ object Utils {
       println("Dropping instruction: " + expr + ". Cannot handle it.")
       println(expr.getClass)
       (BooleanLiteral(true), BooleanLiteral(true))
-  }
+  }*/
 
   // We separate the constraints on deltas from the rest for readability.
   //@return (real-valued constr, noisy constrs, deltas)
   private def bodyConstrWholeShebang(expr: Expr, buddy: Map[Expr, Expr], res: Expr):
-    (Expr, Expr, List[Variable]) = expr match {
-    case Let(id, valueExpr, rest) =>
+    (Expr, Expr, Seq[Variable]) = expr match {
+    case And(es) =>
+      var esReal: Seq[Expr] = Seq.empty
+      var esNoisy: Seq[Expr] = Seq.empty
+      var deltas: Seq[Variable] = List.empty
+
+      for (e <- es) {
+        val (eReal, eNoisy, eDelta) = bodyConstrWholeShebang(e, buddy, res)
+        esReal = esReal :+ eReal
+        esNoisy = esNoisy :+ eNoisy
+        deltas = deltas ++ eDelta
+      }
+
+      (And(esReal), And(esNoisy), deltas)
+
+    case Equals(v @ Variable(id), valueExpr) =>
+      val (valueExprNoisy, deltas) = addRndoff(replace(buddy, valueExpr))
+      (Equals(v, valueExpr), Equals(buddy(v), valueExprNoisy), deltas)
+
+    /*case Let(id, valueExpr, rest) =>
       val letVar = Variable(id)
       val (restReal, restNoisy, restDeltas) = bodyConstrWholeShebang(rest, buddy, res)
 
       val (rndExpr, deltas) = addRndoff(replace(buddy, valueExpr))
 
       (And(Equals(letVar, valueExpr), restReal), And(Equals(buddy(letVar), rndExpr), restNoisy),
-        restDeltas ++ deltas)
+        restDeltas ++ deltas)*/
 
     case IfExpr(cond, then, elze) =>
       val (thenReal, thenNoisy, thenDeltas) = bodyConstrWholeShebang(then, buddy, res)

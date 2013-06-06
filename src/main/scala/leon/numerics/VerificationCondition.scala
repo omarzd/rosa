@@ -18,7 +18,6 @@ class VerificationCondition(val funDef: FunDef) {
   var inputs: Map[Variable, Record] = Map.empty
   var precondition: Option[Expr] = None
 
- 
   // pre and body
   var preConstraint: Option[Expr] = None
   var bodyConstraint: Option[Expr] = None
@@ -36,13 +35,13 @@ class VerificationCondition(val funDef: FunDef) {
   var fncConstraintRA: Option[Expr] = None
   var statusRA: (Option[Valid], Option[z3.scala.Z3Model]) = (None, None)
   */
- 
+
   /*
     Computed specification.
   */
   //var inferredPost: Option[Expr] = None
 
- 
+
   /*
     Runtime specification.
   */
@@ -62,5 +61,5 @@ case class Constraint(pre: Expr, body: Expr, post: Expr) {
 
   def numVariables: Int = variablesOf(pre).size + variablesOf(body).size
   def size: Int = formulaSize(pre) + formulaSize(body)
- 
+
 }
