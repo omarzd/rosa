@@ -41,6 +41,8 @@ class Analyser(reporter: Reporter) {
         )
       case None => ;
     }
+    vc.localVars = allLetDefinitions(funDef.body.get).map(letDef => Variable(letDef._1))
+    println("local vars: " + vc.localVars)
 
     vc
   }
@@ -52,7 +54,7 @@ class Analyser(reporter: Reporter) {
     case Let(binder, value, body) =>
       And(Equals(Variable(binder), value), convertLetsToEquals(body))
     case _ => expr
-      
+
   }
 
   /*
@@ -66,7 +68,7 @@ class Analyser(reporter: Reporter) {
         val collector = new VariableCollector
         collector.transform(p)
         vc.inputs = collector.recordMap
-        //if (verbose) 
+        //if (verbose)
           reporter.info("inputs: " + vc.inputs)
         vc.precondition = Some(p)
       case None =>
@@ -77,13 +79,13 @@ class Analyser(reporter: Reporter) {
     val start = System.currentTimeMillis
     val (resVar, funcVars, localVars, eps) = getVariables(funDef.args, allLetDefinitions(body))
 
-    
+
     val preConstraint: Expr = vc.precondition match {
       case Some(And(exprs)) => And(exprs.map(e => constraintFromSpec(e, funcVars, resVar, eps)))
       case Some(expr) => constraintFromSpec(expr, funcVars, resVar, eps)
       case None => reporter.warning("Forgotten precondition?"); BooleanLiteral(true)
       case _ => reporter.warning("You've got a funny precondition: " + vc.precondition); BooleanLiteral(true)
-    } 
+    }
     if (verbose) reporter.info("preConstr: " + preConstraint)
 
     //body
@@ -126,8 +128,8 @@ class Analyser(reporter: Reporter) {
         Error("negative noise").setType(BooleanType)
       } else {
         LessEquals(Abs(Minus(v, buddy(v))), r)
-      }  
-  
+      }
+
     case Noise(ResultVariable(), r @ RationalLiteral(value)) =>
       if (value < Rational.zero) {
         reporter.warning("Noise must be positive.")
@@ -135,7 +137,7 @@ class Analyser(reporter: Reporter) {
       } else {
         LessEquals(Abs(Minus(ress, buddy(ress))), r)
       }
-    
+
     case LessThan(Variable(_), RationalLiteral(_)) | LessThan(RationalLiteral(_), Variable(_)) => expr
     case LessEquals(Variable(_), RationalLiteral(_)) | LessEquals(RationalLiteral(_), Variable(_)) => expr
     case GreaterThan(Variable(_), RationalLiteral(_)) | GreaterThan(RationalLiteral(_), Variable(_)) => expr
@@ -151,7 +153,7 @@ class Analyser(reporter: Reporter) {
       And(Seq(Equals(buddy(v), Times(Plus(new RationalLiteral(1), delta), v)),
         LessEquals(UMinus(eps), delta),
         LessEquals(delta, eps)))
-    
+
     case _=>
       reporter.warning("Dunno what to do with this: " + expr)
       Error("unknown constraint").setType(BooleanType)
@@ -284,7 +286,7 @@ class Analyser(reporter: Reporter) {
 */
 /*
 object Analyser {
-  
+
   // whether we consider also roundoff errors
   val withRoundoff = true
 
@@ -293,7 +295,7 @@ object Analyser {
     deltaCounter = deltaCounter + 1
     Variable(FreshIdentifier("#delta_" + deltaCounter)).setType(RealType)
   }*/
-  
+
   /*def getFreshRndoffMultiplier: (Expr, Variable) = {
     val delta = getNewDelta
     (Plus(new RationalLiteral(1), delta) , delta)
@@ -303,7 +305,7 @@ object Analyser {
     val delta = getNewDelta
     (Times(expr, delta), delta)
   }
-  
+
   def constrainDeltas(deltas: List[Variable], eps: Variable): Expr = {
     val constraints = deltas.map(delta =>
       And(LessEquals(UMinus(eps), delta),

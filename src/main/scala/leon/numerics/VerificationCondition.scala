@@ -18,6 +18,9 @@ class VerificationCondition(val funDef: FunDef) {
   var inputs: Map[Variable, Record] = Map.empty
   var precondition: Option[Expr] = None
 
+  // Misc useful info
+  var localVars: Seq[Variable] = Seq.empty
+
   // pre and body
   var preConstraint: Option[Expr] = None
   var bodyConstraint: Option[Expr] = None
