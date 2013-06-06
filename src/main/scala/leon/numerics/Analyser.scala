@@ -41,7 +41,10 @@ class Analyser(reporter: Reporter) {
         )
       case None => ;
     }
-    vc.localVars = allLetDefinitions(funDef.body.get).map(letDef => Variable(letDef._1))
+    
+    vc.funcArgs = vc.funDef.args.map(v => Variable(v.id).setType(RealType))
+    vc.localVars = allLetDefinitions(funDef.body.get).map(letDef => Variable(letDef._1).setType(RealType))
+    println("func args: " + vc.funcArgs)
     println("local vars: " + vc.localVars)
 
     vc

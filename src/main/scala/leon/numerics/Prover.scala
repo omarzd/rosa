@@ -16,7 +16,6 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
   def check(vc: VerificationCondition) = {
     reporter.info("checking VC of " + vc.funDef.id.name)
 
-    val funArgs = vc.funDef.args
     val start = System.currentTimeMillis
     for (constr <- vc.toCheck) {
       println("pre: " + constr.pre)
@@ -24,7 +23,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
       println("post: " + constr.post)
 
       // First try Z3 alone
-      val (res, model) = feelingLucky(constr, funArgs)
+      val (res, model) = feelingLucky(constr, vc.allVariables)
       constr.status = res
       constr.model = model
       // Then try XFloat alone
@@ -41,8 +40,8 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
 
 
   // no approximation
-  def feelingLucky(c: Constraint, funArgs: Seq[VarDecl]): (Option[Valid], Option[Map[Identifier, Expr]]) = {
-    val toProve = Utils.exprToConstraint(funArgs, c.pre, c.body, c.post, reporter)
+  def feelingLucky(c: Constraint, allVars: Seq[Variable]): (Option[Valid], Option[Map[Identifier, Expr]]) = {
+    val toProve = Utils.exprToConstraint(allVars, c.pre, c.body, c.post, reporter)
     val constraint = absTransform.transform(toProve)
     if (verbose) println("\n expr before: " + toProve)
     if (verbose) println("\n expr after: " + constraint)

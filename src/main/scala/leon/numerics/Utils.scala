@@ -81,26 +81,44 @@ object Utils {
 
   }
 
-  // whether we consider also roundoff errors
-  val withRoundoff = true
+  // whether we consider also roundoff errors and how we translate them into constraints
+  object RoundoffType extends Enumeration {
+    type RoundoffType = Value
+    val NoRoundoff = Value("NoRoundoff")
+    val RoundoffMultiplier = Value("RndoffMultiplier")
+    val RoundoffAddition = Value("RndoffAddition")
+  }
+  import RoundoffType._
+
+  val roundoffType: RoundoffType = RoundoffMultiplier
+
+
+  def exprToConstraint(variables: Seq[Variable], pre: Expr, body: Expr, post: Expr, reporter: Reporter): Expr = {
+    val (resVar, eps, allVars) = getVariables(variables)
+
+    val preConstraint: Expr = pre match {
+      case And(exprs) => And(exprs.map(e => constraintFromSpec(e, allVars, resVar, eps)))
+      case expr => constraintFromSpec(expr, allVars, resVar, eps)
+    }
+
+    //body
+    val (cIdeal, noisyC, deltas) = bodyConstrWholeShebang(body, allVars, resVar)
+    val cActual = And(noisyC, constrainDeltas(deltas, eps))
+
+    val postConstraint: Expr = post match {
+      case And(exprs) => And(exprs.map(e => constraintFromSpec(e, allVars, resVar, eps)))
+      case expr => constraintFromSpec(expr, allVars, resVar, eps)
+    }
+    Implies(And(Seq(preConstraint, cIdeal, cActual)), postConstraint)
+  }
 
   private var deltaCounter = 0
   def getNewDelta: Variable = {
     deltaCounter = deltaCounter + 1
     Variable(FreshIdentifier("#delta_" + deltaCounter)).setType(RealType)
   }
-
-  /*def getFreshRndoffMultiplier: (Expr, Variable) = {
-    val delta = getNewDelta
-    (Plus(new RationalLiteral(1), delta) , delta)
-  }*/
-
-  def getRndoff(expr: Expr): (Expr, Variable) = {
-    val delta = getNewDelta
-    (Times(expr, delta), delta)
-  }
-
-  def constrainDeltas(deltas: Seq[Variable], eps: Variable): Expr = {
+  
+  private def constrainDeltas(deltas: Seq[Variable], eps: Variable): Expr = {
     val constraints = deltas.map(delta =>
       And(LessEquals(UMinus(eps), delta),
         LessEquals(delta, eps))
@@ -108,64 +126,21 @@ object Utils {
     And(constraints ++ Seq(Equals(eps, RationalLiteral(unitRndoff))))
   }
 
-  def getVariables(args: Seq[VarDecl], lets: List[(Identifier, Expr)]):
-    (Variable, Map[Variable, Variable], Map[Variable, Variable], Variable) = {
+  private def getVariables(variables: Seq[Variable]): (Variable, Variable, Map[Expr, Expr]) = {
     val resVar = Variable(FreshIdentifier("res")).setType(RealType)
     val machineEps = Variable(FreshIdentifier("#eps")).setType(RealType)
 
-    var funcVars: Map[Variable, Variable] =
-      args.foldLeft(Map(resVar -> Variable(FreshIdentifier("#res_0")).setType(RealType)))(
-        (map, nextArg) => map + (Variable(nextArg.id).setType(RealType) -> Variable(FreshIdentifier("#"+nextArg.id.name+"_0")).setType(RealType))
+    var buddies: Map[Expr, Expr] =
+      variables.foldLeft(Map[Expr, Expr](resVar -> Variable(FreshIdentifier("#res_0")).setType(RealType)))(
+        (map, nextVar) => map + (nextVar -> Variable(FreshIdentifier("#"+nextVar.id.name+"_0")).setType(RealType))
       )
-    var localVars: Map[Variable, Variable] = lets.foldLeft(Map[Variable, Variable]())(
-      (map, defpair) => map + (Variable(defpair._1).setType(RealType) ->
-          Variable(FreshIdentifier("#"+defpair._1.name+"_0")).setType(RealType))
-    )
-    (resVar, funcVars, localVars, machineEps)
+
+    (resVar, machineEps, buddies)
   }
-
-  def exprToConstraint(funArgs: Seq[VarDecl], pre: Expr, body: Expr, post: Expr, reporter: Reporter): Expr = {
-    val (resVar, funcVars, localVars, eps) = getVariables(funArgs, allLetDefinitions(body))
-
-    val preConstraint: Expr = pre match {
-      case And(exprs) => And(exprs.map(e => constraintFromSpec(e, funcVars, resVar, eps)))
-      case expr => constraintFromSpec(expr, funcVars, resVar, eps)
-      //case None => reporter.warning("Forgotten precondition?"); BooleanLiteral(true)
-      //case _ => reporter.warning("You've got a funny precondition: " + vc.precondition); BooleanLiteral(true)
-    }
-    //if (verbose) reporter.info("preConstr: " + preConstraint)
-
-    //body
-    val (cIdeal, cActual) =
-      //if (!withRoundoff) bodyConstrNoRoundoff(body, funcVars ++ localVars, resVar)
-      //else {
-        {
-        val (realC, noisyC, deltas) = bodyConstrWholeShebang(body, funcVars ++ localVars, resVar)
-        (realC, And(noisyC, constrainDeltas(deltas, eps)))
-      }
-      //}
-    //if (verbose) reporter.info("\nbody constr Real : " + cIdeal)
-    //if (verbose) reporter.info("\nbody constr Noisy: " + cActual)
-
-    val postConstraint: Expr = post match {
-      case And(exprs) => And(exprs.map(e => constraintFromSpec(e, funcVars, resVar, eps)))
-      case expr => constraintFromSpec(expr, funcVars, resVar, eps)
-      //case None => reporter.warning("Forgotten postcondition?"); BooleanLiteral(true)
-      //case _ => reporter.warning("You've got a funny postcondition: " + funDef.postcondition); BooleanLiteral(true)
-    }
-    //if (verbose) reporter.info("postConstr: " + postConstraint)
-    Implies(And(Seq(preConstraint, cIdeal, cActual)), postConstraint)
-
-    //vc.preConstraint = Some(preConstraint)
-    //vc.bodyConstraint = Some(And(cIdeal, cActual))
-    //vc.postConstraint = Some(postConstraint)
-
-  }
-
 
 
   // For now, this is all we allow
-  def constraintFromSpec(expr: Expr, buddy: Map[Variable, Variable], ress: Variable, eps: Variable): Expr = expr match {
+  private def constraintFromSpec(expr: Expr, buddy: Map[Expr, Expr], ress: Variable, eps: Variable): Expr = expr match {
     case Noise(v @ Variable(id), r @ RationalLiteral(value)) =>
       if (value < Rational.zero) {
         println("Noise must be positive.")
@@ -203,41 +178,6 @@ object Utils {
       Error("unknown constraint").setType(BooleanType)
   }
 
-
-
-
-  // We could also do this path by path
-  // And this may be doable with a Transformer from TreeOps
-  /*private def bodyConstrNoRoundoff(expr: Expr, buddy: Map[Expr, Expr], res: Expr): (Expr, Expr) = expr match {
-    case And(e1, e2) =>
-      val (e1Real, )
-      (And())
-
-    case Equals()
-
-    case Let(id, valueExpr, rest) =>
-      val letVar = Variable(id)
-      val (restReal, restNoisy) = bodyConstrNoRoundoff(rest, buddy, res)
-      (And(Equals(letVar, valueExpr), restReal),
-      And(Equals(buddy(letVar), replace(buddy, valueExpr)), restNoisy))
-
-    case IfExpr(cond, then, elze) =>
-      val (thenReal, thenNoisy) = bodyConstrNoRoundoff(then, buddy, res)
-      val (elseReal, elseNoisy) = bodyConstrNoRoundoff(elze, buddy, res)
-
-      val noisyCond = replace(buddy, cond)
-      ( Or(And(cond, thenReal), And(Not(cond), elseReal)),
-        Or(And(noisyCond, thenNoisy), And(Not(noisyCond), elseNoisy)))
-
-    case UMinus(_) | Plus(_, _) | Minus(_, _) | Times(_, _) | Division(_, _) | FunctionInvocation(_, _) =>
-      (Equals(res, expr), Equals(buddy(res), replace(buddy, expr)))
-
-    case _=>
-      println("Dropping instruction: " + expr + ". Cannot handle it.")
-      println(expr.getClass)
-      (BooleanLiteral(true), BooleanLiteral(true))
-  }*/
-
   // We separate the constraints on deltas from the rest for readability.
   //@return (real-valued constr, noisy constrs, deltas)
   private def bodyConstrWholeShebang(expr: Expr, buddy: Map[Expr, Expr], res: Expr):
@@ -257,35 +197,49 @@ object Utils {
       (And(esReal), And(esNoisy), deltas)
 
     case Equals(v @ Variable(id), valueExpr) =>
-      val (valueExprNoisy, deltas) = addRndoff(replace(buddy, valueExpr))
+      val (valueExprNoisy, deltas) = roundoffType match {
+        case NoRoundoff => (replace(buddy, valueExpr), Seq.empty)
+        case RoundoffMultiplier => addRndoff2(replace(buddy, valueExpr))
+        case RoundoffAddition => addRndoff(replace(buddy, valueExpr))
+      }
       (Equals(v, valueExpr), Equals(buddy(v), valueExprNoisy), deltas)
-
-    /*case Let(id, valueExpr, rest) =>
-      val letVar = Variable(id)
-      val (restReal, restNoisy, restDeltas) = bodyConstrWholeShebang(rest, buddy, res)
-
-      val (rndExpr, deltas) = addRndoff(replace(buddy, valueExpr))
-
-      (And(Equals(letVar, valueExpr), restReal), And(Equals(buddy(letVar), rndExpr), restNoisy),
-        restDeltas ++ deltas)*/
 
     case IfExpr(cond, then, elze) =>
       val (thenReal, thenNoisy, thenDeltas) = bodyConstrWholeShebang(then, buddy, res)
       val (elseReal, elseNoisy, elseDeltas) = bodyConstrWholeShebang(elze, buddy, res)
 
-      val (noisyCond, deltas) = addRndoff(replace(buddy, cond))
+      val (noisyCond, deltas) = roundoffType match {
+        case NoRoundoff => (replace(buddy, cond), Seq.empty)
+        case RoundoffMultiplier => addRndoff2(replace(buddy, cond))
+        case RoundoffAddition => addRndoff(replace(buddy, cond))
+      }
       ( Or(And(cond, thenReal), And(Not(cond), elseReal)),
         Or(And(noisyCond, thenNoisy), And(Not(noisyCond), elseNoisy)),
         thenDeltas ++ elseDeltas ++ deltas)
 
     case UMinus(_) | Plus(_, _) | Minus(_, _) | Times(_, _) | Division(_, _) | FunctionInvocation(_, _) =>
-      val (rndExpr, deltas) = addRndoff(replace(buddy, expr))
+      val (rndExpr, deltas) =  roundoffType match {
+        case NoRoundoff => (replace(buddy, expr), Seq.empty)
+        case RoundoffMultiplier => addRndoff2(replace(buddy, expr))
+        case RoundoffAddition => addRndoff(replace(buddy, expr))
+      }
       (Equals(res, expr), Equals(buddy(res), rndExpr), deltas)
 
     case _=>
       println("Dropping instruction: " + expr + ". Cannot handle it.")
       println(expr.getClass)
       (BooleanLiteral(true), BooleanLiteral(true), List())
+  }
+
+
+  private def getFreshRndoffMultiplier: (Expr, Variable) = {
+    val delta = getNewDelta
+    (Plus(new RationalLiteral(1), delta) , delta)
+  }
+
+  private def getRndoff(expr: Expr): (Expr, Variable) = {
+    val delta = getNewDelta
+    (Times(expr, delta), delta)
   }
 
 
@@ -355,5 +309,65 @@ object Utils {
 
   }
 
+  // This uses the roundoff multiplier version
+  private def addRndoff2(expr: Expr): (Expr, List[Variable]) = expr match {
+    case Plus(x, y) =>
+      val (mult, delta) = getFreshRndoffMultiplier
+      val (xExpr, xDeltas) = addRndoff(x)
+      val (yExpr, yDeltas) = addRndoff(y)
+      (Times(Plus(xExpr, yExpr), mult), xDeltas ++ yDeltas ++ List(delta))
+
+    case Minus(x, y) =>
+      val (mult, delta) = getFreshRndoffMultiplier
+      val (xExpr, xDeltas) = addRndoff(x)
+      val (yExpr, yDeltas) = addRndoff(y)
+      (Times(Minus(xExpr, yExpr), mult), xDeltas ++ yDeltas ++ List(delta))
+
+    case Times(x, y) =>
+      val (mult, delta) = getFreshRndoffMultiplier
+      val (xExpr, xDeltas) = addRndoff(x)
+      val (yExpr, yDeltas) = addRndoff(y)
+      (Times(Times(xExpr, yExpr), mult), xDeltas ++ yDeltas ++ List(delta))
+
+    case Division(x, y) =>
+      val (mult, delta) = getFreshRndoffMultiplier
+      val (xExpr, xDeltas) = addRndoff(x)
+      val (yExpr, yDeltas) = addRndoff(y)
+      (Times(Division(xExpr, yExpr), mult), xDeltas ++ yDeltas ++ List(delta))
+   
+    case UMinus(x) =>
+      val (xExpr, xDeltas) = addRndoff(x)
+      (UMinus(xExpr), xDeltas)
+
+    case LessEquals(x, y) =>
+      val (xExpr, xDeltas) = addRndoff(x)
+      val (yExpr, yDeltas) = addRndoff(y)
+      (LessEquals(xExpr, yExpr), xDeltas ++ yDeltas)
+
+    case LessThan(x, y) =>
+      val (xExpr, xDeltas) = addRndoff(x)
+      val (yExpr, yDeltas) = addRndoff(y)
+      (LessEquals(xExpr, yExpr), xDeltas ++ yDeltas)
+
+    case GreaterEquals(x, y) =>
+      val (xExpr, xDeltas) = addRndoff(x)
+      val (yExpr, yDeltas) = addRndoff(y)
+      (LessEquals(xExpr, yExpr), xDeltas ++ yDeltas)
+
+    case GreaterThan(x, y) =>
+      val (xExpr, xDeltas) = addRndoff(x)
+      val (yExpr, yDeltas) = addRndoff(y)
+      (LessEquals(xExpr, yExpr), xDeltas ++ yDeltas)
+
+    case v: Variable => (v, List())
+
+    case r: RationalLiteral => (r, List())
+
+    case fnc: FunctionInvocation => (fnc, List())
+    case _=>
+     println("Cannot add roundoff to: " + expr)
+     (Error(""), List())
+
+  }
 
 }

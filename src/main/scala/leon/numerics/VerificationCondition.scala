@@ -19,7 +19,9 @@ class VerificationCondition(val funDef: FunDef) {
   var precondition: Option[Expr] = None
 
   // Misc useful info
+  var funcArgs: Seq[Variable] = Seq.empty
   var localVars: Seq[Variable] = Seq.empty
+  def allVariables: Seq[Variable] = funcArgs ++ localVars
 
   // pre and body
   var preConstraint: Option[Expr] = None
