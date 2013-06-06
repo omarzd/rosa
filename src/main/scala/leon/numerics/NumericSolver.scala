@@ -39,6 +39,9 @@ class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3
   var diagnose = true
   var countTimeouts = 0
 
+  var precision = Rational.rationalFromReal(0.0001)
+  val maxIterationsBinary = 20
+
   override protected[leon] val z3cfg = new Z3Config(
     "MODEL" -> true,
     "TIMEOUT" -> 500,
@@ -97,7 +100,7 @@ class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3
     res
   }
 
-  
+
   def checkValid(expr: Expr): (Valid, Option[Map[Identifier, Expr]]) = {
     solver.push
     val variables = variablesOf(expr)
@@ -121,18 +124,18 @@ class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3
   }
 
 
-
-/*
-  def tightenRange(tree: Expr, initialBound: RationalInterval): RationalInterval = tree match {
+  def tightenRange(tree: Expr, precondition: Expr, initialBound: RationalInterval): RationalInterval = tree match {
     // Nothing to do for constants
     case IntLiteral(v) => initialBound
     case RationalLiteral(v) => initialBound
-    case FloatLiteral(v) => initialBound
 
     // Also nothing to do for variables
     case Variable(id) => initialBound
 
     case _ =>
+      solver.push
+      assertCnstr(precondition)
+
       val a = initialBound.xlo
       val b = initialBound.xhi
       val exprInZ3 = toZ3Formula(tree).get
@@ -157,6 +160,8 @@ class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3
         else getUpperBound(a, b, exprInZ3, 0)
 
       printBoundsResult(checkBounds(exprInZ3, newLowerBound, newUpperBound), "final")
+
+      solver.pop()
       RationalInterval(newLowerBound, newUpperBound)
   }
 
@@ -341,5 +346,5 @@ class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3
       }
     case _ =>
       if (printWarnings) println("WARNING: cannot check "+which+" bounds.")
-  }*/
+  }
 }

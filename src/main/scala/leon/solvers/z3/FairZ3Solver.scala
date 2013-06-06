@@ -22,7 +22,7 @@ import scala.collection.mutable.{Set => MutableSet}
 class FairZ3Solver(context : LeonContext)
   extends Solver(context)
      with AbstractZ3Solver
-     with Z3ModelReconstruction 
+     with Z3ModelReconstruction
      with LeonComponent {
 
   enclosing =>
@@ -81,20 +81,20 @@ class FairZ3Solver(context : LeonContext)
   // This is fixed.
   protected[leon] val z3cfg = new Z3Config(
     "MODEL" -> true,
-    "MBQI" -> false,
+    //"MBQI" -> false, //Z3 4.3 calls this option something else, and it's default on anyway
     "TYPE_CHECK" -> true,
     "WELL_SORTED_CHECK" -> true
   )
   toggleWarningMessages(true)
 
   def isKnownDef(funDef: FunDef) : Boolean = functionMap.isDefinedAt(funDef)
-  
-  def functionDefToDecl(funDef: FunDef) : Z3FuncDecl = 
+
+  def functionDefToDecl(funDef: FunDef) : Z3FuncDecl =
       functionMap.getOrElse(funDef, scala.sys.error("No Z3 definition found for function symbol " + funDef.id.name + "."))
 
   def isKnownDecl(decl: Z3FuncDecl) : Boolean = reverseFunctionMap.isDefinedAt(decl)
-  
-  def functionDeclToDef(decl: Z3FuncDecl) : FunDef = 
+
+  def functionDeclToDef(decl: Z3FuncDecl) : FunDef =
       reverseFunctionMap.getOrElse(decl, scala.sys.error("No FunDef corresponds to Z3 definition " + decl + "."))
 
   private var functionMap: Map[FunDef, Z3FuncDecl] = Map.empty
@@ -147,7 +147,7 @@ class FairZ3Solver(context : LeonContext)
         if(isKnownDecl(p._1)) {
           val fd = functionDeclToDef(p._1)
           if(!fd.hasImplementation) {
-            val (cses, default) = p._2 
+            val (cses, default) = p._2
             val ite = cses.foldLeft(fromZ3Formula(model, default, Some(fd.returnType)))((expr, q) => IfExpr(
                             And(
                               q._1.zip(fd.args).map(a12 => Equals(fromZ3Formula(model, a12._1, Some(a12._2.tpe)), Variable(a12._2.id)))
@@ -184,7 +184,7 @@ class FairZ3Solver(context : LeonContext)
           reporter.info("- Model leads to runtime error.")
           (false, asMap)
 
-        case EvaluationResults.EvaluatorError(msg) => 
+        case EvaluationResults.EvaluatorError(msg) =>
           if (silenceErrors) {
             reporter.info("- Model leads to evaluator error: " + msg)
           } else {
@@ -302,7 +302,7 @@ class FairZ3Solver(context : LeonContext)
       }
 
       // ...now this template defines clauses that are all guarded
-      // by that activating boolean. If that activating boolean is 
+      // by that activating boolean. If that activating boolean is
       // undefined (or false) these clauses have no effect...
       val (newClauses, newBlocks) =
         template.instantiate(template.z3ActivatingBool, z3args)
@@ -310,7 +310,7 @@ class FairZ3Solver(context : LeonContext)
       for((i, fis) <- newBlocks) {
         registerBlocker(nextGeneration(0), i, fis)
       }
-      
+
       // ...so we must force it to true!
       template.z3ActivatingBool +: newClauses
     }
@@ -609,7 +609,7 @@ class FairZ3Solver(context : LeonContext)
               foundAnswer(None)
             }
 
-            if(!foundDefinitiveAnswer) { 
+            if(!foundDefinitiveAnswer) {
               reporter.info("- We need to keep going.")
 
               val toRelease = unrollingBank.getZ3BlockersToUnlock

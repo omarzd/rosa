@@ -7,34 +7,82 @@ import purescala.Trees._
 import purescala.TreeOps._
 
 import Valid._
+import Utils._
 
 class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
-  val verbose = false
+  val verbose = true
   val absTransform = new AbsTransformer
   val solver = new NumericSolver(ctx, program)
-  
+
   def check(vc: VerificationCondition) = {
-    reporter.info("checking VC of " + vc.funDef.id.name)
+    reporter.info("----------> checking VC of " + vc.funDef.id.name)
+
     val start = System.currentTimeMillis
     for (constr <- vc.toCheck) {
-      val (res, model) = feelingLucky(constr.toProve)  
-      constr.status = res
-      constr.model = model
+      println("pre: " + constr.pre)
+      println("body: " + constr.body)
+      println("post: " + constr.post)
+
+      // First try Z3 alone
+      //val (res, model) = feelingLucky(constr, vc.allVariables)
+      //constr.status = res
+      //constr.model = model
+
+      // If Z3 failed ...
+      constr.status match {
+        case (None | Some(DUNNO) | Some(NOT_SURE)) =>
+          // ... try XFloat alone
+          val res = proveWithXFloat(constr, vc.inputs)
+        case _ =>;
+      }
+
+      // If neither work, do partial approx.
+
     }
 
     val totalTime = (System.currentTimeMillis - start)
     vc.verificationTime = Some(totalTime)
   }
 
-  
+  private def proveWithXFloat(c: Constraint, inputs: Map[Variable, Record]): Option[Valid] = {
+    reporter.info("Now trying with XFloat only...")
+
+    val solver = new NumericSolver(ctx, program)
+
+    val paths = collectPaths(c.body).map(p => p.addCondition(filterPreconditionForBoundsIteration(c.pre)))
+    //println("paths")
+    //println(paths.mkString("\n"))
+
+    for (path <- paths) {
+      //println("Investigating path: " + path)
+
+      // TODO: make sure we push the correct bounds, i.e. not real-valued when it
+      // was supposed to be floats and vice - versa
+      val (variables, indices) = variables2xfloats(inputs, solver, path.condition)
+
+      val result = inXFloats(path.expression, variables, solver, path.condition)
+      path.value = Some(result(ResultVariable()))
+      //println("result: " + result)
+    }
+
+    // Merge results from all branches
+    val (interval, error) = mergePaths(paths)
+    println("max interval: " + interval)
+    println("max error: " + error)
+
+    // Create constraint
+    None
+  }
 
 
   // no approximation
-  def feelingLucky(expr: Expr): (Option[Valid], Option[Map[Identifier, Expr]]) = {
-    val constraint = absTransform.transform(expr)
-    if (verbose) println("\n expr before: " + expr)
+  def feelingLucky(c: Constraint, allVars: Seq[Variable]): (Option[Valid], Option[Map[Identifier, Expr]]) = {
+    reporter.info("Now trying with Z3 only...")
+    val toProve = exprToConstraint(allVars, c.pre, c.body, c.post, reporter)
+    val constraint = absTransform.transform(toProve)
+    if (verbose) println("\n expr before: " + toProve)
     if (verbose) println("\n expr after: " + constraint)
-    
+
     val (valid, model) = solver.checkValid(constraint)
     (Some(valid), model)
   }

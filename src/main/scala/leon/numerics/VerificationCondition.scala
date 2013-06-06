@@ -18,7 +18,12 @@ class VerificationCondition(val funDef: FunDef) {
   var inputs: Map[Variable, Record] = Map.empty
   var precondition: Option[Expr] = None
 
- 
+  // Misc useful info
+  var funcArgs: Seq[Variable] = Seq.empty
+  var localVars: Seq[Variable] = Seq.empty
+  def allVariables: Seq[Variable] = funcArgs ++ localVars
+  var body: Option[Expr] = None
+
   // pre and body
   var preConstraint: Option[Expr] = None
   var bodyConstraint: Option[Expr] = None
@@ -36,13 +41,13 @@ class VerificationCondition(val funDef: FunDef) {
   var fncConstraintRA: Option[Expr] = None
   var statusRA: (Option[Valid], Option[z3.scala.Z3Model]) = (None, None)
   */
- 
+
   /*
     Computed specification.
   */
   //var inferredPost: Option[Expr] = None
 
- 
+
   /*
     Runtime specification.
   */
@@ -55,7 +60,12 @@ class VerificationCondition(val funDef: FunDef) {
   var verificationTime:Option[Long] = None
 }
 
-case class Constraint(toProve: Expr) {
+
+case class Constraint(pre: Expr, body: Expr, post: Expr) {
   var status: Option[Valid] = None
   var model: Option[Map[Identifier, Expr]] = None
+
+  def numVariables: Int = variablesOf(pre).size + variablesOf(body).size
+  def size: Int = formulaSize(pre) + formulaSize(body)
+
 }
