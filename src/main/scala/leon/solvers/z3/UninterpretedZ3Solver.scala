@@ -26,7 +26,7 @@ class UninterpretedZ3Solver(context : LeonContext) extends Solver(context) with 
   // this is fixed
   protected[leon] val z3cfg = new Z3Config(
     "MODEL" -> true,
-    "MBQI" -> false,
+    //"MBQI" -> false, //Z3 4.3 calls this option something else, and it's default on anyway
     "TYPE_CHECK" -> true,
     "WELL_SORTED_CHECK" -> true
   )
@@ -67,7 +67,7 @@ class UninterpretedZ3Solver(context : LeonContext) extends Solver(context) with 
       case Some(true) => {
         if(containsFunctionCalls(expression)) {
           unknownResult
-        } else { 
+        } else {
           (Some(true), solver.getModel)
         }
       }
