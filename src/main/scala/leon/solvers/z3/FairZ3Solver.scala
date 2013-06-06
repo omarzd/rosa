@@ -81,7 +81,7 @@ class FairZ3Solver(context : LeonContext)
   // This is fixed.
   protected[leon] val z3cfg = new Z3Config(
     "MODEL" -> true,
-    //"MBQI" -> false,
+    //"MBQI" -> false, //Z3 4.3 calls this option something else, and it's default on anyway
     "TYPE_CHECK" -> true,
     "WELL_SORTED_CHECK" -> true
   )
