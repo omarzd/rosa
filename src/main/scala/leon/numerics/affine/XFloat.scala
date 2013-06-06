@@ -1,10 +1,10 @@
 package leon
 package numerics
+package affine
 
 import purescala.Trees._
 
 import ceres.common.{Rational, RationalInterval}
-//import ceres.affine.{RationalForm}
 import affine._
 import Rational._
 import XRationalForm._
@@ -29,12 +29,40 @@ object XFloat {
     return new XFloat(RationalLiteral(r), new XRationalForm(r), newError, solver)
   }
 
-  // variable
-  def apply(v: Variable, range: RationalInterval, solver: NumericSolver): XFloat = {
+  /**
+    Creates an XFloat and adds the max roundoff error over the range automatically.
+    @param v variable associated with this XFloat
+    @param range real-valued range of this XFloat
+    @param solver Z3 backed solver to use for range tightening
+  **/
+  def xFloatWithRoundoff(v: Variable, range: RationalInterval, solver: NumericSolver): (XFloat, Int) = {
     val approx = XRationalForm(range)
     val rndoff = roundoff(range) // another version of that fnc?
-    val newError = addNoise(new XRationalForm(Rational.zero), rndoff)
-    return new XFloat(v, approx, newError, solver)
+    val (newError, index) = addNoiseWithIndex(new XRationalForm(Rational.zero), rndoff)
+    return (new XFloat(v, approx, newError, solver), index)
+  }
+
+  /**
+    Creates an XFloat with a given uncertainty.
+    @param v variable associated with this XFloat
+    @param range real-valued range of this XFloat
+    @param solver Z3 backed solver to use for range tightening
+    @param uncertain max uncertainty
+    @param withRoundoff if true an additional roundoff error will be added automatically
+  **/
+  def xFloatWithUncertain(v: Variable, range: RationalInterval, solver: NumericSolver,
+    uncertain: Rational, withRoundoff: Boolean): (XFloat, Int) = {
+    assert(uncertain >= Rational.zero)
+
+    val approx = XRationalForm(range)
+    var (newError, index) = addNoiseWithIndex(new XRationalForm(Rational.zero), uncertain)
+
+    if (withRoundoff) {
+      val rndoff = roundoff(range + new RationalInterval(-uncertain, uncertain)) // another version of that fnc?
+      return (new XFloat(v, approx, addNoise(newError, rndoff), solver), index)
+    } else {
+      return (new XFloat(v, approx, newError, solver), index)
+    }
   }
 
   def withIndex(v: Variable, range: RationalInterval, solver: NumericSolver): (XFloat, Int) = {
@@ -162,7 +190,7 @@ class XFloat(val tree: Expr, val approxRange: XRationalForm, val error: XRationa
       
 
     // Compute approximation
-    val tightInverse = getTightInterval(Division(FloatLiteral(1.0), y.tree), y.approxRange.inverse)
+    val tightInverse = getTightInterval(Division(new RationalLiteral(1), y.tree), y.approxRange.inverse)
     val kAA = XRationalForm(tightInverse)
     val xAA = XRationalForm(this.realInterval)
     val xErr = this.error
@@ -195,7 +223,11 @@ class XFloat(val tree: Expr, val approxRange: XRationalForm, val error: XRationa
     assert(solver.getNumScopes > 0, "Trying to tighten interval but no scopes left!")
 
     //println("tightening: " + tree)
-    val res = solver.tightenRange(tree, approx.interval)
+
+    // TODO: before we enable this again, we have to make sure the variable precondition
+    // is correctly loaded in the solver.
+    //val res = solver.tightenRange(tree, approx.interval)
+    val res = approx.interval
     //println("tightening was successful")
     return res
   }

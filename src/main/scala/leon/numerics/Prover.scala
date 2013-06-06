@@ -7,6 +7,7 @@ import purescala.Trees._
 import purescala.TreeOps._
 
 import Valid._
+import Utils._
 
 class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
   val verbose = true
@@ -23,10 +24,17 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
       println("post: " + constr.post)
 
       // First try Z3 alone
-      val (res, model) = feelingLucky(constr, vc.allVariables)
-      constr.status = res
-      constr.model = model
-      // Then try XFloat alone
+      //val (res, model) = feelingLucky(constr, vc.allVariables)
+      //constr.status = res
+      //constr.model = model
+
+      // If Z3 failed ...
+      constr.status match {
+        case (None | Some(DUNNO) | Some(NOT_SURE)) => 
+          // ... try XFloat alone
+          val res = proveWithXFloat(constr, vc.inputs) 
+        case _ =>;
+      }
 
       // If neither work, do partial approx.
 
@@ -36,12 +44,35 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
     vc.verificationTime = Some(totalTime)
   }
 
+  private def proveWithXFloat(c: Constraint, inputs: Map[Variable, Record]): Option[Valid] = {
+    reporter.info("Now trying with XFloat only...")
 
+    val solver = new NumericSolver(ctx, program)
+    solver.push
+    // TODO: assert range bounds (later also other stuff)
+    // TODO: make sure we push the correct bounds, i.e. not real-valued when it
+    // was supposed to be floats and vice - versa
+    //solver.assertCnstr(c.pre)
+
+    // Create XFloat inputs
+    val (variables, indices) = variables2xfloats(inputs, solver) 
+    println("variables: " + variables)
+    println("indices: " + indices)
+
+    // evaluate body
+
+
+    // check if enough to prove post
+
+    solver.pop
+    None
+  }
 
 
   // no approximation
   def feelingLucky(c: Constraint, allVars: Seq[Variable]): (Option[Valid], Option[Map[Identifier, Expr]]) = {
-    val toProve = Utils.exprToConstraint(allVars, c.pre, c.body, c.post, reporter)
+    reporter.info("Now trying with Z3 only...")
+    val toProve = exprToConstraint(allVars, c.pre, c.body, c.post, reporter)
     val constraint = absTransform.transform(toProve)
     if (verbose) println("\n expr before: " + toProve)
     if (verbose) println("\n expr after: " + constraint)

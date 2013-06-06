@@ -9,6 +9,8 @@ import purescala.TreeOps._
 import purescala.Definitions._
 import purescala.Common._
 
+import affine.XFloat
+
 
 object Utils {
   def formatOption[T](res: Option[T]): String = res match {
@@ -16,12 +18,22 @@ object Utils {
     case None => " -- "
   }
 
+  /* ################################
+
+      Collecting variable ranges and noises.
+
+  ################################### */
 
   case class Record(lo: Option[Rational], up: Option[Rational], noise: Option[Rational], rndoff: Option[Boolean]) {
     def updateLo(newLo: Rational): Record = Record(Some(newLo), up, noise, rndoff)
     def updateUp(newUp: Rational): Record = Record(lo, Some(newUp), noise, rndoff)
     def updateNoise(newNoise: Rational): Record = Record(lo, up, Some(newNoise), rndoff)
     def addRndoff: Record = Record(lo, up, noise, Some(true))
+
+    def isComplete: Boolean = rndoff match {
+      case Some(true) => (!lo.isEmpty && !up.isEmpty)
+      case _ => (!lo.isEmpty && !up.isEmpty && !noise.isEmpty)
+    }
 
     override def toString: String = "[%s, %s] (%s)".format(
        formatOption(lo), formatOption(up), noise match {
@@ -80,6 +92,12 @@ object Utils {
     }
 
   }
+
+  /* #################################
+
+      Converting expressions to constraints.
+
+     ################################# */
 
   // whether we consider also roundoff errors and how we translate them into constraints
   object RoundoffType extends Enumeration {
@@ -368,6 +386,107 @@ object Utils {
      println("Cannot add roundoff to: " + expr)
      (Error(""), List())
 
+  }
+
+
+  /* #################################
+
+      XFloat helpers.
+
+     ################################# */
+
+  // TODO: XFloat should also be parametric in the floating-point precision
+  def variables2xfloats(vars: Map[Variable, Record], solver: NumericSolver, withRoundoff: Boolean = true):
+    (Map[Variable, XFloat], Map[Variable, Int]) = {
+    var variableMap: Map[Variable, XFloat] = Map.empty
+    var indexMap: Map[Variable, Int] = Map.empty
+   
+    for((k, rec) <- vars) {
+      if (rec.isComplete) {
+        rec.rndoff match {
+          case Some(true) =>
+            val (xfloat, index) = XFloat.xFloatWithRoundoff(k,
+                    RationalInterval(rec.lo.get, rec.up.get),
+                    solver) 
+            variableMap = variableMap + (k -> xfloat) 
+            indexMap = indexMap + (k -> index)
+
+          case None =>
+            // index is the index of the main uncertainty, not the roundoff
+            val (xfloat, index) = XFloat.xFloatWithUncertain(k,
+                    RationalInterval(rec.lo.get, rec.up.get),
+                    solver,
+                    rec.noise.get, withRoundoff) 
+            variableMap = variableMap + (k -> xfloat) 
+            indexMap = indexMap + (k -> index)
+        }
+      }
+    }
+    (variableMap, indexMap)
+  }
+
+  // Evaluates an arithmetic expression
+  // TODO: this has to be extended for And(...)
+  def inXFloats(tree: Expr, vars: Map[Variable, XFloat], solver: NumericSolver): XFloat = tree match {
+    case v @ Variable(id) => vars(v)
+    case RationalLiteral(v) => XFloat(v, solver)
+    case IntLiteral(v) => XFloat(v, solver)
+    case UMinus(rhs) => - inXFloats(rhs, vars, solver)
+    case Plus(lhs, rhs) => inXFloats(lhs, vars, solver) + inXFloats(rhs, vars, solver)
+    case Minus(lhs, rhs) => inXFloats(lhs, vars, solver) - inXFloats(rhs, vars, solver)
+    case Times(lhs, rhs) => inXFloats(lhs, vars, solver) * inXFloats(rhs, vars, solver)
+    case Division(lhs, rhs) => inXFloats(lhs, vars, solver) / inXFloats(rhs, vars, solver)
+    case _ =>
+      throw UnsupportedFragmentException("Can't handle: " + tree.getClass)
+      null
+  }
+
+  // TODO: make immutable again
+  class Path {
+    var condition: Expr = BooleanLiteral(true)
+    var expression: Expr = BooleanLiteral(true)
+
+    def addCondition(c: Expr) = { condition = And(condition, c) }
+
+    def addPath(p: Path): Path = {
+      val np = new Path
+      newExpr = And(expression, p.expression)
+      newCond = And(condition, p.condition)
+    }
+  }
+  /* {
+    var range: Option[RationalInterval] = None 
+    var maxError: Option[Rational] = None
+    override def toString: String = "%s \n %s (%s)".format(
+     expression.mkString("^"), opt2str(range), opt2str(maxError))
+  }*/
+
+  def collectPaths(expr: Expr): Set[Path] = expr match {
+    case IfExpr(cond, then, elze) =>
+      val thenPaths = collectPaths(then)
+      thenPaths.foreach(p => p.addCondition(cond))
+      val elzePaths = collectPaths(then)
+      elzePaths.foreach(p => p.addCondition(negate(cond)))
+
+      thenPaths ++ elzePaths
+
+    case And(args) =>
+      var paths: Set[Path] = collectPaths(args.head)
+
+      for (a <- args.tail) {
+        val nextPaths = collectPaths(a)
+        var newPaths: Set[Path] = Set.empty
+        for (np <- nextPaths) {
+          for (cp <- paths) {
+            newPaths = newPaths + cp.addPath(np)
+          }
+        }
+        paths = newPaths
+      }
+      paths
+
+    case _ =>
+      Set(Path(BooleanLiteral(true), expr))
   }
 
 }
