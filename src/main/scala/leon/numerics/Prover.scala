@@ -54,6 +54,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
     println(paths.mkString("\n"))
 
     for (path <- paths) {
+      println("Investigating path: " + path)
 
       // Create XFloat inputs
       // TODO: make sure we push the correct bounds, i.e. not real-valued when it
@@ -62,18 +63,17 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
       println("variables: " + variables)
       println("indices: " + indices)
 
+      // evaluate body
       val result = inXFloats(path.expression, variables, solver, path.condition)
       println("result: " + result)
 
     }
 
 
-    // evaluate body
+
 
 
     // check if enough to prove post
-
-    solver.pop
     None
   }
 

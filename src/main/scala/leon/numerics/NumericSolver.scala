@@ -133,7 +133,7 @@ class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3
     case Variable(id) => initialBound
 
     case _ =>
-      push
+      solver.push
       assertCnstr(precondition)
 
       val a = initialBound.xlo
@@ -161,7 +161,7 @@ class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3
 
       printBoundsResult(checkBounds(exprInZ3, newLowerBound, newUpperBound), "final")
 
-      pop
+      solver.pop()
       RationalInterval(newLowerBound, newUpperBound)
   }
 
