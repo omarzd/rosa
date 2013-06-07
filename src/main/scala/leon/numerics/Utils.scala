@@ -425,9 +425,22 @@ object Utils {
     (variableMap, indexMap)
   }
 
+  // Returns a map from all variables to their final value, including local vars
+  def inXFloats(exprs: List[Expr], vars: Map[Variable, XFloat], solver: NumericSolver): Map[Variable, XFloat] = {
+    var currentVars: Map[Variable, XFloat] = vars
+
+    for (expr <- exprs) expr match {
+      case Equals(v @ Variable(id), value) =>
+        currentVars = currentVars + (v -> inXFloats(value, currentVars, solver))
+      case _ =>
+        throw UnsupportedFragmentException("This shouldn't be here: " + expr.getClass)
+    }
+
+    currentVars
+  }
+
   // Evaluates an arithmetic expression
-  // TODO: this has to be extended for And(...)
-  def inXFloats(tree: Expr, vars: Map[Variable, XFloat], solver: NumericSolver): XFloat = tree match {
+  def inXFloats(expr: Expr, vars: Map[Variable, XFloat], solver: NumericSolver): XFloat = expr match {
     case v @ Variable(id) => vars(v)
     case RationalLiteral(v) => XFloat(v, solver)
     case IntLiteral(v) => XFloat(v, solver)
@@ -437,7 +450,7 @@ object Utils {
     case Times(lhs, rhs) => inXFloats(lhs, vars, solver) * inXFloats(rhs, vars, solver)
     case Division(lhs, rhs) => inXFloats(lhs, vars, solver) / inXFloats(rhs, vars, solver)
     case _ =>
-      throw UnsupportedFragmentException("Can't handle: " + tree.getClass)
+      throw UnsupportedFragmentException("Can't handle: " + expr.getClass)
       null
   }
 

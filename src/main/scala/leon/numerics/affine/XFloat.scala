@@ -82,7 +82,7 @@ object XFloat {
     // Without scaling this can return fractions with very large numbers
     // TODO: scale the result
     val simplifiedMax = Rational.scaleToIntsUp(maxAbs)
-    return u * simplifiedMax 
+    return u * simplifiedMax
   }
 
   def roundoff(r: Rational): Rational = {
@@ -109,8 +109,9 @@ class XFloat(val tree: Expr, val approxRange: XRationalForm, val error: XRationa
   solver: NumericSolver) {
   import XFloat._
 
-  lazy val realInterval: RationalInterval = getTightInterval(tree, approxRange)
-
+  lazy val realInterval: RationalInterval = {
+    getTightInterval(tree, approxRange)
+  }
   lazy val interval: RationalInterval = realInterval + error.interval
 
   lazy val maxRoundoff: Rational = {
@@ -174,7 +175,7 @@ class XFloat(val tree: Expr, val approxRange: XRationalForm, val error: XRationa
     var newError = xAA*yErr + yAA*xErr + xErr*yErr
     val newRange = getTightInterval(newTree, newApprox) + newError.interval
     val rndoff = roundoff(newRange)
-   
+
     //One could also keep track of the input dependencies from xAA and yAA
     // which may be larger than the nonlinear stuff
     newError = addNoise(newError, rndoff)
@@ -187,7 +188,7 @@ class XFloat(val tree: Expr, val approxRange: XRationalForm, val error: XRationa
     // TODO: catch division by zero
 
     //if (y.isExact) {
-      
+
 
     // Compute approximation
     val tightInverse = getTightInterval(Division(new RationalLiteral(1), y.tree), y.approxRange.inverse)
@@ -199,7 +200,7 @@ class XFloat(val tree: Expr, val approxRange: XRationalForm, val error: XRationa
     val a = min(abs(yInt.xlo), abs(yInt.xhi))
     val errorMultiplier = negOne / (a*a)
     val gErr = y.error * new XRationalForm(errorMultiplier)
-    
+
     // Now do the multiplication x * (1/y)
     val newTree = Division(this.tree, y.tree)
     val newApprox = this.approxRange / y.approxRange
@@ -207,7 +208,7 @@ class XFloat(val tree: Expr, val approxRange: XRationalForm, val error: XRationa
     var newError = xAA*gErr + kAA*xErr + xErr*gErr
     val newRange = getTightInterval(newTree, newApprox) + newError.interval
     val rndoff = roundoff(newRange)
-    
+
     newError = addNoise(newError, rndoff)
     if(verbose) println("\ndivision, newRange: " + newRange)
     if(verbose) println("            roundoff: " + rndoff)
@@ -215,7 +216,7 @@ class XFloat(val tree: Expr, val approxRange: XRationalForm, val error: XRationa
   }
 
   override def toString: String = this.interval.toString + " - (" +
-    this.maxRoundoff + ")(abs)" 
+    this.maxRoundoff + ")(abs)"
 
   private def getTightInterval(tree: Expr, approx: XRationalForm): RationalInterval = {
     // Sanity check. If no scope is present, XFloat used without a precondition

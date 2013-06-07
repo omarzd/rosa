@@ -97,7 +97,7 @@ class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3
     res
   }
 
-  
+
   def checkValid(expr: Expr): (Valid, Option[Map[Identifier, Expr]]) = {
     solver.push
     val variables = variablesOf(expr)
@@ -121,8 +121,6 @@ class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3
   }
 
 
-
-/*
   def tightenRange(tree: Expr, initialBound: RationalInterval): RationalInterval = tree match {
     // Nothing to do for constants
     case IntLiteral(v) => initialBound
