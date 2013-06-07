@@ -481,12 +481,12 @@ object Utils {
   def mergePaths(paths: Set[Path]): (RationalInterval, Rational) = {
     import Rational._
     var interval = paths.head.value.get.interval
-    var error = paths.head.value.get.maxRoundoff
+    var error = paths.head.value.get.maxError
 
     for (path <- paths.tail) {
       interval = RationalInterval(min(interval.xlo, path.value.get.interval.xlo),
                                   max(interval.xhi, path.value.get.interval.xhi))
-      error = max(error, path.value.get.maxRoundoff)
+      error = max(error, path.value.get.maxError)
     }
     (interval, error)
   }
@@ -521,6 +521,17 @@ object Utils {
 
     case _ =>
       Set(Path(BooleanLiteral(true), List(expr)))
+  }
+
+  def createConstraintFromResults(results: Map[Expr, (RationalInterval, Rational)]): Expr = {
+    var args: Seq[Expr] = Seq.empty
+    for((v, (interval, error)) <- results) {
+
+      args = args :+ LessEquals(RationalLiteral(interval.xlo), v)
+      args = args :+ LessEquals(v, RationalLiteral(interval.xhi))
+      args = args :+ Noise(v, RationalLiteral(error))
+    }
+    And(args)
   }
 
 }

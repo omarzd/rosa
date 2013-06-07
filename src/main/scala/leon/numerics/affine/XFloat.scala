@@ -109,7 +109,7 @@ class XFloat(val tree: Expr, val approxRange: XRationalForm, val error: XRationa
   }
   lazy val interval: RationalInterval = realInterval + error.interval
 
-  lazy val maxRoundoff: Rational = {
+  lazy val maxError: Rational = {
     val i = error.interval
     max(abs(i.xlo), abs(i.xhi))
   }
@@ -211,7 +211,7 @@ class XFloat(val tree: Expr, val approxRange: XRationalForm, val error: XRationa
   }
 
   override def toString: String = this.interval.toString + " - (" +
-    this.maxRoundoff + ")(abs)"
+    this.maxError + ")(abs)"
 
   private def getTightInterval(tree: Expr, approx: XRationalForm): RationalInterval = {
     //println("tightening: " + tree)

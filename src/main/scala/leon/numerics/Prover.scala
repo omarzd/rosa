@@ -32,7 +32,9 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
       constr.status match {
         case (None | Some(DUNNO) | Some(NOT_SURE)) =>
           // ... try XFloat alone
-          val res = proveWithXFloat(constr, vc.inputs)
+          val constraint = constraintWithXFloat(constr, vc.inputs)
+          val (resAA, modelAA) = feelingLucky(constraint, vc.allVariables)
+          println("REEESULT: " + resAA)
         case _ =>;
       }
 
@@ -44,7 +46,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
     vc.verificationTime = Some(totalTime)
   }
 
-  private def proveWithXFloat(c: Constraint, inputs: Map[Variable, Record]): Option[Valid] = {
+  private def constraintWithXFloat(c: Constraint, inputs: Map[Variable, Record]): Constraint = {
     reporter.info("Now trying with XFloat only...")
 
     val solver = new NumericSolver(ctx, program)
@@ -71,7 +73,9 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
     println("max error: " + error)
 
     // Create constraint
-    None
+    val newBodyConstraint = createConstraintFromResults(Map(ResultVariable() -> (interval, error)))
+    println("constraint: " + newBodyConstraint)
+    Constraint(And(c.pre, newBodyConstraint), BooleanLiteral(true), c.post)
   }
 
 
