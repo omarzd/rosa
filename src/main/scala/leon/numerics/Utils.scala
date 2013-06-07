@@ -395,11 +395,19 @@ object Utils {
 
      ################################# */
 
+  def filterPreconditionForBoundsIteration(expr: Expr): Expr = expr match {
+    case And(args) =>
+      And(args.map(a => filterPreconditionForBoundsIteration(a)))
+    case Noise(e, f) => BooleanLiteral(true)
+    case Roundoff(e) => BooleanLiteral(true)
+    case _ => expr
+  }
+
   // TODO: XFloat should also be parametric in the floating-point precision
-  def variables2xfloats(vars: Map[Variable, Record], solver: NumericSolver, withRoundoff: Boolean = true):
-    (Map[Variable, XFloat], Map[Variable, Int]) = {
-    var variableMap: Map[Variable, XFloat] = Map.empty
-    var indexMap: Map[Variable, Int] = Map.empty
+  def variables2xfloats(vars: Map[Variable, Record], solver: NumericSolver, pre: Expr, withRoundoff: Boolean = true):
+    (Map[Expr, XFloat], Map[Expr, Int]) = {
+    var variableMap: Map[Expr, XFloat] = Map.empty
+    var indexMap: Map[Expr, Int] = Map.empty
 
     for((k, rec) <- vars) {
       if (rec.isComplete) {
@@ -407,7 +415,7 @@ object Utils {
           case Some(true) =>
             val (xfloat, index) = XFloat.xFloatWithRoundoff(k,
                     RationalInterval(rec.lo.get, rec.up.get),
-                    solver)
+                    solver, pre)
             variableMap = variableMap + (k -> xfloat)
             indexMap = indexMap + (k -> index)
 
@@ -415,7 +423,7 @@ object Utils {
             // index is the index of the main uncertainty, not the roundoff
             val (xfloat, index) = XFloat.xFloatWithUncertain(k,
                     RationalInterval(rec.lo.get, rec.up.get),
-                    solver,
+                    solver, pre,
                     rec.noise.get, withRoundoff)
             variableMap = variableMap + (k -> xfloat)
             indexMap = indexMap + (k -> index)
@@ -426,29 +434,32 @@ object Utils {
   }
 
   // Returns a map from all variables to their final value, including local vars
-  def inXFloats(exprs: List[Expr], vars: Map[Variable, XFloat], solver: NumericSolver): Map[Variable, XFloat] = {
-    var currentVars: Map[Variable, XFloat] = vars
+  def inXFloats(exprs: List[Expr], vars: Map[Expr, XFloat], solver: NumericSolver, pre: Expr): Map[Expr, XFloat] = {
+    var currentVars: Map[Expr, XFloat] = vars
 
     for (expr <- exprs) expr match {
-      case Equals(v @ Variable(id), value) =>
-        currentVars = currentVars + (v -> inXFloats(value, currentVars, solver))
+      case Equals(variable, value) =>
+        println("equals: " + expr)
+        println("evaluating: " + value)
+        currentVars = currentVars + (variable -> inXFloats(value, currentVars, solver, pre))
+
       case _ =>
-        throw UnsupportedFragmentException("This shouldn't be here: " + expr.getClass)
+        throw UnsupportedFragmentException("This shouldn't be here: " + expr.getClass + "  " + expr)
     }
 
     currentVars
   }
 
   // Evaluates an arithmetic expression
-  def inXFloats(expr: Expr, vars: Map[Variable, XFloat], solver: NumericSolver): XFloat = expr match {
+  def inXFloats(expr: Expr, vars: Map[Expr, XFloat], solver: NumericSolver, pre: Expr): XFloat = expr match {
     case v @ Variable(id) => vars(v)
-    case RationalLiteral(v) => XFloat(v, solver)
-    case IntLiteral(v) => XFloat(v, solver)
-    case UMinus(rhs) => - inXFloats(rhs, vars, solver)
-    case Plus(lhs, rhs) => inXFloats(lhs, vars, solver) + inXFloats(rhs, vars, solver)
-    case Minus(lhs, rhs) => inXFloats(lhs, vars, solver) - inXFloats(rhs, vars, solver)
-    case Times(lhs, rhs) => inXFloats(lhs, vars, solver) * inXFloats(rhs, vars, solver)
-    case Division(lhs, rhs) => inXFloats(lhs, vars, solver) / inXFloats(rhs, vars, solver)
+    case RationalLiteral(v) => XFloat(v, solver, pre)
+    case IntLiteral(v) => XFloat(v, solver, pre)
+    case UMinus(rhs) => - inXFloats(rhs, vars, solver, pre)
+    case Plus(lhs, rhs) => inXFloats(lhs, vars, solver, pre) + inXFloats(rhs, vars, solver, pre)
+    case Minus(lhs, rhs) => inXFloats(lhs, vars, solver, pre) - inXFloats(rhs, vars, solver, pre)
+    case Times(lhs, rhs) => inXFloats(lhs, vars, solver, pre) * inXFloats(rhs, vars, solver, pre)
+    case Division(lhs, rhs) => inXFloats(lhs, vars, solver, pre) / inXFloats(rhs, vars, solver, pre)
     case _ =>
       throw UnsupportedFragmentException("Can't handle: " + expr.getClass)
       null

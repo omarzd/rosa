@@ -49,26 +49,22 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
 
     val solver = new NumericSolver(ctx, program)
 
-    // Create XFloat inputs
-    val (variables, indices) = variables2xfloats(inputs, solver)
-    println("variables: " + variables)
-    println("indices: " + indices)
-
-    val paths = collectPaths(c.body).map(p => p.addCondition(c.pre))
+    val paths = collectPaths(c.body).map(p => p.addCondition(filterPreconditionForBoundsIteration(c.pre)))
     println("paths")
     println(paths.mkString("\n"))
 
     for (path <- paths) {
-      solver.push
-      println("solver scopes: " + solver.getNumScopes)
-      // TODO: assert the precondition and pathcondition
-      // TODO: assert range bounds (later also other stuff)
+
+      // Create XFloat inputs
       // TODO: make sure we push the correct bounds, i.e. not real-valued when it
       // was supposed to be floats and vice - versa
-      //solver.assertCnstr(c.pre)
-      val result = inXFloats(path.expression, variables, solver)
+      val (variables, indices) = variables2xfloats(inputs, solver, path.condition)
+      println("variables: " + variables)
+      println("indices: " + indices)
+
+      val result = inXFloats(path.expression, variables, solver, path.condition)
       println("result: " + result)
-      solver.pop
+
     }
 
 
