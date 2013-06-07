@@ -76,6 +76,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
     val newBodyConstraint = createConstraintFromResults(Map(ResultVariable() -> (interval, error)))
     println("constraint: " + newBodyConstraint)
     Constraint(And(c.pre, newBodyConstraint), BooleanLiteral(true), c.post)
+
   }
 
 
