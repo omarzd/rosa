@@ -1,10 +1,15 @@
 package leon
 package numerics
 
+import ceres.common.{Rational, RationalInterval}
+
 import purescala.Common._
 import purescala.Definitions._
 import purescala.Trees._
 import purescala.TreeOps._
+
+import affine.XFloat
+import affine.XFloat._
 
 import Valid._
 import Utils._
@@ -90,6 +95,102 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
 
     val (valid, model) = solver.checkValid(constraint)
     (Some(valid), model)
+  }
+ 
+  def filterPreconditionForBoundsIteration(expr: Expr): Expr = expr match {
+    case And(args) =>
+      And(args.map(a => filterPreconditionForBoundsIteration(a)))
+    case Noise(e, f) => BooleanLiteral(true)
+    case Roundoff(e) => BooleanLiteral(true)
+    case _ => expr
+  }
+
+  // Returns a map from all variables to their final value, including local vars
+  def inXFloats(exprs: List[Expr], vars: Map[Expr, XFloat], solver: NumericSolver, pre: Expr): Map[Expr, XFloat] = {
+    var currentVars: Map[Expr, XFloat] = vars
+
+    for (expr <- exprs) expr match {
+      case Equals(variable, value) =>
+        currentVars = currentVars + (variable -> inXFloats(value, currentVars, solver, pre))
+
+      case _ =>
+        throw UnsupportedFragmentException("This shouldn't be here: " + expr.getClass + "  " + expr)
+    }
+
+    currentVars
+  }
+
+  // Evaluates an arithmetic expression
+  def inXFloats(expr: Expr, vars: Map[Expr, XFloat], solver: NumericSolver, pre: Expr): XFloat = expr match {
+    case v @ Variable(id) => vars(v)
+    case RationalLiteral(v) => XFloat(v, solver, pre)
+    case IntLiteral(v) => XFloat(v, solver, pre)
+    case UMinus(rhs) => - inXFloats(rhs, vars, solver, pre)
+    case Plus(lhs, rhs) => inXFloats(lhs, vars, solver, pre) + inXFloats(rhs, vars, solver, pre)
+    case Minus(lhs, rhs) => inXFloats(lhs, vars, solver, pre) - inXFloats(rhs, vars, solver, pre)
+    case Times(lhs, rhs) => inXFloats(lhs, vars, solver, pre) * inXFloats(rhs, vars, solver, pre)
+    case Division(lhs, rhs) => inXFloats(lhs, vars, solver, pre) / inXFloats(rhs, vars, solver, pre)
+    case _ =>
+      throw UnsupportedFragmentException("Can't handle: " + expr.getClass)
+      null
+  }
+
+  def createConstraintFromResults(results: Map[Expr, (RationalInterval, Rational)]): Expr = {
+    var args: Seq[Expr] = Seq.empty
+    for((v, (interval, error)) <- results) {
+
+      args = args :+ LessEquals(RationalLiteral(interval.xlo), v)
+      args = args :+ LessEquals(v, RationalLiteral(interval.xhi))
+      args = args :+ Noise(v, RationalLiteral(error))
+    }
+    And(args)
+  }
+
+
+
+  private def mergePaths(paths: Set[Path]): (RationalInterval, Rational) = {
+    import Rational._
+    var interval = paths.head.value.get.interval
+    var error = paths.head.value.get.maxError
+
+    for (path <- paths.tail) {
+      interval = RationalInterval(min(interval.xlo, path.value.get.interval.xlo),
+                                  max(interval.xhi, path.value.get.interval.xhi))
+      error = max(error, path.value.get.maxError)
+    }
+    (interval, error)
+  }
+
+  private def collectPaths(expr: Expr): Set[Path] = expr match {
+    case IfExpr(cond, then, elze) =>
+      val thenPaths = collectPaths(then).map(p => p.addCondition(cond))
+      val elzePaths = collectPaths(elze).map(p => p.addCondition(negate(cond)))
+
+      thenPaths ++ elzePaths
+
+    case And(args) =>
+      var currentPaths: Set[Path] = collectPaths(args.head)
+
+      for (a <- args.tail) {
+        var newPaths: Set[Path] = Set.empty
+
+        val nextPaths = collectPaths(a)
+
+        // TODO: in one loop?
+        for (np <- nextPaths) {
+          for (cp <- currentPaths) {
+            newPaths = newPaths + cp.addPath(np)
+          }
+        }
+        currentPaths = newPaths
+      }
+      currentPaths
+
+    case Equals(e, f) =>
+      collectPaths(f).map(p => p.addEqualsToLast(e))
+
+    case _ =>
+      Set(Path(BooleanLiteral(true), List(expr)))
   }
 
 

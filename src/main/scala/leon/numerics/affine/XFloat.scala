@@ -15,6 +15,37 @@ import java.math.{BigInteger, BigDecimal}
 
 object XFloat {
 
+  // TODO: XFloat should also be parametric in the floating-point precision
+  def variables2xfloats(vars: Map[Variable, Record], solver: NumericSolver, pre: Expr, withRoundoff: Boolean = true):
+    (Map[Expr, XFloat], Map[Expr, Int]) = {
+    var variableMap: Map[Expr, XFloat] = Map.empty
+    var indexMap: Map[Expr, Int] = Map.empty
+
+    for((k, rec) <- vars) {
+      if (rec.isComplete) {
+        rec.rndoff match {
+          case Some(true) =>
+            val (xfloat, index) = XFloat.xFloatWithRoundoff(k,
+                    RationalInterval(rec.lo.get, rec.up.get),
+                    solver, pre)
+            variableMap = variableMap + (k -> xfloat)
+            indexMap = indexMap + (k -> index)
+
+          case None =>
+            // index is the index of the main uncertainty, not the roundoff
+            val (xfloat, index) = XFloat.xFloatWithUncertain(k,
+                    RationalInterval(rec.lo.get, rec.up.get),
+                    solver, pre,
+                    rec.noise.get, withRoundoff)
+            variableMap = variableMap + (k -> xfloat)
+            indexMap = indexMap + (k -> index)
+        }
+      }
+    }
+    (variableMap, indexMap)
+  }
+
+
   // double constant (we include rdoff error)
   def apply(d: Double, solver: NumericSolver, pre: Expr): XFloat = {
     val r = rationalFromReal(d)
@@ -73,8 +104,8 @@ object XFloat {
   }
 
   // Unit roundoff
-  val u = Rational(new BigInt(new BigInteger("1")),
-    new BigInt(new BigInteger("2")).pow(53))
+  val u = numerics.unitRndoff// Rational(new BigInt(new BigInteger("1")),
+    //new BigInt(new BigInteger("2")).pow(53))
 
   // Always returns a positive number
   def roundoff(range: RationalInterval): Rational = {

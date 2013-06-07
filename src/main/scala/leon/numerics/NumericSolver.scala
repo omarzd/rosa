@@ -17,18 +17,6 @@ import Rational._
 
 import scala.collection.immutable.HashMap
 
-/*object NumericSolver {
-
-  ?? TODO: this should all be a parameter of the NumericSolver class!
-
-  // Does not have much of an impact compared to other issues
-  // TODO: This should probably be relative
-  val precision = Rational.rationalFromReal(0.0001)
-  val maxIterationsBinary = 20
-
-}*/
-
-
 class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3Solver(context) {
 
   override val name = "numeric solver"

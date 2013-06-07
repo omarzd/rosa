@@ -13,6 +13,13 @@ package object numerics {
 
   case class UnsupportedFragmentException(msg: String) extends Exception(msg)
 
+  object RoundoffType extends Enumeration {
+    type RoundoffType = Value
+    val NoRoundoff = Value("NoRoundoff")
+    val RoundoffMultiplier = Value("RndoffMultiplier")
+    val RoundoffAddition = Value("RndoffAddition")
+  }
+
   object Precision extends Enumeration {
     type Precision = Value
     val Float64 = Value("Float64")

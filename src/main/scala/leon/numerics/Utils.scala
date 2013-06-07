@@ -24,24 +24,6 @@ object Utils {
 
   ################################### */
 
-  case class Record(lo: Option[Rational], up: Option[Rational], noise: Option[Rational], rndoff: Option[Boolean]) {
-    def updateLo(newLo: Rational): Record = Record(Some(newLo), up, noise, rndoff)
-    def updateUp(newUp: Rational): Record = Record(lo, Some(newUp), noise, rndoff)
-    def updateNoise(newNoise: Rational): Record = Record(lo, up, Some(newNoise), rndoff)
-    def addRndoff: Record = Record(lo, up, noise, Some(true))
-
-    def isComplete: Boolean = rndoff match {
-      case Some(true) => (!lo.isEmpty && !up.isEmpty)
-      case _ => (!lo.isEmpty && !up.isEmpty && !noise.isEmpty)
-    }
-
-    override def toString: String = "[%s, %s] (%s)".format(
-       formatOption(lo), formatOption(up), noise match {
-         case Some(x) => x
-         case None => "r"
-       }
-      )
-  }
   val emptyRecord = Record(None, None, None, None)
 
   class VariableCollector extends TransformerWithPC {
@@ -100,14 +82,8 @@ object Utils {
      ################################# */
 
   // whether we consider also roundoff errors and how we translate them into constraints
-  object RoundoffType extends Enumeration {
-    type RoundoffType = Value
-    val NoRoundoff = Value("NoRoundoff")
-    val RoundoffMultiplier = Value("RndoffMultiplier")
-    val RoundoffAddition = Value("RndoffAddition")
-  }
   import RoundoffType._
-
+  // TODO: this should not be a global variable
   val roundoffType: RoundoffType = RoundoffMultiplier
 
 
@@ -386,152 +362,6 @@ object Utils {
      println("Cannot add roundoff to: " + expr)
      (Error(""), List())
 
-  }
-
-
-  /* #################################
-
-      XFloat helpers.
-
-     ################################# */
-
-  def filterPreconditionForBoundsIteration(expr: Expr): Expr = expr match {
-    case And(args) =>
-      And(args.map(a => filterPreconditionForBoundsIteration(a)))
-    case Noise(e, f) => BooleanLiteral(true)
-    case Roundoff(e) => BooleanLiteral(true)
-    case _ => expr
-  }
-
-  // TODO: XFloat should also be parametric in the floating-point precision
-  def variables2xfloats(vars: Map[Variable, Record], solver: NumericSolver, pre: Expr, withRoundoff: Boolean = true):
-    (Map[Expr, XFloat], Map[Expr, Int]) = {
-    var variableMap: Map[Expr, XFloat] = Map.empty
-    var indexMap: Map[Expr, Int] = Map.empty
-
-    for((k, rec) <- vars) {
-      if (rec.isComplete) {
-        rec.rndoff match {
-          case Some(true) =>
-            val (xfloat, index) = XFloat.xFloatWithRoundoff(k,
-                    RationalInterval(rec.lo.get, rec.up.get),
-                    solver, pre)
-            variableMap = variableMap + (k -> xfloat)
-            indexMap = indexMap + (k -> index)
-
-          case None =>
-            // index is the index of the main uncertainty, not the roundoff
-            val (xfloat, index) = XFloat.xFloatWithUncertain(k,
-                    RationalInterval(rec.lo.get, rec.up.get),
-                    solver, pre,
-                    rec.noise.get, withRoundoff)
-            variableMap = variableMap + (k -> xfloat)
-            indexMap = indexMap + (k -> index)
-        }
-      }
-    }
-    (variableMap, indexMap)
-  }
-
-  // Returns a map from all variables to their final value, including local vars
-  def inXFloats(exprs: List[Expr], vars: Map[Expr, XFloat], solver: NumericSolver, pre: Expr): Map[Expr, XFloat] = {
-    var currentVars: Map[Expr, XFloat] = vars
-
-    for (expr <- exprs) expr match {
-      case Equals(variable, value) =>
-        currentVars = currentVars + (variable -> inXFloats(value, currentVars, solver, pre))
-
-      case _ =>
-        throw UnsupportedFragmentException("This shouldn't be here: " + expr.getClass + "  " + expr)
-    }
-
-    currentVars
-  }
-
-  // Evaluates an arithmetic expression
-  def inXFloats(expr: Expr, vars: Map[Expr, XFloat], solver: NumericSolver, pre: Expr): XFloat = expr match {
-    case v @ Variable(id) => vars(v)
-    case RationalLiteral(v) => XFloat(v, solver, pre)
-    case IntLiteral(v) => XFloat(v, solver, pre)
-    case UMinus(rhs) => - inXFloats(rhs, vars, solver, pre)
-    case Plus(lhs, rhs) => inXFloats(lhs, vars, solver, pre) + inXFloats(rhs, vars, solver, pre)
-    case Minus(lhs, rhs) => inXFloats(lhs, vars, solver, pre) - inXFloats(rhs, vars, solver, pre)
-    case Times(lhs, rhs) => inXFloats(lhs, vars, solver, pre) * inXFloats(rhs, vars, solver, pre)
-    case Division(lhs, rhs) => inXFloats(lhs, vars, solver, pre) / inXFloats(rhs, vars, solver, pre)
-    case _ =>
-      throw UnsupportedFragmentException("Can't handle: " + expr.getClass)
-      null
-  }
-
-  case class Path(condition: Expr, expression: List[Expr]) {
-    var value: Option[XFloat] = None
-
-    def addCondition(c: Expr): Path =
-      Path(And(condition, c), expression)
-
-    def addPath(p: Path): Path = {
-      Path(And(this.condition, p.condition), this.expression ++ p.expression)
-    }
-
-    def addEqualsToLast(e: Expr): Path = {
-      Path(condition, expression.init ++ List(Equals(e, expression.last)))
-    }
-  }
-
-  def mergePaths(paths: Set[Path]): (RationalInterval, Rational) = {
-    import Rational._
-    var interval = paths.head.value.get.interval
-    var error = paths.head.value.get.maxError
-
-    for (path <- paths.tail) {
-      interval = RationalInterval(min(interval.xlo, path.value.get.interval.xlo),
-                                  max(interval.xhi, path.value.get.interval.xhi))
-      error = max(error, path.value.get.maxError)
-    }
-    (interval, error)
-  }
-
-  def collectPaths(expr: Expr): Set[Path] = expr match {
-    case IfExpr(cond, then, elze) =>
-      val thenPaths = collectPaths(then).map(p => p.addCondition(cond))
-      val elzePaths = collectPaths(elze).map(p => p.addCondition(negate(cond)))
-
-      thenPaths ++ elzePaths
-
-    case And(args) =>
-      var currentPaths: Set[Path] = collectPaths(args.head)
-
-      for (a <- args.tail) {
-        var newPaths: Set[Path] = Set.empty
-
-        val nextPaths = collectPaths(a)
-
-        // TODO: in one loop?
-        for (np <- nextPaths) {
-          for (cp <- currentPaths) {
-            newPaths = newPaths + cp.addPath(np)
-          }
-        }
-        currentPaths = newPaths
-      }
-      currentPaths
-
-    case Equals(e, f) =>
-      collectPaths(f).map(p => p.addEqualsToLast(e))
-
-    case _ =>
-      Set(Path(BooleanLiteral(true), List(expr)))
-  }
-
-  def createConstraintFromResults(results: Map[Expr, (RationalInterval, Rational)]): Expr = {
-    var args: Seq[Expr] = Seq.empty
-    for((v, (interval, error)) <- results) {
-
-      args = args :+ LessEquals(RationalLiteral(interval.xlo), v)
-      args = args :+ LessEquals(v, RationalLiteral(interval.xhi))
-      args = args :+ Noise(v, RationalLiteral(error))
-    }
-    And(args)
   }
 
 }
