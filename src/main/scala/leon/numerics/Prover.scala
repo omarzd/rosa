@@ -28,6 +28,10 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
       println("body: " + constr.body)
       println("post: " + constr.post)
 
+      /* TODO
+        - one function that checks constraint
+        - algorithm that approximated the constraint
+      */
       // First try Z3 alone
       //val (res, model) = feelingLucky(constr, vc.allVariables)
       //constr.status = res
@@ -85,6 +89,17 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
   }
 
 
+  /*def checkConstraint(c: Constraint, allVars: Seq[Variable]): (Option[Valid], Option[Map[Identifier, Expr]]) = {
+    // step 1: translate our own constructs into something Z3 will understand
+    // i.e. AbsTransformer has to become a NoiseTransformer
+
+    // step 2: generate constraint with buddies and roundoff errors
+
+
+
+
+  }*/
+
   // no approximation
   def feelingLucky(c: Constraint, allVars: Seq[Variable]): (Option[Valid], Option[Map[Identifier, Expr]]) = {
     reporter.info("Now trying with Z3 only...")
@@ -96,7 +111,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
     val (valid, model) = solver.checkValid(constraint)
     (Some(valid), model)
   }
- 
+
   def filterPreconditionForBoundsIteration(expr: Expr): Expr = expr match {
     case And(args) =>
       And(args.map(a => filterPreconditionForBoundsIteration(a)))

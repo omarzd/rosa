@@ -191,38 +191,32 @@ object Utils {
       (And(esReal), And(esNoisy), deltas)
 
     case Equals(v @ Variable(id), valueExpr) =>
-      val (valueExprNoisy, deltas) = roundoffType match {
-        case NoRoundoff => (replace(buddy, valueExpr), Seq.empty)
-        case RoundoffMultiplier => addRndoff2(replace(buddy, valueExpr))
-        case RoundoffAddition => addRndoff(replace(buddy, valueExpr))
-      }
+      val (valueExprNoisy, deltas) = getNoisyExpr(valueExpr, buddy, roundoffType)
       (Equals(v, valueExpr), Equals(buddy(v), valueExprNoisy), deltas)
 
     case IfExpr(cond, then, elze) =>
       val (thenReal, thenNoisy, thenDeltas) = bodyConstrWholeShebang(then, buddy, res)
       val (elseReal, elseNoisy, elseDeltas) = bodyConstrWholeShebang(elze, buddy, res)
 
-      val (noisyCond, deltas) = roundoffType match {
-        case NoRoundoff => (replace(buddy, cond), Seq.empty)
-        case RoundoffMultiplier => addRndoff2(replace(buddy, cond))
-        case RoundoffAddition => addRndoff(replace(buddy, cond))
-      }
+      val (noisyCond, deltas) = getNoisyExpr(cond, buddy, roundoffType)
       ( Or(And(cond, thenReal), And(Not(cond), elseReal)),
         Or(And(noisyCond, thenNoisy), And(Not(noisyCond), elseNoisy)),
         thenDeltas ++ elseDeltas ++ deltas)
 
     case UMinus(_) | Plus(_, _) | Minus(_, _) | Times(_, _) | Division(_, _) | FunctionInvocation(_, _) =>
-      val (rndExpr, deltas) =  roundoffType match {
-        case NoRoundoff => (replace(buddy, expr), Seq.empty)
-        case RoundoffMultiplier => addRndoff2(replace(buddy, expr))
-        case RoundoffAddition => addRndoff(replace(buddy, expr))
-      }
+      val (rndExpr, deltas) = getNoisyExpr(expr, buddy, roundoffType)
       (Equals(res, expr), Equals(buddy(res), rndExpr), deltas)
 
     case _=>
       println("Dropping instruction: " + expr + ". Cannot handle it.")
       println(expr.getClass)
       (BooleanLiteral(true), BooleanLiteral(true), List())
+  }
+
+  private def getNoisyExpr(expr: Expr, buddy: Map[Expr, Expr], rndoff: RoundoffType): (Expr, List[Variable]) = roundoffType match {
+    case NoRoundoff => (replace(buddy, expr), List())
+    case RoundoffMultiplier => addRndoff2(replace(buddy, expr))
+    case RoundoffAddition => addRndoff(replace(buddy, expr))
   }
 
 

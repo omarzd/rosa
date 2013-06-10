@@ -14,17 +14,19 @@ import Utils._
 // It's one for each method, but may store several conditions to be proven.
 class VerificationCondition(val funDef: FunDef) {
 
-  // Info the user must have provided (for now)
+
   var inputs: Map[Variable, Record] = Map.empty
   var precondition: Option[Expr] = None
+  var body: Option[Expr] = None
 
-  // Misc useful info
   var funcArgs: Seq[Variable] = Seq.empty
   var localVars: Seq[Variable] = Seq.empty
   def allVariables: Seq[Variable] = funcArgs ++ localVars
-  var body: Option[Expr] = None
 
-  // pre and body
+
+
+
+  // (Translated) Constraints
   var preConstraint: Option[Expr] = None
   var bodyConstraint: Option[Expr] = None
   var postConstraint: Option[Expr] = None

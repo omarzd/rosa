@@ -35,6 +35,7 @@ class Analyser(reporter: Reporter) {
     // Preprocess body
     vc.body = Some(convertLetsToEquals(addResult(funDef.body.get)))
 
+    // TODO: function calls, invariants
     funDef.postcondition match {
       case Some(post) =>
         vc.toCheck = vc.toCheck :+ Constraint(
