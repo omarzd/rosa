@@ -6,19 +6,24 @@ import scala.math.{ScalaNumericConversions, ScalaNumber}
     class NotExecutableException(msg: String) extends Exception
     private val exMsg = "don't know how to implement reals"
 
-    //def ~(x: Real): Real = { throw new NotExecutableException(exMsg); null }
-
     implicit def double2real(d: Double): Real = new Real(d)
     implicit def int2real(i: Int): Real = new Real(i.toDouble)
 
     // This means |x - x0| <= n, note the less EQUALS.
     def noise(x: Real, n: Double): Boolean = { throw new NotExecutableException(exMsg); false }
+
     // Short for saying only the regular roundoff
     def roundoff(x: Real): Boolean = { throw new NotExecutableException(exMsg); false }
+    def roundoff(x1: Real, x2: Real): Boolean = { throw new NotExecutableException(exMsg); false }
+    def roundoff(x1: Real, x2: Real, x3: Real): Boolean = { throw new NotExecutableException(exMsg); false }
+    def roundoff(x1: Real, x2: Real, x3: Real, x4: Real): Boolean = { throw new NotExecutableException(exMsg); false }
+    def roundoff(x1: Real, x2: Real, x3: Real, x4: Real, x5: Real): Boolean = { throw new NotExecutableException(exMsg); false }
 
-    //def uncertainty(x: Real): Real = { throw new NotExecutableException(exMsg); null }
-    
-    //def in(a: Real, b: Real): Boolean = { throw new NotExecutableException(exMsg); null }
+    // Convenience method to specify intervals
+    def in(a: Real, b: Real): Boolean = { throw new NotExecutableException(exMsg); false }
+
+    def sqrt(x: Real): Real = { throw new NotExecutableException(exMsg); null }
+
   }
 
   class Real private(v: Double) extends ScalaNumber with ScalaNumericConversions with Ordered[Real] {

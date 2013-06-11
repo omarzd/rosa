@@ -17,14 +17,14 @@ object Mean {
   } holds
 
   def meanSpec(x1: Real, x2: Real, x3: Real, x4: Real, x5: Real, x6: Real): Real = {
-    require(x1 in [-1200, 1200])
+    require(x1 in (-1200, 1200))
 
-    (x1 + x2 + x3 + x4 + x5 + x6) / 6.0  
+    (x1 + x2 + x3 + x4 + x5 + x6) / 6.0
   }
 
 
   def meanImpl(x1: Real, x2: Real, x3: Real, x4: Real, x5: Real, x6: Real): Real = {
-    require(x1 in [-1200, 1200])
+    require(x1 in (-1200, 1200))
 
     val i1 = x1
     val i2 = (x + x2)/2.0
