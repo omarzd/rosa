@@ -61,13 +61,3 @@ class VerificationCondition(val funDef: FunDef) {
   var analysisTime: Option[Long] = None
   var verificationTime:Option[Long] = None
 }
-
-
-case class Constraint(pre: Expr, body: Expr, post: Expr) {
-  var status: Option[Valid] = None
-  var model: Option[Map[Identifier, Expr]] = None
-
-  def numVariables: Int = variablesOf(pre).size + variablesOf(body).size
-  def size: Int = formulaSize(pre) + formulaSize(body)
-
-}

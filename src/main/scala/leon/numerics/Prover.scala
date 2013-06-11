@@ -7,43 +7,42 @@ import purescala.Common._
 import purescala.Definitions._
 import purescala.Trees._
 import purescala.TreeOps._
+import purescala.TypeTrees._
 
 import affine.XFloat
 import affine.XFloat._
 
 import Valid._
-import Utils._
 
 class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
-  val verbose = true
-  val absTransform = new AbsTransformer
+  val verbose = false
   val solver = new NumericSolver(ctx, program)
 
   def check(vc: VerificationCondition) = {
+    reporter.info("")
     reporter.info("----------> checking VC of " + vc.funDef.id.name)
 
     val start = System.currentTimeMillis
-    for (constr <- vc.toCheck) {
-      println("pre: " + constr.pre)
-      println("body: " + constr.body)
-      println("post: " + constr.post)
+    for (c <- vc.toCheck) {
+      if (verbose) {println("pre: " + c.pre); println("body: " + c.body); println("post: " + c.post)}
 
-      /* TODO
-        - one function that checks constraint
-        - algorithm that approximated the constraint
-      */
+      c.paths = collectPaths(c.body)
+
       // First try Z3 alone
-      //val (res, model) = feelingLucky(constr, vc.allVariables)
-      //constr.status = res
-      //constr.model = model
+      val (res, model) = checkConstraint(c, vc.allVariables)
+      reporter.info("Z3 only result: " + res)
+      c.status = res
+      c.model = model
 
       // If Z3 failed ...
-      constr.status match {
+      c.status match {
         case (None | Some(DUNNO) | Some(NOT_SURE)) =>
           // ... try XFloat alone
-          val constraint = constraintWithXFloat(constr, vc.inputs)
-          val (resAA, modelAA) = feelingLucky(constraint, vc.allVariables)
-          println("REEESULT: " + resAA)
+          val constraint = constraintWithXFloat(c, vc.inputs)
+          val (resAA, modelAA) = checkConstraint(constraint, vc.allVariables)
+          println("XFloat only result: " + resAA)
+          c.status = resAA
+          c.model = modelAA
         case _ =>;
       }
 
@@ -55,12 +54,40 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
     vc.verificationTime = Some(totalTime)
   }
 
+  private def checkConstraint(c: Constraint, variables: Seq[Variable]): (Option[Valid], Option[Map[Identifier, Expr]]) = {
+    val (resVar, eps, buddies) = getVariables(variables)
+    val trans = new NumericConstraintTransformer(buddies, resVar, eps, RoundoffType.RoundoffMultiplier)
+
+    var realPart: Seq[Expr] = Seq.empty
+    var noisyPart: Seq[Expr] = Seq.empty
+
+    for(path <- c.paths) {
+      val (r, n) = trans.transformBlock(And(path.expression))
+      realPart = realPart :+ And(path.condition, r)
+      noisyPart = noisyPart :+ And(trans.getNoisyCondition(path.condition), n)
+    }
+
+    val precondition = trans.transformCondition(c.pre)
+    val postcondition = trans.transformCondition(c.post)
+
+    val body = And(Or(realPart), Or(noisyPart))
+    val toCheck = Implies(And(precondition, body), postcondition)
+
+    //println("toCheck: " + toCheck)
+
+    val (valid, model) = solver.checkValid(toCheck)
+    (Some(valid), model)
+    
+  }
+
+  // TODO: approximatePath
+
   private def constraintWithXFloat(c: Constraint, inputs: Map[Variable, Record]): Constraint = {
     reporter.info("Now trying with XFloat only...")
 
-    val solver = new NumericSolver(ctx, program)
+    //val solver = new NumericSolver(ctx, program)
 
-    val paths = collectPaths(c.body).map(p => p.addCondition(filterPreconditionForBoundsIteration(c.pre)))
+    val paths = c.paths.map(p => p.addCondition(filterPreconditionForBoundsIteration(c.pre)))
     //println("paths")
     //println(paths.mkString("\n"))
 
@@ -89,30 +116,20 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
   }
 
 
-  /*def checkConstraint(c: Constraint, allVars: Seq[Variable]): (Option[Valid], Option[Map[Identifier, Expr]]) = {
-    // step 1: translate our own constructs into something Z3 will understand
-    // i.e. AbsTransformer has to become a NoiseTransformer
+  private def getVariables(variables: Seq[Variable]): (Variable, Variable, Map[Expr, Expr]) = {
+    val resVar = Variable(FreshIdentifier("res")).setType(RealType)
+    val machineEps = Variable(FreshIdentifier("#eps")).setType(RealType)
 
-    // step 2: generate constraint with buddies and roundoff errors
+    var buddies: Map[Expr, Expr] =
+      variables.foldLeft(Map[Expr, Expr](resVar -> Variable(FreshIdentifier("#res_0")).setType(RealType)))(
+        (map, nextVar) => map + (nextVar -> Variable(FreshIdentifier("#"+nextVar.id.name+"_0")).setType(RealType))
+      )
 
-
-
-
-  }*/
-
-  // no approximation
-  def feelingLucky(c: Constraint, allVars: Seq[Variable]): (Option[Valid], Option[Map[Identifier, Expr]]) = {
-    reporter.info("Now trying with Z3 only...")
-    val toProve = exprToConstraint(allVars, c.pre, c.body, c.post, reporter)
-    val constraint = absTransform.transform(toProve)
-    if (verbose) println("\n expr before: " + toProve)
-    if (verbose) println("\n expr after: " + constraint)
-
-    val (valid, model) = solver.checkValid(constraint)
-    (Some(valid), model)
+    (resVar, machineEps, buddies)
   }
 
-  def filterPreconditionForBoundsIteration(expr: Expr): Expr = expr match {
+
+  private def filterPreconditionForBoundsIteration(expr: Expr): Expr = expr match {
     case And(args) =>
       And(args.map(a => filterPreconditionForBoundsIteration(a)))
     case Noise(e, f) => BooleanLiteral(true)
@@ -121,7 +138,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
   }
 
   // Returns a map from all variables to their final value, including local vars
-  def inXFloats(exprs: List[Expr], vars: Map[Expr, XFloat], solver: NumericSolver, pre: Expr): Map[Expr, XFloat] = {
+  private def inXFloats(exprs: List[Expr], vars: Map[Expr, XFloat], solver: NumericSolver, pre: Expr): Map[Expr, XFloat] = {
     var currentVars: Map[Expr, XFloat] = vars
 
     for (expr <- exprs) expr match {
@@ -136,7 +153,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
   }
 
   // Evaluates an arithmetic expression
-  def inXFloats(expr: Expr, vars: Map[Expr, XFloat], solver: NumericSolver, pre: Expr): XFloat = expr match {
+  private def inXFloats(expr: Expr, vars: Map[Expr, XFloat], solver: NumericSolver, pre: Expr): XFloat = expr match {
     case v @ Variable(id) => vars(v)
     case RationalLiteral(v) => XFloat(v, solver, pre)
     case IntLiteral(v) => XFloat(v, solver, pre)
@@ -150,7 +167,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
       null
   }
 
-  def createConstraintFromResults(results: Map[Expr, (RationalInterval, Rational)]): Expr = {
+  private def createConstraintFromResults(results: Map[Expr, (RationalInterval, Rational)]): Expr = {
     var args: Seq[Expr] = Seq.empty
     for((v, (interval, error)) <- results) {
 
@@ -209,31 +226,4 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
   }
 
 
-  /*
-    Translates the Abs(x) tree node into two inequalities.
-  */
-  class AbsTransformer extends TransformerWithPC {
-    type C = Seq[Expr]
-    val initC = Nil
-
-    def register(e: Expr, path: C) = path :+ e
-
-    override def rec(e: Expr, path: C) = e match {
-      case LessEquals(Abs(expr), r @ RationalLiteral(value)) =>
-        And(LessEquals(RationalLiteral(-value), expr),
-          LessEquals(expr, r))
-      case LessThan(Abs(expr), r @ RationalLiteral(value)) =>
-        And(LessThan(RationalLiteral(-value), expr),
-          LessThan(expr, r))
-      case GreaterEquals(r @ RationalLiteral(value), Abs(expr)) =>
-        And(LessEquals(RationalLiteral(-value), expr),
-          LessEquals(expr, r))
-      case GreaterThan(r @ RationalLiteral(value), Abs(expr)) =>
-        And(LessThan(RationalLiteral(-value), expr),
-          LessThan(expr, r))
-      case _ =>
-        super.rec(e, path)
-    }
-
-  }
 }
