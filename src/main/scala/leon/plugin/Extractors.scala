@@ -68,7 +68,7 @@ trait Extractors {
           any2IsValidName.toString == "any2IsValid" &&
           holdsName.toString == "holds") => Some(realExpr)
         case _ => None
-      }        
+      }
     }
 
     object ExRequiredExpression {
@@ -179,7 +179,7 @@ trait Extractors {
     //        Some((dd,name.toString, vparamss(0), tpt, rhs, expr))
     //      else
     //        Some((dd,name.toString, vparamss(0), tpt, rhs, Block(rest, expr)))
-    //    } 
+    //    }
     //    case _ => None
     //  }
     //}
@@ -192,7 +192,7 @@ trait Extractors {
               Function((vd @ ValDef(_, _, _, EmptyTree)) :: Nil, predicateBody) :: Nil) => {
           if (utilsName.toString == "Utils" && epsilonName.toString == "epsilon")
             Some((typeTree.tpe, vd.symbol, predicateBody))
-          else 
+          else
             None
         }
         case _ => None
@@ -215,7 +215,7 @@ trait Extractors {
               Function(vds, predicateBody) :: Nil) => {
           if (utilsName.toString == "Utils" && chooseName.toString == "choose")
             Some(((types.map(_.tpe) zip vds.map(_.symbol)).toList, a.tpe, predicateBody, s))
-          else 
+          else
             None
         }
         case _ => None
@@ -229,7 +229,7 @@ trait Extractors {
               List(i, expr)) => {
           if (utilsName.toString == "Utils" && waypoint.toString == "waypoint")
             Some((typeTree.tpe, i, expr))
-          else 
+          else
             None
         }
         case _ => None
@@ -335,7 +335,7 @@ trait Extractors {
             try {
               val index = indexString.toInt
               if(index > 0) {
-                Some((lhs, index)) 
+                Some((lhs, index))
               } else None
             } catch {
               case _ => None
@@ -430,7 +430,7 @@ trait Extractors {
         case _ => None
       }
     }
-  
+
     object ExOr {
       def unapply(tree: Apply): Option[(Tree,Tree)] = tree match {
         case Apply(s @ Select(lhs, _), List(rhs)) if (s.symbol == Boolean_or) =>
@@ -438,49 +438,49 @@ trait Extractors {
         case _ => None
       }
     }
-  
+
     object ExNot {
       def unapply(tree: Select): Option[Tree] = tree match {
         case Select(t, n) if (n == nme.UNARY_!) => Some(t)
         case _ => None
       }
     }
-  
+
     object ExEquals {
       def unapply(tree: Apply): Option[(Tree,Tree)] = tree match {
         case Apply(Select(lhs, n), List(rhs)) if (n == nme.EQ) => Some((lhs,rhs))
         case _ => None
       }
     }
-  
+
     object ExNotEquals {
       def unapply(tree: Apply): Option[(Tree,Tree)] = tree match {
         case Apply(Select(lhs, n), List(rhs)) if (n == nme.NE) => Some((lhs,rhs))
         case _ => None
       }
     }
-  
+
     object ExLessThan {
       def unapply(tree: Apply): Option[(Tree,Tree)] = tree match {
         case Apply(Select(lhs, n), List(rhs)) if (n == nme.LT) => Some((lhs,rhs))
         case _ => None
       }
     }
-  
+
     object ExLessEqThan {
       def unapply(tree: Apply): Option[(Tree,Tree)] = tree match {
         case Apply(Select(lhs, n), List(rhs)) if (n == nme.LE) => Some((lhs,rhs))
         case _ => None
       }
     }
-  
+
     object ExGreaterThan {
       def unapply(tree: Apply): Option[(Tree,Tree)] = tree match {
         case Apply(Select(lhs, n), List(rhs)) if (n == nme.GT) => Some((lhs,rhs))
         case _ => None
       }
     }
-  
+
     object ExGreaterEqThan {
       def unapply(tree: Apply): Option[(Tree,Tree)] = tree match {
         case Apply(Select(lhs, n), List(rhs)) if (n == nme.GE) => Some((lhs,rhs))
@@ -575,14 +575,30 @@ trait Extractors {
 
     object ExNoise {
       def unapply(tree: Apply): Option[(Tree, Tree)] = tree match {
-        case Apply(select, List(arg1, arg2)) if (select.toString == "leon.Real.noise") => Some((arg1, arg2)) 
+        case Apply(select, List(arg1, arg2)) if (select.toString == "leon.Real.noise") => Some((arg1, arg2))
         case _ => None
       }
     }
-    
+
     object ExRoundoff {
+      def unapply(tree: Apply): Option[List[Tree]] = tree match {
+        case Apply(select, args) if (select.toString == "leon.Real.roundoff") => Some(args)
+        case _ => None
+      }
+    }
+
+    object ExSqrt {
       def unapply(tree: Apply): Option[Tree] = tree match {
-        case Apply(select, List(arg)) if (select.toString == "leon.Real.roundoff") => Some(arg) 
+        case Apply(select, List(arg)) if (select.toString == "leon.Real.sqrt") => Some(arg)
+        case _ =>
+          None
+      }
+    }
+
+    object ExIn {
+      def unapply(tree: Apply): Option[(Tree, Tree, Tree)] = tree match {
+        case Apply(Select(lhs, n), List(arg1, arg2)) if (n.toString == "in") =>
+          Some((lhs, arg1, arg2))
         case _ => None
       }
     }
@@ -715,7 +731,7 @@ trait Extractors {
         case _ => None
       }
     }
-  
+
     object ExIntersection {
       def unapply(tree: Apply): Option[(Tree,Tree)] = tree match {
         case Apply(Select(lhs, n), List(rhs)) if (n == encode("**") || n == encode("&")) => Some((lhs,rhs))
@@ -736,7 +752,7 @@ trait Extractors {
         case _ => None
       }
     }
-  
+
     object ExSetMinus {
       def unapply(tree: Apply): Option[(Tree,Tree)] = tree match {
         case Apply(Select(lhs, n), List(rhs)) if (n == encode("--")) => Some((lhs,rhs))
@@ -760,7 +776,7 @@ trait Extractors {
 
     object ExUpdated {
       def unapply(tree: Apply): Option[(Tree,Tree,Tree)] = tree match {
-        case Apply(TypeApply(Select(lhs, n), typeTreeList), List(from, to)) if (n.toString == "updated") => 
+        case Apply(TypeApply(Select(lhs, n), typeTreeList), List(from, to)) if (n.toString == "updated") =>
           Some((lhs, from, to))
         case Apply(
               Apply(TypeApply(Select(Apply(_, Seq(lhs)), n), _), Seq(index, value)),

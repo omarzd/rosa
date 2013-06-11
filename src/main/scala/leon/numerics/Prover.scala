@@ -15,7 +15,7 @@ import affine.XFloat._
 import Valid._
 
 class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
-  val verbose = false
+  val verbose = true
   val solver = new NumericSolver(ctx, program)
 
   def check(vc: VerificationCondition) = {
@@ -77,7 +77,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
 
     val (valid, model) = solver.checkValid(toCheck)
     (Some(valid), model)
-    
+
   }
 
   // TODO: approximatePath

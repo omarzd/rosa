@@ -17,8 +17,7 @@ object Extractors {
       case Not(t) => Some((t,Not(_)))
       case UMinus(t) => Some((t,UMinus))
       case Roundoff(t) => Some((t, Roundoff))
-      case Abs(t) => Some((t, Abs))
-      //case IntegerAsFloat(t) => Some((t, IntegerAsFloat))
+      case Sqrt(t) => Some((t, Sqrt))
       case SetCardinality(t) => Some((t,SetCardinality))
       case MultisetCardinality(t) => Some((t,MultisetCardinality))
       case MultisetToSet(t) => Some((t,MultisetToSet))
@@ -116,8 +115,8 @@ object Extractors {
              , { es: Seq[Expr] =>
             var i = 1;
             val newcases = for (caze <- cases) yield caze match {
-              case SimpleCase(b, _) => i+=1; SimpleCase(b, es(i-1)) 
-              case GuardedCase(b, _, _) => i+=2; GuardedCase(b, es(i-2), es(i-1)) 
+              case SimpleCase(b, _) => i+=1; SimpleCase(b, es(i-1))
+              case GuardedCase(b, _, _) => i+=2; GuardedCase(b, es(i-2), es(i-1))
             }
 
            MatchExpr(es(0), newcases)
@@ -145,7 +144,7 @@ object Extractors {
         val cCD = sType.asInstanceOf[AbstractClassType].classDef
         if(cases.size == cCD.knownChildren.size && cases.forall(!_.hasGuard)) {
           var seen = Set.empty[ClassTypeDef]
-          
+
           var lle : List[(CaseClassDef,Identifier,List[Identifier],Expr)] = Nil
           for(cse <- cases) {
             cse match {

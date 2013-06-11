@@ -23,19 +23,26 @@ class CodeGeneration(reporter: Reporter, precision: Precision) {
         case f: FunDef =>
           val id = f.id
           val returnType = getNonRealType(f.returnType)
-          val args: Seq[VarDecl] = f.args.map(decl => 
+          val args: Seq[VarDecl] = f.args.map(decl =>
             VarDecl(decl.id, getNonRealType(decl.tpe))
           )
 
           val body = f.body
-          val pre = specTransformer.transform(f.precondition.get)
-          val post = specTransformer.transform(f.postcondition.get)
+
           val funDef = new FunDef(id, returnType, args)
           funDef.body = body
-          funDef.precondition = Some(pre)
-          funDef.postcondition = Some(post)
+          f.precondition match {
+            case Some(p) => funDef.precondition = Some(specTransformer.transform(f.precondition.get))
+            case None => ;
+          }
+
+          f.postcondition match {
+            case Some(p) => funDef.postcondition = Some(specTransformer.transform(f.postcondition.get))
+            case None => ;
+          }
+
           defs = defs :+ funDef
-          
+
         case _ =>
           reporter.warning("Cannot handle this definition: " + deff.getClass)
       }

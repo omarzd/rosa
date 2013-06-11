@@ -108,6 +108,7 @@ object ScalaPrinter {
     case Or(exprs) => ppNary(sb, exprs, "(", " || ", ")", lvl)             // \lor
     case Not(Equals(l, r)) => ppBinary(sb, l, r, " != ", lvl)    // \neq
     case UMinus(expr) => ppUnary(sb, expr, "-(", ")", lvl)
+    case Sqrt(expr) => ppUnary(sb, expr, "sqrt(", ")", lvl)
     case Equals(l,r) => ppBinary(sb, l, r, " == ", lvl)
     case IntLiteral(v) => sb.append(v)
     case BooleanLiteral(v) => sb.append(v)
@@ -169,8 +170,8 @@ object ScalaPrinter {
     case SetUnion(l,r) => ppBinary(sb, l, r, " ++ ", lvl)        // \cup
    // case MultisetUnion(l,r) => ppBinary(sb, l, r, " \u222A ", lvl)   // \cup
    // case MapUnion(l,r) => ppBinary(sb, l, r, " \u222A ", lvl)        // \cup
-   case SetDifference(l,r) => ppBinary(sb, l, r, " -- ", lvl)       
-   // case MultisetDifference(l,r) => ppBinary(sb, l, r, " \\ ", lvl)       
+   case SetDifference(l,r) => ppBinary(sb, l, r, " -- ", lvl)
+   // case MultisetDifference(l,r) => ppBinary(sb, l, r, " \\ ", lvl)
    case SetIntersection(l,r) => ppBinary(sb, l, r, " & ", lvl) // \cap
    // case MultisetIntersection(l,r) => ppBinary(sb, l, r, " \u2229 ", lvl) // \cap
     case SetCardinality(t) => ppUnary(sb, t, "", ".size", lvl)
@@ -233,7 +234,7 @@ object ScalaPrinter {
       sb.append("distinct")
       ppNary(sb, exprs, "(", ", ", ")", lvl)
     }
-    
+
     case IfExpr(c, t, e) => {
       sb.append("if (")
       pp(c, sb, lvl)
@@ -462,7 +463,7 @@ object ScalaPrinter {
 
         val sz = args.size
         var c = 0
-        
+
         args.foreach(arg => {
           sb.append(arg.id)
           sb.append(" : ")
@@ -520,8 +521,8 @@ object ScalaPrinter {
   }
 
   trait ScalaPrintable {
-    def ppScala(sb: StringBuffer, lvl: Int, 
-      ep: (Expr, StringBuffer, Int) => Unit, 
+    def ppScala(sb: StringBuffer, lvl: Int,
+      ep: (Expr, StringBuffer, Int) => Unit,
       tp: (TypeTree, StringBuffer, Int) => Unit,
       dp: (Definition, StringBuffer, Int) => Unit
     ): StringBuffer

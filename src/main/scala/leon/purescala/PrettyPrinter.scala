@@ -79,13 +79,13 @@ class PrettyPrinter(sb: StringBuffer = new StringBuffer) {
     case And(exprs) => ppNary(exprs, "(", " \u2227 ", ")", lvl)            // \land
     case Or(exprs) => ppNary(exprs, "(", " \u2228 ", ")", lvl)             // \lor
     case Not(Equals(l, r)) => ppBinary(l, r, " \u2260 ", lvl)    // \neq
-    case Iff(l,r) => ppBinary(l, r, " <=> ", lvl)              
-    case Implies(l,r) => ppBinary(l, r, " ==> ", lvl)              
+    case Iff(l,r) => ppBinary(l, r, " <=> ", lvl)
+    case Implies(l,r) => ppBinary(l, r, " ==> ", lvl)
     case UMinus(expr) => ppUnary(expr, "-(", ")", lvl)
     case Equals(l,r) => ppBinary(l, r, " == ", lvl)
     case Noise(expr, n) => ppNary(Seq(expr, n), "noise(",",",")", lvl)
     case Roundoff(expr) => ppUnary(expr, "rndoff(", ")", lvl)
-    case Abs(expr) => ppUnary(expr, "|", "|", lvl)
+    case Sqrt(expr) => ppUnary(expr, "sqrt(", ")", lvl)
 
     case IntLiteral(v) => sb.append(v)
     case RationalLiteral(v) => sb.append(v.toDouble)
@@ -149,8 +149,8 @@ class PrettyPrinter(sb: StringBuffer = new StringBuffer) {
     case SetUnion(l,r) => ppBinary(l, r, " \u222A ", lvl)        // \cup
     case MultisetUnion(l,r) => ppBinary(l, r, " \u222A ", lvl)   // \cup
     case MapUnion(l,r) => ppBinary(l, r, " \u222A ", lvl)        // \cup
-    case SetDifference(l,r) => ppBinary(l, r, " \\ ", lvl)       
-    case MultisetDifference(l,r) => ppBinary(l, r, " \\ ", lvl)       
+    case SetDifference(l,r) => ppBinary(l, r, " \\ ", lvl)
+    case MultisetDifference(l,r) => ppBinary(l, r, " \\ ", lvl)
     case SetIntersection(l,r) => ppBinary(l, r, " \u2229 ", lvl) // \cap
     case MultisetIntersection(l,r) => ppBinary(l, r, " \u2229 ", lvl) // \cap
     case SetCardinality(t) => ppUnary(t, "|", "|", lvl)
@@ -195,7 +195,7 @@ class PrettyPrinter(sb: StringBuffer = new StringBuffer) {
     case am@ArrayMake(v) => {
       sb.append("Array.make(")
       pp(v, lvl)
-      sb.append(")")    
+      sb.append(")")
     }
     case sel@ArraySelect(ar, i) => {
       pp(ar, lvl)
@@ -219,7 +219,7 @@ class PrettyPrinter(sb: StringBuffer = new StringBuffer) {
       sb.append("distinct")
       ppNary(exprs, "(", ", ", ")", lvl)
     }
-    
+
     case IfExpr(c, t, e) => {
       sb.append("if (")
       pp(c, lvl)
@@ -422,7 +422,7 @@ class PrettyPrinter(sb: StringBuffer = new StringBuffer) {
 
         val sz = args.size
         var c = 0
-        
+
         args.foreach(arg => {
           sb.append(arg.id)
           sb.append(" : ")

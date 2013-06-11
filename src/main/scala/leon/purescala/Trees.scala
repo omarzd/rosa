@@ -141,9 +141,9 @@ object Trees {
     def expressions: Seq[Expr]
 
     def allIdentifiers : Set[Identifier] = {
-      pattern.allIdentifiers ++ 
-      TreeOps.allIdentifiers(rhs) ++ 
-      theGuard.map(TreeOps.allIdentifiers(_)).getOrElse(Set[Identifier]()) ++ 
+      pattern.allIdentifiers ++
+      TreeOps.allIdentifiers(rhs) ++
+      theGuard.map(TreeOps.allIdentifiers(_)).getOrElse(Set[Identifier]()) ++
       (expressions map (TreeOps.allIdentifiers(_))).foldLeft(Set[Identifier]())((a, b) => a ++ b)
     }
   }
@@ -173,10 +173,10 @@ object Trees {
   }
   case class WildcardPattern(binder: Option[Identifier]) extends Pattern { // c @ _
     val subPatterns = Seq.empty
-  } 
+  }
   case class CaseClassPattern(binder: Option[Identifier], caseClassDef: CaseClassDef, subPatterns: Seq[Pattern]) extends Pattern
-  // case class ExtractorPattern(binder: Option[Identifier], 
-  //   		      extractor : ExtractorTypeDef, 
+  // case class ExtractorPattern(binder: Option[Identifier],
+  //   		      extractor : ExtractorTypeDef,
   //   		      subPatterns: Seq[Pattern]) extends Pattern // c @ Extractor(...,...)
   // We don't handle Seq stars for now.
 
@@ -206,7 +206,7 @@ object Trees {
       }
     }
 
-    def unapply(and: And) : Option[Seq[Expr]] = 
+    def unapply(and: And) : Option[Seq[Expr]] =
       if(and == null) None else Some(and.exprs)
   }
 
@@ -249,7 +249,7 @@ object Trees {
       }
     }
 
-    def unapply(or: Or) : Option[Seq[Expr]] = 
+    def unapply(or: Or) : Option[Seq[Expr]] =
       if(or == null) None else Some(or.exprs)
   }
 
@@ -272,7 +272,7 @@ object Trees {
       case (l, BooleanLiteral(true)) => l
       case (BooleanLiteral(false), r) => Not(r)
       case (l, BooleanLiteral(false)) => Not(l)
-      case (l,r) => new Iff(l, r)  
+      case (l,r) => new Iff(l, r)
     }
 
     def unapply(iff: Iff) : Option[(Expr,Expr)] = {
@@ -375,7 +375,7 @@ object Trees {
 
     override def hashCode: Int = left.hashCode+right.hashCode
   }
-  
+
   case class Variable(id: Identifier) extends Expr with Terminal {
     override def getType = id.getType
     override def setType(tt: TypeTree) = { id.setType(tt); this }
@@ -449,47 +449,42 @@ object Trees {
       if (lhs.getType == RealType || rhs.getType == RealType) RealType
       else Int32Type
   }
-  case class Minus(lhs: Expr, rhs: Expr) extends Expr with FixedType { 
+  case class Minus(lhs: Expr, rhs: Expr) extends Expr with FixedType {
     val fixedType =
       if (lhs.getType == RealType || rhs.getType == RealType) RealType
       else Int32Type
   }
-  case class UMinus(expr: Expr) extends Expr with FixedType { 
+  case class UMinus(expr: Expr) extends Expr with FixedType {
     val fixedType =
       if (expr.getType == RealType) RealType
       else Int32Type
   }
-  case class Times(lhs: Expr, rhs: Expr) extends Expr with FixedType { 
+  case class Times(lhs: Expr, rhs: Expr) extends Expr with FixedType {
     val fixedType =
       if (lhs.getType == RealType || rhs.getType == RealType) RealType
       else Int32Type
   }
-  case class Division(lhs: Expr, rhs: Expr) extends Expr with FixedType { 
+  case class Division(lhs: Expr, rhs: Expr) extends Expr with FixedType {
     val fixedType =
       if (lhs.getType == RealType || rhs.getType == RealType) RealType
       else Int32Type
   }
-  case class Modulo(lhs: Expr, rhs: Expr) extends Expr with FixedType { 
+  case class Modulo(lhs: Expr, rhs: Expr) extends Expr with FixedType {
     val fixedType = Int32Type
   }
-  case class LessThan(lhs: Expr, rhs: Expr) extends Expr with FixedType { 
+  case class LessThan(lhs: Expr, rhs: Expr) extends Expr with FixedType {
     val fixedType = BooleanType
   }
-  case class GreaterThan(lhs: Expr, rhs: Expr) extends Expr with FixedType { 
+  case class GreaterThan(lhs: Expr, rhs: Expr) extends Expr with FixedType {
     val fixedType = BooleanType
   }
-  case class LessEquals(lhs: Expr, rhs: Expr) extends Expr with FixedType { 
+  case class LessEquals(lhs: Expr, rhs: Expr) extends Expr with FixedType {
     val fixedType = BooleanType
   }
   case class GreaterEquals(lhs: Expr, rhs: Expr) extends Expr with FixedType {
     val fixedType = BooleanType
   }
 
-  // Explicit cast from integers to floats
-  /*case class IntegerAsFloat(expr: Expr) extends Expr with FixedType {
-    val fixedType = RealType
-  }*/
- 
   case class Noise(expr: Expr, err: Expr) extends Expr with FixedType {
     val fixedType = BooleanType
   }
@@ -498,9 +493,14 @@ object Trees {
     val fixedType = BooleanType
   }
 
-  case class Abs(expr: Expr) extends Expr with FixedType {
+  case class Sqrt(expr: Expr) extends Expr with FixedType {
     val fixedType = RealType
   }
+
+  // TODO: this can probably go, right?
+  /*case class Abs(expr: Expr) extends Expr with FixedType {
+    val fixedType = RealType
+  }*/
 
   /* Set expressions */
   case class FiniteSet(elements: Seq[Expr]) extends Expr {
@@ -518,32 +518,32 @@ object Trees {
   case class SubsetOf(set1: Expr, set2: Expr) extends Expr with FixedType {
     val fixedType = BooleanType
   }
-  case class SetIntersection(set1: Expr, set2: Expr) extends Expr 
-  case class SetUnion(set1: Expr, set2: Expr) extends Expr 
-  case class SetDifference(set1: Expr, set2: Expr) extends Expr 
+  case class SetIntersection(set1: Expr, set2: Expr) extends Expr
+  case class SetUnion(set1: Expr, set2: Expr) extends Expr
+  case class SetDifference(set1: Expr, set2: Expr) extends Expr
   case class SetMin(set: Expr) extends Expr
   case class SetMax(set: Expr) extends Expr
 
   /* Multiset expressions */
   case class EmptyMultiset(baseType: TypeTree) extends Expr with Terminal
-  case class FiniteMultiset(elements: Seq[Expr]) extends Expr 
-  case class Multiplicity(element: Expr, multiset: Expr) extends Expr 
+  case class FiniteMultiset(elements: Seq[Expr]) extends Expr
+  case class Multiplicity(element: Expr, multiset: Expr) extends Expr
   case class MultisetCardinality(multiset: Expr) extends Expr with FixedType {
     val fixedType = Int32Type
   }
-  case class SubmultisetOf(multiset1: Expr, multiset2: Expr) extends Expr 
-  case class MultisetIntersection(multiset1: Expr, multiset2: Expr) extends Expr 
-  case class MultisetUnion(multiset1: Expr, multiset2: Expr) extends Expr 
+  case class SubmultisetOf(multiset1: Expr, multiset2: Expr) extends Expr
+  case class MultisetIntersection(multiset1: Expr, multiset2: Expr) extends Expr
+  case class MultisetUnion(multiset1: Expr, multiset2: Expr) extends Expr
   case class MultisetPlus(multiset1: Expr, multiset2: Expr) extends Expr // disjoint union
-  case class MultisetDifference(multiset1: Expr, multiset2: Expr) extends Expr 
+  case class MultisetDifference(multiset1: Expr, multiset2: Expr) extends Expr
   case class MultisetToSet(multiset: Expr) extends Expr
 
   /* Map operations. */
-  case class FiniteMap(singletons: Seq[(Expr, Expr)]) extends Expr 
+  case class FiniteMap(singletons: Seq[(Expr, Expr)]) extends Expr
 
   case class MapGet(map: Expr, key: Expr) extends Expr with ScalacPositional
-  case class MapUnion(map1: Expr, map2: Expr) extends Expr 
-  case class MapDifference(map: Expr, keys: Expr) extends Expr 
+  case class MapUnion(map1: Expr, map2: Expr) extends Expr
+  case class MapDifference(map: Expr, keys: Expr) extends Expr
   case class MapIsDefinedAt(map: Expr, key: Expr) extends Expr with FixedType {
     val fixedType = BooleanType
   }
@@ -593,11 +593,11 @@ object Trees {
 
   /* List operations */
   case class NilList(baseType: TypeTree) extends Expr with Terminal
-  case class Cons(head: Expr, tail: Expr) extends Expr 
-  case class Car(list: Expr) extends Expr 
-  case class Cdr(list: Expr) extends Expr 
-  case class Concat(list1: Expr, list2: Expr) extends Expr 
-  case class ListAt(list: Expr, index: Expr) extends Expr 
+  case class Cons(head: Expr, tail: Expr) extends Expr
+  case class Car(list: Expr) extends Expr
+  case class Cdr(list: Expr) extends Expr
+  case class Concat(list1: Expr, list2: Expr) extends Expr
+  case class ListAt(list: Expr, index: Expr) extends Expr
 
   /* Constraint programming */
   case class Distinct(exprs: Seq[Expr]) extends Expr with FixedType {

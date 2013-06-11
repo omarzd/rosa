@@ -125,7 +125,7 @@ trait CodeExtraction extends Extractors {
         scala.collection.mutable.Map.empty[Symbol,Identifier]
       val scalaClassArgs: scala.collection.mutable.Map[Symbol,Seq[(String,Tree)]] =
         scala.collection.mutable.Map.empty[Symbol,Seq[(String,Tree)]]
-      val scalaClassNames: scala.collection.mutable.Set[String] = 
+      val scalaClassNames: scala.collection.mutable.Set[String] =
         scala.collection.mutable.Set.empty[String]
 
       // we need the new type definitions before we can do anything...
@@ -196,7 +196,7 @@ trait CodeExtraction extends Extractors {
       })
 
       classDefs = classesToClasses.valuesIterator.toList
-      
+
       // end of class (type) extraction
 
       // we now extract the function signatures.
@@ -240,8 +240,8 @@ trait CodeExtraction extends Extractors {
         _ match {
           case ExCaseClassSyntheticJunk() => ;
           // case ExObjectDef(o2, t2) => { objectDefs = extractObjectDef(o2, t2) :: objectDefs }
-          case ExAbstractClass(_,_) => ; 
-          case ExCaseClass(_,_,_) => ; 
+          case ExAbstractClass(_,_) => ;
+          case ExCaseClass(_,_,_) => ;
           case ExConstructorDef() => ;
           case ExMainFunctionDef() => ;
           case ExFunctionDef(_,_,_,_) => ;
@@ -251,7 +251,7 @@ trait CodeExtraction extends Extractors {
 
       val name: Identifier = FreshIdentifier(nameStr)
       val theDef = new ObjectDef(name, objectDefs.reverse ::: classDefs ::: funDefs, Nil)
-      
+
       theDef
     }
 
@@ -270,7 +270,7 @@ trait CodeExtraction extends Extractors {
       var realBody = body
       var reqCont: Option[Expr] = None
       var ensCont: Option[Expr] = None
-      
+
       currentFunDef = funDef
 
       realBody match {
@@ -295,14 +295,14 @@ trait CodeExtraction extends Extractors {
         }
         case _ => ;
       }
-      
+
       val bodyAttempt = try {
         Some(flattenBlocks(scala2PureScala(unit, Settings.silentlyTolerateNonPureBodies)(realBody)))
       } catch {
         case e: ImpureCodeEncounteredException => None
       }
 
-      bodyAttempt.foreach(e => 
+      bodyAttempt.foreach(e =>
         if(e.getType.isInstanceOf[ArrayType]) {
           //println(owners)
           //println(getOwner(e))
@@ -312,11 +312,11 @@ trait CodeExtraction extends Extractors {
             case _ => unit.error(realBody.pos, "Function cannot return an array that is not locally defined")
           }
         })
-      reqCont.map(e => 
+      reqCont.map(e =>
         if(containsLetDef(e)) {
           unit.error(realBody.pos, "Function precondtion should not contain nested function definition")
         })
-      ensCont.map(e => 
+      ensCont.map(e =>
         if(containsLetDef(e)) {
           unit.error(realBody.pos, "Function postcondition should not contain nested function definition")
         })
@@ -365,7 +365,7 @@ trait CodeExtraction extends Extractors {
 
   //This is a bit missleading, if an expr is not mapped then it has no owner, if it is mapped to None it means
   //that it can have any owner
-  private var owners: Map[Expr, Option[FunDef]] = Map() 
+  private var owners: Map[Expr, Option[FunDef]] = Map()
 
   /** Forces conversion from scalac AST to purescala AST, throws an Exception
    * if impossible. If not in 'silent mode', non-pure AST nodes are reported as
@@ -445,7 +445,7 @@ trait CodeExtraction extends Extractors {
       var realBody = body
       var reqCont: Option[Expr] = None
       var ensCont: Option[Expr] = None
-      
+
       currentFunDef = funDef
 
       realBody match {
@@ -470,14 +470,14 @@ trait CodeExtraction extends Extractors {
         }
         case _ => ;
       }
-      
+
       val bodyAttempt = try {
         Some(flattenBlocks(scala2PureScala(unit, Settings.silentlyTolerateNonPureBodies)(realBody)))
       } catch {
         case e: ImpureCodeEncounteredException => None
       }
 
-      bodyAttempt.foreach(e => 
+      bodyAttempt.foreach(e =>
         if(e.getType.isInstanceOf[ArrayType]) {
           getOwner(e) match {
             case Some(Some(fd)) if fd == funDef =>
@@ -486,11 +486,11 @@ trait CodeExtraction extends Extractors {
           }
         })
 
-      reqCont.foreach(e => 
+      reqCont.foreach(e =>
         if(containsLetDef(e)) {
           unit.error(realBody.pos, "Function precondtion should not contain nested function definition")
         })
-      ensCont.foreach(e => 
+      ensCont.foreach(e =>
         if(containsLetDef(e)) {
           unit.error(realBody.pos, "Function postcondition should not contain nested function definition")
         })
@@ -607,7 +607,7 @@ trait CodeExtraction extends Extractors {
           case ExVarDef(vs, tpt, bdy) => {
             val binderTpe = scalaType2PureScala(unit, silent)(tpt.tpe)
             //binderTpe match {
-            //  case ArrayType(_) => 
+            //  case ArrayType(_) =>
             //    unit.error(tree.pos, "Cannot declare array variables, only val are alllowed")
             //    throw ImpureCodeEncounteredException(tree)
             //  case _ =>
@@ -706,9 +706,9 @@ trait CodeExtraction extends Extractors {
           }
 
           case chs @ ExChooseExpression(args, tpe, body, select) => {
-            val cTpe  = scalaType2PureScala(unit, silent)(tpe) 
+            val cTpe  = scalaType2PureScala(unit, silent)(tpe)
 
-            val vars = args map { case (tpe, sym) => 
+            val vars = args map { case (tpe, sym) =>
               val aTpe  = scalaType2PureScala(unit, silent)(tpe)
               val newID = FreshIdentifier(sym.name.toString).setType(aTpe)
               owners += (Variable(newID) -> None)
@@ -791,7 +791,7 @@ trait CodeExtraction extends Extractors {
                 }
               case _ => Minus(rl, rr).setType(Int32Type)
             }
-          case ExTimes(l, r) => 
+          case ExTimes(l, r) =>
             val rl = rec(l)
             val rr = rec(r)
             (rl.getType, rr.getType) match {
@@ -828,7 +828,7 @@ trait CodeExtraction extends Extractors {
                   case (f, i) => Division(f, i).setType(RealType)
                 }
               case _ => Division(rl, rr).setType(Int32Type)
-            } 
+            }
           case ExMod(l, r) =>
             val rl = rec(l)
             val rr = rec(r)
@@ -838,7 +838,7 @@ trait CodeExtraction extends Extractors {
                 throw new Exception("aouch")
               case _ => Modulo(rl, rr).setType(Int32Type)
             }
-                
+
           case ExEquals(l, r) => {
             val rl = rec(l)
             val rr = rec(r)
@@ -846,31 +846,38 @@ trait CodeExtraction extends Extractors {
               case (SetType(_), SetType(_)) => SetEquals(rl, rr)
               case (BooleanType, BooleanType) => Iff(rl, rr)
               case (_, _) => Equals(rl, rr)
-            }).setType(BooleanType) 
+            }).setType(BooleanType)
           }
           case ExNotEquals(l, r) => Not(Equals(rec(l), rec(r)).setType(BooleanType)).setType(BooleanType)
           case ExGreaterThan(l, r) =>
             val rl = rec(l)
             val rr = rec(r)
-            if (rl.getType == RealType || rr.getType == RealType) {
-              unit.error(NoPosition, "> operator is not supported for floats.")
-              throw new Exception("aouch")
+            (rl.getType, rr.getType) match {
+              case (Int32Type, RealType) =>
+                (rl, rr) match {
+                  case (IntLiteral(v), f) => GreaterThan(new RationalLiteral(v), f).setType(BooleanType)
+                  case (i, f) => GreaterThan(i, f).setType(BooleanType)
+                }
+              case (RealType, Int32Type) =>
+                (rl, rr) match {
+                  case (f, IntLiteral(v)) => GreaterThan(f, new RationalLiteral(v)).setType(BooleanType)
+                  case (f, i) => GreaterThan(f, i).setType(BooleanType)
+                }
+              case _ => GreaterThan(rl, rr).setType(BooleanType)
             }
-            GreaterThan(rl, rr).setType(BooleanType)
+
           case ExGreaterEqThan(l, r) =>
             val rl = rec(l)
             val rr = rec(r)
-            (rl.getType, rr.getType) match { 
+            (rl.getType, rr.getType) match {
               case (Int32Type, RealType) =>
                 (rl, rr) match {
                   case (IntLiteral(v), f) => GreaterEquals(new RationalLiteral(v), f).setType(BooleanType)
-                  //case (i, f) => GreaterEquals(IntegerAsFloat(i), f).setType(BooleanType)
                   case (i, f) => GreaterEquals(i, f).setType(BooleanType)
                 }
               case (RealType, Int32Type) =>
                 (rl, rr) match {
                   case (f, IntLiteral(v)) => GreaterEquals(f, new RationalLiteral(v)).setType(BooleanType)
-                  //case (f, i) => GreaterEquals(f, IntegerAsFloat(i)).setType(BooleanType)
                   case (f, i) => GreaterEquals(f, i).setType(BooleanType)
                 }
               case _ => GreaterEquals(rl, rr).setType(BooleanType)
@@ -879,31 +886,41 @@ trait CodeExtraction extends Extractors {
           case ExLessThan(l, r) =>
             val rl = rec(l)
             val rr = rec(r)
-            if (rl.getType == RealType || rr.getType == RealType) {
-              unit.error(NoPosition, "< operator is not supported for floats.")
-              throw new Exception("aouch")
+            (rl.getType, rr.getType) match {
+              case (Int32Type, RealType) =>
+                (rl, rr) match {
+                  case (IntLiteral(v), f) => LessThan(new RationalLiteral(v), f).setType(BooleanType)
+                  case (i, f) => LessThan(i, f).setType(BooleanType)
+                }
+              case (RealType, Int32Type) =>
+                (rl, rr) match {
+                  case (f, IntLiteral(v)) => LessThan(f, new RationalLiteral(v)).setType(BooleanType)
+                  case (f, i) => LessThan(f, i).setType(BooleanType)
+                }
+              case _ => LessThan(rl, rr).setType(BooleanType)
             }
-            LessThan(rec(l), rec(r)).setType(BooleanType)
           case ExLessEqThan(l, r) =>
             val rl = rec(l)
             val rr = rec(r)
-            (rl.getType, rr.getType) match { 
+            (rl.getType, rr.getType) match {
               case (Int32Type, RealType) =>
                 (rl, rr) match {
                   case (IntLiteral(v), f) => LessEquals(new RationalLiteral(v), f).setType(BooleanType)
-                  //case (i, f) => LessEquals(IntegerAsFloat(i), f).setType(BooleanType)
                   case (i, f) => LessEquals(i, f).setType(BooleanType)
                 }
               case (RealType, Int32Type) =>
                 (rl, rr) match {
                   case (f, IntLiteral(v)) => LessEquals(f, new RationalLiteral(v)).setType(BooleanType)
-                  //case (f, i) => LessEquals(f, IntegerAsFloat(i)).setType(BooleanType)
                   case (f, i) => LessEquals(f, i).setType(BooleanType)
                 }
               case _ => LessEquals(rl, rr).setType(BooleanType)
             }
           case ExNoise(t, n) => Noise(rec(t), rec(n)).setType(BooleanType)
-          case ExRoundoff(t) => Roundoff(rec(t)).setType(BooleanType)
+          case ExRoundoff(ts) => And(ts.map(t => Roundoff(rec(t)).setType(BooleanType)))
+          case ExIn(id, t1, t2) =>
+            val v = rec(id)
+            And(LessEquals(rec(t1), v), LessEquals(v, rec(t2)))
+          case ExSqrt(t) => Sqrt(rec(t)).setType(RealType)
           case ExFiniteSet(tt, args) => {
             val underlying = scalaType2PureScala(unit, silent)(tt.tpe)
             FiniteSet(args.map(rec(_))).setType(SetType(underlying))
@@ -914,11 +931,11 @@ trait CodeExtraction extends Extractors {
           }
           case ExEmptySet(tt) => {
             val underlying = scalaType2PureScala(unit, silent)(tt.tpe)
-            FiniteSet(Seq()).setType(SetType(underlying))          
+            FiniteSet(Seq()).setType(SetType(underlying))
           }
           case ExEmptyMultiset(tt) => {
             val underlying = scalaType2PureScala(unit, silent)(tt.tpe)
-            EmptyMultiset(underlying).setType(MultisetType(underlying))          
+            EmptyMultiset(underlying).setType(MultisetType(underlying))
           }
           case ExEmptyMap(ft, tt) => {
             val fromUnderlying = scalaType2PureScala(unit, silent)(ft.tpe)
@@ -1017,7 +1034,7 @@ trait CodeExtraction extends Extractors {
                 throw ImpureCodeEncounteredException(tree)
               }
             }
-          } 
+          }
           case ExSetCard(t) => {
             val rt = rec(t)
             rt.getType match {
@@ -1071,7 +1088,7 @@ trait CodeExtraction extends Extractors {
             val rlhs = rec(lhs)
             val rargs = args map rec
             rlhs.getType match {
-              case MapType(_,tt) => 
+              case MapType(_,tt) =>
                 assert(rargs.size == 1)
                 MapGet(rlhs, rargs.head).setType(tt).setPosInfo(app.pos.line, app.pos.column)
               case ArrayType(bt) => {
@@ -1085,7 +1102,7 @@ trait CodeExtraction extends Extractors {
             }
           }
           // for now update only occurs on Array. later we might have to distinguished depending on the type of the lhs
-          case update@ExUpdate(lhs, index, newValue) => { 
+          case update@ExUpdate(lhs, index, newValue) => {
             val lhsRec = rec(lhs)
             lhsRec match {
               case Variable(_) =>
@@ -1095,7 +1112,7 @@ trait CodeExtraction extends Extractors {
               }
             }
             getOwner(lhsRec) match {
-              case Some(Some(fd)) if fd != currentFunDef => 
+              case Some(Some(fd)) if fd != currentFunDef =>
                 unit.error(nextExpr.pos, "cannot update an array that is not defined locally")
                 throw ImpureCodeEncounteredException(nextExpr)
               case Some(None) =>
@@ -1156,7 +1173,7 @@ trait CodeExtraction extends Extractors {
                     unit.error(tr.pos, "isInstanceOf can only be used with compatible case classes")
                     throw ImpureCodeEncounteredException(tr)
                   } else {
-                    CaseClassInstanceOf(ccd, ccRec) 
+                    CaseClassInstanceOf(ccd, ccRec)
                   }
                 }
               }
@@ -1174,7 +1191,7 @@ trait CodeExtraction extends Extractors {
               throw ImpureCodeEncounteredException(tr)
             }
             val fd = defsToDefs(sy)
-            FunctionInvocation(fd, ar.map(rec(_))).setType(fd.returnType).setPosInfo(lc.pos.line,lc.pos.column) 
+            FunctionInvocation(fd, ar.map(rec(_))).setType(fd.returnType).setPosInfo(lc.pos.line,lc.pos.column)
           }
 
           case pm @ ExPatternMatching(sel, cses) => {
