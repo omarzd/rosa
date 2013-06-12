@@ -10,6 +10,8 @@ import Rational._
 import XRationalForm._
 import affine.Utils._
 
+import numerics.{sqrtUp, sqrtDown}
+
 import collection.mutable.Queue
 import java.math.{BigInteger, BigDecimal}
 
@@ -240,6 +242,29 @@ class XFloat(val tree: Expr, val approxRange: XRationalForm, val error: XRationa
     if(verbose) println("            roundoff: " + rndoff)
     return new XFloat(newTree, newApprox, newError, solver, precondition)
   }
+
+  // In fact, this is simpler than division
+  def squareRoot: XFloat = {
+    // TODO: catch sqrt of negative number
+
+    // if this.isExact
+
+    val int = this.interval
+    // TODO: method on RationalInterval
+    val a = min(abs(int.xlo), abs(int.xhi))
+    val errorMultiplier = Rational(1l, 2l) / sqrtDown(a)  // TODO
+
+    val newTree = Sqrt(this.tree)
+    val newApprox = this.approxRange.squareRoot
+
+    var newError = this.error * new XRationalForm(errorMultiplier)
+    val newRange = getTightInterval(newTree, newApprox) + newError.interval
+    val rndoff = roundoff(newRange)
+    newError = addNoise(newError, rndoff)
+
+    return new XFloat(newTree, newApprox, newError, solver, precondition)
+  }
+
 
   override def toString: String = this.interval.toString + " - (" +
     this.maxError + ")(abs)"
