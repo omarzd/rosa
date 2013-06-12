@@ -22,7 +22,7 @@ class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3
   override val name = "numeric solver"
   override val description = "Z3 solver with some numeric convenience methods"
 
-  var verbose = false
+  var verbose = true
   var printWarnings = true
   var diagnose = true
   var countTimeouts = 0
@@ -93,6 +93,7 @@ class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3
     solver.push
     val variables = variablesOf(expr)
     val cnstr = toZ3Formula(Not(expr)).get
+    //println("asserting constraint: " + cnstr)
     solver.assertCnstr(cnstr)
     val res = solver.check match {
       case Some(true) =>

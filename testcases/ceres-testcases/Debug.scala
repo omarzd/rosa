@@ -15,14 +15,16 @@ object Debug {
         x * x
       else
         2 * x
-    else
-      x * x * x 
+    else {
+      val t2 = x * x
+      x * t2
+    }
     t  
   } ensuring (res => res >= 0 && noise(res, 1e-5))
   
 
 
-  
+  /* 
   def rigidBody1(x1: Real, x2: Real, x3: Real): Real = {
     require(x1 <= 15 && x1 >= -15 && x2 <= 15 && x2 >= -15 &&
             x3 <= 15 && x3 >= -15 && roundoff(x1) && roundoff(x2) && roundoff(x3))
@@ -54,7 +56,7 @@ object Debug {
       5*x
     }
   } ensuring (res => res >= 0 && noise(res, 1e-5))
-
+  */
  /* 
   def f(x: Real): Real = {
     require(0 <= x && x <= 2.3 && noise(x, 1e-7))

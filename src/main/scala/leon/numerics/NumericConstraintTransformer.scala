@@ -42,16 +42,24 @@ object NumericConstraintTransformer {
 
 
   // TODO: eps needs to be only defined once...
-class NumericConstraintTransformer(buddy: Map[Expr, Expr], ress: Variable, eps: Variable, roundoffType: RoundoffType) {
+class NumericConstraintTransformer(buddy: Map[Expr, Expr], ress: Variable, eps: Variable,
+  roundoffType: RoundoffType, reporter: Reporter) {
   import NumericConstraintTransformer._
 
     var errors: Seq[String] = Seq.empty
     var deltas: Seq[Variable] = Seq.empty
 
+    def printErrors = {
+      for (err <- errors)
+        reporter.error(err)
+    }
+
+    // TODO print the errors!
     def transformBlock(body: Expr): (Expr, Expr) = {
       errors = Seq.empty
       deltas = Seq.empty
       val (bodyCReal, bodyCNoisy) = transformBody(body)
+      printErrors
       (bodyCReal, And(bodyCNoisy, constrainDeltas(deltas, eps)))
     }
 
@@ -62,6 +70,7 @@ class NumericConstraintTransformer(buddy: Map[Expr, Expr], ress: Variable, eps: 
         case And(args) => args.map(p => transformSingleCondition(p))
         case _ => Seq(transformSingleCondition(cond))
       }
+      printErrors
       And(condC ++ Seq(constrainDeltas(deltas, eps)))
     }
 

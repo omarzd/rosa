@@ -29,11 +29,11 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
       c.paths = collectPaths(c.body)
 
       // First try Z3 alone
-      val (res, model) = checkConstraint(c, vc.allVariables)
+      /*val (res, model) = checkConstraint(c, vc.allVariables)
       reporter.info("Z3 only result: " + res)
       c.status = res
       c.model = model
-
+      */
       // If Z3 failed ...
       c.status match {
         case (None | Some(DUNNO) | Some(NOT_SURE)) =>
@@ -56,7 +56,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
 
   private def checkConstraint(c: Constraint, variables: Seq[Variable]): (Option[Valid], Option[Map[Identifier, Expr]]) = {
     val (resVar, eps, buddies) = getVariables(variables)
-    val trans = new NumericConstraintTransformer(buddies, resVar, eps, RoundoffType.RoundoffMultiplier)
+    val trans = new NumericConstraintTransformer(buddies, resVar, eps, RoundoffType.RoundoffMultiplier, reporter)
 
     var realPart: Seq[Expr] = Seq.empty
     var noisyPart: Seq[Expr] = Seq.empty
@@ -74,9 +74,12 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
     val toCheck = Implies(And(precondition, body), postcondition)
 
     //println("toCheck: " + toCheck)
-
-    val (valid, model) = solver.checkValid(toCheck)
-    (Some(valid), model)
+    if (reporter.errorCount == 0) {
+      val (valid, model) = solver.checkValid(toCheck)
+      (Some(valid), model)
+    } else {
+      (None, None)
+    }
 
   }
 
@@ -98,16 +101,17 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
       // was supposed to be floats and vice - versa
       val (variables, indices) = variables2xfloats(inputs, solver, path.condition)
 
-      val result = inXFloats(path.expression, variables, solver, path.condition)
-      path.value = Some(result(ResultVariable()))
-      //println("result: " + result)
+      val result: Map[Expr, XFloat] = inXFloats(path.expression, variables, solver, path.condition)
+      println("path result: " + result)
+      path.values = result
     }
 
     // Merge results from all branches
-    val (interval, error) = mergePaths(paths)
+    val (interval, error) = mergePathResults(paths)(ResultVariable())
+    /*val (interval, error) = mergeResultForKey(paths, ResultVariable())
     println("max interval: " + interval)
     println("max error: " + error)
-
+    */
     // Create constraint
     val newBodyConstraint = createConstraintFromResults(Map(ResultVariable() -> (interval, error)))
     println("constraint: " + newBodyConstraint)
@@ -146,7 +150,8 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
         currentVars = currentVars + (variable -> inXFloats(value, currentVars, solver, pre))
 
       case _ =>
-        throw UnsupportedFragmentException("This shouldn't be here: " + expr.getClass + "  " + expr)
+        reporter.error("AA cannot handle: " + expr)
+        //throw UnsupportedFragmentException("This shouldn't be here: " + expr.getClass + "  " + expr)
     }
 
     currentVars
@@ -162,9 +167,11 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
     case Minus(lhs, rhs) => inXFloats(lhs, vars, solver, pre) - inXFloats(rhs, vars, solver, pre)
     case Times(lhs, rhs) => inXFloats(lhs, vars, solver, pre) * inXFloats(rhs, vars, solver, pre)
     case Division(lhs, rhs) => inXFloats(lhs, vars, solver, pre) / inXFloats(rhs, vars, solver, pre)
+    case Sqrt(t) => inXFloats(t, vars, solver, pre).squareRoot
     case _ =>
-      throw UnsupportedFragmentException("Can't handle: " + expr.getClass)
-      null
+      reporter.error("AA cannot handle: " + expr)
+      //throw UnsupportedFragmentException("Can't handle: " + expr.getClass)
+      XFloat(Rational(0), solver, BooleanLiteral(true))
   }
 
   private def createConstraintFromResults(results: Map[Expr, (RationalInterval, Rational)]): Expr = {
@@ -180,17 +187,55 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
 
 
 
-  private def mergePaths(paths: Set[Path]): (RationalInterval, Rational) = {
+  private def mergePathResults(paths: Set[Path]): Map[Expr, (RationalInterval, Rational)] = {
     import Rational._
-    var interval = paths.head.value.get.interval
-    var error = paths.head.value.get.maxError
+
+    println("---------------")
+
+    var collection: Map[Expr, List[XFloat]] = Map.empty
+    for (path <- paths) {
+      for ((k, v) <- path.values) {
+        collection = collection + ((k, List(v) ++ collection.getOrElse(k, List())))
+      }
+    }
+    println("collection: " + collection)
+
+    var resMap: Map[Expr, (RationalInterval, Rational)] = Map.empty
+    for ((k, list) <- collection) {
+      var lo = list.head.interval.xlo
+      var hi = list.head.interval.xhi
+      var err = list.head.maxError
+
+      for (xf <- list.tail) {
+        lo = min(lo, xf.interval.xlo)
+        hi = max(hi, xf.interval.xhi)
+        err = max(err, xf.maxError)
+      }
+      resMap = resMap + ((k, (RationalInterval(lo, hi), err)))
+    }
+
+    /*val keys: Set[Expr] = paths.collect {
+      case p => p.values.keys.toSet
+    }
+
+    val resMap: Map[Expr, (RationalInterval, Rational)] = Map.empty
+
+    for (key <- keys) {
+      var interval 
+
+    }
+    var interval = paths.head.values(key).interval
+    var error = paths.head.values(key).maxError
 
     for (path <- paths.tail) {
-      interval = RationalInterval(min(interval.xlo, path.value.get.interval.xlo),
-                                  max(interval.xhi, path.value.get.interval.xhi))
+      interval = RationalInterval(min(interval.xlo, path.values(key).interval.xlo),
+                                  max(interval.xhi, path.values(key).interval.xhi))
       error = max(error, path.value.get.maxError)
     }
     (interval, error)
+    */
+    println("\nresMap: " + resMap)
+    resMap
   }
 
   private def collectPaths(expr: Expr): Set[Path] = expr match {
