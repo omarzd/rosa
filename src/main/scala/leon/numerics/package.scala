@@ -13,6 +13,7 @@ package object numerics {
 
   case class UnsupportedFragmentException(msg: String) extends Exception(msg)
 
+
   object RoundoffType extends Enumeration {
     type RoundoffType = Value
     val NoRoundoff = Value("NoRoundoff")

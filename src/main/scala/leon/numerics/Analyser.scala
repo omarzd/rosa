@@ -57,7 +57,7 @@ class Analyser(reporter: Reporter) {
   private def addResult(expr: Expr): Expr = expr match {
     case IfExpr(cond, then, elze) => IfExpr(cond, addResult(then), addResult(elze))
     case Let(binder, value, body) => Let(binder, value, addResult(body))
-    case UMinus(_) | Plus(_, _) | Minus(_, _) | Times(_, _) | Division(_, _) | FunctionInvocation(_, _) | Variable(_) =>
+    case UMinus(_) | Plus(_, _) | Minus(_, _) | Times(_, _) | Division(_, _) | Sqrt(_) | FunctionInvocation(_, _) | Variable(_) =>
       Equals(ResultVariable(), expr)
     case _ => expr
   }

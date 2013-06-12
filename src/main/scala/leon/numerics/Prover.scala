@@ -38,8 +38,8 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
       c.status match {
         case (None | Some(DUNNO) | Some(NOT_SURE)) =>
           // ... try XFloat alone
-          val constraint = constraintWithXFloat(c, vc.inputs)
-          val (resAA, modelAA) = checkConstraint(constraint, vc.allVariables)
+          val approxConstraint = approximateConstraint(c, vc.inputs)
+          val (resAA, modelAA) = checkConstraint(approxConstraint, vc.allVariables)
           println("XFloat only result: " + resAA)
           c.status = resAA
           c.model = modelAA
@@ -56,7 +56,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
 
   private def checkConstraint(c: Constraint, variables: Seq[Variable]): (Option[Valid], Option[Map[Identifier, Expr]]) = {
     val (resVar, eps, buddies) = getVariables(variables)
-    val trans = new NumericConstraintTransformer(buddies, resVar, eps, RoundoffType.RoundoffMultiplier)
+    val trans = new NumericConstraintTransformer(buddies, resVar, eps, RoundoffType.RoundoffMultiplier, reporter)
 
     var realPart: Seq[Expr] = Seq.empty
     var noisyPart: Seq[Expr] = Seq.empty
@@ -70,72 +70,53 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
     val precondition = trans.transformCondition(c.pre)
     val postcondition = trans.transformCondition(c.post)
 
-    val body = And(Or(realPart), Or(noisyPart))
+    val body = if(realPart.isEmpty && noisyPart.isEmpty) BooleanLiteral(true)
+      else if(!realPart.isEmpty && !noisyPart.isEmpty) And(Or(realPart), Or(noisyPart))
+      else {
+        reporter.error("one of realPart or noisyPart is empty")
+        BooleanLiteral(true)
+      }
+    //println("body: " + body)
     val toCheck = Implies(And(precondition, body), postcondition)
 
-    //println("toCheck: " + toCheck)
+    // TODO: sanity check: there should be no "false" in the constraint (it was...)
 
-    val (valid, model) = solver.checkValid(toCheck)
-    (Some(valid), model)
+    println("toCheck: " + toCheck)
+    if (reporter.errorCount == 0) {
+      val (valid, model) = solver.checkValid(toCheck)
+      (Some(valid), model)
+    } else {
+      (None, None)
+    }
 
   }
 
   // TODO: approximatePath
 
-  private def constraintWithXFloat(c: Constraint, inputs: Map[Variable, Record]): Constraint = {
+
+  private def approximateConstraint(c: Constraint, inputs: Map[Variable, Record]): Constraint = {
     reporter.info("Now trying with XFloat only...")
 
-    //val solver = new NumericSolver(ctx, program)
-
     val paths = c.paths.map(p => p.addCondition(filterPreconditionForBoundsIteration(c.pre)))
-    //println("paths")
-    //println(paths.mkString("\n"))
+    //println("paths: \n" + paths.mkString("\n"))
 
     for (path <- paths) {
-      //println("Investigating path: " + path)
-
       // TODO: make sure we push the correct bounds, i.e. not real-valued when it
       // was supposed to be floats and vice - versa
       val (variables, indices) = variables2xfloats(inputs, solver, path.condition)
-
-      val result = inXFloats(path.expression, variables, solver, path.condition)
-      path.value = Some(result(ResultVariable()))
-      //println("result: " + result)
+      path.values = inXFloats(path.expression, variables, solver, path.condition) -- inputs.keys
+      //println("path result: " + path.values.mkString("\n"))
     }
 
-    // Merge results from all branches
-    val (interval, error) = mergePaths(paths)
-    println("max interval: " + interval)
-    println("max error: " + error)
-
-    // Create constraint
-    val newBodyConstraint = createConstraintFromResults(Map(ResultVariable() -> (interval, error)))
-    println("constraint: " + newBodyConstraint)
-    Constraint(And(c.pre, newBodyConstraint), BooleanLiteral(true), c.post)
-
+    val approx = mergePathResults(paths)
+    val newConstraint = constraintFromResults(approx)
+    println("constraint: " + newConstraint)
+    //Constraint(And(c.pre, newConstraint), BooleanLiteral(true), c.post)
+    Constraint(newConstraint, BooleanLiteral(true), c.post)
   }
 
 
-  private def getVariables(variables: Seq[Variable]): (Variable, Variable, Map[Expr, Expr]) = {
-    val resVar = Variable(FreshIdentifier("res")).setType(RealType)
-    val machineEps = Variable(FreshIdentifier("#eps")).setType(RealType)
 
-    var buddies: Map[Expr, Expr] =
-      variables.foldLeft(Map[Expr, Expr](resVar -> Variable(FreshIdentifier("#res_0")).setType(RealType)))(
-        (map, nextVar) => map + (nextVar -> Variable(FreshIdentifier("#"+nextVar.id.name+"_0")).setType(RealType))
-      )
-
-    (resVar, machineEps, buddies)
-  }
-
-
-  private def filterPreconditionForBoundsIteration(expr: Expr): Expr = expr match {
-    case And(args) =>
-      And(args.map(a => filterPreconditionForBoundsIteration(a)))
-    case Noise(e, f) => BooleanLiteral(true)
-    case Roundoff(e) => BooleanLiteral(true)
-    case _ => expr
-  }
 
   // Returns a map from all variables to their final value, including local vars
   private def inXFloats(exprs: List[Expr], vars: Map[Expr, XFloat], solver: NumericSolver, pre: Expr): Map[Expr, XFloat] = {
@@ -143,55 +124,75 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
 
     for (expr <- exprs) expr match {
       case Equals(variable, value) =>
-        currentVars = currentVars + (variable -> inXFloats(value, currentVars, solver, pre))
+        try {
+          currentVars = currentVars + (variable -> eval(value, currentVars, solver, pre))
+          } catch {
+            case UnsupportedFragmentException(msg) => reporter.error(msg)
+          }
 
       case _ =>
-        throw UnsupportedFragmentException("This shouldn't be here: " + expr.getClass + "  " + expr)
+        reporter.error("AA cannot handle: " + expr)
     }
 
     currentVars
   }
 
   // Evaluates an arithmetic expression
-  private def inXFloats(expr: Expr, vars: Map[Expr, XFloat], solver: NumericSolver, pre: Expr): XFloat = expr match {
+  private def eval(expr: Expr, vars: Map[Expr, XFloat], solver: NumericSolver, pre: Expr): XFloat = expr match {
     case v @ Variable(id) => vars(v)
     case RationalLiteral(v) => XFloat(v, solver, pre)
     case IntLiteral(v) => XFloat(v, solver, pre)
-    case UMinus(rhs) => - inXFloats(rhs, vars, solver, pre)
-    case Plus(lhs, rhs) => inXFloats(lhs, vars, solver, pre) + inXFloats(rhs, vars, solver, pre)
-    case Minus(lhs, rhs) => inXFloats(lhs, vars, solver, pre) - inXFloats(rhs, vars, solver, pre)
-    case Times(lhs, rhs) => inXFloats(lhs, vars, solver, pre) * inXFloats(rhs, vars, solver, pre)
-    case Division(lhs, rhs) => inXFloats(lhs, vars, solver, pre) / inXFloats(rhs, vars, solver, pre)
+    case UMinus(rhs) => - eval(rhs, vars, solver, pre)
+    case Plus(lhs, rhs) => eval(lhs, vars, solver, pre) + eval(rhs, vars, solver, pre)
+    case Minus(lhs, rhs) => eval(lhs, vars, solver, pre) - eval(rhs, vars, solver, pre)
+    case Times(lhs, rhs) => eval(lhs, vars, solver, pre) * eval(rhs, vars, solver, pre)
+    case Division(lhs, rhs) => eval(lhs, vars, solver, pre) / eval(rhs, vars, solver, pre)
+    case Sqrt(t) => eval(t, vars, solver, pre).squareRoot
     case _ =>
-      throw UnsupportedFragmentException("Can't handle: " + expr.getClass)
+      throw UnsupportedFragmentException("AA cannot handle: " + expr)
       null
   }
 
-  private def createConstraintFromResults(results: Map[Expr, (RationalInterval, Rational)]): Expr = {
-    var args: Seq[Expr] = Seq.empty
-    for((v, (interval, error)) <- results) {
 
-      args = args :+ LessEquals(RationalLiteral(interval.xlo), v)
-      args = args :+ LessEquals(v, RationalLiteral(interval.xhi))
-      args = args :+ Noise(v, RationalLiteral(error))
-    }
-    And(args)
-  }
-
-
-
-  private def mergePaths(paths: Set[Path]): (RationalInterval, Rational) = {
+  /*
+    Consolidates results from different paths by merging the intervals and finding the largest error.
+   */
+  private def mergePathResults(paths: Set[Path]): Map[Expr, (RationalInterval, Rational)] = {
     import Rational._
-    var interval = paths.head.value.get.interval
-    var error = paths.head.value.get.maxError
 
-    for (path <- paths.tail) {
-      interval = RationalInterval(min(interval.xlo, path.value.get.interval.xlo),
-                                  max(interval.xhi, path.value.get.interval.xhi))
-      error = max(error, path.value.get.maxError)
+    var collection: Map[Expr, List[XFloat]] = Map.empty
+    for (path <- paths) {
+      for ((k, v) <- path.values) {
+        collection = collection + ((k, List(v) ++ collection.getOrElse(k, List())))
+      }
     }
-    (interval, error)
+
+    // Two options:
+    // interval -> ranges of ACTUAL variables  (but in this case, the key is the buddy variable!)
+    // realInterval -> ranges of IDEAL variables
+    var resMap: Map[Expr, (RationalInterval, Rational)] = Map.empty
+    for ((k, list) <- collection) {
+      var lo = list.head.realInterval.xlo
+      var hi = list.head.realInterval.xhi
+      var err = list.head.maxError
+
+      for (xf <- list.tail) {
+        lo = min(lo, xf.realInterval.xlo)
+        hi = max(hi, xf.realInterval.xhi)
+        err = max(err, xf.maxError)
+      }
+      resMap = resMap + ((k, (RationalInterval(lo, hi), err)))
+    }
+    resMap
   }
+
+  private def constraintFromResults(results: Map[Expr, (RationalInterval, Rational)]): Expr = {
+    And(results.foldLeft(Seq[Expr]())(
+      (seq, kv) => seq ++ Seq(LessEquals(RationalLiteral(kv._2._1.xlo), kv._1),
+                                  LessEquals(kv._1, RationalLiteral(kv._2._1.xhi)),
+                                  Noise(kv._1, RationalLiteral(kv._2._2)))))
+  }
+
 
   private def collectPaths(expr: Expr): Set[Path] = expr match {
     case IfExpr(cond, then, elze) =>
@@ -225,5 +226,22 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
       Set(Path(BooleanLiteral(true), List(expr)))
   }
 
+  private def getVariables(variables: Seq[Variable]): (Variable, Variable, Map[Expr, Expr]) = {
+    val resVar = Variable(FreshIdentifier("#ress")).setType(RealType)
+    val machineEps = Variable(FreshIdentifier("#eps")).setType(RealType)
 
+    var buddies: Map[Expr, Expr] =
+      variables.foldLeft(Map[Expr, Expr](resVar -> Variable(FreshIdentifier("#res_0")).setType(RealType)))(
+        (map, nextVar) => map + (nextVar -> Variable(FreshIdentifier("#"+nextVar.id.name+"_0")).setType(RealType))
+      )
+    (resVar, machineEps, buddies)
+  }
+
+
+  private def filterPreconditionForBoundsIteration(expr: Expr): Expr = expr match {
+    case And(args) => And(args.map(a => filterPreconditionForBoundsIteration(a)))
+    case Noise(e, f) => BooleanLiteral(true)
+    case Roundoff(e) => BooleanLiteral(true)
+    case _ => expr
+  }
 }

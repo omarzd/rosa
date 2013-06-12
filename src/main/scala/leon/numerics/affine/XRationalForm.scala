@@ -10,7 +10,9 @@ import collection.mutable.Queue
 import Utils._
 import Deviation._
 
-case class DivisionByZeroException(s: String) extends Exception
+
+//case class DivisionByZeroException(s: String) extends Exception
+case class OutOfDomainException(s: String) extends Exception
 
 
 object XRationalForm {
@@ -33,7 +35,7 @@ object XRationalForm {
     newTerms += Deviation(newIndex, n)
     new XRationalForm(x.x0, newTerms)
   }
-  
+
   def addNoiseWithIndex(x: XRationalForm, n: Rational):
     (XRationalForm, Int) = {
     val newTerms = new Queue[Deviation]()
@@ -113,7 +115,7 @@ case class XRationalForm(val x0: Rational, var noise: Queue[Deviation]) {
     //  multiplyNonlinearQueuesWithDependencies(this.noise, y.noise)
     var (z0Addition, delta) = multiplyNonlinearQueues2(this.noise, y.noise)
     z0 += z0Addition
-    
+
     //println("zqueue tyep: " + zqueue.getClass)
     var newTerms: Queue[Deviation] = multiplyQueues(this.x0, this.noise, y.x0, y.noise)
     //newTerms = newTerms ++ zqueue
@@ -130,9 +132,9 @@ case class XRationalForm(val x0: Rational, var noise: Queue[Deviation]) {
     val (xlo, xhi) = (interval.xlo, interval.xhi)
 
     if (xlo <= Rational(0.0) && xhi >= Rational(0.0))
-      throw DivisionByZeroException("Possible division by zero: " + toString)
+      throw OutOfDomainException("Possible division by zero: " + toString)
 
-    if(noise.size == 0.0) { //exact
+    if(noise.size == 0) { //exact
       val inv = Rational(1.0)/x0
       return new XRationalForm(inv, new Queue[Deviation]())
     }
@@ -164,7 +166,64 @@ case class XRationalForm(val x0: Rational, var noise: Queue[Deviation]) {
     return this * y.inverse
   }
 
-  /*private def multiplyNonlinearQueues(xqueue: Queue[Deviation], yqueue: Queue[Deviation]): Rational = {
+
+  def squareRoot: XRationalForm = {
+    var (a, b) = (interval.xlo, interval.xhi)
+
+    if (b <= zero)  //soft policy
+      throw OutOfDomainException("Possible sqrt of negative number: " + toString)
+
+    /*if(noise.size == 0) { //exact
+      val sqrt = x0.sqrt
+      //val maxError = ...  can we get the error on this?
+      val maxError = zero
+      return new XRationalForm(sqrt, new Queue[Deviation](Deviation(newIndex, maxError)))
+    }*/
+
+    if (a < zero) a = zero  //soft policy
+
+    val alpha = Rational(1l, 2l) / sqrtUp(b)
+    val dmin = sqrtDown(a) - (alpha * a)
+    val dmax = sqrtUp(b) - (alpha * b)
+
+    val zeta = computeZeta(dmin, dmax)
+    val delta = computeDelta(zeta, dmin, dmax)
+    return unaryOp(x0, noise, alpha, zeta, delta)
+  }
+
+
+
+  private def packRationalNoiseTerms(queue: Queue[Deviation]): Queue[Deviation] = {
+    var sum = sumQueue(queue)
+    val avrg: Double = sum.toDouble / queue.size
+
+    //compute st. deviation
+    var devSum = 0.0
+    val iter = queue.iterator
+    while(iter.hasNext) {
+      val diff = (abs(iter.next.value).toDouble - avrg).toDouble
+      devSum += diff * diff
+    }
+    val stdDev = math.sqrt(devSum/queue.size)
+    val threshold: Double = avrg + stdDev
+
+    //Now compute the new queue
+    var newNoise = Rational(0)
+    var newDev = new Queue[Deviation]()
+
+    val iter2 = queue.iterator
+    while(iter2.hasNext) {
+      val xi = iter2.next
+      val v = abs(xi.value)
+      if(v.toDouble < threshold) newNoise += v
+      else newDev += xi
+    }
+    newDev += Deviation(newIndex, newNoise)
+    return newDev
+  }
+
+
+/*private def multiplyNonlinearQueues(xqueue: Queue[Deviation], yqueue: Queue[Deviation]): Rational = {
     val indices = mergeIndices(getIndices(xqueue), getIndices(yqueue))
     var zqueue = Rational(0.0)
 
@@ -234,34 +293,4 @@ case class XRationalForm(val x0: Rational, var noise: Queue[Deviation]) {
     val list = set.toList.sorted
     return list.toArray
   }*/
-
-  private def packRationalNoiseTerms(queue: Queue[Deviation]): Queue[Deviation] = {
-    var sum = sumQueue(queue)
-    val avrg: Double = sum.toDouble / queue.size
-
-    //compute st. deviation
-    var devSum = 0.0
-    val iter = queue.iterator
-    while(iter.hasNext) {
-      val diff = (abs(iter.next.value).toDouble - avrg).toDouble
-      devSum += diff * diff
-    }
-    val stdDev = math.sqrt(devSum/queue.size)
-    val threshold: Double = avrg + stdDev
-
-    //Now compute the new queue
-    var newNoise = Rational(0)
-    var newDev = new Queue[Deviation]()
-
-    val iter2 = queue.iterator
-    while(iter2.hasNext) {
-      val xi = iter2.next
-      val v = abs(xi.value)
-      if(v.toDouble < threshold) newNoise += v
-      else newDev += xi
-    }
-    newDev += Deviation(newIndex, newNoise)
-    return newDev
-  }
-
 }
