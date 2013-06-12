@@ -13,9 +13,6 @@ package object numerics {
 
   case class UnsupportedFragmentException(msg: String) extends Exception(msg)
 
-  // Until we get this sorted in Rational
-  def sqrtUp(x: Rational): Rational = Rational(math.sqrt(Rational.scaleToIntsUp(x).doubleValue))
-  def sqrtDown(x: Rational): Rational = Rational(math.sqrt(Rational.scaleToIntsDown(x).doubleValue))
 
   object RoundoffType extends Enumeration {
     type RoundoffType = Value

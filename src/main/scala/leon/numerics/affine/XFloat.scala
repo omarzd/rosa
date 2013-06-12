@@ -10,8 +10,6 @@ import Rational._
 import XRationalForm._
 import affine.Utils._
 
-import numerics.{sqrtUp, sqrtDown}
-
 import collection.mutable.Queue
 import java.math.{BigInteger, BigDecimal}
 
@@ -252,7 +250,7 @@ class XFloat(val tree: Expr, val approxRange: XRationalForm, val error: XRationa
     val int = this.interval
     // TODO: method on RationalInterval
     val a = min(abs(int.xlo), abs(int.xhi))
-    val errorMultiplier = Rational(1l, 2l) / sqrtDown(a)  // TODO
+    val errorMultiplier = Rational(1l, 2l) / sqrtDown(a)
 
     val newTree = Sqrt(this.tree)
     val newApprox = this.approxRange.squareRoot

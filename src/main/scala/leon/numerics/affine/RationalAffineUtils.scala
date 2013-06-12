@@ -9,6 +9,30 @@ import Deviation._
 
 object Utils {
 
+  // Until we get this sorted in Rational
+  // TODO: check this
+  def sqrtUp(x: Rational): Rational = Rational(DirectedRounding.sqrtUp(Rational.scaleToIntsUp(x).doubleValue))
+  def sqrtDown(x: Rational): Rational = Rational(DirectedRounding.sqrtDown(Rational.scaleToIntsDown(x).doubleValue))
+
+  def computeZeta(dmin: Rational, dmax: Rational): Rational = {
+    dmin / Rational(2l, 1l) +  dmax / Rational(2l, 1l)
+  }
+
+  def computeDelta(zeta: Rational, dmin: Rational, dmax: Rational): Rational = {
+    max( zeta - dmin,  dmax - zeta )
+  }
+
+  def unaryOp(x0: Rational, noise: Queue[Deviation], alpha: Rational, zeta: Rational,
+    delta: Rational) : XRationalForm = {
+
+    val z0 = alpha * x0 + zeta
+    var deviation = multiplyQueue(noise, alpha)
+
+    if (delta != zero) deviation += Deviation(newIndex, delta)
+    return new XRationalForm(z0, deviation)
+  }
+
+
   // TODO: fold
   def sumQueue(q: Queue[Deviation]): Rational = {
     var sum = Rational.zero
@@ -203,7 +227,7 @@ object Utils {
         case Some(d) => d; case None => dummyDev }
         val zij = xi * yj + xj * yi
         if (!zij.isZero) {
-          zij match { 
+          zij match {
             case VariableDev(i, v, h) => zqueue += zij
             case _ => zerror += abs(zij.value)
           }

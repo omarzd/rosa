@@ -10,7 +10,6 @@ import collection.mutable.Queue
 import Utils._
 import Deviation._
 
-import numerics.{sqrtUp, sqrtDown}
 
 //case class DivisionByZeroException(s: String) extends Exception
 case class OutOfDomainException(s: String) extends Exception
@@ -169,9 +168,9 @@ case class XRationalForm(val x0: Rational, var noise: Queue[Deviation]) {
 
 
   def squareRoot: XRationalForm = {
-    val (xlo, xhi) = (interval.xlo, interval.xhi)
+    var (a, b) = (interval.xlo, interval.xhi)
 
-    if (xlo <= zero)
+    if (b <= zero)  //soft policy
       throw OutOfDomainException("Possible sqrt of negative number: " + toString)
 
     /*if(noise.size == 0) { //exact
@@ -181,12 +180,9 @@ case class XRationalForm(val x0: Rational, var noise: Queue[Deviation]) {
       return new XRationalForm(sqrt, new Queue[Deviation](Deviation(newIndex, maxError)))
     }*/
 
-    var a = min(abs(xlo), abs(xhi))
-    val b = max(abs(xlo), abs(xhi))
+    if (a < zero) a = zero  //soft policy
 
-    if (a < zero) a = zero
-
-    val alpha = Rational(1l, 2l) / sqrtDown(b)  // this could be either direction
+    val alpha = Rational(1l, 2l) / sqrtUp(b)
     val dmin = sqrtDown(a) - (alpha * a)
     val dmax = sqrtUp(b) - (alpha * b)
 
@@ -195,22 +191,6 @@ case class XRationalForm(val x0: Rational, var noise: Queue[Deviation]) {
     return unaryOp(x0, noise, alpha, zeta, delta)
   }
 
-  private def computeZeta(dmin: Rational, dmax: Rational): Rational = {
-    dmin / Rational(2l, 1l) +  dmax / Rational(2l, 1l)
-  }
-  private def computeDelta(zeta: Rational, dmin: Rational, dmax: Rational): Rational = {
-    max( zeta - dmin,  dmax - zeta )
-  }
-
-  private def unaryOp(x0: Rational, xnoise: Queue[Deviation], alpha: Rational, zeta: Rational,
-    delta: Rational) : XRationalForm = {
-
-    val z0 = alpha * x0 + zeta
-    var deviation = multiplyQueue(xnoise, alpha)
-
-    if (delta != zero) deviation += Deviation(newIndex, delta)
-    return new XRationalForm(z0, deviation)
-  }
 
 
   private def packRationalNoiseTerms(queue: Queue[Deviation]): Queue[Deviation] = {
