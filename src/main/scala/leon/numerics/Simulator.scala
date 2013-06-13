@@ -2,6 +2,8 @@ package leon
 package numerics
 
 import purescala.Trees._
+import purescala.Definitions._
+import Utils.VariableCollector
 
 import ceres.common._
 
@@ -9,11 +11,22 @@ class Simulator {
 
   val simSize = 1000000//00
   println("Simulation size: " + simSize + "\n")
+
   // Roundoff error is just the roundoff error, i.e. using the path of the float
-  // @return (max range of floating-point output, max roundoff error of output)
-  def simulate(name: String, tree: Expr, vars: Map[Variable, RationalInterval]): SimulationResult = {
+  def simulateThis(funDef: FunDef): SimulationResult = {
     // TODO: for the actual run, seed shouldn't be fixed
     val r = new scala.util.Random(4753)
+
+    val body = funDef.body.get
+    // We don't use the noise for now, but maybe later
+    val inputs: Map[Variable, (RationalInterval, Rational)] = funDef.precondition match {
+      case Some(p) =>
+        val collector = new VariableCollector
+        collector.transform(p)
+        inputs2intervals(collector.recordMap)
+      case None =>
+        Map.empty
+    }
 
     var counter = 0
     var resInterval: Interval = EmptyInterval
@@ -22,15 +35,17 @@ class Simulator {
     while(counter < simSize) {
       var randomInputs = new collection.immutable.HashMap[Variable, Rational]()
 
-      for ((k, v) <- vars)
-        randomInputs += ((k, v.xlo + Rational(r.nextDouble) * (v.xhi - v.xlo)))
-      
-      val (resDouble, resRat) = eval(tree, randomInputs)
+      for ((k, ((i, n))) <- inputs)
+        randomInputs += ((k, i.xlo + Rational(r.nextDouble) * (i.xhi - i.xlo)))
+
+      val (resDouble, resRat) = eval(body, randomInputs)
       maxRoundoff = math.max(maxRoundoff, math.abs(resDouble - resRat.toDouble))
       resInterval = extendInterval(resInterval, resDouble)
       counter += 1
     }
-    SimulationResult(name, resInterval, maxRoundoff)
+
+    val intInputs = inputs.map( x => (x._1 -> Interval(x._2._1.xlo.toDouble, x._2._1.xhi.toDouble) ))
+    SimulationResult(funDef.id.name, resInterval, maxRoundoff, evalInterval(body, intInputs))
   }
 
   private def extendInterval(i: Interval, d: Double): Interval = i match {
@@ -42,7 +57,7 @@ class Simulator {
       else null
   }
 
-  // We could probably use something fancy from TreeOps or evaluators
+  // This thing with Rationals does not work with sqrt...
   private def eval(tree: Expr, vars: Map[Variable, Rational]): (Double, Rational) = tree match {
     case v @ Variable(id) =>
       val ratValue = vars(v)
@@ -70,9 +85,47 @@ class Simulator {
       val (lhsDbl, lhsRat) = eval(lhs, vars)
       val (rhsDbl, rhsRat) = eval(rhs, vars)
       (lhsDbl / rhsDbl, lhsRat / rhsRat)
+
     case _ =>
       throw UnsupportedFragmentException("Can't handle: " + tree.getClass)
       (Double.NaN, Rational(0))
   }
+
+  private def evalInterval(tree: Expr, vars: Map[Variable, Interval]): Interval = tree match {
+    case v @ Variable(id) => vars(v)
+    case RationalLiteral(v) => Interval(v.toDouble)
+    case IntLiteral(v) => Interval(v.toDouble)
+    case UMinus(e) => - evalInterval(e, vars)
+    case Plus(lhs, rhs) => evalInterval(lhs, vars) + evalInterval(rhs, vars)
+    case Minus(lhs, rhs) => evalInterval(lhs, vars) - evalInterval(rhs, vars)
+    case Times(lhs, rhs) => evalInterval(lhs, vars) * evalInterval(rhs, vars)
+    case Division(lhs, rhs) => evalInterval(lhs, vars) / evalInterval(rhs, vars)
+    case _ =>
+      throw UnsupportedFragmentException("Can't handle: " + tree.getClass)
+      EmptyInterval
+  }
+
+
+  private def inputs2intervals(vars: Map[Variable, Record]): Map[Variable, (RationalInterval, Rational)] = {
+    var variableMap: Map[Variable, (RationalInterval, Rational)] = Map.empty
+
+    for((k, rec) <- vars) {
+      if (rec.isComplete) {
+        rec.rndoff match {
+          case Some(true) =>
+            val interval = RationalInterval(rec.lo.get, rec.up.get)
+            val noise = affine.XFloat.roundoff(interval)
+            variableMap = variableMap + (k -> (interval, noise))
+
+          case None =>
+            val interval = RationalInterval(rec.lo.get, rec.up.get)
+            val noise = rec.noise.get
+            variableMap = variableMap + (k -> (interval, noise))
+        }
+      }
+    }
+    variableMap
+  }
+
 
 }

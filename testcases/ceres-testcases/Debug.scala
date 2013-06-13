@@ -24,7 +24,7 @@ object Debug {
 
 
 
-  /*
+
   def rigidBody1(x1: Real, x2: Real, x3: Real): Real = {
     require(x1 <= 15 && x1 >= -15 && x2 <= 15 && x2 >= -15 &&
             x3 <= 15 && x3 >= -15 && roundoff(x1) && roundoff(x2) && roundoff(x3))
@@ -56,9 +56,8 @@ object Debug {
       5*x
     }
   } ensuring (res => res >= 0 && noise(res, 1e-5))
-  */
- /*
-  def f(x: Real): Real = {
+
+  def f7(x: Real): Real = {
     require(0 <= x && x <= 2.3 && noise(x, 1e-7))
     if (x < 1.2)
       x * x
@@ -67,6 +66,5 @@ object Debug {
 
   } ensuring (res => res >= 0 && noise(res, 1e-5))
 
-  */
 
 }

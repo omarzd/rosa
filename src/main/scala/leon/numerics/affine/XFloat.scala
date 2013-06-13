@@ -108,6 +108,7 @@ object XFloat {
     //new BigInt(new BigInteger("2")).pow(53))
 
   // Always returns a positive number
+  // TODO: in order to make this parametric wrt to roundoff, we could pass aorund this function
   def roundoff(range: RationalInterval): Rational = {
     val maxAbs = max(abs(range.xlo), abs(range.xhi))
     // Without scaling this can return fractions with very large numbers

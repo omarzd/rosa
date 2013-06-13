@@ -23,9 +23,9 @@ object CertificationReport {
         c.numVariables,
         c.size,
         "INVALID", ""
-      ) + 
+      ) +
       c.model.get.toSeq.map( x => "║ %-30s %-15s %-34s ║".format("", x._1, x._2)).mkString("\n")
-    case (Some(x), _) => 
+    case (Some(x), _) =>
       "║      %-10s %-10s %10s %-43s ║".format(
         c.numVariables,
         c.size,
@@ -68,7 +68,7 @@ object CertificationReport {
     case (Some(x), _) => "(" + x.toString + ")"
     case (None, _) => " -- "
   }
- 
+
   /*private def formulaStats(expr: Option[Expr]): String = expr match {
     case Some(e) =>
       assert(variablesOf(e).size == allIdentifiers(e).size)
@@ -94,8 +94,8 @@ case class VerificationReport(val fcs: Seq[VerificationCondition]) extends Certi
     }
 }
 
-case class SimulationResult(funName: String, range: Interval, rndoff: Double) {
-  override def toString: String = "%s: %s    (%s)".format(funName, range.toString, rndoff.toString)
+case class SimulationResult(funName: String, simRange: Interval, rndoff: Double, intRange: Interval) {
+  override def toString: String = "\n%s: %s    (%s) \n   with intervals: %s".format(funName, simRange.toString, rndoff.toString, intRange.toString)
 }
 
 case class SimulationReport(results: Seq[SimulationResult]) extends CertificationReport {

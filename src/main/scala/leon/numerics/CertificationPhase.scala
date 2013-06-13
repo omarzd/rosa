@@ -37,7 +37,7 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
     allVCs
   }
 
-  
+
   // TODO: if no postcondition to check do specs generation
   def checkVCs(reporter: Reporter, vcs: Seq[VerificationCondition],
     ctx: LeonContext, program: Program): CertificationReport = {
@@ -45,7 +45,7 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
 
     for(vc <- vcs)
       prover.check(vc)
-    
+
     new VerificationReport(vcs)
   }
 
@@ -56,33 +56,30 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
     val newProgramAsString = ScalaPrinter(newProgram)
     reporter.info("Generated program with %d lines.".format(newProgramAsString.lines.length))
     //reporter.info(newProgramAsString)
-      
+
     val writer = new PrintWriter(new File("generated/" + newProgram.mainObject.id +".scala"))
     writer.write(newProgramAsString)
     writer.close()
   }
 
-  // TODO: Add eval with intervals and smartfloats
+  // TODO: Add eval with intervals
   def simulate(reporter: Reporter, functions: Seq[FunDef]): SimulationReport = {
     val simulator = new Simulator
     var results: List[SimulationResult] = List.empty
-    /*for(funDef <- functions if (funDef.body.isDefined)) {
+    for(funDef <- functions if (funDef.body.isDefined)) {
       reporter.info("-----> Simulating function " + funDef.id.name + "...")
-      val collector = new VariableCollector
-      collector.transform(p)
-      var variableBounds = collector.recordMap
-      results = results :+ simulator.simulate(funDef.id.name, funDef.body.get, variableBounds)
-    }*/
+      results = results :+ simulator.simulateThis(funDef)
+    }
     new SimulationReport(results)
   }
 
- 
+
   def run(ctx: LeonContext)(program: Program): CertificationReport = {
     val reporter = ctx.reporter
     var functionsToAnalyse = Set[String]()
     var simulation = false
     reporter.info("Running Certification phase")
-    
+
     for (opt <- ctx.options) opt match {
       case LeonValueOption("functions", ListValue(fs)) => functionsToAnalyse = Set() ++ fs
       case LeonFlagOption("simulation") => simulation = true
