@@ -29,11 +29,11 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
       c.paths = collectPaths(c.body)
 
       // First try Z3 alone
-      val (res, model) = checkConstraint(c, vc.allVariables)
+      /*val (res, model) = checkConstraint(c, vc.allVariables)
       reporter.info("Z3 only result: " + res)
       c.status = res
       c.model = model
-
+      */
       // If Z3 failed ...
       c.status match {
         case (None | Some(DUNNO) | Some(NOT_SURE)) =>
@@ -104,6 +104,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
       // TODO: make sure we push the correct bounds, i.e. not real-valued when it
       // was supposed to be floats and vice - versa
       val (variables, indices) = variables2xfloats(inputs, solver, path.condition)
+<<<<<<< HEAD
       path.values = inXFloats(path.expression, variables, solver, path.condition) -- inputs.keys
       //println("path result: " + path.values.mkString("\n"))
     }
@@ -113,6 +114,25 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
     println("constraint: " + newConstraint)
     //Constraint(And(c.pre, newConstraint), BooleanLiteral(true), c.post)
     Constraint(newConstraint, BooleanLiteral(true), c.post)
+=======
+
+      val result: Map[Expr, XFloat] = inXFloats(path.expression, variables, solver, path.condition)
+      println("path result: " + result)
+      path.values = result
+    }
+
+    // Merge results from all branches
+    val (interval, error) = mergePathResults(paths)(ResultVariable())
+    /*val (interval, error) = mergeResultForKey(paths, ResultVariable())
+    println("max interval: " + interval)
+    println("max error: " + error)
+    */
+    // Create constraint
+    val newBodyConstraint = createConstraintFromResults(Map(ResultVariable() -> (interval, error)))
+    println("constraint: " + newBodyConstraint)
+    Constraint(And(c.pre, newBodyConstraint), BooleanLiteral(true), c.post)
+
+>>>>>>> 7671e9cc3a5a26a210c127c1df9f82338704d65f
   }
 
 
@@ -132,6 +152,10 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
 
       case _ =>
         reporter.error("AA cannot handle: " + expr)
+<<<<<<< HEAD
+=======
+        //throw UnsupportedFragmentException("This shouldn't be here: " + expr.getClass + "  " + expr)
+>>>>>>> 7671e9cc3a5a26a210c127c1df9f82338704d65f
     }
 
     currentVars
@@ -142,6 +166,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
     case v @ Variable(id) => vars(v)
     case RationalLiteral(v) => XFloat(v, solver, pre)
     case IntLiteral(v) => XFloat(v, solver, pre)
+<<<<<<< HEAD
     case UMinus(rhs) => - eval(rhs, vars, solver, pre)
     case Plus(lhs, rhs) => eval(lhs, vars, solver, pre) + eval(rhs, vars, solver, pre)
     case Minus(lhs, rhs) => eval(lhs, vars, solver, pre) - eval(rhs, vars, solver, pre)
@@ -151,9 +176,22 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
     case _ =>
       throw UnsupportedFragmentException("AA cannot handle: " + expr)
       null
+=======
+    case UMinus(rhs) => - inXFloats(rhs, vars, solver, pre)
+    case Plus(lhs, rhs) => inXFloats(lhs, vars, solver, pre) + inXFloats(rhs, vars, solver, pre)
+    case Minus(lhs, rhs) => inXFloats(lhs, vars, solver, pre) - inXFloats(rhs, vars, solver, pre)
+    case Times(lhs, rhs) => inXFloats(lhs, vars, solver, pre) * inXFloats(rhs, vars, solver, pre)
+    case Division(lhs, rhs) => inXFloats(lhs, vars, solver, pre) / inXFloats(rhs, vars, solver, pre)
+    case Sqrt(t) => inXFloats(t, vars, solver, pre).squareRoot
+    case _ =>
+      reporter.error("AA cannot handle: " + expr)
+      //throw UnsupportedFragmentException("Can't handle: " + expr.getClass)
+      XFloat(Rational(0), solver, BooleanLiteral(true))
+>>>>>>> 7671e9cc3a5a26a210c127c1df9f82338704d65f
   }
 
 
+<<<<<<< HEAD
   /*
     Consolidates results from different paths by merging the intervals and finding the largest error.
    */
@@ -191,6 +229,57 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
       (seq, kv) => seq ++ Seq(LessEquals(RationalLiteral(kv._2._1.xlo), kv._1),
                                   LessEquals(kv._1, RationalLiteral(kv._2._1.xhi)),
                                   Noise(kv._1, RationalLiteral(kv._2._2)))))
+=======
+  private def mergePathResults(paths: Set[Path]): Map[Expr, (RationalInterval, Rational)] = {
+    import Rational._
+
+    println("---------------")
+
+    var collection: Map[Expr, List[XFloat]] = Map.empty
+    for (path <- paths) {
+      for ((k, v) <- path.values) {
+        collection = collection + ((k, List(v) ++ collection.getOrElse(k, List())))
+      }
+    }
+    println("collection: " + collection)
+
+    var resMap: Map[Expr, (RationalInterval, Rational)] = Map.empty
+    for ((k, list) <- collection) {
+      var lo = list.head.interval.xlo
+      var hi = list.head.interval.xhi
+      var err = list.head.maxError
+
+      for (xf <- list.tail) {
+        lo = min(lo, xf.interval.xlo)
+        hi = max(hi, xf.interval.xhi)
+        err = max(err, xf.maxError)
+      }
+      resMap = resMap + ((k, (RationalInterval(lo, hi), err)))
+    }
+
+    /*val keys: Set[Expr] = paths.collect {
+      case p => p.values.keys.toSet
+    }
+
+    val resMap: Map[Expr, (RationalInterval, Rational)] = Map.empty
+
+    for (key <- keys) {
+      var interval
+
+    }
+    var interval = paths.head.values(key).interval
+    var error = paths.head.values(key).maxError
+
+    for (path <- paths.tail) {
+      interval = RationalInterval(min(interval.xlo, path.values(key).interval.xlo),
+                                  max(interval.xhi, path.values(key).interval.xhi))
+      error = max(error, path.value.get.maxError)
+    }
+    (interval, error)
+    */
+    println("\nresMap: " + resMap)
+    resMap
+>>>>>>> 7671e9cc3a5a26a210c127c1df9f82338704d65f
   }
 
 
