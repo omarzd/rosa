@@ -283,7 +283,7 @@ class NumericConstraintTransformer(buddy: Map[Expr, Expr], ress: Variable, eps: 
       println("Cannot add roundoff to: " + expr)
       (Error(""), List())
 
-  }
+  }*/
 
     /*def transformBody(e: Expr): Expr = e match {
 
