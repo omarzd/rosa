@@ -29,11 +29,11 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
       c.paths = collectPaths(c.body)
 
       // First try Z3 alone
-      val (res, model) = checkConstraint(c, vc.allVariables)
+      /*val (res, model) = checkConstraint(c, vc.allVariables)
       reporter.info("Z3 only result: " + res)
       c.status = res
       c.model = model
-
+      */
       // If Z3 failed ...
       c.status match {
         case (None | Some(DUNNO) | Some(NOT_SURE)) =>
@@ -46,7 +46,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
         case _ =>;
       }
 
-      // If neither work, do partial approx.
+      // TODO: If neither work, do partial approx.
 
     }
 
@@ -76,19 +76,16 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
         reporter.error("one of realPart or noisyPart is empty")
         BooleanLiteral(true)
       }
-    //println("body: " + body)
     val toCheck = Implies(And(precondition, body), postcondition)
-
-    // TODO: sanity check: there should be no "false" in the constraint (it was...)
-
     println("toCheck: " + toCheck)
-    if (reporter.errorCount == 0) {
+
+    // If precondition is false, we'll prove anything, so don't try to prove at all
+    if (reporter.errorCount == 0 && sanityCheck(precondition, body)) {
       val (valid, model) = solver.checkValid(toCheck)
       (Some(valid), model)
     } else {
       (None, None)
     }
-
   }
 
   // TODO: approximatePath
@@ -101,21 +98,24 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
     //println("paths: \n" + paths.mkString("\n"))
 
     for (path <- paths) {
-      // TODO: make sure we push the correct bounds, i.e. not real-valued when it
-      // was supposed to be floats and vice - versa
-      val (variables, indices) = variables2xfloats(inputs, solver, path.condition)
-      path.values = inXFloats(path.expression, variables, solver, path.condition) -- inputs.keys
-      //println("path result: " + path.values.mkString("\n"))
+      if (sanityCheck(path.condition)) {  // If this implies false, range tightening fails
+
+        // The condition given to the solver is the real(ideal)-valued one, since we use Z3 for the real part only.
+        val (variables, indices) = variables2xfloats(inputs, solver, path.condition)
+        path.values = inXFloats(path.expression, variables, solver, path.condition) -- inputs.keys
+
+      } else {
+        reporter.warning("skipping path " + path)
+        // TODO: what to do here? we only checked the ideal part is impossible,
+        // but the floating-point part may still be possible
+        // although this would be quite the strange scenario...
+      }
     }
 
     val approx = mergePathResults(paths)
     val newConstraint = constraintFromResults(approx)
-    println("constraint: " + newConstraint)
-    //Constraint(And(c.pre, newConstraint), BooleanLiteral(true), c.post)
-    Constraint(newConstraint, BooleanLiteral(true), c.post)
+    Constraint(And(c.pre, newConstraint), BooleanLiteral(true), c.post)
   }
-
-
 
 
   // Returns a map from all variables to their final value, including local vars
@@ -153,6 +153,22 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
       null
   }
 
+
+  // if true, we're sane
+  private def sanityCheck(pre: Expr, body: Expr = BooleanLiteral(true)): Boolean = {
+    val sanityCondition = Implies(And(pre, body), BooleanLiteral(false))
+    solver.checkValid(sanityCondition) match {
+      case (VALID, model) =>
+        reporter.warning("Not sane! " + sanityCondition)
+        false
+      case (INVALID, model) =>
+        true
+      case _ =>
+        reporter.error("Sanity check failed! " + sanityCondition)
+        false
+    }
+
+  }
 
   /*
     Consolidates results from different paths by merging the intervals and finding the largest error.

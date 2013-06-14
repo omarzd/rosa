@@ -15,11 +15,7 @@ case class Record(lo: Option[Rational], up: Option[Rational], noise: Option[Rati
     case _ => (!lo.isEmpty && !up.isEmpty && !noise.isEmpty)
   }
 
-  override def toString: String = "[%s, %s] (%s)".format(
-     formatOption(lo), formatOption(up), noise match {
-       case Some(x) => x
-       case None => "r"
-     }
-    )
+  override def toString: String = "[%s, %s] (%s) (%s)".format(
+     formatOption(lo), formatOption(up), formatOption(noise), formatOption(rndoff))
 }
 

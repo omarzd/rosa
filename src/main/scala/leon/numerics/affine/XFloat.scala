@@ -16,6 +16,7 @@ import java.math.{BigInteger, BigDecimal}
 object XFloat {
 
   // TODO: XFloat should also be parametric in the floating-point precision
+  // TODO: this does not add an XFloat if neither rndoff nor noise has been specified
   def variables2xfloats(vars: Map[Variable, Record], solver: NumericSolver, pre: Expr, withRoundoff: Boolean = true):
     (Map[Expr, XFloat], Map[Expr, Int]) = {
     var variableMap: Map[Expr, XFloat] = Map.empty
@@ -270,9 +271,10 @@ class XFloat(val tree: Expr, val approxRange: XRationalForm, val error: XRationa
 
   private def getTightInterval(tree: Expr, approx: XRationalForm): RationalInterval = {
     //println("tightening: " + tree)
+    //println(approx.interval)
 
-    //val res = solver.tightenRange(tree, precondition, approx.interval)
-    val res = approx.interval
+    val res = solver.tightenRange(tree, precondition, approx.interval)
+    //val res = approx.interval
     //println("tightening was successful")
     return res
   }

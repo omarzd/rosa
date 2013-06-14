@@ -22,7 +22,7 @@ class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3
   override val name = "numeric solver"
   override val description = "Z3 solver with some numeric convenience methods"
 
-  var verbose = true
+  var verbose = false
   var printWarnings = true
   var diagnose = true
   var countTimeouts = 0
@@ -140,13 +140,15 @@ class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3
       val newLowerBound =
         if (lowerBoundIsTight(exprInZ3, a)) a
         else getLowerBound(a, b, exprInZ3, 0)
+      //println("newLowerBound: " + newLowerBound)
 
-
-      if (verbose) println("\n============Looking for upperbound")
+      if (verbose)
+        println("\n============Looking for upperbound")
 
       val newUpperBound =
         if (upperBoundIsTight(exprInZ3, b)) b
         else getUpperBound(a, b, exprInZ3, 0)
+      //println("newUpperBound: " + newUpperBound)
 
       printBoundsResult(checkBounds(exprInZ3, newLowerBound, newUpperBound), "final")
 
@@ -181,7 +183,8 @@ class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3
       }
       val res = checkLowerBound(exprInZ3, mid)
 
-      if (verbose) println("checked lwr bound: " + mid + ", with result: " + res)
+      if (verbose)
+        println("checked lwr bound: " + mid + ", with result: " + res)
 
       res._1 match {
         case SAT => getLowerBound(a, mid, exprInZ3, count + 1)

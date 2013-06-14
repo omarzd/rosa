@@ -34,7 +34,7 @@ object Debug {
 
 
   def f5(x: Real): Real = {
-    require(0 <= x && x <= 2.3) //&& noise(x, 1e-7))
+    require(0 <= x && x <= 2.3 && noise(x, 1e-7))
     val y = x * x - 3.4
     val temp = if (x + y <= 0) {
       val t1 = x * y
@@ -43,7 +43,7 @@ object Debug {
       5*x
     }
     temp
-  } ensuring (res => res >= 0) // && noise(res, 1e-5))
+  } ensuring (res => res >= 0 && noise(res, 1e-5))
 
 
   def f6(x: Real): Real = {
