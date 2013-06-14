@@ -24,8 +24,6 @@ class VerificationCondition(val funDef: FunDef) {
   def allVariables: Seq[Variable] = funcArgs ++ localVars
 
 
-
-
   // (Translated) Constraints
   var preConstraint: Option[Expr] = None
   var bodyConstraint: Option[Expr] = None
@@ -33,22 +31,21 @@ class VerificationCondition(val funDef: FunDef) {
 
   /*
     Constraints needed to prove.
-    WR: With Roundoff, RA: Real Arithmetic only
   */
   var toCheck: List[Constraint] = List.empty
 
-  /*var fncConstraintWR: Option[Expr] = None
-  var statusWR: (Option[Valid], Option[z3.scala.Z3Model]) = (None, None)
-
-  var fncConstraintRA: Option[Expr] = None
-  var statusRA: (Option[Valid], Option[z3.scala.Z3Model]) = (None, None)
-  */
 
   /*
     Computed specification.
   */
-  //var inferredPost: Option[Expr] = None
+  var computedPost: Option[Expr] = None
 
+  /*
+    Simulation results.
+  */
+  var simulationRange: Option[Interval] = None
+  var rndoff: Option[Double] = None
+  var intervalRange: Option[Interval] = None
 
   /*
     Runtime specification.

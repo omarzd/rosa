@@ -11,7 +11,7 @@ import Valid._
 import Utils._
 
 object CertificationReport {
-  val infoSep    : String = "╟" + ("┄" * 83) + "╢"
+  val infoSep    : String = "\n╟" + ("┄" * 83) + "╢"
   val infoFooter : String = "╚" + ("═" * 83) + "╝"
   val infoHeader : String = ". ┌─────────┐\n" +
                                     "╔═╡ Summary ╞" + ("═" * 71) + "╗\n" +
@@ -34,34 +34,23 @@ object CertificationReport {
     case (None, _) => "║ %-30s %s %-30s ║".format("", " -- ", "")
   }
 
+
   def infoLine(vc: VerificationCondition): String = {
-    "║ %-30s %-10s %-10s %-28s ║".format(
+    val line = "║ %-30s %-10s %-10s %-28s ║".format(
       vc.funDef.id.toString,
       formatOption(vc.analysisTime)+"ms",
       formatOption(vc.verificationTime)+"ms",
       "") +
-    vc.toCheck.map(infoLineCnstr).mkString("\n", "\n", "\n"+infoSep)
+    vc.toCheck.map(infoLineCnstr).mkString("\n", "\n", "\n")
+
+    vc.simulationRange match {
+      case Some(sr) =>
+        line + "║ sim. range: %-30s (%-28s) ║\n║ int. range: %-30s %-31s║".format(
+          sr.toString, formatOption(vc.rndoff),formatOption(vc.intervalRange), "") + infoSep
+      case None => line + infoSep
+    }
   }
 
-  /*def infoLine(vc: VerificationCondition): String = {
-    val constraints: String = vc.toCheck.foldLeft("")((str, c) =>
-      str + "\n     %d      %d      %s".format(
-        variablesOf(c.toProve).size, formulaSize(c.toProve), formatStatus(c.status, c.model)
-      ))
-
-    "\n%s \n%s\nanalysis time: %sms\nverif. time: %sms".format(
-      vc.funDef.id.toString,
-      constraints,
-      formatOption(vc.analysisTime),
-      formatOption(vc.verificationTime)
-    )
-  }*/
-
-
-  /*def formatOption[T](res: Option[T]): String = res match {
-    case Some(xf) => xf.toString
-    case None => " -- "
-  }*/
 
   private def formatStatus(status: Option[Valid], model: Option[Map[Identifier, Expr]]) = (status, model) match {
     case (Some(INVALID), Some(m)) => "(Invalid)\n  counterexample: " + m.toString
@@ -69,20 +58,9 @@ object CertificationReport {
     case (None, _) => " -- "
   }
 
-  /*private def formulaStats(expr: Option[Expr]): String = expr match {
-    case Some(e) =>
-      assert(variablesOf(e).size == allIdentifiers(e).size)
-      "%d variables, formula size: %d".format(variablesOf(e).size, formulaSize(e))
-    case None => " -- "
-  }*/
-
 }
 
-abstract class CertificationReport {
-  def summaryString: String
-}
-
-case class VerificationReport(val fcs: Seq[VerificationCondition]) extends CertificationReport {
+case class CertificationReport(val fcs: Seq[VerificationCondition]) {
   import CertificationReport._
 
   def summaryString: String =
@@ -92,20 +70,4 @@ case class VerificationReport(val fcs: Seq[VerificationCondition]) extends Certi
     } else {
       "Nothing to show."
     }
-}
-
-case class SimulationResult(funName: String, simRange: Interval, rndoff: Double, intRange: Interval) {
-  override def toString: String = "\n%s: %s    (%s) \n   with intervals: %s".format(funName, simRange.toString, rndoff.toString, intRange.toString)
-}
-
-case class SimulationReport(results: Seq[SimulationResult]) extends CertificationReport {
-  import CertificationReport._
-
-  def summaryString: String = {
-    if(results.length >= 0) {
-      infoHeader + results.mkString("\n")
-    } else {
-      "Nothing to show."
-    }
-  }
 }

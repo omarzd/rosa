@@ -29,12 +29,13 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
       c.paths = collectPaths(c.body)
 
       // First try Z3 alone
-      /*val (res, model) = checkConstraint(c, vc.allVariables)
+      val (res, model) = checkConstraint(c, vc.allVariables)
       reporter.info("Z3 only result: " + res)
       c.status = res
       c.model = model
-      */
-      // If Z3 failed ...
+
+
+      // If Z3 failed ... TODO: or if we want to generate the specification, then we do this too
       c.status match {
         case (None | Some(DUNNO) | Some(NOT_SURE)) =>
           // ... try XFloat alone

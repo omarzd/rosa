@@ -7,13 +7,16 @@ import Utils.VariableCollector
 
 import ceres.common._
 
-class Simulator {
+class Simulator(reporter: Reporter) {
 
   val simSize = 1000000//00
-  println("Simulation size: " + simSize + "\n")
+  reporter.info("Simulation size: " + simSize + "\n")
 
   // Roundoff error is just the roundoff error, i.e. using the path of the float
-  def simulateThis(funDef: FunDef): SimulationResult = {
+  def simulateThis(vc: VerificationCondition) = {
+    reporter.info("-----> Simulating function " + vc.funDef.id.name + "...")
+    val funDef = vc.funDef
+
     // TODO: for the actual run, seed shouldn't be fixed
     val r = new scala.util.Random(4753)
 
@@ -45,7 +48,11 @@ class Simulator {
     }
 
     val intInputs = inputs.map( x => (x._1 -> Interval(x._2._1.xlo.toDouble, x._2._1.xhi.toDouble) ))
-    SimulationResult(funDef.id.name, resInterval, maxRoundoff, evalInterval(body, intInputs))
+
+    vc.simulationRange = Some(resInterval)
+    vc.rndoff = Some(maxRoundoff)
+    vc.intervalRange = Some(evalInterval(body, intInputs))
+    //SimulationResult(funDef.id.name, resInterval, maxRoundoff, evalInterval(body, intInputs))
   }
 
   private def extendInterval(i: Interval, d: Double): Interval = i match {

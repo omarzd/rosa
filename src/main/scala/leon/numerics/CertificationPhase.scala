@@ -20,10 +20,13 @@ import scala.collection.mutable.{Set => MutableSet}
 object CertificationPhase extends LeonPhase[Program,CertificationReport] {
   val name = "Certification"
   val description = "Floating-point certification"
+  var simulation = false
+  var specgen = false
 
   override val definedOptions: Set[LeonOptionDef] = Set(
     LeonValueOptionDef("functions", "--functions=f1:f2", "Limit verification to f1, f2,..."),
-    LeonFlagOptionDef("simulation", "--simulation", "Run a simulation instead of verification")
+    LeonFlagOptionDef("simulation", "--simulation", "Run a simulation instead of verification"),
+    LeonFlagOptionDef("specgen", "--specgen", "Generate specifications in addition to verification.")
   )
 
 
@@ -39,14 +42,11 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
 
 
   // TODO: if no postcondition to check do specs generation
-  def checkVCs(reporter: Reporter, vcs: Seq[VerificationCondition],
-    ctx: LeonContext, program: Program): CertificationReport = {
+  def verifyVCs(reporter: Reporter, vcs: Seq[VerificationCondition],
+    ctx: LeonContext, program: Program) = {
     val prover = new Prover(reporter, ctx, program)
 
-    for(vc <- vcs)
-      prover.check(vc)
-
-    new VerificationReport(vcs)
+    for(vc <- vcs) prover.check(vc)
   }
 
   // TODO: add the correct runtime checks
@@ -62,27 +62,16 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
     writer.close()
   }
 
-  // TODO: Add eval with intervals
-  def simulate(reporter: Reporter, functions: Seq[FunDef]): SimulationReport = {
-    val simulator = new Simulator
-    var results: List[SimulationResult] = List.empty
-    for(funDef <- functions if (funDef.body.isDefined)) {
-      reporter.info("-----> Simulating function " + funDef.id.name + "...")
-      results = results :+ simulator.simulateThis(funDef)
-    }
-    new SimulationReport(results)
-  }
-
 
   def run(ctx: LeonContext)(program: Program): CertificationReport = {
     val reporter = ctx.reporter
     var functionsToAnalyse = Set[String]()
-    var simulation = false
     reporter.info("Running Certification phase")
 
     for (opt <- ctx.options) opt match {
       case LeonValueOption("functions", ListValue(fs)) => functionsToAnalyse = Set() ++ fs
       case LeonFlagOption("simulation") => simulation = true
+      case LeonFlagOption("specgen") => specgen = true
       case _ =>
     }
 
@@ -98,15 +87,23 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
         toAnalyze
       }
 
+    // TODO: try different precisions
+    val vcs = generateVCs(reporter, sortedFncs)
+
+    verifyVCs(reporter, vcs, ctx, program)
+
     if (simulation) {
-      simulate(reporter, sortedFncs)
-    } else {
-      // TODO: try different precisions
-      val vcs = generateVCs(reporter, sortedFncs)
-      val report = checkVCs(reporter, vcs, ctx, program)
-      generateCode(reporter, program, vcs)
-      report
+      val simulator = new Simulator(reporter)
+      for(vc <- vcs) simulator.simulateThis(vc)
     }
+
+    if (specgen) {
+      // Go over the VCs again, and for those that don't have a spec yet (given at verif. time), generate it
+    }
+
+    generateCode(reporter, program, vcs)
+    new CertificationReport(vcs)
+
 
 
   }
