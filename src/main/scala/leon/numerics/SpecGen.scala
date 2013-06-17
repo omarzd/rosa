@@ -12,22 +12,8 @@ import Utils._
 
 import collection.mutable.Queue
 
-object SpecGen {
-  // TODO: collect all these somewhere, like in Utils?
-  private var errCounter = 0
-  def getNewErrorVar: Variable = {
-    errCounter = errCounter + 1
-    Variable(FreshIdentifier("#err_" + errCounter)).setType(RealType)
-  }
-
-  def getNamedError(v: Expr): Variable = {
-    Variable(FreshIdentifier("#err_(" + v.toString + ")")).setType(RealType)
-  }
-
-}
 
 class SpecGen(reporter: Reporter) {
-  import SpecGen._
 
   def generateSpec(vc: VerificationCondition) = {
     reporter.info("")

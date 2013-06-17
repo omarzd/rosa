@@ -11,35 +11,10 @@ import purescala.Definitions._
 import purescala.Common._
 
 import RoundoffType._
-
-object NumericConstraintTransformer {
-  private var deltaCounter = 0
-  private var sqrtCounter = 0
-  def getNewDelta: Variable = {
-    deltaCounter = deltaCounter + 1
-    Variable(FreshIdentifier("#delta_" + deltaCounter)).setType(RealType)
-  }
-  def getNewSqrtVariable: (Variable, Variable) = {
-    sqrtCounter = sqrtCounter + 1
-    (Variable(FreshIdentifier("#sqrt" + sqrtCounter)).setType(RealType),
-      Variable(FreshIdentifier("#sqrt" + sqrtCounter + "_0")).setType(RealType))
-  }
-
- private def getRndoff(expr: Expr): (Expr, Variable) = {
-    val delta = getNewDelta
-    (Times(expr, delta), delta)
-  }
-
-  private def getFreshRndoffMultiplier: (Expr, Variable) = {
-    val delta = getNewDelta
-    (Plus(new RationalLiteral(1), delta) , delta)
-  }
-}
-
+import Utils._
 
 class NumericConstraintTransformer(buddy: Map[Expr, Expr], ress: Variable, eps: Variable,
   roundoffType: RoundoffType, reporter: Reporter) {
-  import NumericConstraintTransformer._
 
     var errors: Seq[String] = Seq.empty
     var extraConstraints: Seq[Expr] = Seq.empty
