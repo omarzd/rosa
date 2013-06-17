@@ -6,13 +6,13 @@ import purescala.Definitions._
 import Utils.VariableCollector
 
 import ceres.common._
+import ceres.smartfloat._
 
 class Simulator(reporter: Reporter) {
 
   val simSize = 1000000//00
   reporter.info("Simulation size: " + simSize + "\n")
 
-  // Roundoff error is just the roundoff error, i.e. using the path of the float
   def simulateThis(vc: VerificationCondition) = {
     reporter.info("-----> Simulating function " + vc.funDef.id.name + "...")
     val funDef = vc.funDef
@@ -21,7 +21,6 @@ class Simulator(reporter: Reporter) {
     val r = new scala.util.Random(4753)
 
     val body = funDef.body.get
-    // We don't use the noise for now, but maybe later
     val inputs: Map[Variable, (RationalInterval, Rational)] = funDef.precondition match {
       case Some(p) =>
         val collector = new VariableCollector
@@ -36,11 +35,18 @@ class Simulator(reporter: Reporter) {
     var maxRoundoff: Double = 0.0
 
     while(counter < simSize) {
-      var randomInputs = new collection.immutable.HashMap[Variable, Rational]()
+      var randomInputs = new collection.immutable.HashMap[Variable, (Double, Rational)]()
 
-      for ((k, ((i, n))) <- inputs)
-        randomInputs += ((k, i.xlo + Rational(r.nextDouble) * (i.xhi - i.xlo)))
+      for ((k, ((i, n))) <- inputs) {
+        val ideal = i.xlo + Rational(r.nextDouble) * (i.xhi - i.xlo)
+        val actual: Rational =
+          if (n == Rational.zero) ideal // only roundoff
+          else if (r.nextBoolean) ideal - Rational(r.nextDouble) * n
+          else ideal + Rational(r.nextDouble) * n
 
+        assert(Rational.abs(ideal - actual) <= n)
+        randomInputs += ((k, (actual.toDouble, ideal)))
+      }
       val (resDouble, resRat) = eval(body, randomInputs)
       maxRoundoff = math.max(maxRoundoff, math.abs(resDouble - resRat.toDouble))
       resInterval = extendInterval(resInterval, resDouble)
@@ -48,30 +54,18 @@ class Simulator(reporter: Reporter) {
     }
 
     val intInputs = inputs.map( x => (x._1 -> Interval(x._2._1.xlo.toDouble, x._2._1.xhi.toDouble) ))
+    val smartInputs = inputs.map ( x => (x._1 -> interval2smartfloat(x._2._1)) )
 
     vc.simulationRange = Some(resInterval)
     vc.rndoff = Some(maxRoundoff)
     vc.intervalRange = Some(evalInterval(body, intInputs))
-    //SimulationResult(funDef.id.name, resInterval, maxRoundoff, evalInterval(body, intInputs))
+    vc.smartfloatRange = Some(evalSmartFloat(body, smartInputs))
   }
 
-  private def extendInterval(i: Interval, d: Double): Interval = i match {
-    case EmptyInterval => Interval(d)
-    case NormalInterval(xlo, xhi) =>
-      if (d >= xlo && d <= xhi) i
-      else if (d <= xlo) NormalInterval(d, xhi)
-      else if (d >= xhi) NormalInterval(xlo, d)
-      else null
-  }
 
-  // This thing with Rationals does not work with sqrt...
-  private def eval(tree: Expr, vars: Map[Variable, Rational]): (Double, Rational) = tree match {
-    case v @ Variable(id) =>
-      val ratValue = vars(v)
-      val dblValue = ratValue.toDouble // uses BigDecimal, so this should be accurate
-      (dblValue, ratValue)
-    case RationalLiteral(v) =>
-      (v.toDouble, v)
+  private def eval(tree: Expr, vars: Map[Variable, (Double, Rational)]): (Double, Rational) = tree match {
+    case v @ Variable(id) =>  vars(v)
+    case RationalLiteral(v) => (v.toDouble, v)
     case IntLiteral(v) => (v.toDouble, Rational(v))
     case UMinus(e) =>
       val (eDbl, eRat) = eval(e, vars)
@@ -112,6 +106,34 @@ class Simulator(reporter: Reporter) {
       EmptyInterval
   }
 
+  private def evalSmartFloat(tree: Expr, vars: Map[Variable, SmartFloat]): SmartFloat = tree match {
+    case v @ Variable(id) => vars(v)
+    case RationalLiteral(v) => SmartFloat(v.toDouble)
+    case IntLiteral(v) => SmartFloat(v.toDouble)
+    case UMinus(e) => - evalSmartFloat(e, vars)
+    case Plus(lhs, rhs) => evalSmartFloat(lhs, vars) + evalSmartFloat(rhs, vars)
+    case Minus(lhs, rhs) => evalSmartFloat(lhs, vars) - evalSmartFloat(rhs, vars)
+    case Times(lhs, rhs) => evalSmartFloat(lhs, vars) * evalSmartFloat(rhs, vars)
+    case Division(lhs, rhs) => evalSmartFloat(lhs, vars) / evalSmartFloat(rhs, vars)
+    case _ =>
+      throw UnsupportedFragmentException("Can't handle: " + tree.getClass)
+      null
+  }
+
+  private def interval2smartfloat(i: RationalInterval): SmartFloat = {
+    val u = (i.xhi - i.xlo)/Rational(2.0)
+    val d = i.xlo + u
+    SmartFloat(d.toDouble, u.toDouble)
+  }
+
+  private def extendInterval(i: Interval, d: Double): Interval = i match {
+    case EmptyInterval => Interval(d)
+    case NormalInterval(xlo, xhi) =>
+      if (d >= xlo && d <= xhi) i
+      else if (d <= xlo) NormalInterval(d, xhi)
+      else if (d >= xhi) NormalInterval(xlo, d)
+      else null
+  }
 
   private def inputs2intervals(vars: Map[Variable, Record]): Map[Variable, (RationalInterval, Rational)] = {
     var variableMap: Map[Variable, (RationalInterval, Rational)] = Map.empty
@@ -121,8 +143,8 @@ class Simulator(reporter: Reporter) {
         rec.rndoff match {
           case Some(true) =>
             val interval = RationalInterval(rec.lo.get, rec.up.get)
-            val noise = affine.XFloat.roundoff(interval)
-            variableMap = variableMap + (k -> (interval, noise))
+            //val noise = affine.XFloat.roundoff(interval)
+            variableMap = variableMap + (k -> (interval, Rational.zero))
 
           case None =>
             val interval = RationalInterval(rec.lo.get, rec.up.get)

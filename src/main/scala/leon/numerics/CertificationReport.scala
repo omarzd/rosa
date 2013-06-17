@@ -45,8 +45,8 @@ object CertificationReport {
 
     vc.simulationRange match {
       case Some(sr) =>
-        line + "║ sim. range: %-30s (%-28s) ║\n║ int. range: %-30s %-31s║".format(
-          sr.toString, formatOption(vc.rndoff),formatOption(vc.intervalRange), "") + infoSep
+        line + "║ sim. range: %-30s (%-28s) ║\n║ int. range: %-30s %-31s║\n║ smartfl. range: %-57s║".format(
+          sr.toString, formatOption(vc.rndoff),formatOption(vc.intervalRange), "", formatOption(vc.smartfloatRange)) + infoSep
       case None => line + infoSep
     }
   }
