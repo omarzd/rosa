@@ -40,8 +40,6 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
     allVCs
   }
 
-
-  // TODO: if no postcondition to check do specs generation
   def verifyVCs(reporter: Reporter, vcs: Seq[VerificationCondition],
     ctx: LeonContext, program: Program) = {
     val prover = new Prover(reporter, ctx, program)
@@ -52,7 +50,7 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
   // TODO: add the correct runtime checks
   def generateCode(reporter: Reporter, program: Program, vcs: Seq[VerificationCondition]) = {
     val codeGen = new CodeGeneration(reporter, Float64)
-    val newProgram = codeGen.specToCode(program, vcs)
+    val newProgram = codeGen.specToCode(program.id, program.mainObject.id, vcs, specgen)
     val newProgramAsString = ScalaPrinter(newProgram)
     reporter.info("Generated program with %d lines.".format(newProgramAsString.lines.length))
     //reporter.info(newProgramAsString)
@@ -90,7 +88,8 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
     // TODO: try different precisions
     val vcs = generateVCs(reporter, sortedFncs)
 
-    verifyVCs(reporter, vcs, ctx, program)
+    val prover = new Prover(reporter, ctx, program)
+    for(vc <- vcs) prover.check(vc)
 
     if (simulation) {
       val simulator = new Simulator(reporter)
@@ -98,9 +97,11 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
     }
 
     if (specgen) {
-      // Go over the VCs again, and for those that don't have a spec yet (given at verif. time), generate it
+      val specgen = new SpecGen(reporter)
+      for(vc <- vcs) specgen.generateSpec(prover.addSpecs(vc))
     }
 
+    // TODO: nicer formatting of numbers
     generateCode(reporter, program, vcs)
     new CertificationReport(vcs)
 

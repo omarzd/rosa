@@ -31,14 +31,15 @@ class VerificationCondition(val funDef: FunDef) {
 
   /*
     Constraints needed to prove.
+    The first one is the one corresponding to the whole function.
   */
-  var toCheck: List[Constraint] = List.empty
-
+  var allConstraints: List[Constraint] = List.empty
 
   /*
-    Computed specification.
+    Generated specification.
   */
-  var computedPost: Option[Expr] = None
+  var specConstraint: Option[Constraint] = None
+  var generatedPost: Option[Expr] = None
 
   /*
     Simulation results.

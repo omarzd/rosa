@@ -13,6 +13,9 @@ import affine.XFloat
 
 
 object Utils {
+
+
+
   def formatOption[T](res: Option[T]): String = res match {
     case Some(xf) => xf.toString
     case None => " -- "
@@ -69,4 +72,76 @@ object Utils {
 
   }
 
-} 
+  /*
+    Consolidates results from different paths by merging the intervals and finding the largest error.
+   */
+  def mergeRealPathResults(paths: Set[Path]): Map[Expr, (RationalInterval, Rational)] = {
+    import Rational._
+
+    var collection: Map[Expr, List[XFloat]] = Map.empty
+    for (path <- paths) {
+      for ((k, v) <- path.values) {
+        collection = collection + ((k, List(v) ++ collection.getOrElse(k, List())))
+      }
+    }
+
+    // Two options:
+    // interval -> ranges of ACTUAL variables  (but in this case, the key is the buddy variable!)
+    // realInterval -> ranges of IDEAL variables
+    var resMap: Map[Expr, (RationalInterval, Rational)] = Map.empty
+    for ((k, list) <- collection) {
+      var lo = list.head.realInterval.xlo
+      var hi = list.head.realInterval.xhi
+      var err = list.head.maxError
+
+      for (xf <- list.tail) {
+        lo = min(lo, xf.realInterval.xlo)
+        hi = max(hi, xf.realInterval.xhi)
+        err = max(err, xf.maxError)
+      }
+      resMap = resMap + ((k, (RationalInterval(lo, hi), err)))
+    }
+    resMap
+  }
+
+  def mergeActualPathResults(paths: Set[Path]): Map[Expr, (RationalInterval, Rational)] = {
+    import Rational._
+
+    var collection: Map[Expr, List[XFloat]] = Map.empty
+    for (path <- paths) {
+      for ((k, v) <- path.values) {
+        collection = collection + ((k, List(v) ++ collection.getOrElse(k, List())))
+      }
+    }
+
+    // Two options:
+    // interval -> ranges of ACTUAL variables  (but in this case, the key is the buddy variable!)
+    // realInterval -> ranges of IDEAL variables
+    var resMap: Map[Expr, (RationalInterval, Rational)] = Map.empty
+    for ((k, list) <- collection) {
+      var lo = list.head.interval.xlo
+      var hi = list.head.interval.xhi
+      var err = list.head.maxError
+
+      for (xf <- list.tail) {
+        lo = min(lo, xf.interval.xlo)
+        hi = max(hi, xf.interval.xhi)
+        err = max(err, xf.maxError)
+      }
+      resMap = resMap + ((k, (RationalInterval(lo, hi), err)))
+    }
+    resMap
+  }
+
+  def constraintFromResults(results: Map[Expr, (RationalInterval, Rational)]): Expr = {
+    And(results.foldLeft(Seq[Expr]())(
+      (seq, kv) => seq ++ Seq(LessEquals(RationalLiteral(kv._2._1.xlo), kv._1),
+                                  LessEquals(kv._1, RationalLiteral(kv._2._1.xhi)),
+                                  Noise(kv._1, RationalLiteral(kv._2._2)))))
+  }
+
+  def ratint2expr(r: RationalInterval, v: Expr): Expr = {
+    And(LessEquals(RationalLiteral(r.xlo), v),
+        LessEquals(v, RationalLiteral(r.xhi)))
+  }
+}

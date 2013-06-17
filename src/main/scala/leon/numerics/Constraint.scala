@@ -19,4 +19,12 @@ case class Constraint(pre: Expr, body: Expr, post: Expr) {
 
   var paths: Set[Path] = Set.empty
 
+  // approximation computed for each path
+  var approximation: Set[Path] = Set.empty
+
+  def overrideStatus(s: (Option[Valid], Option[Map[Identifier, Expr]])) = {
+    status = s._1
+    model = s._2
+  }
+
 }

@@ -12,45 +12,40 @@ class CodeGeneration(reporter: Reporter, precision: Precision) {
   val specTransformer = new SpecTransformer
 
   // Produces something that does not typecheck. But printed it should be fine.
-  def specToCode(program: Program, vcs: Seq[VerificationCondition]): Program = {
-
-    val objDef = program.mainObject
+  def specToCode(programId: Identifier, objectId: Identifier, vcs: Seq[VerificationCondition], specGen: Boolean): Program = {
 
     var defs: Seq[Definition] = Seq.empty
 
-    for (deff <- objDef.defs) {
-      deff match {
-        case f: FunDef =>
-          val id = f.id
-          val returnType = getNonRealType(f.returnType)
-          val args: Seq[VarDecl] = f.args.map(decl =>
-            VarDecl(decl.id, getNonRealType(decl.tpe))
-          )
+    for (vc <- vcs) {
+      val f = vc.funDef
+      val id = f.id
+      val returnType = getNonRealType(f.returnType)
+      val args: Seq[VarDecl] = f.args.map(decl => VarDecl(decl.id, getNonRealType(decl.tpe)))
 
-          val body = f.body
+      val body = f.body
+      val funDef = new FunDef(id, returnType, args)
+      funDef.body = body
 
-          val funDef = new FunDef(id, returnType, args)
-          funDef.body = body
-          f.precondition match {
-            case Some(p) => funDef.precondition = Some(specTransformer.transform(f.precondition.get))
-            case None => ;
-          }
-
-          f.postcondition match {
-            case Some(p) => funDef.postcondition = Some(specTransformer.transform(f.postcondition.get))
-            case None => ;
-          }
-
-          defs = defs :+ funDef
-
-        case _ =>
-          reporter.warning("Cannot handle this definition: " + deff.getClass)
+      // TODO: noise(x) does not really exist in Doubles!
+      f.precondition match {
+        case Some(p) => funDef.precondition = Some(specTransformer.transform(f.precondition.get))
+        case None => ;
       }
 
+      if (specGen) {
+        funDef.postcondition = vc.generatedPost
+      } else {
+        funDef.postcondition = f.postcondition
+        /*f.postcondition match {
+          case Some(p) => funDef.postcondition = Some(specTransformer.transform(f.postcondition.get))
+          case None => ;
+        }*/
+      }
+      defs = defs :+ funDef
     }
     val invariants: Seq[Expr] = Seq.empty
 
-    val newProgram = Program(program.id, ObjectDef(objDef.id, defs, invariants))
+    val newProgram = Program(programId, ObjectDef(objectId, defs, invariants))
     newProgram
 
   }
@@ -73,7 +68,7 @@ class CodeGeneration(reporter: Reporter, precision: Precision) {
     def register(e: Expr, path: C) = path :+ e
 
     override def rec(e: Expr, path: C) = e match {
-      case Noise(_, _) => BooleanLiteral(true)
+      //case Noise(_, _) => BooleanLiteral(true)
       case Roundoff(expr) => BooleanLiteral(true)
       case _ =>
         super.rec(e, path)

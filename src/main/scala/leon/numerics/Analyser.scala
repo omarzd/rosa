@@ -35,16 +35,14 @@ class Analyser(reporter: Reporter) {
     // Preprocess body
     vc.body = Some(convertLetsToEquals(addResult(funDef.body.get)))
 
-    // TODO: function calls, invariants
+    // whole func constraint, must be first
     funDef.postcondition match {
       case Some(post) =>
-        vc.toCheck = vc.toCheck :+ Constraint(
-          vc.precondition.get,
-          vc.body.get,
-          post
-        )
+        vc.allConstraints = List(Constraint(vc.precondition.get, vc.body.get, post))
       case None => ;
     }
+
+// TODO: function calls, invariants
 
     vc.funcArgs = vc.funDef.args.map(v => Variable(v.id).setType(RealType))
     vc.localVars = allLetDefinitions(funDef.body.get).map(letDef => Variable(letDef._1).setType(RealType))

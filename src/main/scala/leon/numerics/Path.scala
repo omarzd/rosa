@@ -7,6 +7,7 @@ import affine.XFloat
 case class Path(condition: Expr, expression: List[Expr]) {
   // Map of all variables to their values
   var values: Map[Expr, XFloat] = Map.empty
+  var indices: Map[Int, Expr] = Map.empty
 
   def addCondition(c: Expr): Path =
     Path(And(condition, c), expression)

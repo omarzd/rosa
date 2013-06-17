@@ -18,9 +18,9 @@ object XFloat {
   // TODO: XFloat should also be parametric in the floating-point precision
   // TODO: this does not add an XFloat if neither rndoff nor noise has been specified
   def variables2xfloats(vars: Map[Variable, Record], solver: NumericSolver, pre: Expr, withRoundoff: Boolean = true):
-    (Map[Expr, XFloat], Map[Expr, Int]) = {
+    (Map[Expr, XFloat], Map[Int, Expr]) = {
     var variableMap: Map[Expr, XFloat] = Map.empty
-    var indexMap: Map[Expr, Int] = Map.empty
+    var indexMap: Map[Int, Expr] = Map.empty
 
     for((k, rec) <- vars) {
       if (rec.isComplete) {
@@ -30,7 +30,7 @@ object XFloat {
                     RationalInterval(rec.lo.get, rec.up.get),
                     solver, pre)
             variableMap = variableMap + (k -> xfloat)
-            indexMap = indexMap + (k -> index)
+            indexMap = indexMap + (index -> k)
 
           case None =>
             // index is the index of the main uncertainty, not the roundoff
@@ -39,7 +39,7 @@ object XFloat {
                     solver, pre,
                     rec.noise.get, withRoundoff)
             variableMap = variableMap + (k -> xfloat)
-            indexMap = indexMap + (k -> index)
+            indexMap = indexMap + (index -> k)
         }
       }
     }

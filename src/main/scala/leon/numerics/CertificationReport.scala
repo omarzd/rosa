@@ -41,7 +41,7 @@ object CertificationReport {
       formatOption(vc.analysisTime)+"ms",
       formatOption(vc.verificationTime)+"ms",
       "") +
-    vc.toCheck.map(infoLineCnstr).mkString("\n", "\n", "\n")
+    vc.allConstraints.map(infoLineCnstr).mkString("\n", "\n", "\n")
 
     vc.simulationRange match {
       case Some(sr) =>

@@ -209,6 +209,7 @@ class NumericConstraintTransformer(buddy: Map[Expr, Expr], ress: Variable, eps: 
     // TODO: function invocations
     //case fnc: FunctionInvocation => (fnc, fnc)
 
+    case BooleanLiteral(true) => (BooleanLiteral(true), BooleanLiteral(true))
     case _ =>
       errors = errors :+ ("Unknown body! " + e);
       (Error("unknown body: " + e).setType(BooleanType), Error("unknown body: " + e).setType(BooleanType))
