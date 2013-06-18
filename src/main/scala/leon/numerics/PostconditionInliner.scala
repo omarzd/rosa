@@ -18,6 +18,7 @@ class PostconditionInliner extends TransformerWithPC {
   val initC = Nil
 
   var constraints = Seq[Expr]()
+  var vars = Set[Variable]()
 
   // TODO: do we need this?
   def register(e: Expr, path: C) = path :+ e
@@ -25,7 +26,7 @@ class PostconditionInliner extends TransformerWithPC {
   override def rec(e: Expr, path: C) = e match {
     case FunctionInvocation(funDef, args) =>
       val fresh = getNewFncVariable(funDef.id.name)
-
+      vars = vars + fresh
       funDef.postcondition match {
         case Some(post) =>
           val constraint = replace(Map(ResultVariable() -> fresh), post)

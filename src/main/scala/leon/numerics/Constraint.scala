@@ -9,9 +9,11 @@ import purescala.TreeOps._
 import Valid._
 
 import Utils._
+import ApproximationType._
 
 // This is an approximation of an constraint.
-case class ConstraintApproximation(pre: Expr, body: Expr, post: Expr, name: String) {
+// vars: additional free variables created
+case class ConstraintApproximation(pre: Expr, body: Expr, post: Expr, vars: Set[Variable], tpe: ApproximationType) {
   lazy val paths = collectPaths(body)
   override def toString: String = "APP(%s && %s) ==> %s".format(pre.toString, body.toString, post.toString)
 }
@@ -32,50 +34,25 @@ case class Constraint(pre: Expr, body: Expr, post: Expr, description: String) {
 
   lazy val paths = collectPaths(body)
 
-  private var approximations = Seq[Option[ConstraintApproximation]]()
-  // Maaaagic numbers!
-  def hasNextApproximation = (approximations.size < 1)
 
-  // returns None, if nothing left to try
-  def getNextApproximation: Option[ConstraintApproximation] = {
-    val c = approximations.size match {
-      case 0 =>
-        Some(ConstraintApproximation(pre, body, post, "no approx."))  // nothing with uninterpreted functions
+  var approxStrategy =
+    if (containsFunctionCalls(body))
+      Seq(Uninterpreted_NoApprox, PostInlining_NoApprox, PostInlining_AAOnly)
+    else
+      Seq(Uninterpreted_NoApprox, PostInlining_AAOnly)
 
-      case _ => None
+  def hasNextApproximation = !approxStrategy.isEmpty
 
-      /*val (pre, paths, post) =
-        if (containsFunctionCalls(c.body)) {
-          println(".............")
-          // strategy no. 1: replace function call with fresh variable and add constraints based on the postcondition of function
-          // assume precondition holds, is being checked separately
-          val postinliner = new PostconditionInliner
-          val bodyWOFncs = postinliner.transform(c.body)
-          val constraints = postinliner.constraints
-          println("body without fncs: " + bodyWOFncs)
-          println("constraints: " + constraints)
-          (And(c.pre, And(constraints)), collectPaths(bodyWOFncs), c.post)
-        } else {
-          (c.pre, c.paths, c.post)
-        }*/
-
-        /*c.status match {
-        case (None | Some(DUNNO) | Some(NOT_SURE)) =>
-          reporter.info("Now trying with XFloat only...")
-          val newConstraint = approximateConstraint(c, vc.inputs)
-          reporter.info("AA computed: " + newConstraint)
-          c.overrideStatus(checkWithZ3(newConstraint, Set[Path](), c.post, vc.allVariables), "AA only")
-          println("XFloat only result: " + c.status)
-
-        case _ =>;
-      }*/
-
-      // TODO: If neither work, do partial approx.
+  def getNextApproxType: Option[ApproximationType] = {
+    if (approxStrategy.isEmpty) None
+    else {
+      val s = approxStrategy.head
+      approxStrategy = approxStrategy.tail
+      Some(s)
     }
-
-    approximations = approximations :+ c
-    c
   }
+
+  var approximations = Seq[ConstraintApproximation]()
 
 
   // whether we already ran the AA approximation

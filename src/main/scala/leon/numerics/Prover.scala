@@ -15,6 +15,7 @@ import affine.XFloat._
 import Utils._
 
 import Valid._
+import ApproximationType._
 
 
 
@@ -32,13 +33,13 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
       if (verbose) {println("pre: " + c.pre); println("body: " + c.body); println("post: " + c.post)}
 
       while (c.hasNextApproximation && !c.solved) {
-        c.getNextApproximation match {
-          case Some(cnstr) =>
-            reporter.info("Attempting approximation: " + cnstr.name)
-            c.overrideStatus(checkWithZ3(cnstr.pre, cnstr.paths, cnstr.post, vc.allVariables))
-            reporter.info("RESULT: " + c.status)
-          case None =>;
-        }
+        val approx = getNextApproximation(c.getNextApproxType.get, c, vc.inputs)
+        c.approximations = c.approximations :+ approx
+
+        reporter.info("Attempting approximation: " + approx.tpe)
+        c.overrideStatus(checkWithZ3(approx.pre, approx.paths, approx.post, vc.allVariables ++ approx.vars))
+        reporter.info("RESULT: " + c.status)
+
       }
     }
 
@@ -47,7 +48,28 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
   }
 
 
+  def getNextApproximation(tpe: ApproximationType, c: Constraint, inputs: Map[Variable, Record]): ConstraintApproximation = tpe match {
+    case Uninterpreted_NoApprox =>
+      ConstraintApproximation(c.pre, c.body, c.post, Set.empty, Uninterpreted_NoApprox)  // nothing with uninterpreted functions
 
+
+    case PostInlining_NoApprox =>
+      val postinliner = new PostconditionInliner
+      val bodyWOFncs = postinliner.transform(c.body)
+      val constraints = postinliner.constraints
+      //println("body without fncs: " + bodyWOFncs)
+      //println("constraints: " + constraints)
+      //println("vars: " + postinliner.vars)
+
+      ConstraintApproximation(And(c.pre, And(constraints)), bodyWOFncs, c.post, postinliner.vars, PostInlining_NoApprox)
+
+    case PostInlining_AAOnly =>
+      val newConstraint: Expr = approximateConstraint(c, inputs)
+      reporter.info("AA computed: " + newConstraint)
+
+      ConstraintApproximation(newConstraint, BooleanLiteral(true), c.post, Set.empty, PostInlining_AAOnly)
+      // TODO: If neither work, do partial approx.
+    }
 
   def addSpecs(vc: VerificationCondition): VerificationCondition = {
     //val start = System.currentTimeMillis
@@ -173,6 +195,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
         reporter.warning("Not sane! " + sanityCondition)
         false
       case (INVALID, model) =>
+        //reporter.info("Sanity check passed! :-)")
         true
       case _ =>
         reporter.warning("Sanity check failed! ")// + sanityCondition)

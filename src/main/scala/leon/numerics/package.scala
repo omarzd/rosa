@@ -13,6 +13,12 @@ package object numerics {
 
   case class UnsupportedFragmentException(msg: String) extends Exception(msg)
 
+  object ApproximationType extends Enumeration {
+    type ApproximationType = Value
+    val Uninterpreted_NoApprox = Value("Uninterpreted_NoApprox")
+    val PostInlining_NoApprox = Value("PostInlining_NoApprox")
+    val PostInlining_AAOnly = Value("PostInlining_AAOnly")
+  }
 
   object RoundoffType extends Enumeration {
     type RoundoffType = Value
