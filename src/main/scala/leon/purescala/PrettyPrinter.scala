@@ -88,7 +88,7 @@ class PrettyPrinter(sb: StringBuffer = new StringBuffer) {
     case Sqrt(expr) => ppUnary(expr, "sqrt(", ")", lvl)
 
     case IntLiteral(v) => sb.append(v)
-    case RationalLiteral(v) => sb.append(v.toDouble)
+    case RationalLiteral(v) => sb.append(v.toDouble)//sb.append("%s (%s/%s)".format(v.toDouble.toString, v.n, v.d))
     case BooleanLiteral(v) => sb.append(v)
     case StringLiteral(s) => sb.append("\"" + s + "\"")
     case UnitLiteral => sb.append("()")

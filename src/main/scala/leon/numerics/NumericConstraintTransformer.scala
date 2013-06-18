@@ -181,8 +181,8 @@ class NumericConstraintTransformer(buddy: Map[Expr, Expr], ress: Variable, eps: 
       addExtra(constrainDelta(dlt))
       (r, Times(r, mult))
 
-    // TODO: function invocations
-    //case fnc: FunctionInvocation => (fnc, fnc)
+    case fnc @ FunctionInvocation(funDef, args) =>
+      (fnc, FunctionInvocation(funDef, args.map(a => buddy(a))))
 
     case BooleanLiteral(true) => (BooleanLiteral(true), BooleanLiteral(true))
     case _ =>

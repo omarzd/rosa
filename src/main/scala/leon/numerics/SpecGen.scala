@@ -66,9 +66,9 @@ class SpecGen(reporter: Reporter) {
 
   def getErrorExpression(a: XRationalForm, indices: Map[Int, Expr]): Expr = {
     val indexSet: Set[Int] = indices.keys.toSet
-    val (lin:Queue[Deviation], rest:Queue[Deviation]) = a.noise.partition(d => indexSet(d.index))
+    val (lin, rest) = a.noise.partition(d => indexSet(d.index))
 
-    val maxError = affine.Utils.sumQueue(rest)
+    val maxError = affine.Utils.sumSeq(rest)
     val restError = RationalInterval(-maxError, maxError) + RationalInterval(a.x0, a.x0)
 
     val restErrorVar = getNewErrorVar

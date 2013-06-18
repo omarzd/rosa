@@ -11,7 +11,7 @@ import Valid._
 import Utils._
 
 object CertificationReport {
-  val infoSep    : String = "\n╟" + ("┄" * 83) + "╢"
+  val infoSep    : String = "╟" + ("┄" * 83) + "╢"
   val infoFooter : String = "╚" + ("═" * 83) + "╝"
   val infoHeader : String = ". ┌─────────┐\n" +
                                     "╔═╡ Summary ╞" + ("═" * 71) + "╗\n" +
@@ -19,17 +19,17 @@ object CertificationReport {
 
   def infoLineCnstr(c: Constraint): String = (c.status, c.model) match {
     case (Some(INVALID), Some(m)) =>
-      "║      %-10s %-10s %10s %-43s ║\n".format(
+      "║      %-10s %-10s %10s        %-36s ║\n".format(
         c.numVariables,
         c.size,
-        "INVALID", ""
+        "INVALID", c.description
       ) +
       c.model.get.toSeq.map( x => "║ %-30s %-15s %-34s ║".format("", x._1, x._2)).mkString("\n")
     case (Some(x), _) =>
-      "║      %-10s %-10s %10s %-43s ║".format(
+      "║      %-10s %-10s %10s        %-36s ║".format(
         c.numVariables,
         c.size,
-        x.toString, ""
+        x.toString, c.description
       )
     case (None, _) => "║ %-30s %s %-30s ║".format("", " -- ", "")
   }
@@ -66,7 +66,8 @@ case class CertificationReport(val fcs: Seq[VerificationCondition]) {
   def summaryString: String =
     if(fcs.length >= 0) {
       infoHeader +
-      fcs.map(infoLine).mkString("\n", "\n", "\n")
+      fcs.map(infoLine).mkString("\n", "\n", "\n") +
+      infoFooter
     } else {
       "Nothing to show."
     }

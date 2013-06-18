@@ -15,7 +15,6 @@ class Analyser(reporter: Reporter) {
 
   val verbose = true
 
-  // Currently the only constraint is the full function.
   def analyzeThis(funDef: FunDef): VerificationCondition = {
     reporter.info("")
     reporter.info("-----> Analysing function " + funDef.id.name + "...")
@@ -32,17 +31,49 @@ class Analyser(reporter: Reporter) {
         vc.precondition = Some(BooleanLiteral(true))
     }
 
-    // Preprocess body
     vc.body = Some(convertLetsToEquals(addResult(funDef.body.get)))
 
-    // whole func constraint, must be first
     funDef.postcondition match {
+      case Some(ResultVariable()) => //invariant
+        vc.allConstraints = List(Constraint(vc.precondition.get, vc.body.get, BooleanLiteral(true), "wholebody"))
       case Some(post) =>
-        vc.allConstraints = List(Constraint(vc.precondition.get, vc.body.get, post))
-      case None => ;
+        val specC = Constraint(vc.precondition.get, vc.body.get, post, "wholeBody")
+        vc.allConstraints = List(specC)
+        vc.specConstraint = Some(specC)
+      case None =>
+        vc.specConstraint = Some(Constraint(vc.precondition.get, vc.body.get, BooleanLiteral(true), "wholebody"))
     }
 
-// TODO: function calls, invariants
+    if (containsFunctionCalls(vc.body.get)) {
+      val noiseRemover = new NoiseRemover
+      val paths = collectPaths(vc.body.get)
+
+      for (path <- paths) {
+        var i = 0
+        while (i != -1) {
+          val j = path.expression.indexWhere(e => containsFunctionCalls(e), i)
+          if (j != -1) {
+            i = j + 1
+            val pathToFncCall = path.expression.take(j)
+            val fncCalls = functionCallsOf(path.expression(j))
+            for (fncCall <- fncCalls) {
+              fncCall.funDef.precondition match {
+                case Some(p) =>
+                  val args: Map[Expr, Expr] = fncCall.funDef.args.map(decl => decl.toVariable).zip(fncCall.args).toMap
+                  val postcondition = replace(args, noiseRemover.transform(p))
+                  vc.allConstraints = vc.allConstraints :+ Constraint(
+                      And(vc.precondition.get, path.condition), And(pathToFncCall), postcondition, "pre of call " + fncCall.toString)
+                case None => ;
+                  // TODO: if we have no precondition given, do we want to compute it?
+              }
+            }
+          } else { i = -1}
+        }
+      }
+
+    }
+    //println("All constraints generated: ")
+    //println(vc.allConstraints.mkString("\n -> ") )
 
     vc.funcArgs = vc.funDef.args.map(v => Variable(v.id).setType(RealType))
     vc.localVars = allLetDefinitions(funDef.body.get).map(letDef => Variable(letDef._1).setType(RealType))

@@ -14,17 +14,15 @@ import affine.XFloat
 
 object Utils {
   private var errCounter = 0
+  private var deltaCounter = 0
+  private var sqrtCounter = 0
+  private var fncCounter = 0
+  private var resErrorCounter = 0
+
   def getNewErrorVar: Variable = {
     errCounter = errCounter + 1
     Variable(FreshIdentifier("#err_" + errCounter)).setType(RealType)
   }
-
-  def getNamedError(v: Expr): Variable = {
-    Variable(FreshIdentifier("#err_(" + v.toString + ")")).setType(RealType)
-  }
-
-  private var deltaCounter = 0
-  private var sqrtCounter = 0
   def getNewDelta: Variable = {
     deltaCounter = deltaCounter + 1
     Variable(FreshIdentifier("#delta_" + deltaCounter)).setType(RealType)
@@ -33,6 +31,20 @@ object Utils {
     sqrtCounter = sqrtCounter + 1
     (Variable(FreshIdentifier("#sqrt" + sqrtCounter)).setType(RealType),
       Variable(FreshIdentifier("#sqrt" + sqrtCounter + "_0")).setType(RealType))
+  }
+
+  def getNewFncVariable(id: String): Variable = {
+    fncCounter = fncCounter + 1
+    Variable(FreshIdentifier("#" + id + "_call_" + fncCounter)).setType(RealType)
+  }
+
+  def getNewResErrorVariable: Variable = {
+    resErrorCounter = resErrorCounter + 1
+    Variable(FreshIdentifier("#resErr" + resErrorCounter)).setType(RealType)
+  }
+
+  def getNamedError(v: Expr): Variable = {
+    Variable(FreshIdentifier("#err_(" + v.toString + ")")).setType(RealType)
   }
 
   def getRndoff(expr: Expr): (Expr, Variable) = {
@@ -103,6 +115,39 @@ object Utils {
     }
 
   }
+
+  def collectPaths(expr: Expr): Set[Path] = expr match {
+    case IfExpr(cond, then, elze) =>
+      val thenPaths = collectPaths(then).map(p => p.addCondition(cond))
+      val elzePaths = collectPaths(elze).map(p => p.addCondition(negate(cond)))
+
+      thenPaths ++ elzePaths
+
+    case And(args) =>
+      var currentPaths: Set[Path] = collectPaths(args.head)
+
+      for (a <- args.tail) {
+        var newPaths: Set[Path] = Set.empty
+
+        val nextPaths = collectPaths(a)
+
+        // TODO: in one loop?
+        for (np <- nextPaths) {
+          for (cp <- currentPaths) {
+            newPaths = newPaths + cp.addPath(np)
+          }
+        }
+        currentPaths = newPaths
+      }
+      currentPaths
+
+    case Equals(e, f) =>
+      collectPaths(f).map(p => p.addEqualsToLast(e))
+
+    case _ =>
+      Set(Path(BooleanLiteral(true), List(expr)))
+  }
+
 
   /*
     Consolidates results from different paths by merging the intervals and finding the largest error.
@@ -175,5 +220,24 @@ object Utils {
   def ratint2expr(r: RationalInterval, v: Expr): Expr = {
     And(LessEquals(RationalLiteral(r.xlo), v),
         LessEquals(v, RationalLiteral(r.xhi)))
+  }
+
+  /*
+    Replaces all constructs related to Real's with something meant to compile.
+  */
+  class NoiseRemover extends TransformerWithPC {
+    type C = Seq[Expr]
+    val initC = Nil
+
+    // TODO: do we need this?
+    def register(e: Expr, path: C) = path :+ e
+
+    override def rec(e: Expr, path: C) = e match {
+      //case Noise(_, _) => BooleanLiteral(true)
+      case Roundoff(expr) => BooleanLiteral(true)
+      case _ =>
+        super.rec(e, path)
+    }
+
   }
 }

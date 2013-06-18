@@ -21,7 +21,7 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
   val name = "Certification"
   val description = "Floating-point certification"
   var simulation = false
-  var specgen = false
+  var specgen = true
 
   override val definedOptions: Set[LeonOptionDef] = Set(
     LeonValueOptionDef("functions", "--functions=f1:f2", "Limit verification to f1, f2,..."),
@@ -87,12 +87,13 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
 
     // TODO: try different precisions
     // TODO: fail in some reasonable way if neither roundoff nor noise is specified
+    // TODO: make specgen possible to disable
     val vcs = generateVCs(reporter, sortedFncs)
 
     val prover = new Prover(reporter, ctx, program)
     for(vc <- vcs) prover.check(vc)
 
-    if (simulation) {
+    /*if (simulation) {
       val simulator = new Simulator(reporter)
       for(vc <- vcs) simulator.simulateThis(vc)
     }
@@ -100,10 +101,10 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
     if (specgen) {
       val specgen = new SpecGen(reporter)
       for(vc <- vcs) specgen.generateSpec(prover.addSpecs(vc))
-    }
+    }*/
 
     // TODO: nicer formatting of numbers
-    generateCode(reporter, program, vcs)
+    //generateCode(reporter, program, vcs)
     new CertificationReport(vcs)
 
 

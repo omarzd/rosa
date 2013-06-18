@@ -16,8 +16,10 @@ import Utils._
 
 import Valid._
 
+
+
 class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
-  val verbose = true
+  val verbose = false
   val solver = new NumericSolver(ctx, program)
 
   def check(vc: VerificationCondition) = {
@@ -26,43 +28,32 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
 
     val start = System.currentTimeMillis
     for (c <- vc.allConstraints) {
+      reporter.info("----------> checking constraint: " + c.description)
       if (verbose) {println("pre: " + c.pre); println("body: " + c.body); println("post: " + c.post)}
-      c.paths = collectPaths(c.body)
 
-      c.overrideStatus(checkWithZ3(c.pre, c.paths, c.post, vc.allVariables))    // First try Z3 alone
-      reporter.info("Z3 only result: " + c.status)
-
-
-      // TODO: or if we want to generate the specification, then we do this too
-      c.status match {
-        case (None | Some(DUNNO) | Some(NOT_SURE)) =>
-          reporter.info("Now trying with XFloat only...")
-          val newConstraint = approximateConstraint(c, vc.inputs)
-          reporter.info("AA computed: " + newConstraint)
-          c.overrideStatus(checkWithZ3(newConstraint, Set[Path](), c.post, vc.allVariables))
-          println("XFloat only result: " + c.status)
-
-        case _ =>;
+      while (c.hasNextApproximation && !c.solved) {
+        c.getNextApproximation match {
+          case Some(cnstr) =>
+            reporter.info("Attempting approximation: " + cnstr.name)
+            c.overrideStatus(checkWithZ3(cnstr.pre, cnstr.paths, cnstr.post, vc.allVariables))
+            reporter.info("RESULT: " + c.status)
+          case None =>;
+        }
       }
-
-      // TODO: If neither work, do partial approx.
-
     }
 
     val totalTime = (System.currentTimeMillis - start)
     vc.verificationTime = Some(totalTime)
   }
 
+
+
+
   def addSpecs(vc: VerificationCondition): VerificationCondition = {
     //val start = System.currentTimeMillis
     // if there are constraints, then those have already been handled, only deal with VCs without post
-    if(vc.allConstraints.length > 0 && vc.allConstraints.head.approximated) {
-      vc.specConstraint = Some(vc.allConstraints.head)
-    } else {
-      val c = Constraint(vc.precondition.get, vc.body.get, BooleanLiteral(true))
-      c.paths = collectPaths(c.body)
-      computeApproximation(c, vc.inputs)
-      vc.specConstraint = Some(c)
+    if(!vc.specConstraint.get.approximated) {
+      computeApproximation(vc.specConstraint.get, vc.inputs)
     }
 
     //val totalTime = (System.currentTimeMillis - start)
@@ -94,7 +85,10 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
         reporter.error("one of realPart or noisyPart is empty")
         BooleanLiteral(true)
       }
-    val toCheck = Implies(And(precondition, body), postcondition)
+    // This is make Z3 gives us also the error
+    // TODO: maybe also add this for the input variables?
+    val resultError = Equals(getNewResErrorVariable, Minus(resVar, buddies(resVar)))
+    val toCheck = Implies(And(precondition, And(body, resultError)), postcondition)
     println("toCheck: " + toCheck)
 
     // If precondition is false, we'll prove anything, so don't try to prove at all
@@ -181,43 +175,10 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
       case (INVALID, model) =>
         true
       case _ =>
-        reporter.warning("Sanity check failed! " + sanityCondition)
+        reporter.warning("Sanity check failed! ")// + sanityCondition)
         false
     }
 
-  }
-
-
-  private def collectPaths(expr: Expr): Set[Path] = expr match {
-    case IfExpr(cond, then, elze) =>
-      val thenPaths = collectPaths(then).map(p => p.addCondition(cond))
-      val elzePaths = collectPaths(elze).map(p => p.addCondition(negate(cond)))
-
-      thenPaths ++ elzePaths
-
-    case And(args) =>
-      var currentPaths: Set[Path] = collectPaths(args.head)
-
-      for (a <- args.tail) {
-        var newPaths: Set[Path] = Set.empty
-
-        val nextPaths = collectPaths(a)
-
-        // TODO: in one loop?
-        for (np <- nextPaths) {
-          for (cp <- currentPaths) {
-            newPaths = newPaths + cp.addPath(np)
-          }
-        }
-        currentPaths = newPaths
-      }
-      currentPaths
-
-    case Equals(e, f) =>
-      collectPaths(f).map(p => p.addEqualsToLast(e))
-
-    case _ =>
-      Set(Path(BooleanLiteral(true), List(expr)))
   }
 
   private def getVariables(variables: Seq[Variable]): (Variable, Variable, Map[Expr, Expr]) = {

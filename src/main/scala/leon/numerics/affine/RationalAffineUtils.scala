@@ -43,6 +43,15 @@ object Utils {
     sum
   }
 
+  def sumSeq(q: Seq[Deviation]): Rational = {
+    var sum = Rational.zero
+    val iter = q.iterator
+    while(iter.hasNext) {
+      sum += Rational.abs(iter.next.value)
+    }
+    sum
+  }
+
   def addQueues(xn: Queue[Deviation], yn: Queue[Deviation]): Queue[Deviation] = {
     var deviation = new Queue[Deviation]()
     val iterX = xn.iterator
