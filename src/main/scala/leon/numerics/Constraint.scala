@@ -19,8 +19,8 @@ case class Constraint(pre: Expr, body: Expr, post: Expr) {
 
   var paths: Set[Path] = Set.empty
 
-  // approximation computed for each path
-  var approximation: Set[Path] = Set.empty
+  // whether we already ran the AA approximation
+  var approximated: Boolean = false
 
   def overrideStatus(s: (Option[Valid], Option[Map[Identifier, Expr]])) = {
     status = s._1

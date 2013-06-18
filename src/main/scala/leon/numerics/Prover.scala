@@ -56,7 +56,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
   def addSpecs(vc: VerificationCondition): VerificationCondition = {
     //val start = System.currentTimeMillis
     // if there are constraints, then those have already been handled, only deal with VCs without post
-    if(vc.allConstraints.length > 0) {
+    if(vc.allConstraints.length > 0 && vc.allConstraints.head.approximated) {
       vc.specConstraint = Some(vc.allConstraints.head)
     } else {
       val c = Constraint(vc.precondition.get, vc.body.get, BooleanLiteral(true))
@@ -122,6 +122,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
         // although this would be quite the strange scenario...
       }
     }
+    c.approximated = true
   }
 
   private def approximateConstraint(c: Constraint, inputs: Map[Variable, Record]): Expr = {
@@ -180,7 +181,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
       case (INVALID, model) =>
         true
       case _ =>
-        reporter.error("Sanity check failed! " + sanityCondition)
+        reporter.warning("Sanity check failed! " + sanityCondition)
         false
     }
 

@@ -86,6 +86,7 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
       }
 
     // TODO: try different precisions
+    // TODO: fail in some reasonable way if neither roundoff nor noise is specified
     val vcs = generateVCs(reporter, sortedFncs)
 
     val prover = new Prover(reporter, ctx, program)

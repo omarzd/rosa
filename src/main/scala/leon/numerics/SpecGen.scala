@@ -19,11 +19,12 @@ class SpecGen(reporter: Reporter) {
     reporter.info("")
     reporter.info("----------> generating postcondition for: " + vc.funDef.id.name)
 
+    println("specConstraint: " + vc.specConstraint)
+
     vc.specConstraint match {
       case Some(c) =>
         val approx = mergeActualPathResults(c.paths).filter( k => k._1 == ResultVariable())
         val newConstraint = constraintFromResults(approx)
-        reporter.info("computed spec: " + newConstraint)
         vc.generatedPost = Some(newConstraint)
 
       case None =>

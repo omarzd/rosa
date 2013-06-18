@@ -26,7 +26,7 @@ object OptimizationFunctions {
     (2.25 - x + x*y*(x*y))*(2.25 - x + x*y*(x*y)) +
     (2.625 - x + x*y*(x*y)*(x*y))*(2.625 - x + x*y*(x*y)*(x*y))
   } ensuring (res => 14.0 <= res && res <= 185495100.0 && noise(res, 1e-6))
- 
+
   // Sim: [0.2860857182376199,64239542.37063869]    (8.940696716308594E-8)
   def beales3(x: Real, y: Real): Real = {
     require(-2 <= x && x <= 4.5 && 0.2 <= y && y <= 4.45 && roundoff(x) && roundoff(y))
@@ -34,7 +34,7 @@ object OptimizationFunctions {
     (2.25 - x + x*y*(x*y))*(2.25 - x + x*y*(x*y)) +
     (2.625 - x + x*y*(x*y)*(x*y))*(2.625 - x + x*y*(x*y)*(x*y))
   } ensuring (res => 0.28 <= res && res <= 64239600.0 && noise(res, 1e-7))
- 
+
 
   // Sim: [180.1158417843523,679.1975462951999]    (3.410605131648481E-13)
   def booths(x: Real, y: Real): Real = {
@@ -47,7 +47,7 @@ object OptimizationFunctions {
     require(-13 <= x && x <= 2 && -3 <= y && y <= 7.6 && roundoff(x) && roundoff(y))
     (x + 2*y -7)*(x + 2*y -7) + (2*x + y -5)*(2*x + y -5)
   } ensuring (res => 0.0 <= res && res <= 1827.0 && noise(res, 1e-12))
-  
+
   // Sim: [1.802273718141507,784.8745892544846]    (3.410605131648481E-13)
   def booths3(x: Real, y: Real): Real = {
     require(-5 <= x && x <= 6.7 && 4 <= y && y <= 10.5 && roundoff(x) && roundoff(y))
@@ -66,7 +66,7 @@ object OptimizationFunctions {
     require(-13.9 <= x && x <= 7.98 && -12.8 <= y && y <= 8.9 && roundoff(x) && roundoff(y))
     2*x*x - 1.05*x*x*x*x + (x*x*x*x*x*x)/6 + x*y + y*y
   } ensuring (res => 6.7 <= res && res <= 1163650.0 && noise(res, 1e-8))
-  
+
   // Sim: [1.335997722024297e-05,143776.6793834211]    (1.4551915228366852E-10)
   def camel3(x: Real, y: Real): Real = {
     require(-2.4 <= x && x <= 9.86 && -1.2 <= y && y <= 14.78 && roundoff(x) && roundoff(y))
@@ -89,7 +89,7 @@ object OptimizationFunctions {
     (1 + (x + y + 1)*(x + y + 1) *(19 - 14*x + 3*x*x - 14*y + 6*x*y + 3*y*y)) *
     (30 + (2*x - 3*y)*(2*x - 3*y) * (18 - 32*x + 12*x*x +48*y - 36*x*y + 27*y*y))
   } ensuring (res => res >= -56020.0)
-  
+
   def goldstein3(x: Real, y: Real): Real = {
     require(-0.5 <= x && x <= 5.5 && -3.5 <= y && y <= -1.5)
     (1 + (x + y + 1)*(x + y + 1) *(19 - 14*x + 3*x*x - 14*y + 6*x*y + 3*y*y)) *
@@ -108,13 +108,13 @@ object OptimizationFunctions {
     require(-19 <= x && x <= -3 && -1 <= y && y <= 7.5 && roundoff(x) && roundoff(y))
     0.26*(x*x + y*y) - 0.48*x*y
   } ensuring (res => 1.1 <= res && res <= 177.0 && noise(res, 1e-13))
-  
+
   // Sim: [1.502261526737385e-06,70.06356062864200]    (2.8421709430404007E-14)
   def matyas3(x: Real, y: Real): Real  = {
     require(-3.4 <= x && x <= 5 && -11.7 <= y && y <= 1 && roundoff(x) && roundoff(y))
     0.26*(x*x + y*y) - 0.48*x*y
   } ensuring (res => 1.5 <= res && res <= 70.1 && noise(res, 1e-13))
-  
+
 
   // Sim: [36.21337199193115,486842455.6749934]    (2.384185791015625E-7)
   def motzkin(x: Real, y: Real, z: Real): Real = {
@@ -122,10 +122,10 @@ object OptimizationFunctions {
             3.2 <= z && z <= 15.7 && roundoff(x) && roundoff(y) && roundoff(z))
     z*z*z + x*x*(y*y) * (z*z + y*y - 3*z*z)
   } ensuring (res => 36.0 <= res && res <= 486842460.0 && noise(res, 1e-6))
- 
+
   def motzkin2(x: Real, y: Real, z: Real): Real = {
-    require(-9.6 <= x && x <= 3.3 && 25.3 <= y && y <= 83.0 &&
-            -3.2 <= z && z <= 45.7)
+    require(-9.6 <= x && x <= 3.3 && 25.3 <= y && y <= 56.0 &&
+            -3.2 <= z && z <= 25.7 && roundoff(x, y, z))
     z*z*z + x*x*(y*y) * (z*z + y*y - 3*z*z)
   } ensuring (res => res >= -56020.0)
 
