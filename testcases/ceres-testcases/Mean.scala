@@ -18,7 +18,7 @@ object Mean {
   */
 
   // TODO: make it possible to compare the precisions of certain expressions
-  def invariant(y1: Real, y2: Real, y3: Real, y4: Real, y5: Real, y6: Real): Boolean = {
+  /*def invariant(y1: Real, y2: Real, y3: Real, y4: Real, y5: Real, y6: Real): Boolean = {
     require(y1.in(-1200, 1200) && y2.in(-1200, 1200) && y3.in(-1200, 1200) &&
      y4.in(-1200, 1200) && y5.in(-1200, 1200) && y6.in(-1200, 1200) && roundoff(y1, y2, y3, y4, y5) && roundoff(y6))
 
@@ -46,9 +46,9 @@ object Mean {
     val i5 = (4*i4 + x5)/5.0
     val i6 = (5*i5 + x6)/6.0
     i6
-  }
+  }*/
 
-  /*def meanAll(x1: Real, x2: Real, x3: Real, x4: Real, x5: Real, x6: Real): Boolean = {
+  def meanAll(x1: Real, x2: Real, x3: Real, x4: Real, x5: Real, x6: Real): Boolean = {
     require(x1.in(-1200, 1200) && x2.in(-1200, 1200) && x3.in(-1200, 1200) &&
      x4.in(-1200, 1200) && x5.in(-1200, 1200) && x6.in(-1200, 1200) && roundoff(x1, x2, x3, x4, x5) && roundoff(x6))
 
@@ -64,7 +64,7 @@ object Mean {
 
     meanSpec <= meanImpl
   } holds
-  */
+
 }
 
 

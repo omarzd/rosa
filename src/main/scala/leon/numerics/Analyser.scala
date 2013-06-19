@@ -19,6 +19,11 @@ class Analyser(reporter: Reporter) {
     reporter.info("")
     reporter.info("-----> Analysing function " + funDef.id.name + "...")
 
+    //println("pre: " + funDef.precondition)
+    //println("\nbody: " + funDef.body)
+    //println("\npost: " + funDef.postcondition)
+
+
     val vc = new VerificationCondition(funDef)
     funDef.precondition match {
       case Some(p) =>
@@ -34,10 +39,10 @@ class Analyser(reporter: Reporter) {
     funDef.postcondition match {
       //invariant
       case Some(ResultVariable()) =>
-        val post = getInvariantCondition(funDef.body.get)
+        val postConditions = getInvariantCondition(funDef.body.get)
         val bodyWOLets = convertLetsToEquals(funDef.body.get)
-        vc.body = Some(replace(Map(post -> BooleanLiteral(true)), bodyWOLets))
-        vc.allConstraints = List(Constraint(vc.precondition.get, vc.body.get, post, "wholebody"))
+        vc.body = Some(replace(postConditions.map(p => (p, BooleanLiteral(true))).toMap, bodyWOLets))
+        vc.allConstraints = List(Constraint(vc.precondition.get, vc.body.get, Or(postConditions), "wholebody"))
       case Some(post) =>
         vc.body = Some(convertLetsToEquals(addResult(funDef.body.get)))
         val specC = Constraint(vc.precondition.get, vc.body.get, post, "wholeBody")
@@ -96,14 +101,15 @@ class Analyser(reporter: Reporter) {
     case _ => expr
   }
 
-  private def getInvariantCondition(expr: Expr): Expr = expr match {
-    case IfExpr(cond, then, elze) => IfExpr(cond, getInvariantCondition(then), getInvariantCondition(elze))
-    case Let(binder, value, body) => Let(binder, value, getInvariantCondition(body))
+  // can return several, as we may have an if-statement
+  private def getInvariantCondition(expr: Expr): List[Expr] = expr match {
+    case IfExpr(cond, then, elze) => getInvariantCondition(then) ++ getInvariantCondition(elze)
+    case Let(binder, value, body) => getInvariantCondition(body)
     case LessEquals(_, _) | LessThan(_, _) | GreaterThan(_, _) | GreaterEquals(_, _) =>
-      expr
+      List(expr)
     case _ =>
       reporter.warning("Was supposed to be invariant, but none found.")
-      BooleanLiteral(false)
+      List(BooleanLiteral(false))
   }
 
   private def convertLetsToEquals(expr: Expr): Expr = expr match {
