@@ -93,15 +93,15 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
     val prover = new Prover(reporter, ctx, program, vcMap, precision)
     for(vc <- vcs) prover.check(vc)
 
-    /*if (simulation) {
+    if (simulation) {
       val simulator = new Simulator(reporter)
-      for(vc <- vcs) simulator.simulateThis(vc)
+      for(vc <- vcs) simulator.simulateThis(vc, precision)
     }
 
     if (specgen) {
       val specgen = new SpecGen(reporter)
       for(vc <- vcs) specgen.generateSpec(prover.addSpecs(vc))
-    }*/
+    }
 
     // TODO: nicer formatting of numbers
     //generateCode(reporter, program, vcs)

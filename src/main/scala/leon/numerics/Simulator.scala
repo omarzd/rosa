@@ -8,28 +8,37 @@ import Utils.VariableCollector
 import ceres.common._
 import ceres.smartfloat._
 
+import Precision._
+
+// Only works with doubles.
 class Simulator(reporter: Reporter) {
 
   val simSize = 1000000//00
   reporter.info("Simulation size: " + simSize + "\n")
 
-  def simulateThis(vc: VerificationCondition) = {
+  def simulateThis(vc: VerificationCondition, precision: Precision) = {
     reporter.info("-----> Simulating function " + vc.funDef.id.name + "...")
     val funDef = vc.funDef
 
-    // TODO: for the actual run, seed shouldn't be fixed
-    val r = new scala.util.Random(4753)
-
     val body = funDef.body.get
-    val inputs: Map[Variable, (RationalInterval, Rational)] = funDef.precondition match {
-      case Some(p) =>
-        val collector = new VariableCollector
-        collector.transform(p)
-        inputs2intervals(collector.recordMap)
-      case None =>
-        Map.empty
+    val inputs: Map[Variable, (RationalInterval, Rational)] = inputs2intervals(vc.inputs)
+
+    val (maxRoundoff, resInterval) = precision match {
+      case Float32 => runFloatSimulation(inputs, body)
+      case Float64 => runDoubleSimulation(inputs, body)
     }
 
+    val intInputs = inputs.map( x => (x._1 -> Interval(x._2._1.xlo.toDouble, x._2._1.xhi.toDouble) ))
+    val smartInputs = inputs.map ( x => (x._1 -> interval2smartfloat(x._2._1)) )
+
+    vc.simulationRange = Some(resInterval)
+    vc.rndoff = Some(maxRoundoff)
+    vc.intervalRange = Some(evalInterval(body, intInputs))
+    vc.smartfloatRange = Some(evalSmartFloat(body, smartInputs))
+  }
+
+  private def runDoubleSimulation(inputs: Map[Variable, (RationalInterval, Rational)], body: Expr): (Double, Interval) = {
+    val r = new scala.util.Random(System.currentTimeMillis)
     var counter = 0
     var resInterval: Interval = EmptyInterval
     var maxRoundoff: Double = 0.0
@@ -52,16 +61,35 @@ class Simulator(reporter: Reporter) {
       resInterval = extendInterval(resInterval, resDouble)
       counter += 1
     }
-
-    val intInputs = inputs.map( x => (x._1 -> Interval(x._2._1.xlo.toDouble, x._2._1.xhi.toDouble) ))
-    val smartInputs = inputs.map ( x => (x._1 -> interval2smartfloat(x._2._1)) )
-
-    vc.simulationRange = Some(resInterval)
-    vc.rndoff = Some(maxRoundoff)
-    vc.intervalRange = Some(evalInterval(body, intInputs))
-    vc.smartfloatRange = Some(evalSmartFloat(body, smartInputs))
+    (maxRoundoff, resInterval)
   }
 
+  private def runFloatSimulation(inputs: Map[Variable, (RationalInterval, Rational)], body: Expr): (Double, Interval) = {
+    val r = new scala.util.Random(System.currentTimeMillis)
+    var counter = 0
+    var resInterval: Interval = EmptyInterval
+    var maxRoundoff: Double = 0.0
+
+    while(counter < simSize) {
+      var randomInputs = new collection.immutable.HashMap[Variable, (Float, Rational)]()
+
+      for ((k, ((i, n))) <- inputs) {
+        val ideal = i.xlo + Rational(r.nextDouble) * (i.xhi - i.xlo)
+        val actual: Rational =
+          if (n == Rational.zero) ideal // only roundoff
+          else if (r.nextBoolean) ideal - Rational(r.nextDouble) * n
+          else ideal + Rational(r.nextDouble) * n
+
+        assert(Rational.abs(ideal - actual) <= n)
+        randomInputs += ((k, (actual.toFloat, ideal)))
+      }
+      val (resDouble, resRat) = evalSingle(body, randomInputs)
+      maxRoundoff = math.max(maxRoundoff, math.abs(resDouble - resRat.toDouble))
+      resInterval = extendInterval(resInterval, resDouble)
+      counter += 1
+    }
+    (maxRoundoff, resInterval)
+  }
 
   private def eval(tree: Expr, vars: Map[Variable, (Double, Rational)]): (Double, Rational) = tree match {
     case v @ Variable(id) =>  vars(v)
@@ -90,6 +118,35 @@ class Simulator(reporter: Reporter) {
     case _ =>
       throw UnsupportedFragmentException("Can't handle: " + tree.getClass)
       (Double.NaN, Rational(0))
+  }
+
+  private def evalSingle(tree: Expr, vars: Map[Variable, (Float, Rational)]): (Float, Rational) = tree match {
+    case v @ Variable(id) =>  vars(v)
+    case RationalLiteral(v) => (v.toFloat, v)
+    case IntLiteral(v) => (v.toFloat, Rational(v))
+    case UMinus(e) =>
+      val (eDbl, eRat) = evalSingle(e, vars)
+      (-eDbl, -eRat)
+    case Plus(lhs, rhs) =>
+      val (lhsDbl, lhsRat) = evalSingle(lhs, vars)
+      val (rhsDbl, rhsRat) = evalSingle(rhs, vars)
+      (lhsDbl + rhsDbl, lhsRat + rhsRat)
+    case Minus(lhs, rhs) =>
+      val (lhsDbl, lhsRat) = evalSingle(lhs, vars)
+      val (rhsDbl, rhsRat) = evalSingle(rhs, vars)
+      (lhsDbl - rhsDbl, lhsRat - rhsRat)
+    case Times(lhs, rhs) =>
+      val (lhsDbl, lhsRat) = evalSingle(lhs, vars)
+      val (rhsDbl, rhsRat) = evalSingle(rhs, vars)
+      (lhsDbl * rhsDbl, lhsRat * rhsRat)
+    case Division(lhs, rhs) =>
+      val (lhsDbl, lhsRat) = evalSingle(lhs, vars)
+      val (rhsDbl, rhsRat) = evalSingle(rhs, vars)
+      (lhsDbl / rhsDbl, lhsRat / rhsRat)
+
+    case _ =>
+      throw UnsupportedFragmentException("Can't handle: " + tree.getClass)
+      (Float.NaN, Rational(0))
   }
 
   private def evalInterval(tree: Expr, vars: Map[Variable, Interval]): Interval = tree match {
