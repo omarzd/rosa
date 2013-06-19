@@ -6,10 +6,18 @@ import java.math.{BigInteger}
 
 package object numerics {
 
-  val unitRndoff = Rational(new BigInt(new BigInteger("1")),
-    new BigInt(new BigInteger("2")).pow(53))
-  //val unitRndoff = Rational(new BigInt(new BigInteger("1")),
-  //  new BigInt(new BigInteger("2")).pow(23))
+  object Precision extends Enumeration {
+    type Precision = Value
+    val Float64 = Value("Float64")
+    val Float32 = Value("Float32")
+  }
+  import Precision._
+
+  def getUnitRoundoff(precision: Precision): Rational = precision match {
+    case Float32 => Rational(new BigInt(new BigInteger("1")), new BigInt(new BigInteger("2")).pow(23))
+    case Float64 => Rational(new BigInt(new BigInteger("1")), new BigInt(new BigInteger("2")).pow(53))
+  }
+
 
   case class UnsupportedFragmentException(msg: String) extends Exception(msg)
 
@@ -29,11 +37,7 @@ package object numerics {
     val RoundoffAddition = Value("RndoffAddition")
   }
 
-  object Precision extends Enumeration {
-    type Precision = Value
-    val Float64 = Value("Float64")
-    val Float32 = Value("Float32")
-  }
+
 
   object Sat extends Enumeration {
     type Sat = Value

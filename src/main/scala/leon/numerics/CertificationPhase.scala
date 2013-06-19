@@ -22,11 +22,13 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
   val description = "Floating-point certification"
   var simulation = false
   var specgen = true
+  var precision: Precision = Float64
 
   override val definedOptions: Set[LeonOptionDef] = Set(
     LeonValueOptionDef("functions", "--functions=f1:f2", "Limit verification to f1, f2,..."),
     LeonFlagOptionDef("simulation", "--simulation", "Run a simulation instead of verification"),
-    LeonFlagOptionDef("specgen", "--specgen", "Generate specifications in addition to verification.")
+    LeonFlagOptionDef("specgen", "--specgen", "Generate specifications in addition to verification."),
+    LeonValueOptionDef("precision", "--precision=double", "Which precision to assume of the underlying floating-point arithmetic: single, double.")
   )
 
 
@@ -64,6 +66,10 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
       case LeonValueOption("functions", ListValue(fs)) => functionsToAnalyse = Set() ++ fs
       case LeonFlagOption("simulation") => simulation = true
       case LeonFlagOption("specgen") => specgen = true
+      case LeonValueOption("precision", ListValue(p)) =>
+        if (p.head == "double") precision = Float64
+        else if (p.head == "single") precision = Float32
+        else reporter.warning("Ignoring unknown precision: " + p)
       case _ =>
     }
 
@@ -79,13 +85,12 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
         toAnalyze
       }
 
-    // TODO: try different precisions
     // TODO: fail in some reasonable way if neither roundoff nor noise is specified
     // TODO: make specgen possible to disable
     val vcs = generateVCs(reporter, sortedFncs)
     val vcMap: Map[FunDef, VerificationCondition] = vcs.map { t => (t.funDef, t) }.toMap
 
-    val prover = new Prover(reporter, ctx, program, vcMap)
+    val prover = new Prover(reporter, ctx, program, vcMap, precision)
     for(vc <- vcs) prover.check(vc)
 
     /*if (simulation) {

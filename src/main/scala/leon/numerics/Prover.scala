@@ -9,21 +9,23 @@ import purescala.Trees._
 import purescala.TreeOps._
 import purescala.TypeTrees._
 
-import affine.XFloat
+import affine.{XFloat, XFloatConfig}
 import affine.XFloat._
 
 import Utils._
 
 import Valid._
 import ApproximationType._
+import Precision._
 
 
-
-class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[FunDef, VerificationCondition]) {
+class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[FunDef, VerificationCondition], precision: Precision) {
   val verbose = false
   val solver = new NumericSolver(ctx, program)
   val postInliner = new PostconditionInliner(reporter)
   val fullInliner = new FullInliner(reporter, vcMap)
+
+  val unitRoundoff = getUnitRoundoff(precision)
 
   def check(vc: VerificationCondition) = {
     reporter.info("")
@@ -133,10 +135,10 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
         reporter.error("one of realPart or noisyPart is empty")
         BooleanLiteral(true)
       }
-    // This is make Z3 gives us also the error
+    // This is to make Z3 gives us also the error
     // TODO: maybe also add this for the input variables?
     val resultError = Equals(getNewResErrorVariable, Minus(resVar, buddies(resVar)))
-    val machineEpsilon = Equals(eps, RationalLiteral(unitRndoff))
+    val machineEpsilon = Equals(eps, RationalLiteral(unitRoundoff))
     val toCheck = Implies(And(precondition, And(body, And(resultError, machineEpsilon))), postcondition)
     println("toCheck: " + toCheck)
 
@@ -193,8 +195,9 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
       val pathCondition = And(path.condition, filterPreconditionForBoundsIteration(precondition))
       if (sanityCheck(pathCondition)) {  // If this implies false, range tightening fails
         // The condition given to the solver is the real(ideal)-valued one, since we use Z3 for the real part only.
-        val (variables, indices) = variables2xfloats(inputs, solver, pathCondition)
-        path.values = inXFloats(path.expression, variables, solver, pathCondition) -- inputs.keys
+        val config = XFloatConfig(solver, pathCondition, unitRoundoff)
+        val (variables, indices) = variables2xfloats(inputs, config)
+        path.values = inXFloats(path.expression, variables, config) -- inputs.keys
         println("path values: " + path.values)
         path.indices= indices
 
@@ -233,13 +236,13 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
 
 
   // Returns a map from all variables to their final value, including local vars
-  private def inXFloats(exprs: List[Expr], vars: Map[Expr, XFloat], solver: NumericSolver, pre: Expr): Map[Expr, XFloat] = {
+  private def inXFloats(exprs: List[Expr], vars: Map[Expr, XFloat], config: XFloatConfig): Map[Expr, XFloat] = {
     var currentVars: Map[Expr, XFloat] = vars
 
     for (expr <- exprs) expr match {
       case Equals(variable, value) =>
         try {
-          currentVars = currentVars + (variable -> eval(value, currentVars, solver, pre))
+          currentVars = currentVars + (variable -> eval(value, currentVars, config))
         } catch {
           case UnsupportedFragmentException(msg) => reporter.error(msg)
         }
@@ -253,16 +256,16 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
   }
 
   // Evaluates an arithmetic expression
-  private def eval(expr: Expr, vars: Map[Expr, XFloat], solver: NumericSolver, pre: Expr): XFloat = expr match {
+  private def eval(expr: Expr, vars: Map[Expr, XFloat], config: XFloatConfig): XFloat = expr match {
     case v @ Variable(id) => vars(v)
-    case RationalLiteral(v) => XFloat(v, solver, pre)
-    case IntLiteral(v) => XFloat(v, solver, pre)
-    case UMinus(rhs) => - eval(rhs, vars, solver, pre)
-    case Plus(lhs, rhs) => eval(lhs, vars, solver, pre) + eval(rhs, vars, solver, pre)
-    case Minus(lhs, rhs) => eval(lhs, vars, solver, pre) - eval(rhs, vars, solver, pre)
-    case Times(lhs, rhs) => eval(lhs, vars, solver, pre) * eval(rhs, vars, solver, pre)
-    case Division(lhs, rhs) => eval(lhs, vars, solver, pre) / eval(rhs, vars, solver, pre)
-    case Sqrt(t) => eval(t, vars, solver, pre).squareRoot
+    case RationalLiteral(v) => XFloat(v, config)
+    case IntLiteral(v) => XFloat(v, config)
+    case UMinus(rhs) => - eval(rhs, vars, config)
+    case Plus(lhs, rhs) => eval(lhs, vars, config) + eval(rhs, vars, config)
+    case Minus(lhs, rhs) => eval(lhs, vars, config) - eval(rhs, vars, config)
+    case Times(lhs, rhs) => eval(lhs, vars, config) * eval(rhs, vars, config)
+    case Division(lhs, rhs) => eval(lhs, vars, config) / eval(rhs, vars, config)
+    case Sqrt(t) => eval(t, vars, config).squareRoot
     case _ =>
       throw UnsupportedFragmentException("AA cannot handle: " + expr)
       null
