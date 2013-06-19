@@ -13,7 +13,7 @@ import purescala.Common._
 import RoundoffType._
 import Utils._
 
-class PostconditionInliner(reporter: Reporter) extends TransformerWithPC {
+class FullInliner(reporter: Reporter, vcMap: Map[FunDef, VerificationCondition]) extends TransformerWithPC {
   type C = Seq[Expr]
   val initC = Nil
 
@@ -27,25 +27,29 @@ class PostconditionInliner(reporter: Reporter) extends TransformerWithPC {
     case FunctionInvocation(funDef, args) =>
       val fresh = getNewFncVariable(funDef.id.name)
       vars = vars + fresh
-      funDef.postcondition match {
-        case Some(post) =>
-          val constraint = replace(Map(ResultVariable() -> fresh), post)
-          constraints = constraints :+ constraint
-        case None =>
-          reporter.warning("inlining postcondition, but none found for " + e)
-      }
-      fresh
 
+      val vc = vcMap(funDef)
+      val fncBody = vc.body.get
+      vars = vars ++ vc.localVars
+
+      val arguments: Map[Expr, Expr] = funDef.args.map(decl => decl.toVariable).zip(args).toMap
+
+      val newBody = replace(arguments + (ResultVariable() -> fresh), fncBody)
+
+      val constraint = newBody
+      constraints = constraints :+ constraint
+      fresh
     case _ =>
         super.rec(e, path)
   }
 
   //@return (expr with inlined post, contraints on fresh variables, fresh variables used)
-  def inlineFncPost(expr: Expr): (Expr, Seq[Expr], Set[Variable]) = {
+  def inlineFncCalls(expr: Expr): (Expr, Seq[Expr], Set[Variable]) = {
     constraints = Seq[Expr]()
     vars = Set[Variable]()
     val inlinedExpr = this.transform(expr)
     (inlinedExpr, constraints, vars)
   }
+
 
 }

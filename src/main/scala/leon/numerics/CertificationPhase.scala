@@ -40,12 +40,6 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
     allVCs
   }
 
-  def verifyVCs(reporter: Reporter, vcs: Seq[VerificationCondition],
-    ctx: LeonContext, program: Program) = {
-    val prover = new Prover(reporter, ctx, program)
-
-    for(vc <- vcs) prover.check(vc)
-  }
 
   // TODO: add the correct runtime checks
   def generateCode(reporter: Reporter, program: Program, vcs: Seq[VerificationCondition]) = {
@@ -89,8 +83,9 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
     // TODO: fail in some reasonable way if neither roundoff nor noise is specified
     // TODO: make specgen possible to disable
     val vcs = generateVCs(reporter, sortedFncs)
+    val vcMap: Map[FunDef, VerificationCondition] = vcs.map { t => (t.funDef, t) }.toMap
 
-    val prover = new Prover(reporter, ctx, program)
+    val prover = new Prover(reporter, ctx, program, vcMap)
     for(vc <- vcs) prover.check(vc)
 
     /*if (simulation) {

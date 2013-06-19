@@ -23,7 +23,7 @@ class NumericConstraintTransformer(buddy: Map[Expr, Expr], ress: Variable, eps: 
 
     def init = {
       errors = Seq.empty
-      extraConstraints = Seq(Equals(eps, RationalLiteral(unitRndoff)))
+      extraConstraints = Seq[Equals]()//Seq(Equals(eps, RationalLiteral(unitRndoff)))
     }
 
     def printErrors = for (err <- errors) reporter.error(err)

@@ -15,9 +15,11 @@ package object numerics {
 
   object ApproximationType extends Enumeration {
     type ApproximationType = Value
-    val Uninterpreted_NoApprox = Value("Uninterpreted_NoApprox")
-    val PostInlining_NoApprox = Value("PostInlining_NoApprox")
-    val PostInlining_AAOnly = Value("PostInlining_AAOnly")
+    val Uninterpreted_None = Value("Uninterpreted_None")
+    val PostInlining_None = Value("PostInlining_None")
+    val PostInlining_AA = Value("PostInlining_AA")
+    val FullInlining_None = Value("FullInlining_None")
+    val FullInlining_AA = Value("FullInlining_AA")
   }
 
   object RoundoffType extends Enumeration {

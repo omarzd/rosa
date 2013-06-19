@@ -82,11 +82,11 @@ object TreeOps {
           val rargs = args.map(a => {
             val ra = rec(a)
             if(ra != a) {
-              change = true  
+              change = true
               ra
             } else {
               a
-            }            
+            }
           })
           if(change)
             recons(rargs).setType(n.getType)
@@ -192,11 +192,11 @@ object TreeOps {
         val rargs = args.map(a => {
           val ra = rec(a)
           if(ra != a) {
-            change = true  
+            change = true
             ra
           } else {
             a
-          }            
+          }
         })
         applySubst(if(change) {
           recons(rargs).setType(n.getType)
@@ -291,7 +291,7 @@ object TreeOps {
       val allBinders: Set[Identifier] = cse.pattern.binders
       val subMap: Map[Identifier,Identifier] = Map(allBinders.map(i => (i, FreshIdentifier(i.name, true).setType(i.getType))).toSeq : _*)
       val subVarMap: Map[Expr,Expr] = subMap.map(kv => (Variable(kv._1) -> Variable(kv._2)))
-      
+
       cse match {
         case SimpleCase(pattern, rhs) => SimpleCase(rewritePattern(pattern, subMap), replace(subVarMap, rhs))
         case GuardedCase(pattern, guard, rhs) => GuardedCase(rewritePattern(pattern, subMap), replace(subVarMap, guard), replace(subVarMap, rhs))
@@ -401,7 +401,7 @@ object TreeOps {
       case f @ FunctionInvocation(fd, _) if program.isRecursive(fd) => Set(f)
       case _ => Set.empty
     }
-    
+
     def combine(s1: Set[FunctionInvocation], s2: Set[FunctionInvocation]) = s1 ++ s2
 
     def compute(t: Expr, s: Set[FunctionInvocation]) = t match {
@@ -486,7 +486,7 @@ object TreeOps {
 
         var newBody = body
 
-        val (remIds, remExprs) = (ids zip exprs).filter { 
+        val (remIds, remExprs) = (ids zip exprs).filter {
           case (id, value: Terminal) =>
             newBody = replace(Map((Variable(id) -> value)), newBody)
             //we replace, so we drop old
@@ -551,8 +551,8 @@ object TreeOps {
 
   // Pulls out all let constructs to the top level, and makes sure they're
   // properly ordered.
-  private type DefPair  = (Identifier,Expr) 
-  private type DefPairs = List[DefPair] 
+  private type DefPair  = (Identifier,Expr)
+  private type DefPairs = List[DefPair]
   def allLetDefinitions(expr: Expr) : DefPairs = treeCatamorphism[DefPairs](
     (e: Expr) => Nil,
     (s1: DefPairs, s2: DefPairs) => s1 ::: s2,
@@ -561,7 +561,7 @@ object TreeOps {
       case _ => dps
     },
     expr)
-  
+
   private def killAllLets(expr: Expr) : Expr = searchAndReplaceDFS((e: Expr) => e match {
     case Let(_,_,ex) => Some(ex)
     case _ => None
@@ -629,11 +629,11 @@ object TreeOps {
         val rargs = args.map(a => {
           val ra = rec(a, s)
           if(ra != a) {
-            change = true  
+            change = true
             ra
           } else {
             a
-          }            
+          }
         })
         if(change)
           recons(rargs).setType(n.getType)
@@ -757,7 +757,7 @@ object TreeOps {
           }
           val newRhs = replaceFromIDs(map, cse.rhs)
           (realCond, newRhs)
-        } 
+        }
 
         val optCondsAndRhs = if(SimplePatternMatching.isSimple(m)) {
           // this is a hackish optimization: because we know all cases are covered, we replace the last condition by true (and that drops the check)
@@ -780,7 +780,7 @@ object TreeOps {
       }
       case _ => None
     }
-    
+
     searchAndReplaceDFS(rewritePM)(expr)
   }
 
@@ -800,7 +800,7 @@ object TreeOps {
 
   private def convertMapGet(expr: Expr) : Expr = {
     def rewriteMapGet(e: Expr) : Option[Expr] = e match {
-      case mg @ MapGet(m,k) => 
+      case mg @ MapGet(m,k) =>
         val ida = MapIsDefinedAt(m, k)
         Some(IfExpr(ida, mg, Error("key not found for map access").setType(mg.getType).setPosInfo(mg)).setType(mg.getType))
       case _ => None
@@ -824,7 +824,7 @@ object TreeOps {
       case t: Terminal => 0
       case _ => scala.sys.error("Not handled in measureChildrenDepth : " + ex)
     }
-    
+
     rec(expression,Map.empty)
   }
 
@@ -848,6 +848,7 @@ object TreeOps {
   def simplestValue(tpe: TypeTree) : Expr = tpe match {
     case Int32Type => IntLiteral(0)
     case BooleanType => BooleanLiteral(false)
+    case RealType => new RationalLiteral(0)
     case AbstractClassType(acd) => {
       val children = acd.knownChildren
       val simplerChildren = children.filter{
@@ -1010,7 +1011,7 @@ object TreeOps {
    *      E
    *    }
    *  }
-   * 
+   *
    * This transformation runs immediately before patternMatchReconstruction.
    */
   def decomposeIfs(e: Expr): Expr = {
@@ -1152,12 +1153,12 @@ object TreeOps {
     def pre(e : Expr) = e match {
 
       case LetDef(fd, expr) if fd.hasPrecondition =>
-       val pre = fd.precondition.get 
+       val pre = fd.precondition.get
 
         solver.solve(pre) match {
           case Some(true)  =>
             fd.precondition = None
-            
+
           case Some(false) => solver.solve(Not(pre)) match {
             case Some(true) =>
               fd.precondition = Some(BooleanLiteral(false))
@@ -1168,7 +1169,7 @@ object TreeOps {
 
         e
 
-      case IfExpr(cond, then, elze) => 
+      case IfExpr(cond, then, elze) =>
         try {
           solver.solve(cond) match {
             case Some(true)  => then
@@ -1180,7 +1181,7 @@ object TreeOps {
           }
         } catch {
           // let's give up when the solver crashes
-          case _ : Exception => e 
+          case _ : Exception => e
         }
 
       case _ => e
@@ -1545,7 +1546,7 @@ object TreeOps {
       case SetType(t)            => mapType(t).map(SetType(_))
       case MultisetType(t)       => mapType(t).map(MultisetType(_))
       case ArrayType(t)          => mapType(t).map(ArrayType(_))
-      case MapType(f,t)          => 
+      case MapType(f,t)          =>
         val (f2,t2) = (mapType(f),mapType(t))
         if(f2.isDefined || t2.isDefined) {
           Some(MapType(f2.getOrElse(f), t2.getOrElse(t)))
@@ -1565,7 +1566,7 @@ object TreeOps {
         } else {
           None
         }
-      case Untyped | AnyType | BottomType | BooleanType | Int32Type | UnitType => None  
+      case Untyped | AnyType | BottomType | BooleanType | Int32Type | UnitType => None
     }
 
     var funDefMap = Map.empty[FunDef,FunDef]
@@ -1676,7 +1677,7 @@ object TreeOps {
   //simple, local simplifications on arithmetic
   //you should not assume anything smarter than some constant folding and simple cancelation
   //to avoid infinite cycle we only apply simplification that reduce the size of the tree
-  //The only guarentee from this function is to not augment the size of the expression and to be sound 
+  //The only guarentee from this function is to not augment the size of the expression and to be sound
   //(note that an identity function would meet this specification)
   def simplifyArithmetic(expr: Expr): Expr = {
     def simplify0(expr: Expr): Expr = expr match {
@@ -1717,7 +1718,7 @@ object TreeOps {
       //btw, I know those are not the most general rules, but they lead to good optimizations :)
       case Plus(UMinus(Plus(e1, e2)), e3) if e1 == e3 => UMinus(e2)
       case Plus(UMinus(Plus(e1, e2)), e3) if e2 == e3 => UMinus(e1)
-      case Minus(e1, e2) if e1 == e2 => IntLiteral(0) 
+      case Minus(e1, e2) if e1 == e2 => IntLiteral(0)
       case Minus(Plus(e1, e2), Plus(e3, e4)) if e1 == e4 && e2 == e3 => IntLiteral(0)
       case Minus(Plus(e1, e2), Plus(Plus(e3, e4), e5)) if e1 == e4 && e2 == e3 => UMinus(e5)
 
@@ -1728,7 +1729,7 @@ object TreeOps {
       val na = f(a)
       if(a == na) a else fix(f)(na)
     }
-      
+
 
     val res = fix(simplePostTransform(simplify0))(expr)
     res

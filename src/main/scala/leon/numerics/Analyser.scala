@@ -31,16 +31,21 @@ class Analyser(reporter: Reporter) {
         vc.precondition = Some(BooleanLiteral(true))
     }
 
-    vc.body = Some(convertLetsToEquals(addResult(funDef.body.get)))
-
     funDef.postcondition match {
-      case Some(ResultVariable()) => //invariant
-        vc.allConstraints = List(Constraint(vc.precondition.get, vc.body.get, BooleanLiteral(true), "wholebody"))
+      //invariant
+      case Some(ResultVariable()) =>
+        val post = getInvariantCondition(funDef.body.get)
+        val bodyWOLets = convertLetsToEquals(funDef.body.get)
+        vc.body = Some(replace(Map(post -> BooleanLiteral(true)), bodyWOLets))
+        vc.allConstraints = List(Constraint(vc.precondition.get, vc.body.get, post, "wholebody"))
       case Some(post) =>
+        vc.body = Some(convertLetsToEquals(addResult(funDef.body.get)))
         val specC = Constraint(vc.precondition.get, vc.body.get, post, "wholeBody")
         vc.allConstraints = List(specC)
         vc.specConstraint = Some(specC)
+      // Auxiliary function, nothing to prove
       case None =>
+        vc.body = Some(convertLetsToEquals(addResult(funDef.body.get)))
         vc.specConstraint = Some(Constraint(vc.precondition.get, vc.body.get, BooleanLiteral(true), "wholebody"))
     }
 
@@ -72,8 +77,8 @@ class Analyser(reporter: Reporter) {
       }
 
     }
-    //println("All constraints generated: ")
-    //println(vc.allConstraints.mkString("\n -> ") )
+    println("All constraints generated: ")
+    println(vc.allConstraints.mkString("\n -> ") )
 
     vc.funcArgs = vc.funDef.args.map(v => Variable(v.id).setType(RealType))
     vc.localVars = allLetDefinitions(funDef.body.get).map(letDef => Variable(letDef._1).setType(RealType))
@@ -89,6 +94,16 @@ class Analyser(reporter: Reporter) {
     case UMinus(_) | Plus(_, _) | Minus(_, _) | Times(_, _) | Division(_, _) | Sqrt(_) | FunctionInvocation(_, _) | Variable(_) =>
       Equals(ResultVariable(), expr)
     case _ => expr
+  }
+
+  private def getInvariantCondition(expr: Expr): Expr = expr match {
+    case IfExpr(cond, then, elze) => IfExpr(cond, getInvariantCondition(then), getInvariantCondition(elze))
+    case Let(binder, value, body) => Let(binder, value, getInvariantCondition(body))
+    case LessEquals(_, _) | LessThan(_, _) | GreaterThan(_, _) | GreaterEquals(_, _) =>
+      expr
+    case _ =>
+      reporter.warning("Was supposed to be invariant, but none found.")
+      BooleanLiteral(false)
   }
 
   private def convertLetsToEquals(expr: Expr): Expr = expr match {

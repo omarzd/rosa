@@ -28,7 +28,8 @@ case class Constraint(pre: Expr, body: Expr, post: Expr, description: String) {
   def size: Int = formulaSize(pre) + formulaSize(body)
 
   def solved: Boolean = status match {
-    case Some(VALID) | Some(INVALID) => true
+    case Some(VALID) => true
+    case Some(INVALID) => false
     case _ => false
   }
 
@@ -36,10 +37,11 @@ case class Constraint(pre: Expr, body: Expr, post: Expr, description: String) {
 
 
   var approxStrategy =
-    if (containsFunctionCalls(body))
-      Seq(Uninterpreted_NoApprox, PostInlining_NoApprox, PostInlining_AAOnly)
+    if (containsFunctionCalls(body) || containsFunctionCalls(pre) || containsFunctionCalls(post))
+      //Seq(Uninterpreted_None, PostInlining_None, PostInlining_AA, FullInlining_None, FullInlining_AA)
+      Seq(FullInlining_AA)
     else
-      Seq(Uninterpreted_NoApprox, PostInlining_AAOnly)
+      Seq(Uninterpreted_None, PostInlining_AA)
 
   def hasNextApproximation = !approxStrategy.isEmpty
 

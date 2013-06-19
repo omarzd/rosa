@@ -19,9 +19,11 @@ import ApproximationType._
 
 
 
-class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
+class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[FunDef, VerificationCondition]) {
   val verbose = false
   val solver = new NumericSolver(ctx, program)
+  val postInliner = new PostconditionInliner(reporter)
+  val fullInliner = new FullInliner(reporter, vcMap)
 
   def check(vc: VerificationCondition) = {
     reporter.info("")
@@ -33,12 +35,13 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
       if (verbose) {println("pre: " + c.pre); println("body: " + c.body); println("post: " + c.post)}
 
       while (c.hasNextApproximation && !c.solved) {
-        val approx = getNextApproximation(c.getNextApproxType.get, c, vc.inputs)
+        val next = c.getNextApproxType.get
+        reporter.info("Computing approximation: " + next)
+        val approx = getNextApproximation(next, c, vc.inputs)
         c.approximations = c.approximations :+ approx
-
-        reporter.info("Attempting approximation: " + approx.tpe)
         c.overrideStatus(checkWithZ3(approx.pre, approx.paths, approx.post, vc.allVariables ++ approx.vars))
         reporter.info("RESULT: " + c.status)
+        if (!c.model.isEmpty) reporter.info(c.model.get)
 
       }
     }
@@ -47,27 +50,50 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
     vc.verificationTime = Some(totalTime)
   }
 
-
+  // TODO: we can cache some of the body transforms and reuse for AA...
   def getNextApproximation(tpe: ApproximationType, c: Constraint, inputs: Map[Variable, Record]): ConstraintApproximation = tpe match {
-    case Uninterpreted_NoApprox =>
-      ConstraintApproximation(c.pre, c.body, c.post, Set.empty, Uninterpreted_NoApprox)  // nothing with uninterpreted functions
+    case Uninterpreted_None =>
+      ConstraintApproximation(c.pre, c.body, c.post, Set.empty, tpe)  // nothing with uninterpreted functions
+
+    case PostInlining_None =>
+      val (inlinedPre, cnstrPre, varsPre) = postInliner.inlineFncPost(c.pre)
+      val (inlinedBody, cnstrBody, varsBody) = postInliner.inlineFncPost(c.body)
+      val (inlinedPost, cnstrPost, varsPost) = postInliner.inlineFncPost(c.post)
+      ConstraintApproximation(
+        And(Seq(inlinedPre) ++ cnstrPre ++ cnstrBody), inlinedBody,
+        And(Seq(inlinedPost) ++ cnstrPost), varsBody ++ varsPost ++ varsPre, tpe)
+
+    case PostInlining_AA =>
+      val newConstraint: Expr = approximatePaths(c.paths, c.pre, inputs)
+      reporter.info("AA computed: " + newConstraint)
+      //val (inlinedPre, cnstrPre, varsPre) = postInliner.inlineFncPost(c.pre)
+      val (inlinedPost, cnstrPost, varsPost) = postInliner.inlineFncPost(c.post)
+
+      ConstraintApproximation(newConstraint, BooleanLiteral(true), And(Seq(inlinedPost) ++ cnstrPost), varsPost, tpe)
 
 
-    case PostInlining_NoApprox =>
-      val postinliner = new PostconditionInliner
-      val bodyWOFncs = postinliner.transform(c.body)
-      val constraints = postinliner.constraints
-      //println("body without fncs: " + bodyWOFncs)
-      //println("constraints: " + constraints)
-      //println("vars: " + postinliner.vars)
+    case FullInlining_None =>
+      val (inlinedPre, cnstrPre, varsPre) = fullInliner.inlineFncCalls(c.pre)
+      val (inlinedBody, cnstrBody, varsBody) = fullInliner.inlineFncCalls(c.body)
+      val (inlinedPost, cnstrPost, varsPost) = fullInliner.inlineFncCalls(c.post)
+      ConstraintApproximation(
+        And(Seq(inlinedPre) ++ cnstrPre), And(inlinedBody, And(cnstrPost ++ cnstrBody)), //cntrs are the function bodies
+        And(Seq(inlinedPost)), varsBody ++ varsPost ++ varsPre, tpe)
 
-      ConstraintApproximation(And(c.pre, And(constraints)), bodyWOFncs, c.post, postinliner.vars, PostInlining_NoApprox)
 
-    case PostInlining_AAOnly =>
-      val newConstraint: Expr = approximateConstraint(c, inputs)
+    case FullInlining_AA =>
+      //TODO: val (inlinedPre, cnstrPre, varsPre) = fullInliner.inlineFncCalls(c.pre)
+      val (inlinedBody, cnstrBody, varsBody) = fullInliner.inlineFncCalls(c.body)
+      val (inlinedPost, cnstrPost, varsPost) = fullInliner.inlineFncCalls(c.post) // cntrs are the function bodies
+
+      // we need to approximate the body
+      val newBody = And(inlinedBody, And(cnstrPost ++ cnstrBody))
+      val newConstraint: Expr = approximatePaths(collectPaths(newBody), c.pre, inputs) //add varsPost?
       reporter.info("AA computed: " + newConstraint)
 
-      ConstraintApproximation(newConstraint, BooleanLiteral(true), c.post, Set.empty, PostInlining_AAOnly)
+      ConstraintApproximation(newConstraint, BooleanLiteral(true), And(Seq(inlinedPost)), varsPost ++ varsBody, tpe)
+
+
       // TODO: If neither work, do partial approx.
     }
 
@@ -75,7 +101,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
     //val start = System.currentTimeMillis
     // if there are constraints, then those have already been handled, only deal with VCs without post
     if(!vc.specConstraint.get.approximated) {
-      computeApproximation(vc.specConstraint.get, vc.inputs)
+      //computeApproximation(vc.specConstraint.get, vc.inputs)
     }
 
     //val totalTime = (System.currentTimeMillis - start)
@@ -110,7 +136,8 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
     // This is make Z3 gives us also the error
     // TODO: maybe also add this for the input variables?
     val resultError = Equals(getNewResErrorVariable, Minus(resVar, buddies(resVar)))
-    val toCheck = Implies(And(precondition, And(body, resultError)), postcondition)
+    val machineEpsilon = Equals(eps, RationalLiteral(unitRndoff))
+    val toCheck = Implies(And(precondition, And(body, And(resultError, machineEpsilon))), postcondition)
     println("toCheck: " + toCheck)
 
     // If precondition is false, we'll prove anything, so don't try to prove at all
@@ -122,7 +149,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
   }
 
 
-  private def computeApproximation(c: Constraint, inputs: Map[Variable, Record]) = {
+  /*private def computeApproximation(c: Constraint, inputs: Map[Variable, Record]) = {
     for (path <- c.paths) {
       val pathCondition = And(path.condition, filterPreconditionForBoundsIteration(c.pre))
       if (sanityCheck(pathCondition)) {  // If this implies false, range tightening fails
@@ -139,14 +166,68 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
       }
     }
     c.approximated = true
+  }*/
+
+  /*private def computeApproximation(c: ConstraintApproximation, inputs: Map[Variable, Record]) = {
+    for (path <- c.paths) {
+      val pathCondition = And(path.condition, filterPreconditionForBoundsIteration(c.pre))
+      if (sanityCheck(pathCondition)) {  // If this implies false, range tightening fails
+        // The condition given to the solver is the real(ideal)-valued one, since we use Z3 for the real part only.
+        val (variables, indices) = variables2xfloats(inputs, solver, pathCondition)
+        path.values = inXFloats(path.expression, variables, solver, pathCondition) -- inputs.keys
+        println("path values: " + path.values)
+        path.indices= indices
+
+      } else {
+        reporter.warning("skipping path " + path)
+        // TODO: what to do here? we only checked the ideal part is impossible,
+        // but the floating-point part may still be possible
+        // although this would be quite the strange scenario...
+      }
+    }
+    //c.approximated = true
+  }*/
+
+  private def computeApproximation(paths: Set[Path], precondition: Expr, inputs: Map[Variable, Record]) = {
+    for (path <- paths) {
+      val pathCondition = And(path.condition, filterPreconditionForBoundsIteration(precondition))
+      if (sanityCheck(pathCondition)) {  // If this implies false, range tightening fails
+        // The condition given to the solver is the real(ideal)-valued one, since we use Z3 for the real part only.
+        val (variables, indices) = variables2xfloats(inputs, solver, pathCondition)
+        path.values = inXFloats(path.expression, variables, solver, pathCondition) -- inputs.keys
+        println("path values: " + path.values)
+        path.indices= indices
+
+      } else {
+        reporter.warning("skipping path " + path)
+        // TODO: what to do here? we only checked the ideal part is impossible,
+        // but the floating-point part may still be possible
+        // although this would be quite the strange scenario...
+      }
+    }
   }
 
-  private def approximateConstraint(c: Constraint, inputs: Map[Variable, Record]): Expr = {
+  // Computes one constraint that overapproximates the paths given.
+  private def approximatePaths(paths: Set[Path], pre: Expr, inputs: Map[Variable, Record]): Expr = {
+    computeApproximation(paths, pre, inputs)
+    val approx = mergeRealPathResults(paths)
+    val newConstraint = constraintFromResults(approx)
+    newConstraint
+  }
+
+ /* private def approximateConstraint(c: Constraint, inputs: Map[Variable, Record]): Expr = {
     computeApproximation(c, inputs)
     val approx = mergeRealPathResults(c.paths)
     val newConstraint = constraintFromResults(approx)
     newConstraint
-  }
+  }*/
+
+  /*private def approximateConstraint(c: ConstraintApproximation, inputs: Map[Variable, Record]): Expr = {
+    computeApproximation(c, inputs)
+    val approx = mergeRealPathResults(c.paths)
+    val newConstraint = constraintFromResults(approx)
+    newConstraint
+  }*/
 
 
 
@@ -159,10 +240,11 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program) {
       case Equals(variable, value) =>
         try {
           currentVars = currentVars + (variable -> eval(value, currentVars, solver, pre))
-          } catch {
-            case UnsupportedFragmentException(msg) => reporter.error(msg)
-          }
+        } catch {
+          case UnsupportedFragmentException(msg) => reporter.error(msg)
+        }
 
+      case BooleanLiteral(true) => ;
       case _ =>
         reporter.error("AA cannot handle: " + expr)
     }
