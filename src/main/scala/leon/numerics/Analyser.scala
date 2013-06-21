@@ -51,6 +51,7 @@ class Analyser(reporter: Reporter) {
       // Auxiliary function, nothing to prove
       case None =>
         vc.body = Some(convertLetsToEquals(addResult(funDef.body.get)))
+        println("vc.body: " + vc.body)
         vc.specConstraint = Some(Constraint(vc.precondition.get, vc.body.get, BooleanLiteral(true), "wholebody"))
     }
 

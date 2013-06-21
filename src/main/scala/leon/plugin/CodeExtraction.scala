@@ -689,6 +689,16 @@ trait CodeExtraction extends Extractors {
           }
           case ExImplicitInt2Real(i) => new RationalLiteral(i).setType(RealType)
           case ExImplicitDouble2Real(d) => new RationalLiteral(d).setType(RealType)
+          case ExImplicitDouble2RealVar(sym,tpt) => varSubsts.get(sym) match {
+            case Some(fun) => fun()
+            case None => mutableVarSubsts.get(sym) match {
+              case Some(fun) => fun()
+              case None => {
+                unit.error(tr.pos, "Unidentified variable.")
+                throw ImpureCodeEncounteredException(tr)
+              }
+            }
+          }
           case epsi@ExEpsilonExpression(tpe, varSym, predBody) => {
             val pstpe = scalaType2PureScala(unit, silent)(tpe)
             val previousVarSubst: Option[Function0[Expr]] = varSubsts.get(varSym) //save the previous in case of nested epsilon
@@ -1209,6 +1219,7 @@ trait CodeExtraction extends Extractors {
           // default behaviour is to complain :)
           case _ => {
             if(!silent) {
+              println("nextExpr: " + nextExpr)
               reporter.info(tr.pos, "Could not extract as PureScala.", true)
             }
             throw ImpureCodeEncounteredException(tree)
@@ -1249,6 +1260,7 @@ trait CodeExtraction extends Extractors {
       case TypeRef(_, sym, btt :: Nil) if isArrayClassSym(sym) => ArrayType(rec(btt))
       case TypeRef(_, sym, Nil) if classesToClasses.keySet.contains(sym) => classDefToClassType(classesToClasses(sym))
       case TypeRef(_, sym, Nil) if sym.tpe.toString == "leon.Real" => RealType
+      case tpe if tpe == DoubleClass.tpe => RealType
       case _ => {
         if(!silent) {
           println(tr.getClass)

@@ -573,6 +573,15 @@ trait Extractors {
       }
     }
 
+    object ExImplicitDouble2RealVar {
+      def unapply(tree: Apply): Option[(Symbol, Tree)] = tree match {
+        case Apply(select, List(i @ Ident(s)))
+          if (select.toString == "leon.this.Real.double2real") =>
+          Some((i.symbol, i))
+        case _ => None
+      }
+    }
+
     object ExMorePrecise {
       def unapply(tree: Apply): Option[(Tree, Tree)] = tree match {
         case Apply(select, List(arg1, arg2)) if (select.toString == "leon.Real.morePrecise") => Some((arg1, arg2))

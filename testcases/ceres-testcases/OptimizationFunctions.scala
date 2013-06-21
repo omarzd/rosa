@@ -76,12 +76,12 @@ object OptimizationFunctions {
 
   // Sim: [1215.987918907554,351618.8163690719]    (4.0745362639427185E-10)
   // Does not time out!
-  /*def goldstein(x: Real, y: Real): Real = {
-    require(-1.5 <= x && x <= 0.5 && 0.5 <= y && y <= 1.5)
+  def goldstein(x: Real, y: Real): Real = {
+    require(-1.5 <= x && x <= 0.5 && 0.5 <= y && y <= 1.5 && roundoff(x, y))
     (1 + (x + y + 1)*(x + y + 1) *(19 - 14*x + 3*x*x - 14*y + 6*x*y + 3*y*y)) *
     (30 + (2*x - 3*y)*(2*x - 3*y) * (18 - 32*x + 12*x*x +48*y - 36*x*y + 27*y*y))
   } ensuring (res => res >= -56020.0)
-  */
+  
   // This gets a RationalCannotBeCastToIntsException:
   //-2.56 <= x && x <= 7.5 && -3.56 <= y && y <= 6.55
   /*def goldstein2(x: Real, y: Real): Real = {

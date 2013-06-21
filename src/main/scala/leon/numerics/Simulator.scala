@@ -19,7 +19,8 @@ class Simulator(reporter: Reporter) {
     reporter.info("-----> Simulating function " + vc.funDef.id.name + "...")
     val funDef = vc.funDef
 
-    val body = funDef.body.get
+    val body = vc.body.get
+
     val inputs: Map[Variable, (RationalInterval, Rational)] = inputs2intervals(vc.inputs)
 
     val (maxRoundoff, resInterval) = precision match {
@@ -27,13 +28,13 @@ class Simulator(reporter: Reporter) {
       case Float64 => runDoubleSimulation(inputs, body)
     }
 
-    val intInputs = inputs.map( x => (x._1 -> Interval(x._2._1.xlo.toDouble, x._2._1.xhi.toDouble) ))
-    val smartInputs = inputs.map ( x => (x._1 -> interval2smartfloat(x._2._1)) )
+    val intInputs: Map[Expr, Interval] = inputs.map( x => (x._1 -> Interval(x._2._1.xlo.toDouble, x._2._1.xhi.toDouble) ))
+    val smartInputs: Map[Expr, SmartFloat] = inputs.map ( x => (x._1 -> interval2smartfloat(x._2._1)) )
 
     vc.simulationRange = Some(resInterval)
     vc.rndoff = Some(maxRoundoff)
-    vc.intervalRange = Some(evalInterval(body, intInputs))
-    vc.smartfloatRange = Some(evalSmartFloat(body, smartInputs))
+    vc.intervalRange = Some(evaluateInterval(body, intInputs))
+    vc.smartfloatRange = Some(evaluateSmartFloat(body, smartInputs))
   }
 
   private def runDoubleSimulation(inputs: Map[Variable, (RationalInterval, Rational)], body: Expr): (Double, Interval) = {
@@ -43,7 +44,7 @@ class Simulator(reporter: Reporter) {
     var maxRoundoff: Double = 0.0
 
     while(counter < simSize) {
-      var randomInputs = new collection.immutable.HashMap[Variable, (Double, Rational)]()
+      var randomInputs = new collection.immutable.HashMap[Expr, (Double, Rational)]()
 
       for ((k, ((i, n))) <- inputs) {
         val ideal = i.xlo + Rational(r.nextDouble) * (i.xhi - i.xlo)
@@ -55,7 +56,7 @@ class Simulator(reporter: Reporter) {
         assert(Rational.abs(ideal - actual) <= n)
         randomInputs += ((k, (actual.toDouble, ideal)))
       }
-      val (resDouble, resRat) = eval(body, randomInputs)
+      val (resDouble, resRat) = evaluate(body, randomInputs)
       maxRoundoff = math.max(maxRoundoff, math.abs(resDouble - resRat.toDouble))
       resInterval = extendInterval(resInterval, resDouble)
       counter += 1
@@ -70,7 +71,7 @@ class Simulator(reporter: Reporter) {
     var maxRoundoff: Double = 0.0
 
     while(counter < simSize) {
-      var randomInputs = new collection.immutable.HashMap[Variable, (Float, Rational)]()
+      var randomInputs = new collection.immutable.HashMap[Expr, (Float, Rational)]()
 
       for ((k, ((i, n))) <- inputs) {
         val ideal = i.xlo + Rational(r.nextDouble) * (i.xhi - i.xlo)
@@ -82,7 +83,7 @@ class Simulator(reporter: Reporter) {
         assert(Rational.abs(ideal - actual) <= n)
         randomInputs += ((k, (actual.toFloat, ideal)))
       }
-      val (resDouble, resRat) = evalSingle(body, randomInputs)
+      val (resDouble, resRat) = evaluateSingle(body, randomInputs)
       maxRoundoff = math.max(maxRoundoff, math.abs(resDouble - resRat.toDouble))
       resInterval = extendInterval(resInterval, resDouble)
       counter += 1
@@ -90,7 +91,64 @@ class Simulator(reporter: Reporter) {
     (maxRoundoff, resInterval)
   }
 
-  private def eval(tree: Expr, vars: Map[Variable, (Double, Rational)]): (Double, Rational) = tree match {
+  // Returns the double value and range of the ResultVariable
+  private def evaluate(expr: Expr, vars: Map[Expr, (Double, Rational)]): (Double, Rational) = {
+    val exprs: Seq[Expr] = expr match {
+      case And(args) => args
+      case _ => Seq(expr)
+    }
+    var currentVars: Map[Expr, (Double, Rational)] = vars
+    for (e <- exprs) e match {
+      case Equals(variable, value) => currentVars = currentVars + (variable -> eval(value, currentVars))
+      case BooleanLiteral(true) => ;
+      case _ => reporter.error("Simulation cannot handle: " + expr)
+    }
+    currentVars(ResultVariable())
+  }
+
+  private def evaluateSingle(expr: Expr, vars: Map[Expr, (Float, Rational)]): (Float, Rational) = {
+    val exprs: Seq[Expr] = expr match {
+      case And(args) => args
+      case _ => Seq(expr)
+    }
+    var currentVars: Map[Expr, (Float, Rational)] = vars
+    for (e <- exprs) e match {
+      case Equals(variable, value) => currentVars = currentVars + (variable -> evalSingle(value, currentVars))
+      case BooleanLiteral(true) => ;
+      case _ => reporter.error("Simulation cannot handle: " + expr)
+    }
+    currentVars(ResultVariable())
+  }
+
+  private def evaluateInterval(expr: Expr, vars: Map[Expr, Interval]): Interval = {
+    val exprs: Seq[Expr] = expr match {
+      case And(args) => args
+      case _ => Seq(expr)
+    }
+    var currentVars: Map[Expr, Interval] = vars
+    for (e <- exprs) e match {
+      case Equals(variable, value) => currentVars = currentVars + (variable -> evalInterval(value, currentVars))
+      case BooleanLiteral(true) => ;
+      case _ => reporter.error("Simulation cannot handle: " + expr)
+    }
+    currentVars(ResultVariable())
+  }
+
+  private def evaluateSmartFloat(expr: Expr, vars: Map[Expr, SmartFloat]): SmartFloat = {
+    val exprs: Seq[Expr] = expr match {
+      case And(args) => args
+      case _ => Seq(expr)
+    }
+    var currentVars: Map[Expr, SmartFloat] = vars
+    for (e <- exprs) e match {
+      case Equals(variable, value) => currentVars = currentVars + (variable -> evalSmartFloat(value, currentVars))
+      case BooleanLiteral(true) => ;
+      case _ => reporter.error("Simulation cannot handle: " + expr)
+    }
+    currentVars(ResultVariable())
+  }
+
+  private def eval(tree: Expr, vars: Map[Expr, (Double, Rational)]): (Double, Rational) = tree match {
     case v @ Variable(id) =>  vars(v)
     case RationalLiteral(v) => (v.toDouble, v)
     case IntLiteral(v) => (v.toDouble, Rational(v))
@@ -119,7 +177,7 @@ class Simulator(reporter: Reporter) {
       (Double.NaN, Rational(0))
   }
 
-  private def evalSingle(tree: Expr, vars: Map[Variable, (Float, Rational)]): (Float, Rational) = tree match {
+  private def evalSingle(tree: Expr, vars: Map[Expr, (Float, Rational)]): (Float, Rational) = tree match {
     case v @ Variable(id) =>  vars(v)
     case RationalLiteral(v) => (v.toFloat, v)
     case IntLiteral(v) => (v.toFloat, Rational(v))
@@ -148,7 +206,7 @@ class Simulator(reporter: Reporter) {
       (Float.NaN, Rational(0))
   }
 
-  private def evalInterval(tree: Expr, vars: Map[Variable, Interval]): Interval = tree match {
+  private def evalInterval(tree: Expr, vars: Map[Expr, Interval]): Interval = tree match {
     case v @ Variable(id) => vars(v)
     case RationalLiteral(v) => Interval(v.toDouble)
     case IntLiteral(v) => Interval(v.toDouble)
@@ -162,7 +220,7 @@ class Simulator(reporter: Reporter) {
       EmptyInterval
   }
 
-  private def evalSmartFloat(tree: Expr, vars: Map[Variable, SmartFloat]): SmartFloat = tree match {
+  private def evalSmartFloat(tree: Expr, vars: Map[Expr, SmartFloat]): SmartFloat = tree match {
     case v @ Variable(id) => vars(v)
     case RationalLiteral(v) => SmartFloat(v.toDouble)
     case IntLiteral(v) => SmartFloat(v.toDouble)
