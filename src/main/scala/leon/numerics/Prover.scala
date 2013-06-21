@@ -66,13 +66,14 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
         And(Seq(inlinedPost) ++ cnstrPost), varsBody ++ varsPost ++ varsPre, tpe)
 
     case PostInlining_AA =>
-      val newConstraint: Expr = approximatePaths(c.paths, c.pre, inputs)
+      val (newConstraint, values) = approximatePaths(c.paths, c.pre, inputs)
       reporter.info("AA computed: " + newConstraint)
       //val (inlinedPre, cnstrPre, varsPre) = postInliner.inlineFncPost(c.pre)
       val (inlinedPost, cnstrPost, varsPost) = postInliner.inlineFncPost(c.post)
 
-      ConstraintApproximation(newConstraint, BooleanLiteral(true), And(Seq(inlinedPost) ++ cnstrPost), varsPost, tpe)
-
+      val cnstr = ConstraintApproximation(newConstraint, BooleanLiteral(true), And(Seq(inlinedPost) ++ cnstrPost), varsPost, tpe)
+      cnstr.values = values
+      cnstr
 
     case FullInlining_None =>
       val (inlinedPre, cnstrPre, varsPre) = fullInliner.inlineFncCalls(c.pre)
@@ -90,16 +91,17 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
 
       // we need to approximate the body
       val newBody = And(inlinedBody, And(cnstrPost ++ cnstrBody))
-      val newConstraint: Expr = approximatePaths(collectPaths(newBody), c.pre, inputs) //add varsPost?
+      val (newConstraint, values) = approximatePaths(collectPaths(newBody), c.pre, inputs) //add varsPost?
       reporter.info("AA computed: " + newConstraint)
 
-      ConstraintApproximation(newConstraint, BooleanLiteral(true), And(Seq(inlinedPost)), varsPost ++ varsBody, tpe)
-
+      val cnstr = ConstraintApproximation(newConstraint, BooleanLiteral(true), And(Seq(inlinedPost)), varsPost ++ varsBody, tpe)
+      cnstr.values = values
+      cnstr
 
       // TODO: If neither work, do partial approx.
     }
 
-  def addSpecs(vc: VerificationCondition): VerificationCondition = {
+  /*def addSpecs(vc: VerificationCondition): VerificationCondition = {
     //val start = System.currentTimeMillis
     // if there are constraints, then those have already been handled, only deal with VCs without post
     if(!vc.specConstraint.get.approximated) {
@@ -109,7 +111,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
     //val totalTime = (System.currentTimeMillis - start)
     //vc.verificationTime = Some(totalTime)
     vc
-  }
+  }*/
 
 
 
@@ -211,11 +213,13 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
   }
 
   // Computes one constraint that overapproximates the paths given.
-  private def approximatePaths(paths: Set[Path], pre: Expr, inputs: Map[Variable, Record]): Expr = {
+  private def approximatePaths(paths: Set[Path], pre: Expr, inputs: Map[Variable, Record]): (Expr, Map[Expr, (RationalInterval, Rational)]) = {
     computeApproximation(paths, pre, inputs)
+    println("approximation: " + paths.head.values)
     val approx = mergeRealPathResults(paths)
+    println("merged: " + approx)
     val newConstraint = constraintFromResults(approx)
-    newConstraint
+    (newConstraint, approx)
   }
 
  /* private def approximateConstraint(c: Constraint, inputs: Map[Variable, Record]): Expr = {

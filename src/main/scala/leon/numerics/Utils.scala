@@ -217,6 +217,17 @@ object Utils {
                                   Noise(kv._1, RationalLiteral(kv._2._2)))))
   }
 
+  def actualConstraintFromResults(results: Map[Expr, (RationalInterval, Rational)]): Expr = {
+    And(results.foldLeft(Seq[Expr]()) ((seq, kv) =>  interval2constraint(kv._1, kv._2._1, kv._2._2)))
+  }
+
+  private def interval2constraint(v: Expr, i: RationalInterval, e: Rational): Seq[Expr] = {
+    val actualInterval = i + RationalInterval(-e, e)
+    Seq(LessEquals(RationalLiteral(actualInterval.xlo), v),
+                                  LessEquals(v, RationalLiteral(actualInterval.xhi)),
+                                  Noise(v, RationalLiteral(e)))
+  }
+
   def ratint2expr(r: RationalInterval, v: Expr): Expr = {
     And(LessEquals(RationalLiteral(r.xlo), v),
         LessEquals(v, RationalLiteral(r.xhi)))

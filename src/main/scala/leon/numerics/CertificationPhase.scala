@@ -99,12 +99,11 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
     }
 
     if (specgen) {
-      val specgen = new SpecGen(reporter)
-      for(vc <- vcs) specgen.generateSpec(prover.addSpecs(vc))
+      val specgen = new SpecGen(reporter, prover)
+      for(vc <- vcs) specgen.generateSpec(vc)
     }
 
-    // TODO: nicer formatting of numbers
-    //generateCode(reporter, program, vcs)
+    generateCode(reporter, program, vcs)
     new CertificationReport(vcs)
 
 

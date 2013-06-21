@@ -1,6 +1,7 @@
 package leon
 package numerics
 
+import ceres.common.{Rational, RationalInterval}
 
 import purescala.Common._
 import purescala.Definitions._
@@ -14,6 +15,8 @@ import ApproximationType._
 // This is an approximation of an constraint.
 // vars: additional free variables created
 case class ConstraintApproximation(pre: Expr, body: Expr, post: Expr, vars: Set[Variable], tpe: ApproximationType) {
+  var values: Map[Expr, (RationalInterval, Rational)] = Map.empty
+
   lazy val paths = collectPaths(body)
   override def toString: String = "APP(%s && %s) ==> %s".format(pre.toString, body.toString, post.toString)
 }
@@ -38,8 +41,8 @@ case class Constraint(pre: Expr, body: Expr, post: Expr, description: String) {
 
   var approxStrategy =
     if (containsFunctionCalls(body) || containsFunctionCalls(pre) || containsFunctionCalls(post))
-      //Seq(Uninterpreted_None, PostInlining_None, PostInlining_AA, FullInlining_None, FullInlining_AA)
-      Seq(FullInlining_AA)
+      Seq(Uninterpreted_None, PostInlining_None, PostInlining_AA, FullInlining_None, FullInlining_AA)
+      //Seq(FullInlining_AA)
     else
       Seq(Uninterpreted_None, PostInlining_AA)
 
@@ -58,7 +61,9 @@ case class Constraint(pre: Expr, body: Expr, post: Expr, description: String) {
 
 
   // whether we already ran the AA approximation
-  var approximated: Boolean = false
+  def approximationForSpec: Option[ConstraintApproximation] = {
+    approximations.find(a => a.tpe == PostInlining_AA)
+  }
 
   def overrideStatus(s: (Option[Valid], Option[Map[Identifier, Expr]])) = {
     status = s._1

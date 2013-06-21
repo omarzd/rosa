@@ -10,7 +10,6 @@ import ceres.smartfloat._
 
 import Precision._
 
-// Only works with doubles.
 class Simulator(reporter: Reporter) {
 
   val simSize = 1000000//00

@@ -9,23 +9,29 @@ import purescala.Common._
 import purescala.TypeTrees._
 
 import Utils._
+import ApproximationType._
 
 import collection.mutable.Queue
 
 
-class SpecGen(reporter: Reporter) {
+class SpecGen(reporter: Reporter, prover: Prover) {
 
   def generateSpec(vc: VerificationCondition) = {
     reporter.info("")
     reporter.info("----------> generating postcondition for: " + vc.funDef.id.name)
 
-    println("specConstraint: " + vc.specConstraint)
-
     vc.specConstraint match {
       case Some(c) =>
-        val approx = mergeActualPathResults(c.paths).filter( k => k._1 == ResultVariable())
-        val newConstraint = constraintFromResults(approx)
+        val approxConstraint = c.approximationForSpec match {
+            case Some(a) => a
+            case None =>
+              prover.getNextApproximation(PostInlining_AA, c, vc.inputs)
+          }
+
+        val approx = approxConstraint.values.filter( k => k._1 == ResultVariable())
+        val newConstraint = actualConstraintFromResults(approx)
         vc.generatedPost = Some(newConstraint)
+        println(vc.generatedPost)
 
       case None =>
         reporter.warning("Forgotten spec constraint?")
