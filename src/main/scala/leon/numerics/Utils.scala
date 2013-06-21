@@ -67,6 +67,12 @@ object Utils {
 
   val emptyRecord = Record(None, None, None, None)
 
+  def getVariableRecords(expr: Expr): Map[Variable, Record] = {
+    val collector = new VariableCollector
+    collector.transform(expr)
+    collector.recordMap
+  }
+
   class VariableCollector extends TransformerWithPC {
     type C = Seq[Expr]
     val initC = Nil

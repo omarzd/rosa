@@ -44,6 +44,7 @@ class SpecGen(reporter: Reporter, prover: Prover) {
     reporter.info("")
     reporter.info("----------> generating postcondition for: " + vc.funDef.id.name)
 
+    // TODO: what do we do with invariants?
     vc.specConstraint match {
       case Some(c) =>
         var args = Seq[Expr]()

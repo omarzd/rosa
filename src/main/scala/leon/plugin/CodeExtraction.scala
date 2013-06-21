@@ -917,9 +917,14 @@ trait CodeExtraction extends Extractors {
             }
           case ExNoise(t, n) => Noise(rec(t), rec(n)).setType(BooleanType)
           case ExRoundoff(ts) => And(ts.map(t => Roundoff(rec(t)).setType(BooleanType)))
+          case ExActual(e) =>
+            val rTree = rec(e)
+            assert(rTree.getType == RealType)
+            Actual(rTree).setType(RealType)
           case ExIn(id, t1, t2) =>
             val v = rec(id)
             And(LessEquals(rec(t1), v), LessEquals(v, rec(t2)))
+          case ExMorePrecise(t, n) => MorePrecise(rec(t), rec(n)).setType(BooleanType)
           case ExSqrt(t) => Sqrt(rec(t)).setType(RealType)
           case ExFiniteSet(tt, args) => {
             val underlying = scalaType2PureScala(unit, silent)(tt.tpe)

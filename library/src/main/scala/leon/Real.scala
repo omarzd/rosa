@@ -20,6 +20,8 @@ import scala.math.{ScalaNumericConversions, ScalaNumber}
     def roundoff(x1: Real, x2: Real, x3: Real, x4: Real, x5: Real): Boolean = { throw new NotExecutableException(exMsg); false }
 
 
+    def morePrecise(x: Real, y: Real): Boolean = { throw new NotExecutableException(exMsg); false }
+
     def sqrt(x: Real): Real = { throw new NotExecutableException(exMsg); null }
 
   }
@@ -32,6 +34,8 @@ import scala.math.{ScalaNumericConversions, ScalaNumber}
     def -(other: Real): Real = { throw new NotExecutableException(exMsg); null }
     def *(other: Real): Real = { throw new NotExecutableException(exMsg); null }
     def /(other: Real): Real = { throw new NotExecutableException(exMsg); null }
+
+    def unary_~(): Real = { throw new NotExecutableException(exMsg); null }
 
     // Convenience method to specify intervals
     def in(a: Real, b: Real): Boolean = { throw new NotExecutableException(exMsg); false }

@@ -493,6 +493,14 @@ object Trees {
     val fixedType = BooleanType
   }
 
+  case class MorePrecise(lhs: Expr, rhs: Expr) extends Expr with FixedType {
+    val fixedType = BooleanType
+  }
+
+  case class Actual(expr: Expr) extends Expr with FixedType {
+    val fixedType = RealType
+  }
+
   case class Sqrt(expr: Expr) extends Expr with FixedType {
     val fixedType = RealType
   }

@@ -66,12 +66,17 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
         And(Seq(inlinedPost) ++ cnstrPost), varsBody ++ varsPost ++ varsPre, tpe)
 
     case PostInlining_AA =>
-      val (newConstraint, values) = approximatePaths(c.paths, c.pre, inputs)
-      reporter.info("AA computed: " + newConstraint)
+      val (inlinedBody, cnstrBody, varsBody) = postInliner.inlineFncPost(c.body)
       //val (inlinedPre, cnstrPre, varsPre) = postInliner.inlineFncPost(c.pre)
       val (inlinedPost, cnstrPost, varsPost) = postInliner.inlineFncPost(c.post)
 
-      val cnstr = ConstraintApproximation(newConstraint, BooleanLiteral(true), And(Seq(inlinedPost) ++ cnstrPost), varsPost, tpe)
+      val (newConstraint, values) = approximatePaths(collectPaths(inlinedBody),
+         And(Seq(c.pre) ++ cnstrBody), inputs ++ getVariableRecords(And(cnstrBody) ))
+      reporter.info("AA computed: " + newConstraint)
+
+
+      val cnstr = ConstraintApproximation(newConstraint, BooleanLiteral(true),
+         And(Seq(inlinedPost) ++ cnstrPost), varsPost ++ varsBody, tpe)
       cnstr.values = values
       cnstr
 
@@ -79,6 +84,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
       val (inlinedPre, cnstrPre, varsPre) = fullInliner.inlineFncCalls(c.pre)
       val (inlinedBody, cnstrBody, varsBody) = fullInliner.inlineFncCalls(c.body)
       val (inlinedPost, cnstrPost, varsPost) = fullInliner.inlineFncCalls(c.post)
+
       ConstraintApproximation(
         And(Seq(inlinedPre) ++ cnstrPre), And(inlinedBody, And(cnstrPost ++ cnstrBody)), //cntrs are the function bodies
         And(Seq(inlinedPost)), varsBody ++ varsPost ++ varsPre, tpe)
@@ -90,8 +96,11 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
       val (inlinedPost, cnstrPost, varsPost) = fullInliner.inlineFncCalls(c.post) // cntrs are the function bodies
 
       // we need to approximate the body
-      val newBody = And(inlinedBody, And(cnstrPost ++ cnstrBody))
-      val (newConstraint, values) = approximatePaths(collectPaths(newBody), c.pre, inputs) //add varsPost?
+      val newBody = And(And(cnstrBody ++ cnstrPost), inlinedBody)
+
+      println("new body: " + newBody)
+      val (newConstraint, values) = approximatePaths(collectPaths(newBody),
+        c.pre, inputs) //add varsPost?
       reporter.info("AA computed: " + newConstraint)
 
       val cnstr = ConstraintApproximation(newConstraint, BooleanLiteral(true), And(Seq(inlinedPost)), varsPost ++ varsBody, tpe)

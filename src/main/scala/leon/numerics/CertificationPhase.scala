@@ -88,6 +88,11 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
     // TODO: fail in some reasonable way if neither roundoff nor noise is specified
     // TODO: make specgen possible to disable
     val vcs = generateVCs(reporter, sortedFncs)
+
+    if (reporter.errorCount > 0) {
+      throw LeonFatalError()
+    }
+
     val vcMap: Map[FunDef, VerificationCondition] = vcs.map { t => (t.funDef, t) }.toMap
 
     val prover = new Prover(reporter, ctx, program, vcMap, precision)

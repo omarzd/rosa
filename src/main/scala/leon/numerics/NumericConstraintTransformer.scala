@@ -80,6 +80,31 @@ class NumericConstraintTransformer(buddy: Map[Expr, Expr], ress: Variable, eps: 
       case GreaterEquals(ResultVariable(), RationalLiteral(_)) | GreaterEquals(RationalLiteral(_), ResultVariable()) =>
         replace(Map(ResultVariable() -> ress), e)
 
+      case LessThan(x, y) => LessThan(transformPrePost(x), transformPrePost(y))
+      case GreaterThan(x, y) => GreaterThan(transformPrePost(x), transformPrePost(y))
+      case LessEquals(x, y) => LessEquals(transformPrePost(x), transformPrePost(y))
+      case GreaterEquals(x, y) => GreaterEquals(transformPrePost(x), transformPrePost(y))
+
+      case a @ Actual(v @ Variable(id)) => buddy(v)
+      case Actual(ResultVariable()) => buddy(ress)
+
+      case Actual(x) => reporter.error("Actual only allowed on variables, but not on: " + x.getClass); e
+
+      case MorePrecise(x @ Variable(id1), y @ Variable(id2)) =>
+        val x0 = buddy(x)
+        val y0 = buddy(y)
+        val y0_y = Minus(y0, y)
+        val y_y0 = Minus(y, y0)
+        val x0_x = Minus(x0, x)
+        val x_x0 = Minus(x, x0)
+        And(Seq(
+          LessEquals(y0_y, x_x0), LessEquals(y_y0, x_x0),
+          LessEquals(x_x0, y_y0), LessEquals(x_x0, y0_y)
+          ))
+
+      case MorePrecise(x, y) =>
+        reporter.error("MorePrecise only allowed on variables, but not on: " + x.getClass + ", " + y.getClass); e
+
       case _ => e
     }
 

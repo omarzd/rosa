@@ -105,10 +105,10 @@ class Analyser(reporter: Reporter) {
   private def getInvariantCondition(expr: Expr): List[Expr] = expr match {
     case IfExpr(cond, then, elze) => getInvariantCondition(then) ++ getInvariantCondition(elze)
     case Let(binder, value, body) => getInvariantCondition(body)
-    case LessEquals(_, _) | LessThan(_, _) | GreaterThan(_, _) | GreaterEquals(_, _) =>
+    case LessEquals(_, _) | LessThan(_, _) | GreaterThan(_, _) | GreaterEquals(_, _) | MorePrecise(_, _) =>
       List(expr)
     case _ =>
-      reporter.warning("Was supposed to be invariant, but none found.")
+      reporter.error("Expected invariant, but found: " + expr.getClass)
       List(BooleanLiteral(false))
   }
 
