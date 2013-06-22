@@ -9,6 +9,7 @@ import affine._
 import Rational._
 import XRationalForm._
 import affine.Utils._
+import Precision._
 
 import collection.mutable.Queue
 import java.math.{BigInteger, BigDecimal}
@@ -121,9 +122,18 @@ object XFloat {
   }
 
   val verbose = false
+  // TODO: alright, this is not exact
+  val MaxDouble = Rational(Double.MaxValue)
+  val MaxFloat = Rational(Double.MaxValue)
+
+  println("MaxDouble: " + MaxDouble)
+  println("-MaxDouble: " + -MaxDouble)
+  println("MaxFloat: " + MaxFloat)
+  println("-MaxFloat: " + -MaxFloat)
+
 }
 
-case class XFloatConfig(solver: NumericSolver, precondition: Expr, machineEps: Rational)
+case class XFloatConfig(reporter: Reporter, solver: NumericSolver, precondition: Expr, precision: Precision, machineEps: Rational)
 
 /**
   A datatype for range arithmetic that keeps track of floating-point roundoff errors.
@@ -132,6 +142,7 @@ case class XFloatConfig(solver: NumericSolver, precondition: Expr, machineEps: R
   @param error various uncertainties, incl. roundoffs
   @param config solver, precondition, which precision to choose
  */
+ // TODO: would this also work with an interval for approxRange? (MUCH faster)
 class XFloat(val tree: Expr, val approxRange: XRationalForm, val error: XRationalForm, config: XFloatConfig) {
   import XFloat._
 
@@ -143,6 +154,19 @@ class XFloat(val tree: Expr, val approxRange: XRationalForm, val error: XRationa
   lazy val maxError: Rational = {
     val i = error.interval
     max(abs(i.xlo), abs(i.xhi))
+  }
+
+  // Check for potential overflow
+  config.precision match {
+    case Float32 =>
+      if (interval.xlo < -MaxFloat || MaxFloat < interval.xhi) {
+        config.reporter.warning("Potential overflow detected for: %s,\nwith precondition %s".format(tree, config.precondition))
+      }
+    case Float64 =>
+      if (interval.xlo < -MaxDouble || MaxDouble < interval.xhi) {
+        config.reporter.warning("Potential overflow detected for: %s,\nwith precondition %s".format(tree, config.precondition))
+        config.reporter.info(interval)
+      }
   }
 
   /*def errorString(variables: Iterable[Int]): String = {
@@ -210,7 +234,10 @@ class XFloat(val tree: Expr, val approxRange: XRationalForm, val error: XRationa
   }
 
   def /(y: XFloat): XFloat = {
-    // TODO: catch division by zero
+    if (y.interval.xlo < Rational.zero && y.interval.xhi > Rational.zero) {
+      config.reporter.warning("Potential division by zero detected for: %s/%s,\nwith precondition %s".format(
+        this.tree, y.tree, config.precondition))
+    }
 
     //if (y.isExact) {
 
@@ -241,8 +268,10 @@ class XFloat(val tree: Expr, val approxRange: XRationalForm, val error: XRationa
   }
 
   def squareRoot: XFloat = {
-    // TODO: catch sqrt of negative number
-
+    if (interval.xlo < Rational.zero || interval.xhi < Rational.zero) {
+      config.reporter.warning("Potential square root of a negative number for: %s,\nwith precondition %s".format(
+        this.tree, config.precondition))
+    }
     // if this.isExact
 
     val int = this.interval

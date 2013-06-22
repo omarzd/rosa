@@ -206,7 +206,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
       val pathCondition = And(path.condition, filterPreconditionForBoundsIteration(precondition))
       if (sanityCheck(pathCondition)) {  // If this implies false, range tightening fails
         // The condition given to the solver is the real(ideal)-valued one, since we use Z3 for the real part only.
-        val config = XFloatConfig(solver, pathCondition, unitRoundoff)
+        val config = XFloatConfig(reporter, solver, pathCondition, precision, unitRoundoff)
         val (variables, indices) = variables2xfloats(inputs, config)
         path.values = inXFloats(path.expression, variables, config) -- inputs.keys
         println("path values: " + path.values)
