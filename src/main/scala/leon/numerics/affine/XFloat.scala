@@ -142,6 +142,7 @@ case class XFloatConfig(reporter: Reporter, solver: NumericSolver, precondition:
   @param error various uncertainties, incl. roundoffs
   @param config solver, precondition, which precision to choose
  */
+ // TODO: would this also work with an interval for approxRange? (MUCH faster)
 class XFloat(val tree: Expr, val approxRange: XRationalForm, val error: XRationalForm, config: XFloatConfig) {
   import XFloat._
 
