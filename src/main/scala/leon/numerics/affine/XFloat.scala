@@ -275,6 +275,7 @@ class XFloat(val tree: Expr, val approxRange: XRationalForm, val approxInterval:
     if (interval.xlo < Rational.zero || interval.xhi < Rational.zero) {
       config.reporter.warning("Potential square root of a negative number for: %s,\nwith precondition %s".format(
         this.tree, config.precondition))
+      config.reporter.warning("interval: " + this.interval)
     }
     // if this.isExact
 
