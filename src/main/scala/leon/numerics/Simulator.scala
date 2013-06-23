@@ -6,13 +6,13 @@ import purescala.Definitions._
 import Utils.VariableCollector
 
 import ceres.common._
-import ceres.smartfloat._
+import affine._
 
 import Precision._
 
 class Simulator(reporter: Reporter) {
 
-  val simSize = 100//0000//00
+  val simSize = 1//00//0000//00
   reporter.info("Simulation size: " + simSize + "\n")
 
   def simulateThis(vc: VerificationCondition, precision: Precision) = {
@@ -23,18 +23,19 @@ class Simulator(reporter: Reporter) {
 
     val inputs: Map[Variable, (RationalInterval, Rational)] = inputs2intervals(vc.inputs)
 
-    val (maxRoundoff, resInterval) = precision match {
+    /*val (maxRoundoff, resInterval) = precision match {
       case Float32 => runFloatSimulation(inputs, body)
       case Float64 => runDoubleSimulation(inputs, body)
-    }
+    }*/
+    val (maxRoundoff, resInterval) = (0.0, Interval(0.0) )
 
     val intInputs: Map[Expr, Interval] = inputs.map( x => (x._1 -> Interval(x._2._1.xlo.toDouble, x._2._1.xhi.toDouble) ))
-    val smartInputs: Map[Expr, SmartFloat] = inputs.map ( x => (x._1 -> interval2smartfloat(x._2._1)) )
+    val xratInputs: Map[Expr, XRationalForm] = inputs.map ( x => (x._1 -> XRationalForm(x._2._1) ) )
 
     vc.simulationRange = Some(resInterval)
     vc.rndoff = Some(maxRoundoff)
     vc.intervalRange = Some(evaluateInterval(body, intInputs))
-    vc.smartfloatRange = Some(evaluateSmartFloat(body, smartInputs))
+    vc.affineRange = Some(evaluateXRationalForm(body, xratInputs).interval)
   }
 
   private def runDoubleSimulation(inputs: Map[Variable, (RationalInterval, Rational)], body: Expr): (Double, Interval) = {
@@ -134,14 +135,14 @@ class Simulator(reporter: Reporter) {
     currentVars(ResultVariable())
   }
 
-  private def evaluateSmartFloat(expr: Expr, vars: Map[Expr, SmartFloat]): SmartFloat = {
+  private def evaluateXRationalForm(expr: Expr, vars: Map[Expr, XRationalForm]): XRationalForm = {
     val exprs: Seq[Expr] = expr match {
       case And(args) => args
       case _ => Seq(expr)
     }
-    var currentVars: Map[Expr, SmartFloat] = vars
+    var currentVars: Map[Expr, XRationalForm] = vars
     for (e <- exprs) e match {
-      case Equals(variable, value) => currentVars = currentVars + (variable -> evalSmartFloat(value, currentVars))
+      case Equals(variable, value) => currentVars = currentVars + (variable -> evalXRationalForm(value, currentVars))
       case BooleanLiteral(true) => ;
       case _ => reporter.error("Simulation cannot handle: " + expr)
     }
@@ -220,30 +221,25 @@ class Simulator(reporter: Reporter) {
       EmptyInterval
   }
 
-  private def evalSmartFloat(tree: Expr, vars: Map[Expr, SmartFloat]): SmartFloat = {
-
+  private def evalXRationalForm(tree: Expr, vars: Map[Expr, XRationalForm]): XRationalForm = {
     val t = tree match {
     case v @ Variable(id) => vars(v)
-    case RationalLiteral(v) => SmartFloat(v.toDouble)
-    case IntLiteral(v) => SmartFloat(v.toDouble)
-    case UMinus(e) => - evalSmartFloat(e, vars)
-    case Plus(lhs, rhs) => evalSmartFloat(lhs, vars) + evalSmartFloat(rhs, vars)
-    case Minus(lhs, rhs) => evalSmartFloat(lhs, vars) - evalSmartFloat(rhs, vars)
-    case Times(lhs, rhs) => evalSmartFloat(lhs, vars) * evalSmartFloat(rhs, vars)
-    case Division(lhs, rhs) => evalSmartFloat(lhs, vars) / evalSmartFloat(rhs, vars)
+    case RationalLiteral(v) => new XRationalForm(v)
+    case IntLiteral(v) => new XRationalForm(Rational(v))
+    case UMinus(e) => - evalXRationalForm(e, vars)
+    case Plus(lhs, rhs) => evalXRationalForm(lhs, vars) + evalXRationalForm(rhs, vars)
+    case Minus(lhs, rhs) => evalXRationalForm(lhs, vars) - evalXRationalForm(rhs, vars)
+    case Times(lhs, rhs) => evalXRationalForm(lhs, vars) * evalXRationalForm(rhs, vars)
+    case Division(lhs, rhs) => evalXRationalForm(lhs, vars) / evalXRationalForm(rhs, vars)
     case _ =>
       throw UnsupportedFragmentException("Can't handle: " + tree.getClass)
       null
     }
-    println("evaluating: " + tree)
-    println("result: " + t)
+    //println("\nevaluating: " + tree)
+    //println("result: " + t)
+    //println("x0: " + t.x0)
+    //println("noise: " + t.noise)
     t
-  }
-
-  private def interval2smartfloat(i: RationalInterval): SmartFloat = {
-    val u = (i.xhi - i.xlo)/Rational(2.0)
-    val d = i.xlo + u
-    SmartFloat(d.toDouble, u.toDouble)
   }
 
   private def extendInterval(i: Interval, d: Double): Interval = i match {

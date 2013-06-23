@@ -228,7 +228,7 @@ class XFloat(val tree: Expr, val approxRange: XRationalForm, val approxInterval:
     var newError = xAA*yErr + yAA*xErr + xErr*yErr
     //val newRange = getTightInterval(newTree, newApprox) + newError.interval
     val newRange = getTightInterval(newTree, newInterval) + newError.interval
-    
+
     val rndoff = roundoff(newRange)
 
     //One could also keep track of the input dependencies from xAA and yAA
@@ -331,12 +331,12 @@ class XFloat(val tree: Expr, val approxRange: XRationalForm, val approxInterval:
     return res
   }*/
   private def getTightInterval(tree: Expr, approx: RationalInterval): RationalInterval = {
-    println("\n tightening: " + tree)
-    println("initial approx: " + approx)
+    //println("\n tightening: " + tree)
+    //println("initial approx: " + approx)
 
     val res = config.solver.tightenRange(tree, config.precondition, approx)
     //val res = approx.interval
-    println("tightening was successful: " + res)
+    //println("tightening was successful: " + res)
 
     return res
   }

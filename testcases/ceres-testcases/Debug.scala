@@ -8,21 +8,12 @@ import Real._
 
 object Debug {
 
-  def doppler(u: Real, v: Real, T: Real): Real = {
-    require(-100 <= u && u <= 100 && 20 <= v && v <= 20000 &&
-     -30 <= T && T <= 50 && noise(u, 1e-7) && noise(v, 1e-9) && noise(T, 1e-6))
-    val x = (331.4 + 0.6*T + u)
-    (- (331.4 + 0.6 * T) *v) / (x*x)
-
-  } ensuring (res => -137.0 <= res && res <= -0.35 && noise(res, 1e-4))
-
-
-  /*def rigidBody(x1: Real, x2: Real, x3: Real): Real = {
+  def rigidBody(x1: Real, x2: Real, x3: Real): Real = {
     require(x1 <= 15 && x1 >= -15 && x2 <= 15 && x2 >= -15 &&
             x3 <= 15 && x3 >= -15 && roundoff(x1) && roundoff(x2) && roundoff(x3))
     -x1*x2 - 2*x2*x3 - x1 - x3
   } ensuring (res => -800 <= ~res && ~res <= 750.0 && noise(res, 1e-10))
-  */
+
 /*
   def mult(y2: Real, y3: Real): Real = {
     require(-15 <= y2 && y2 <= 15 && -15 <= y3 && y3 <= 15 && roundoff(y2, y3))

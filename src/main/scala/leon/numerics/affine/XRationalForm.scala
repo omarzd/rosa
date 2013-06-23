@@ -115,7 +115,6 @@ case class XRationalForm(val x0: Rational, var noise: Queue[Deviation]) {
     //  multiplyNonlinearQueuesWithDependencies(this.noise, y.noise)
     var (z0Addition, delta) = multiplyNonlinearQueues2(this.noise, y.noise)
     z0 += z0Addition
-    //var delta = computeEta(this.noise, y.noise)
 
     //println("zqueue tyep: " + zqueue.getClass)
     var newTerms: Queue[Deviation] = multiplyQueues(this.x0, this.noise, y.x0, y.noise)
