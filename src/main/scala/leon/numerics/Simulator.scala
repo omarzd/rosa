@@ -12,7 +12,7 @@ import Precision._
 
 class Simulator(reporter: Reporter) {
 
-  val simSize = 1000000//00
+  val simSize = 100//0000//00
   reporter.info("Simulation size: " + simSize + "\n")
 
   def simulateThis(vc: VerificationCondition, precision: Precision) = {
@@ -220,7 +220,9 @@ class Simulator(reporter: Reporter) {
       EmptyInterval
   }
 
-  private def evalSmartFloat(tree: Expr, vars: Map[Expr, SmartFloat]): SmartFloat = tree match {
+  private def evalSmartFloat(tree: Expr, vars: Map[Expr, SmartFloat]): SmartFloat = {
+
+    val t = tree match {
     case v @ Variable(id) => vars(v)
     case RationalLiteral(v) => SmartFloat(v.toDouble)
     case IntLiteral(v) => SmartFloat(v.toDouble)
@@ -232,6 +234,10 @@ class Simulator(reporter: Reporter) {
     case _ =>
       throw UnsupportedFragmentException("Can't handle: " + tree.getClass)
       null
+    }
+    println("evaluating: " + tree)
+    println("result: " + t)
+    t
   }
 
   private def interval2smartfloat(i: RationalInterval): SmartFloat = {

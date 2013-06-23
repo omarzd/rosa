@@ -209,7 +209,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
         val config = XFloatConfig(reporter, solver, pathCondition, precision, unitRoundoff)
         val (variables, indices) = variables2xfloats(inputs, config)
         path.values = inXFloats(path.expression, variables, config) -- inputs.keys
-        //println("path values: " + path.values)
+        println("path values: " + path.values)
         path.indices= indices
 
       } else {
@@ -255,7 +255,10 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
     for (expr <- exprs) expr match {
       case Equals(variable, value) =>
         try {
-          currentVars = currentVars + (variable -> eval(value, currentVars, config))
+          val computedValue = eval(value, currentVars, config)
+          println("computedValue: " + computedValue)
+          currentVars = currentVars + (variable -> computedValue)
+          println("currentVars: " + currentVars)
         } catch {
           case UnsupportedFragmentException(msg) => reporter.error(msg)
         }

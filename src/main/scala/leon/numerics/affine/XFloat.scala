@@ -57,13 +57,13 @@ object XFloat {
     val r = rationalFromReal(d)
     val rndoff = roundoff(r, config.machineEps)
     val newError = addNoise(new XRationalForm(Rational.zero), rndoff)
-    return new XFloat(RationalLiteral(r), new XRationalForm(r), newError, config)
+    return new XFloat(RationalLiteral(r), new XRationalForm(r), RationalInterval(r, r), newError, config)
   }
 
   // constant
   def apply(r: Rational, config: XFloatConfig): XFloat = {
     val newError = new XRationalForm(Rational.zero)
-    return new XFloat(RationalLiteral(r), new XRationalForm(r), newError, config)
+    return new XFloat(RationalLiteral(r), new XRationalForm(r), RationalInterval(r,r), newError, config)
   }
 
   /**
@@ -76,7 +76,7 @@ object XFloat {
     val approx = XRationalForm(range)
     val rndoff = roundoff(range, config.machineEps)
     val (newError, index) = addNoiseWithIndex(new XRationalForm(Rational.zero), rndoff)
-    return (new XFloat(v, approx, newError, config), index)
+    return (new XFloat(v, approx, range, newError, config), index)
   }
 
   /**
@@ -96,9 +96,9 @@ object XFloat {
 
     if (withRoundoff) {
       val rndoff = roundoff(range + new RationalInterval(-uncertain, uncertain), config.machineEps)
-      return (new XFloat(v, approx, addNoise(newError, rndoff), config), index)
+      return (new XFloat(v, approx, range, addNoise(newError, rndoff), config), index)
     } else {
-      return (new XFloat(v, approx, newError, config), index)
+      return (new XFloat(v, approx, range, newError, config), index)
     }
   }
 
@@ -106,7 +106,7 @@ object XFloat {
     val approx = XRationalForm(range)
     val rndoff = roundoff(range, config.machineEps)
     val (newError, index) = addNoiseWithIndex(new XRationalForm(Rational.zero), rndoff)
-    return (new XFloat(v, approx, newError, config), index)
+    return (new XFloat(v, approx, range, newError, config), index)
   }
 
   private def roundoff(range: RationalInterval, machineEps: Rational): Rational = {
@@ -138,11 +138,14 @@ case class XFloatConfig(reporter: Reporter, solver: NumericSolver, precondition:
   @param config solver, precondition, which precision to choose
  */
  // TODO: would this also work with an interval for approxRange? (MUCH faster)
-class XFloat(val tree: Expr, val approxRange: XRationalForm, val error: XRationalForm, config: XFloatConfig) {
+ // TODO: save the computed tight bounds!
+class XFloat(val tree: Expr, val approxRange: XRationalForm, val approxInterval: RationalInterval,
+ val error: XRationalForm, config: XFloatConfig) {
   import XFloat._
 
   lazy val realInterval: RationalInterval = {
-    getTightInterval(tree, approxRange)
+    //getTightInterval(tree, approxRange)
+    getTightInterval(tree, approxInterval)
   }
   lazy val interval: RationalInterval = realInterval + error.interval
 
@@ -175,33 +178,37 @@ class XFloat(val tree: Expr, val approxRange: XRationalForm, val error: XRationa
     "%s +/- %s +/- [%s]".format(error.x0, varErrors.toString, sumQueue(otherErrors))
   }*/
 
-  def unary_-(): XFloat = new XFloat(UMinus(tree), -approxRange, -error, config)
+  def unary_-(): XFloat = new XFloat(UMinus(tree), -approxRange, -approxInterval, -error, config)
 
   def +(y: XFloat): XFloat = {
     if (verbose) println("Adding " + this + " to " + y)
     val newTree = Plus(this.tree, y.tree)
     val newApprox = this.approxRange + y.approxRange
+    val newInterval = this.approxInterval + y.approxInterval
 
     var newError = this.error + y.error
-    val newRange = getTightInterval(newTree, newApprox) + newError.interval
+    //val newRange = getTightInterval(newTree, newApprox) + newError.interval
+    val newRange = getTightInterval(newTree, newInterval) + newError.interval
     val rndoff = roundoff(newRange)
     newError = addNoise(newError, rndoff)
 
     if(verbose) println("\naddition, newRange: " + newRange + "\n roundoff: " + rndoff)
-    return new XFloat(newTree, newApprox, newError, config)
+    return new XFloat(newTree, newApprox, newInterval, newError, config)
   }
 
   def -(y: XFloat): XFloat = {
     if (verbose) println("Subtracting " + this + " from " + y)
     val newTree = Minus(this.tree, y.tree)
     val newApprox = this.approxRange - y.approxRange
+    val newInterval = this.approxInterval - y.approxInterval
 
     var newError = this.error - y.error
-    val newRange = getTightInterval(newTree, newApprox) + newError.interval
+    //val newRange = getTightInterval(newTree, newApprox) + newError.interval
+    val newRange = getTightInterval(newTree, newInterval) + newError.interval
     val rndoff = roundoff(newRange)
     newError = addNoise(newError, rndoff)
     if(verbose) println("\nsubtraction, newRange: " + newRange + "\n roundoff: " + rndoff)
-    return new XFloat(newTree, newApprox, newError, config)
+    return new XFloat(newTree, newApprox, newInterval, newError, config)
   }
 
   def *(y: XFloat): XFloat = {
@@ -210,6 +217,8 @@ class XFloat(val tree: Expr, val approxRange: XRationalForm, val error: XRationa
     if (verbose) println("y.error: " + y.error.longString)
     val newTree = Times(this.tree, y.tree)
     val newApprox = this.approxRange * y.approxRange
+    val newInterval = this.approxInterval * y.approxInterval
+
 
     val xAA = XRationalForm(this.realInterval)
     val yAA = XRationalForm(y.realInterval)
@@ -217,7 +226,9 @@ class XFloat(val tree: Expr, val approxRange: XRationalForm, val error: XRationa
     val xErr = this.error
 
     var newError = xAA*yErr + yAA*xErr + xErr*yErr
-    val newRange = getTightInterval(newTree, newApprox) + newError.interval
+    //val newRange = getTightInterval(newTree, newApprox) + newError.interval
+    val newRange = getTightInterval(newTree, newInterval) + newError.interval
+    
     val rndoff = roundoff(newRange)
 
     //One could also keep track of the input dependencies from xAA and yAA
@@ -225,7 +236,7 @@ class XFloat(val tree: Expr, val approxRange: XRationalForm, val error: XRationa
     newError = addNoise(newError, rndoff)
     if (verbose) println("\nmultiplication, newRange: " + newRange + "\n roundoff: " + rndoff)
     if (verbose) println("new error: " + newError.longString)
-    return new XFloat(newTree, newApprox, newError, config)
+    return new XFloat(newTree, newApprox, newInterval, newError, config)
   }
 
   def /(y: XFloat): XFloat = {
@@ -238,7 +249,9 @@ class XFloat(val tree: Expr, val approxRange: XRationalForm, val error: XRationa
 
 
     // Compute approximation
-    val tightInverse = getTightInterval(Division(new RationalLiteral(1), y.tree), y.approxRange.inverse)
+    //val tightInverse = getTightInterval(Division(new RationalLiteral(1), y.tree), y.approxRange.inverse)
+    val tightInverse = getTightInterval(Division(new RationalLiteral(1), y.tree),
+      RationalInterval(one, one)/y.approxInterval)
     val kAA = XRationalForm(tightInverse)
     val xAA = XRationalForm(this.realInterval)
     val xErr = this.error
@@ -251,15 +264,18 @@ class XFloat(val tree: Expr, val approxRange: XRationalForm, val error: XRationa
     // Now do the multiplication x * (1/y)
     val newTree = Division(this.tree, y.tree)
     val newApprox = this.approxRange / y.approxRange
+    val newInterval = this.approxInterval / y.approxInterval
+
 
     var newError = xAA*gErr + kAA*xErr + xErr*gErr
-    val newRange = getTightInterval(newTree, newApprox) + newError.interval
+    //val newRange = getTightInterval(newTree, newApprox) + newError.interval
+    val newRange = getTightInterval(newTree, newInterval) + newError.interval
     val rndoff = roundoff(newRange)
 
     newError = addNoise(newError, rndoff)
     if(verbose) println("\ndivision, newRange: " + newRange)
     if(verbose) println("            roundoff: " + rndoff)
-    return new XFloat(newTree, newApprox, newError, config)
+    return new XFloat(newTree, newApprox, newInterval, newError, config)
   }
 
   def squareRoot: XFloat = {
@@ -276,13 +292,15 @@ class XFloat(val tree: Expr, val approxRange: XRationalForm, val error: XRationa
 
     val newTree = Sqrt(this.tree)
     val newApprox = this.approxRange.squareRoot
+    val newInterval = RationalInterval(sqrtDown(this.approxInterval.xlo), sqrtUp(this.approxInterval.xhi))
 
     var newError = this.error * new XRationalForm(errorMultiplier)
-    val newRange = getTightInterval(newTree, newApprox) + newError.interval
+    //val newRange = getTightInterval(newTree, newApprox) + newError.interval
+    val newRange = getTightInterval(newTree, newInterval) + newError.interval
     val rndoff = roundoff(newRange)
     newError = addNoise(newError, rndoff)
 
-    return new XFloat(newTree, newApprox, newError, config)
+    return new XFloat(newTree, newApprox, newInterval, newError, config)
   }
 
 
@@ -302,13 +320,24 @@ class XFloat(val tree: Expr, val approxRange: XRationalForm, val error: XRationa
     return config.machineEps * abs(r)
   }
 
-  private def getTightInterval(tree: Expr, approx: XRationalForm): RationalInterval = {
-    //println("tightening: " + tree)
-    //println(approx.interval)
+  /*private def getTightInterval(tree: Expr, approx: XRationalForm): RationalInterval = {
+    println("\n tightening: " + tree)
+    println("initial approx: " + approx.interval)
 
     val res = config.solver.tightenRange(tree, config.precondition, approx.interval)
     //val res = approx.interval
-    //println("tightening was successful")
+    println("tightening was successful: " + res)
+
+    return res
+  }*/
+  private def getTightInterval(tree: Expr, approx: RationalInterval): RationalInterval = {
+    println("\n tightening: " + tree)
+    println("initial approx: " + approx)
+
+    val res = config.solver.tightenRange(tree, config.precondition, approx)
+    //val res = approx.interval
+    println("tightening was successful: " + res)
+
     return res
   }
 }

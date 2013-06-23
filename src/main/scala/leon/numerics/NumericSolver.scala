@@ -32,7 +32,7 @@ class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3
 
   override protected[leon] val z3cfg = new Z3Config(
     "MODEL" -> true,
-    "TIMEOUT" -> 500,
+    "TIMEOUT" -> 10,
     "TYPE_CHECK" -> true,
     "WELL_SORTED_CHECK" -> true
   )

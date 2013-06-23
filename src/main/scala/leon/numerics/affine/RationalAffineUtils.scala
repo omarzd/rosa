@@ -135,6 +135,30 @@ object Utils {
     set
   }
 
+  def computeEta(xqueue: Queue[Deviation], yqueue: Queue[Deviation]): Rational = {
+    var delta = Rational.zero
+
+    val iterX = xqueue.iterator
+    while(iterX.hasNext) {
+      val xi = iterX.next
+      val i = xi.index
+
+      val iterY = yqueue.iterator
+      while(iterY.hasNext) {
+        val yj = iterY.next
+        val j = yj.index
+        if(i == j) {
+          delta = delta + xi.value * yj.value
+        }
+        else {
+          delta = delta + abs(xi.value + yj.value)
+        }
+       }
+    }
+    delta
+  }
+
+
   def multiplyNonlinearQueues(xqueue: Queue[Deviation], yqueue: Queue[Deviation]): Rational = {
     val indices = mergeIndices(getIndices(xqueue), getIndices(yqueue))
     var zqueue = Rational(0.0)
