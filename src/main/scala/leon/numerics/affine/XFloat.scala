@@ -188,12 +188,11 @@ class XFloat(val tree: Expr, val approxRange: XRationalForm, val approxInterval:
 
     var newError = this.error + y.error
     //val newRange = getTightInterval(newTree, newApprox) + newError.interval
-    val newRange = getTightInterval(newTree, newInterval) + newError.interval
-    val rndoff = roundoff(newRange)
+    val newRealRange = getTightInterval(newTree, newInterval)
+    val rndoff = roundoff(newRealRange + newError.interval)
     newError = addNoise(newError, rndoff)
 
-    if(verbose) println("\naddition, newRange: " + newRange + "\n roundoff: " + rndoff)
-    return new XFloat(newTree, newApprox, newInterval, newError, config)
+    return new XFloat(newTree, newApprox, newRealRange, newError, config)
   }
 
   def -(y: XFloat): XFloat = {
@@ -204,11 +203,10 @@ class XFloat(val tree: Expr, val approxRange: XRationalForm, val approxInterval:
 
     var newError = this.error - y.error
     //val newRange = getTightInterval(newTree, newApprox) + newError.interval
-    val newRange = getTightInterval(newTree, newInterval) + newError.interval
-    val rndoff = roundoff(newRange)
+    val newRealRange = getTightInterval(newTree, newInterval)
+    val rndoff = roundoff(newRealRange + newError.interval)
     newError = addNoise(newError, rndoff)
-    if(verbose) println("\nsubtraction, newRange: " + newRange + "\n roundoff: " + rndoff)
-    return new XFloat(newTree, newApprox, newInterval, newError, config)
+    return new XFloat(newTree, newApprox, newRealRange, newError, config)
   }
 
   def *(y: XFloat): XFloat = {
@@ -227,16 +225,13 @@ class XFloat(val tree: Expr, val approxRange: XRationalForm, val approxInterval:
 
     var newError = xAA*yErr + yAA*xErr + xErr*yErr
     //val newRange = getTightInterval(newTree, newApprox) + newError.interval
-    val newRange = getTightInterval(newTree, newInterval) + newError.interval
-
-    val rndoff = roundoff(newRange)
+    val newRealRange = getTightInterval(newTree, newInterval)
+    val rndoff = roundoff(newRealRange + newError.interval)
 
     //One could also keep track of the input dependencies from xAA and yAA
     // which may be larger than the nonlinear stuff
     newError = addNoise(newError, rndoff)
-    if (verbose) println("\nmultiplication, newRange: " + newRange + "\n roundoff: " + rndoff)
-    if (verbose) println("new error: " + newError.longString)
-    return new XFloat(newTree, newApprox, newInterval, newError, config)
+    return new XFloat(newTree, newApprox, newRealRange, newError, config)
   }
 
   def /(y: XFloat): XFloat = {
@@ -269,13 +264,11 @@ class XFloat(val tree: Expr, val approxRange: XRationalForm, val approxInterval:
 
     var newError = xAA*gErr + kAA*xErr + xErr*gErr
     //val newRange = getTightInterval(newTree, newApprox) + newError.interval
-    val newRange = getTightInterval(newTree, newInterval) + newError.interval
-    val rndoff = roundoff(newRange)
+    val newRealRange = getTightInterval(newTree, newInterval)
+    val rndoff = roundoff(newRealRange + newError.interval)
 
     newError = addNoise(newError, rndoff)
-    if(verbose) println("\ndivision, newRange: " + newRange)
-    if(verbose) println("            roundoff: " + rndoff)
-    return new XFloat(newTree, newApprox, newInterval, newError, config)
+    return new XFloat(newTree, newApprox, newRealRange, newError, config)
   }
 
   def squareRoot: XFloat = {
@@ -296,11 +289,11 @@ class XFloat(val tree: Expr, val approxRange: XRationalForm, val approxInterval:
 
     var newError = this.error * new XRationalForm(errorMultiplier)
     //val newRange = getTightInterval(newTree, newApprox) + newError.interval
-    val newRange = getTightInterval(newTree, newInterval) + newError.interval
-    val rndoff = roundoff(newRange)
+    val newRealRange = getTightInterval(newTree, newInterval)
+    val rndoff = roundoff(newRealRange + newError.interval)
     newError = addNoise(newError, rndoff)
 
-    return new XFloat(newTree, newApprox, newInterval, newError, config)
+    return new XFloat(newTree, newApprox, newRealRange, newError, config)
   }
 
 
