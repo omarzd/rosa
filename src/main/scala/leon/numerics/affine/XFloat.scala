@@ -126,11 +126,6 @@ object XFloat {
   val MaxDouble = Rational(Double.MaxValue)
   val MaxFloat = Rational(Double.MaxValue)
 
-  println("MaxDouble: " + MaxDouble)
-  println("-MaxDouble: " + -MaxDouble)
-  println("MaxFloat: " + MaxFloat)
-  println("-MaxFloat: " + -MaxFloat)
-
 }
 
 case class XFloatConfig(reporter: Reporter, solver: NumericSolver, precondition: Expr, precision: Precision, machineEps: Rational)

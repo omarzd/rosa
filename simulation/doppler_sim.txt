@@ -1,48 +1,4 @@
-[[34m Info  [0m] Running Certification phase
-[[34m Info  [0m] 
-[[34m Info  [0m] -----> Analysing function doppler...
-[[34m Info  [0m] inputs: Map(u -> [-100, 100] (1.000000000000000e-07) ( -- ), v -> [20, 20000] (1.000000000000000e-09) ( -- ), T -> [-30, 50] (1.000000000000000e-06) ( -- ))
-All constraints generated: 
-(((-100.0 ≤ u) ∧ (u ≤ 100.0) ∧ (20.0 ≤ v) ∧ (v ≤ 20000.0) ∧ (-30.0 ≤ T) ∧ (T ≤ 50.0) ∧ noise(u,1.0E-7) ∧ noise(v,1.0E-9) ∧ noise(T,1.0E-6)) && (#res == ((-((331.4 + (0.6 * T))) * v) / (((331.4 + (0.6 * T)) + u) * ((331.4 + (0.6 * T)) + u))))) ==> ((-137.0 ≤ #res) ∧ (#res ≤ -0.35) ∧ noise(#res,1.0E-4))
-[[34m Info  [0m] 
-[[34m Info  [0m] -----> Analysing function doppler0...
-[[34m Info  [0m] inputs: Map(u -> [-100, 100] ( -- ) (true), v -> [20, 20000] ( -- ) (true), T -> [-30, 50] ( -- ) (true))
-All constraints generated: 
-(((-100.0 ≤ u) ∧ (u ≤ 100.0) ∧ (20.0 ≤ v) ∧ (v ≤ 20000.0) ∧ (-30.0 ≤ T) ∧ (T ≤ 50.0) ∧ rndoff(u) ∧ rndoff(v) ∧ rndoff(T)) && (#res == ((-((331.4 + (0.6 * T))) * v) / (((331.4 + (0.6 * T)) + u) * ((331.4 + (0.6 * T)) + u))))) ==> ((-137.0 ≤ #res) ∧ (#res ≤ -0.35) ∧ noise(#res,1.0E-4))
-[[34m Info  [0m] 
-[[34m Info  [0m] -----> Analysing function doppler1...
-[[34m Info  [0m] inputs: Map(u -> [-100, 100] ( -- ) (true), v -> [20, 20000] ( -- ) (true), T -> [-30, 50] ( -- ) (true))
-All constraints generated: 
-(((-100.0 ≤ u) ∧ (u ≤ 100.0) ∧ (20.0 ≤ v) ∧ (v ≤ 20000.0) ∧ (-30.0 ≤ T) ∧ (T ≤ 50.0) ∧ rndoff(u) ∧ rndoff(v) ∧ rndoff(T)) && (#res == ((-((331.4 + (0.6 * T))) * v) / (((331.4 + (0.6 * T)) + u) * ((331.4 + (0.6 * T)) + u))))) ==> ((-137.0 ≤ #res) ∧ (#res ≤ -0.35) ∧ noise(#res,1.0E-14))
-[[34m Info  [0m] 
-[[34m Info  [0m] -----> Analysing function doppler2...
-[[34m Info  [0m] inputs: Map(u -> [-125, 125] ( -- ) (true), v -> [15, 25000] ( -- ) (true), T -> [-40, 60] ( -- ) (true))
-All constraints generated: 
-(((-125.0 ≤ u) ∧ (u ≤ 125.0) ∧ (15.0 ≤ v) ∧ (v ≤ 25000.0) ∧ (-40.0 ≤ T) ∧ (T ≤ 60.0) ∧ rndoff(u) ∧ rndoff(v) ∧ rndoff(T)) && (#res == ((-((331.4 + (0.6 * T))) * v) / (((331.4 + (0.6 * T)) + u) * ((331.4 + (0.6 * T)) + u))))) ==> ((-227.5 ≤ #res) ∧ (#res ≤ -0.05) ∧ noise(#res,1.0E-12))
-[[34m Info  [0m] 
-[[34m Info  [0m] -----> Analysing function doppler3...
-[[34m Info  [0m] inputs: Map(u -> [-30, 120] ( -- ) (true), v -> [320, 20300] ( -- ) (true), T -> [-50, 30] ( -- ) (true))
-All constraints generated: 
-(((-30.0 ≤ u) ∧ (u ≤ 120.0) ∧ (320.0 ≤ v) ∧ (v ≤ 20300.0) ∧ (-50.0 ≤ T) ∧ (T ≤ 30.0) ∧ rndoff(u) ∧ rndoff(v) ∧ rndoff(T)) && (#res == ((-((331.4 + (0.6 * T))) * v) / (((331.4 + (0.6 * T)) + u) * ((331.4 + (0.6 * T)) + u))))) ==> ((-82.5 ≤ #res) ∧ (#res ≤ -0.6) ∧ noise(#res,1.0E-13))
-[[34m Info  [0m] 
-[[34m Info  [0m] -----> Analysing function doppler4...
-[[34m Info  [0m] inputs: Map(u -> [-125, 125] (1.000000000000000e-07) ( -- ), v -> [15, 25000] (1.000000000000000e-09) ( -- ), T -> [-40, 60] (1.000000000000000e-06) ( -- ))
-All constraints generated: 
-(((-125.0 ≤ u) ∧ (u ≤ 125.0) ∧ (15.0 ≤ v) ∧ (v ≤ 25000.0) ∧ (-40.0 ≤ T) ∧ (T ≤ 60.0) ∧ noise(u,1.0E-7) ∧ noise(v,1.0E-9) ∧ noise(T,1.0E-6)) && (#res == ((-((331.4 + (0.6 * T))) * v) / (((331.4 + (0.6 * T)) + u) * ((331.4 + (0.6 * T)) + u))))) ==> ((-227.5 ≤ #res) ∧ (#res ≤ -0.05) ∧ noise(#res,1.0E-12))
-[[34m Info  [0m] 
-[[34m Info  [0m] -----> Analysing function doppler5...
-[[34m Info  [0m] inputs: Map(u -> [-30, 120] (1.000000000000000e-07) ( -- ), v -> [320, 20300] (1.000000000000000e-09) ( -- ), T -> [-50, 30] (1.000000000000000e-06) ( -- ))
-All constraints generated: 
-(((-30.0 ≤ u) ∧ (u ≤ 120.0) ∧ (320.0 ≤ v) ∧ (v ≤ 20300.0) ∧ (-50.0 ≤ T) ∧ (T ≤ 30.0) ∧ noise(u,1.0E-7) ∧ noise(v,1.0E-9) ∧ noise(T,1.0E-6)) && (#res == ((-((331.4 + (0.6 * T))) * v) / (((331.4 + (0.6 * T)) + u) * ((331.4 + (0.6 * T)) + u))))) ==> ((-82.5 ≤ #res) ∧ (#res ≤ -0.6) ∧ noise(#res,1.0E-13))
-[[34m Info  [0m] Simulation size: 1000000
-[[34m Info  [0m] -----> Simulating function doppler...
-[[34m Info  [0m] -----> Simulating function doppler0...
-[[34m Info  [0m] -----> Simulating function doppler1...
-[[34m Info  [0m] -----> Simulating function doppler2...
-[[34m Info  [0m] -----> Simulating function doppler3...
-[[34m Info  [0m] -----> Simulating function doppler4...
-[[34m Info  [0m] -----> Simulating function doppler5...
-[[34m Info  [0m] . ┌─────────┐
+            ┌─────────┐
           ╔═╡ Summary ╞═══════════════════════════════════════════════════════════════════════╗
           ║ └─────────┘                                                                       ║
           ║ doppler                         -- ms      -- ms                                  ║

@@ -1,54 +1,5 @@
-[[34m Info  [0m] Running Certification phase
-[[34m Info  [0m] 
-[[34m Info  [0m] -----> Analysing function bspline0...
-[[34m Info  [0m] inputs: Map(u -> [0, 1] ( -- ) (true))
-All constraints generated: 
-(((0.0 ≤ u) ∧ (u ≤ 1.0) ∧ rndoff(u)) && (#res == ((((1.0 - u) * (1.0 - u)) * (1.0 - u)) * 0.1666666))) ==> ((-0.05 ≤ #res) ∧ (#res ≤ 0.17) ∧ noise(#res,1.0E-14))
-[[34m Info  [0m] 
-[[34m Info  [0m] -----> Analysing function bspline0Tight...
-[[34m Info  [0m] inputs: Map(u -> [0, 1] ( -- ) (true))
-All constraints generated: 
-(((0.0 ≤ u) ∧ (u ≤ 1.0) ∧ rndoff(u)) && (#res == ((((1.0 - u) * (1.0 - u)) * (1.0 - u)) * 0.1666666))) ==> ((0.0 ≤ #res) ∧ (#res ≤ 0.17) ∧ noise(#res,1.0E-16))
-[[34m Info  [0m] 
-[[34m Info  [0m] -----> Analysing function bspline1...
-[[34m Info  [0m] inputs: Map(u -> [0, 1] ( -- ) (true))
-All constraints generated: 
-(((0.0 ≤ u) ∧ (u ≤ 1.0) ∧ rndoff(u)) && (#res == ((((((3.0 * u) * u) * u) - ((6.0 * u) * u)) + 4.0) * 0.1666666))) ==> ((-0.05 ≤ #res) ∧ (#res ≤ 0.98) ∧ noise(#res,1.0E-14))
-[[34m Info  [0m] 
-[[34m Info  [0m] -----> Analysing function bspline1Tight...
-[[34m Info  [0m] inputs: Map(u -> [0, 1] ( -- ) (true))
-All constraints generated: 
-(((0.0 ≤ u) ∧ (u ≤ 1.0) ∧ rndoff(u)) && (#res == ((((((3.0 * u) * u) * u) - ((6.0 * u) * u)) + 4.0) * 0.1666666))) ==> ((0.16 ≤ #res) ∧ (#res ≤ 0.7) ∧ noise(#res,1.0E-15))
-[[34m Info  [0m] 
-[[34m Info  [0m] -----> Analysing function bspline2...
-[[34m Info  [0m] inputs: Map(u -> [0, 1] ( -- ) (true))
-All constraints generated: 
-(((0.0 ≤ u) ∧ (u ≤ 1.0) ∧ rndoff(u)) && (#res == (((((((-3.0 * u) * u) * u) + ((3.0 * u) * u)) + (3.0 * u)) + 1.0) * 0.1666666))) ==> ((-0.02 ≤ #res) ∧ (#res ≤ 0.89) ∧ noise(#res,1.0E-14))
-[[34m Info  [0m] 
-[[34m Info  [0m] -----> Analysing function bspline2Tight...
-[[34m Info  [0m] inputs: Map(u -> [0, 1] ( -- ) (true))
-All constraints generated: 
-(((0.0 ≤ u) ∧ (u ≤ 1.0) ∧ rndoff(u)) && (#res == (((((((-3.0 * u) * u) * u) + ((3.0 * u) * u)) + (3.0 * u)) + 1.0) * 0.1666666))) ==> ((0.16 ≤ #res) ∧ (#res ≤ 0.7) ∧ noise(#res,1.0E-15))
-[[34m Info  [0m] 
-[[34m Info  [0m] -----> Analysing function bspline3...
-[[34m Info  [0m] inputs: Map(u -> [0, 1] (1.000000000000000e-13) ( -- ))
-All constraints generated: 
-(((0.0 ≤ u) ∧ (u ≤ 1.0) ∧ noise(u,1.0E-13)) && (#res == (((-(u) * u) * u) / 6.0))) ==> ((-0.17 ≤ #res) ∧ (#res ≤ 0.05) ∧ noise(#res,1.0E-11))
-[[34m Info  [0m] 
-[[34m Info  [0m] -----> Analysing function bspline3Tight...
-[[34m Info  [0m] inputs: Map(u -> [0, 1] ( -- ) (true))
-All constraints generated: 
-(((0.0 ≤ u) ∧ (u ≤ 1.0) ∧ rndoff(u)) && (#res == (((-(u) * u) * u) * 0.1666666))) ==> ((-0.17 ≤ #res) ∧ (#res ≤ 0.0) ∧ noise(#res,1.0E-16))
-[[34m Info  [0m] Simulation size: 1000000
-[[34m Info  [0m] -----> Simulating function bspline0...
-[[34m Info  [0m] -----> Simulating function bspline0Tight...
-[[34m Info  [0m] -----> Simulating function bspline1...
-[[34m Info  [0m] -----> Simulating function bspline1Tight...
-[[34m Info  [0m] -----> Simulating function bspline2...
-[[34m Info  [0m] -----> Simulating function bspline2Tight...
-[[34m Info  [0m] -----> Simulating function bspline3...
-[[34m Info  [0m] -----> Simulating function bspline3Tight...
-[[34m Info  [0m] . ┌─────────┐
+
+            ┌─────────┐
           ╔═╡ Summary ╞═══════════════════════════════════════════════════════════════════════╗
           ║ └─────────┘                                                                       ║
           ║ bspline0                        -- ms      -- ms                                  ║

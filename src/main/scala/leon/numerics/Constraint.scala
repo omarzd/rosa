@@ -41,7 +41,8 @@ case class Constraint(pre: Expr, body: Expr, post: Expr, description: String) {
 
   var approxStrategy =
     if (containsFunctionCalls(body) || containsFunctionCalls(pre) || containsFunctionCalls(post))
-      Seq(Uninterpreted_None, PostInlining_None, PostInlining_AA, FullInlining_None, FullInlining_AA)
+      //Seq(Uninterpreted_None, PostInlining_None, PostInlining_AA, FullInlining_None, FullInlining_AA)
+      Seq(PostInlining_None, PostInlining_AA, FullInlining_None, FullInlining_AA)
       //Seq(FullInlining_AA)
     else
       Seq(Uninterpreted_None, PostInlining_AA)

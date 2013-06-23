@@ -72,7 +72,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
 
       val (newConstraint, values) = approximatePaths(collectPaths(inlinedBody),
          And(Seq(c.pre) ++ cnstrBody), inputs ++ getVariableRecords(And(cnstrBody) ))
-      reporter.info("AA computed: " + newConstraint)
+      //reporter.info("AA computed: " + newConstraint)
 
 
       val cnstr = ConstraintApproximation(newConstraint, BooleanLiteral(true),
@@ -98,10 +98,10 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
       // we need to approximate the body
       val newBody = And(And(cnstrBody ++ cnstrPost), inlinedBody)
 
-      println("new body: " + newBody)
+      //println("new body: " + newBody)
       val (newConstraint, values) = approximatePaths(collectPaths(newBody),
         c.pre, inputs) //add varsPost?
-      reporter.info("AA computed: " + newConstraint)
+      //reporter.info("AA computed: " + newConstraint)
 
       val cnstr = ConstraintApproximation(newConstraint, BooleanLiteral(true), And(Seq(inlinedPost)), varsPost ++ varsBody, tpe)
       cnstr.values = values
@@ -151,7 +151,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
     val resultError = Equals(getNewResErrorVariable, Minus(resVar, buddies(resVar)))
     val machineEpsilon = Equals(eps, RationalLiteral(unitRoundoff))
     val toCheck = Implies(And(precondition, And(body, And(resultError, machineEpsilon))), postcondition)
-    println("toCheck: " + toCheck)
+    //println("toCheck: " + toCheck)
 
     // If precondition is false, we'll prove anything, so don't try to prove at all
     if (reporter.errorCount == 0 && sanityCheck(precondition, body)) {
@@ -209,7 +209,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
         val config = XFloatConfig(reporter, solver, pathCondition, precision, unitRoundoff)
         val (variables, indices) = variables2xfloats(inputs, config)
         path.values = inXFloats(path.expression, variables, config) -- inputs.keys
-        println("path values: " + path.values)
+        //println("path values: " + path.values)
         path.indices= indices
 
       } else {
@@ -224,9 +224,9 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
   // Computes one constraint that overapproximates the paths given.
   private def approximatePaths(paths: Set[Path], pre: Expr, inputs: Map[Variable, Record]): (Expr, Map[Expr, (RationalInterval, Rational)]) = {
     computeApproximation(paths, pre, inputs)
-    println("approximation: " + paths.head.values)
+    //println("approximation: " + paths.head.values)
     val approx = mergeRealPathResults(paths)
-    println("merged: " + approx)
+    //println("merged: " + approx)
     val newConstraint = constraintFromResults(approx)
     (newConstraint, approx)
   }
