@@ -10,10 +10,7 @@ case class Record(lo: Option[Rational], up: Option[Rational], noise: Option[Rati
   def updateNoise(newNoise: Rational): Record = Record(lo, up, Some(newNoise), rndoff)
   def addRndoff: Record = Record(lo, up, noise, Some(true))
 
-  def isComplete: Boolean = rndoff match {
-    case Some(true) => (!lo.isEmpty && !up.isEmpty)
-    case _ => (!lo.isEmpty && !up.isEmpty && !noise.isEmpty)
-  }
+  def isComplete: Boolean = (!lo.isEmpty && !up.isEmpty)
 
   override def toString: String = "[%s, %s] (%s) (%s)".format(
      formatOption(lo), formatOption(up), formatOption(noise), formatOption(rndoff))

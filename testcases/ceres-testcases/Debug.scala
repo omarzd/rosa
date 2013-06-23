@@ -10,7 +10,7 @@ object Debug {
 
   def rigidBody(x1: Real, x2: Real, x3: Real): Real = {
     require(x1 <= 15 && x1 >= -15 && x2 <= 15 && x2 >= -15 &&
-            x3 <= 15 && x3 >= -15 && roundoff(x1) && roundoff(x2) && roundoff(x3))
+            x3 <= 15 && x3 >= -15)
     -x1*x2 - 2*x2*x3 - x1 - x3
   } ensuring (res => -800 <= ~res && ~res <= 750.0 && noise(res, 1e-10))
 

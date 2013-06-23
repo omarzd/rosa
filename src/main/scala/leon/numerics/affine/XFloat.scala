@@ -30,22 +30,22 @@ object XFloat {
 
     for((k, rec) <- vars) {
       if (rec.isComplete) {
-        rec.rndoff match {
-          case Some(true) =>
+        rec.noise match {
+          case Some(n) =>
+            // index is the index of the main uncertainty, not the roundoff
+            val (xfloat, index) = XFloat.xFloatWithUncertain(k,
+                    RationalInterval(rec.lo.get, rec.up.get),
+                    config, n, withRoundoff)
+            variableMap = variableMap + (k -> xfloat)
+            indexMap = indexMap + (index -> k)
+
+          case None => // default roundoff
             val (xfloat, index) = XFloat.xFloatWithRoundoff(k,
                     RationalInterval(rec.lo.get, rec.up.get), config)
             variableMap = variableMap + (k -> xfloat)
             indexMap = indexMap + (index -> k)
-
-          case None =>
-            // index is the index of the main uncertainty, not the roundoff
-            val (xfloat, index) = XFloat.xFloatWithUncertain(k,
-                    RationalInterval(rec.lo.get, rec.up.get),
-                    config,
-                    rec.noise.get, withRoundoff)
-            variableMap = variableMap + (k -> xfloat)
-            indexMap = indexMap + (index -> k)
         }
+
       }
     }
     (variableMap, indexMap)
