@@ -12,7 +12,7 @@ object UnaryRVBenchmarks {
     
     (r*x) / (1 + (x/K))
 
-  }
+  } ensuring (res => res <= 0.0)
 
   // val r = 4.0; val K = 1.11; val x0 = 0.7
   def predatorPrey(r: Real, K: Real, x: Real): Real = {
@@ -21,7 +21,7 @@ object UnaryRVBenchmarks {
 
     (r*x*x) / (1 + (x/K)*(x/K))
 
-  }
+  }  ensuring (res => res <= 0.0)
 
 
   // val T = 300; val a = 0.401; val b = 42.7e-6; val N = 1000
@@ -35,7 +35,7 @@ object UnaryRVBenchmarks {
     val k = 1.3806503e-23
     (p + a * (N / V) * (N / V)) * (V - N * b) - k * N * T
 
-  }
+  }  ensuring (res => res <= 0.0)
 
  
   // val x0 = 1.2
@@ -43,14 +43,14 @@ object UnaryRVBenchmarks {
     require(x.in(-9.6, 7.5) && noise(x, 0.2))
     x*x*x/3.0 - 2 * x*x + 4.5
 
-  }
+  }  ensuring (res => res <= 0.0)
 
   // val x0 = 6.5
   def polynomial2(x: Real): Real = {
     require(x.in(4.5, 7.8) && noise(x, 1e-4))
     x*x*x*x*x*x + 4.2*x*x*x*x*x -72.3*x*x*x*x -214.4*x*x*x + 1127.1*x*x + 1602.9*x - 5040.5
 
-  }
+  }  ensuring (res => res <= 0.0)
 
 
   // val a1 = 10.0; val a2 = 13.0; val a3 = 8.0; val a4 = 10.0

@@ -21,7 +21,7 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
   val name = "Certification"
   val description = "Floating-point certification"
   var simulation = false
-  var specgen = true
+  var specgen = false
   var precision: Precision = Float64
 
   override val definedOptions: Set[LeonOptionDef] = Set(
@@ -96,7 +96,7 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
     val vcMap: Map[FunDef, VerificationCondition] = vcs.map { t => (t.funDef, t) }.toMap
 
     val prover = new Prover(reporter, ctx, program, vcMap, precision)
-    //for(vc <- vcs) prover.check(vc)
+    for(vc <- vcs) prover.check(vc)
 
     if (simulation) {
       val simulator = new Simulator(reporter)
@@ -108,7 +108,7 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
       for(vc <- vcs) specgen.generateSpec(vc)
     }
 
-    generateCode(reporter, program, vcs)
+    //generateCode(reporter, program, vcs)
     new CertificationReport(vcs)
 
 

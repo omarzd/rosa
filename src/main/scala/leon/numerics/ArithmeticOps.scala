@@ -12,15 +12,20 @@ import Utils._
 
 
 object ArithmeticOps {
+  val productCollector = new ProductCollector
+  val powerTransformer = new PowerTransformer
+  val factorizer = new Factorizer
 
   def collectPowers(expr: Expr): Expr = {
-    val prodTransformer = new ProductCollector
-    val withProducts = prodTransformer.transform(expr)
+    //println("\noriginal: " + expr)
+    val t1 = expr //factorizer.transform(expr)
+    //println("factorized: " + t1)
+
+    val t2 = productCollector.transform(t1)
     //println("with products: " + withProducts)
-    val powerTransformer = new PowerTransformer
-    val transformed = powerTransformer.transform(withProducts)
+    val t3 = powerTransformer.transform(t2)
     //println("with powers: " + transformed)
-    transformed
+    t3
   }
 
   class ProductCollector extends TransformerWithPC {
@@ -68,5 +73,27 @@ object ArithmeticOps {
     }
   }
 
+  class Factorizer extends TransformerWithPC {
+    type C = Seq[Expr]
+    val initC = Nil
+    
+    def register(e: Expr, path: C) = path :+ e
+
+    override def rec(e: Expr, path: C) = e match {
+      case Times(f, Plus(a, b)) =>
+        Plus(rec(Times(f, a), path), rec(Times(f, b), path))
+      case Times(Plus(a, b), f) =>
+        Plus(rec(Times(a, f), path), rec(Times(b, f), path))
+
+      case Times(f, Minus(a, b)) =>
+        Minus(rec(Times(f, a), path), rec(Times(f, b), path))
+      case Times(Minus(a, b), f) =>
+        Minus(rec(Times(a, f), path), rec(Times(b, f), path))
+        
+      case _ =>
+        super.rec(e, path)
+    }
+
+  }
 
 }

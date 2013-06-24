@@ -94,6 +94,19 @@ object Utils {
       case LessEquals(x @ Variable(name), IntLiteral(uprBnd)) =>
         recordMap = recordMap + (x -> recordMap.getOrElse(x, emptyRecord).updateUp(Rational(uprBnd))); e
 
+      // a < x
+      case LessThan(RationalLiteral(lwrBnd), x @ Variable(name)) =>
+        recordMap = recordMap + (x -> recordMap.getOrElse(x, emptyRecord).updateLo(lwrBnd)); e
+      // x < b
+      case LessThan(x @ Variable(name), RationalLiteral(uprBnd)) =>
+        recordMap = recordMap + (x -> recordMap.getOrElse(x, emptyRecord).updateUp(uprBnd)); e
+      // a < x
+      case LessThan(IntLiteral(lwrBnd), x @ Variable(name)) =>
+        recordMap = recordMap + (x -> recordMap.getOrElse(x, emptyRecord).updateLo(Rational(lwrBnd))); e
+      // x < b
+      case LessThan(x @ Variable(name), IntLiteral(uprBnd)) =>
+        recordMap = recordMap + (x -> recordMap.getOrElse(x, emptyRecord).updateUp(Rational(uprBnd))); e
+
       // b >= x
       case GreaterEquals(RationalLiteral(uprBnd), x @ Variable(name)) =>
         recordMap = recordMap + (x -> recordMap.getOrElse(x, emptyRecord).updateUp(uprBnd)); e
@@ -105,6 +118,19 @@ object Utils {
         recordMap = recordMap + (x -> recordMap.getOrElse(x, emptyRecord).updateUp(Rational(uprBnd))); e
       // x >= a
       case GreaterEquals(x @ Variable(name), IntLiteral(lwrBnd)) =>
+        recordMap = recordMap + (x -> recordMap.getOrElse(x, emptyRecord).updateLo(Rational(lwrBnd))); e
+
+      // b > x
+      case GreaterThan(RationalLiteral(uprBnd), x @ Variable(name)) =>
+        recordMap = recordMap + (x -> recordMap.getOrElse(x, emptyRecord).updateUp(uprBnd)); e
+      // x > a
+      case GreaterThan(x @ Variable(name), RationalLiteral(lwrBnd)) =>
+        recordMap = recordMap + (x -> recordMap.getOrElse(x, emptyRecord).updateLo(lwrBnd)); e
+      // b > x
+      case GreaterThan(IntLiteral(uprBnd), x @ Variable(name)) =>
+        recordMap = recordMap + (x -> recordMap.getOrElse(x, emptyRecord).updateUp(Rational(uprBnd))); e
+      // x > a
+      case GreaterThan(x @ Variable(name), IntLiteral(lwrBnd)) =>
         recordMap = recordMap + (x -> recordMap.getOrElse(x, emptyRecord).updateLo(Rational(lwrBnd))); e
 
       case Noise(x @ Variable(id), RationalLiteral(value)) =>
