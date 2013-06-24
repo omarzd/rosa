@@ -35,7 +35,10 @@ class SpecGen(reporter: Reporter, prover: Prover) {
         //println(vc.generatedPost)
 
       case None =>
-        reporter.warning("Forgotten spec constraint?")
+        if (vc.isInvariant)
+          reporter.info("Skipping invariant")
+        else
+          reporter.warning("Forgotten spec constraint?")
     }
 
 

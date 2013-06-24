@@ -43,6 +43,7 @@ class Analyser(reporter: Reporter) {
         val bodyWOLets = convertLetsToEquals(funDef.body.get)
         vc.body = Some(replace(postConditions.map(p => (p, BooleanLiteral(true))).toMap, bodyWOLets))
         vc.allConstraints = List(Constraint(vc.precondition.get, vc.body.get, Or(postConditions), "wholebody"))
+        vc.isInvariant = true
       case Some(post) =>
         vc.body = Some(convertLetsToEquals(addResult(funDef.body.get)))
         val specC = Constraint(vc.precondition.get, vc.body.get, post, "wholeBody")
