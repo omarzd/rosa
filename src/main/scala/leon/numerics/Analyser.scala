@@ -13,7 +13,7 @@ import Utils._
 
 class Analyser(reporter: Reporter) {
 
-  val verbose = true
+  val verbose = false
 
   def analyzeThis(funDef: FunDef): VerificationCondition = {
     reporter.info("")
@@ -51,7 +51,7 @@ class Analyser(reporter: Reporter) {
       // Auxiliary function, nothing to prove
       case None =>
         vc.body = Some(convertLetsToEquals(addResult(funDef.body.get)))
-        println("vc.body: " + vc.body)
+        //println("vc.body: " + vc.body)
         vc.specConstraint = Some(Constraint(vc.precondition.get, vc.body.get, BooleanLiteral(true), "wholebody"))
     }
 
@@ -83,8 +83,8 @@ class Analyser(reporter: Reporter) {
       }
 
     }
-    println("All constraints generated: ")
-    println(vc.allConstraints.mkString("\n -> ") )
+    //println("All constraints generated: ")
+    //println(vc.allConstraints.mkString("\n -> ") )
 
     vc.funcArgs = vc.funDef.args.map(v => Variable(v.id).setType(RealType))
     vc.localVars = allLetDefinitions(funDef.body.get).map(letDef => Variable(letDef._1).setType(RealType))

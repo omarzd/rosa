@@ -57,6 +57,15 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
     case Uninterpreted_None =>
       ConstraintApproximation(c.pre, c.body, c.post, Set.empty, tpe)  // nothing with uninterpreted functions
 
+    case NoFncs_AA =>
+      solver.countTimeouts = 0
+      val (newConstraint, values) = approximatePaths(c.paths, c.pre, inputs)
+      reporter.info("Timeouts: " + solver.countTimeouts)
+      println("AA computed: " + newConstraint)
+      val cnstr = ConstraintApproximation(newConstraint, BooleanLiteral(true), c.post, Set.empty, tpe)
+      cnstr.values = values
+      cnstr
+
     case PostInlining_None =>
       val (inlinedPre, cnstrPre, varsPre) = postInliner.inlineFncPost(c.pre)
       val (inlinedBody, cnstrBody, varsBody) = postInliner.inlineFncPost(c.body)
@@ -209,7 +218,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
         val config = XFloatConfig(reporter, solver, pathCondition, precision, unitRoundoff)
         val (variables, indices) = variables2xfloats(inputs, config)
         path.values = inXFloats(path.expression, variables, config) -- inputs.keys
-        println("path values: " + path.values)
+        //println("path values: " + path.values)
         path.indices= indices
 
       } else {
@@ -256,9 +265,9 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
       case Equals(variable, value) =>
         try {
           val computedValue = eval(value, currentVars, config)
-          println("computedValue: " + computedValue)
+          //println("computedValue: " + computedValue)
           currentVars = currentVars + (variable -> computedValue)
-          println("currentVars: " + currentVars)
+          //println("currentVars: " + currentVars)
         } catch {
           case UnsupportedFragmentException(msg) => reporter.error(msg)
         }

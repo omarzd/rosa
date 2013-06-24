@@ -24,6 +24,7 @@ package object numerics {
   object ApproximationType extends Enumeration {
     type ApproximationType = Value
     val Uninterpreted_None = Value("Uninterpreted_None")
+    val NoFncs_AA = Value("NoFncs_AA")
     val PostInlining_None = Value("PostInlining_None")
     val PostInlining_AA = Value("PostInlining_AA")
     val FullInlining_None = Value("FullInlining_None")

@@ -47,7 +47,7 @@ class VerificationCondition(val funDef: FunDef) {
   */
   var simulationRange: Option[Interval] = None
   var rndoff: Option[Double] = None
-  var intervalRange: Option[Interval] = None
+  var intervalRange: Option[RationalInterval] = None
   var affineRange: Option[RationalInterval] = None
 
   /*

@@ -25,13 +25,14 @@ class SpecGen(reporter: Reporter, prover: Prover) {
         val approxConstraint = c.approximationForSpec match {
             case Some(a) => a
             case None =>
-              prover.getNextApproximation(PostInlining_AA, c, vc.inputs)
+              prover.getNextApproximation(NoFncs_AA, c, vc.inputs)
           }
 
         val approx = approxConstraint.values.filter( k => k._1 == ResultVariable())
         val newConstraint = actualConstraintFromResults(approx)
         vc.generatedPost = Some(newConstraint)
-        println(vc.generatedPost)
+        reporter.info("new post: " + newConstraint)
+        //println(vc.generatedPost)
 
       case None =>
         reporter.warning("Forgotten spec constraint?")

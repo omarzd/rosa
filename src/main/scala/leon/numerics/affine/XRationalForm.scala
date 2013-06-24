@@ -131,8 +131,8 @@ case class XRationalForm(val x0: Rational, var noise: Queue[Deviation]) {
   def inverse: XRationalForm = {
     val (xlo, xhi) = (interval.xlo, interval.xhi)
 
-    if (xlo <= Rational(0.0) && xhi >= Rational(0.0))
-      throw OutOfDomainException("Possible division by zero: " + toString)
+    //if (xlo <= Rational(0.0) && xhi >= Rational(0.0))
+    //  throw OutOfDomainException("Possible division by zero: " + toString)
 
     if(noise.size == 0) { //exact
       val inv = Rational(1.0)/x0
@@ -170,8 +170,8 @@ case class XRationalForm(val x0: Rational, var noise: Queue[Deviation]) {
   def squareRoot: XRationalForm = {
     var (a, b) = (interval.xlo, interval.xhi)
 
-    if (b <= zero)  //soft policy
-      throw OutOfDomainException("Possible sqrt of negative number: " + toString)
+    //if (b <= zero)  //soft policy
+    //  throw OutOfDomainException("Possible sqrt of negative number: " + toString)
 
     /*if(noise.size == 0) { //exact
       val sqrt = x0.sqrt

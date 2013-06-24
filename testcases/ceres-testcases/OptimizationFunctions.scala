@@ -19,6 +19,7 @@ object OptimizationFunctions {
     (2.625 - x + x*y*(x*y)*(x*y))*(2.625 - x + x*y*(x*y)*(x*y))
   } ensuring (res => 13.0 <= res && res <= 31629067.0 && noise(res, 1e-7))
 
+  
   //Sim: [14.01916781064652,185495053.2162193]    (2.384185791015625E-7)
   def beales2(x: Real, y: Real): Real = {
     require(-5 <= x && x <= 2.5 && 2.5 <= y && y <= 4.78 && roundoff(x) && roundoff(y))
@@ -34,7 +35,7 @@ object OptimizationFunctions {
     (2.25 - x + x*y*(x*y))*(2.25 - x + x*y*(x*y)) +
     (2.625 - x + x*y*(x*y)*(x*y))*(2.625 - x + x*y*(x*y)*(x*y))
   } ensuring (res => 0.28 <= res && res <= 64239600.0 && noise(res, 1e-7))
-
+  
 
   // Sim: [180.1158417843523,679.1975462951999]    (3.410605131648481E-13)
   def booths(x: Real, y: Real): Real = {
@@ -53,7 +54,7 @@ object OptimizationFunctions {
     require(-5 <= x && x <= 6.7 && 4 <= y && y <= 10.5 && roundoff(x) && roundoff(y))
     (x + 2*y -7)*(x + 2*y -7) + (2*x + y -5)*(2*x + y -5)
   } ensuring (res => 1.8 <= res && res <= 785.0 && noise(res, 1e-12))
-
+  
 
   // Sim: [8.493308609645456e-05,2047.524374981617]    (2.2737367544323206E-12)
   def camel(x: Real, y: Real): Real = {
@@ -135,6 +136,6 @@ object OptimizationFunctions {
             -3.2 <= z && z <= 10.7 && roundoff(x) && roundoff(y) && roundoff(z))
     z*z*z + x*x*(y*y) * (z*z + y*y - 3*z*z)
   } ensuring (res => -32.0 <= res && res <= 180335170.0 && noise(res, 1e-6))
-
+  
 }
 

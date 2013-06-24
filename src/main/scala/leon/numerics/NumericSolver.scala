@@ -23,7 +23,7 @@ class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3
   override val description = "Z3 solver with some numeric convenience methods"
 
   var verbose = false
-  var printWarnings = true
+  var printWarnings = false
   var diagnose = true
   var countTimeouts = 0
 

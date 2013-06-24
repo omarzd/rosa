@@ -9,54 +9,51 @@ import Real._
 */
 object Bsplines {
 
-  // TODO: it should be 1/6 throughout, but we cannot handle that atm.
+  // Z3 does not time out if let loose on the whole constraint
+  def bspline0(u: Real): Real = {
+    require(0 <= u && u <= 1)
+    (1 - u) * (1 - u) * (1 - u)/6.0
+  } ensuring (res => -0.05 <= res && res <= 0.17 && noise(res, 1e-15))
+  
+  def bspline0Tight(u: Real): Real = {
+    require(0 <= u && u <= 1)
+    (1 - u) * (1 - u) * (1 - u) / 6.0
+  } ensuring (res => 0 <= res && res <= 0.17 && noise(res, 1e-15))
 
-  // Z3 does not time out
-  /*def bspline0(u: Real): Real = {
-    require(0 <= u && u <= 1 && roundoff(u))
-    (1 - u) * (1 - u) * (1 - u) * 0.1666666
-  } ensuring (res => -0.05 <= res && res <= 0.17 && noise(res, 1e-14))
-  */
 
   //Z3 does not time out
-  /*def bspline1(u: Real): Real = {
-    require(0 <= u && u <= 1 && roundoff(u))
-    (3 * u*u*u - 6 * u*u + 4) * 0.1666666
-  } ensuring (res => -0.05 <= res && res <= 0.98 && noise(res, 1e-14))
-  */
+  def bspline1(u: Real): Real = {
+    require(0 <= u && u <= 1)
+    (3 * u*u*u - 6 * u*u + 4) / 6.0
+  } ensuring (res => -0.05 <= res && res <= 0.98 && noise(res, 1e-15))
   
-  def bspline2(u: Real): Real = {
-    require(0 <= u && u <= 1 && roundoff(u))
-    (-3 * u*u*u  + 3*u*u + 3*u + 1) * 0.1666666
-  } ensuring (res => -0.02 <= res && res <= 0.89 && noise(res, 1e-14))
-
-  def bspline3(u: Real): Real = {
-    require(0 <= u && u <= 1 && noise(u, 1e-13))
-    -u*u*u / 6.0
-  } ensuring (res => -0.17 <= res && res <= 0.05 && noise(res, 1e-11))
-
-  /*
-  def bspline0Tight(u: Real): Real = {
-    require(0 <= u && u <= 1 && roundoff(u))
-    (1 - u) * (1 - u) * (1 - u) * 0.1666666
-  } ensuring (res => 0 <= res && res <= 0.17 && noise(res, 1e-16))
-
-
   def bspline1Tight(u: Real): Real = {
-    require(0 <= u && u <= 1 && roundoff(u))
-    (3 * u*u*u - 6 * u*u + 4) * 0.1666666
+    require(0 <= u && u <= 1)
+    (3 * u*u*u - 6 * u*u + 4) / 6.0
   } ensuring (res => 0.16 <= res && res <= 0.7 && noise(res, 1e-15))
 
+
+
+  def bspline2(u: Real): Real = {
+    require(0 <= u && u <= 1)
+    (-3 * u*u*u  + 3*u*u + 3*u + 1) / 6.0
+  } ensuring (res => -0.02 <= res && res <= 0.89 && noise(res, 1e-15))
 
   def bspline2Tight(u: Real): Real = {
-    require(0 <= u && u <= 1 && roundoff(u))
-    (-3 * u*u*u  + 3*u*u + 3*u + 1) * 0.1666666
+    require(0 <= u && u <= 1)
+    (-3 * u*u*u  + 3*u*u + 3*u + 1) / 6.0
   } ensuring (res => 0.16 <= res && res <= 0.7 && noise(res, 1e-15))
 
+
+  def bspline3(u: Real): Real = {
+    require(0 <= u && u <= 1)
+    -u*u*u / 6.0
+  } ensuring (res => -0.17 <= res && res <= 0.05 && noise(res, 1e-15))
+  
   def bspline3Tight(u: Real): Real = {
-    require(0 <= u && u <= 1 && roundoff(u))
-    -u*u*u * 0.1666666
-  } ensuring (res => -0.17 <= res && res <= 0.0 && noise(res, 1e-16))
-  */
+    require(0 <= u && u <= 1)
+    -u*u*u / 6.0
+  } ensuring (res => -0.17 <= res && res <= 0.0 && noise(res, 1e-15))
+  
 
 }

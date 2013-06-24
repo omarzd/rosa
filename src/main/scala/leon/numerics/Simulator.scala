@@ -12,7 +12,7 @@ import Precision._
 
 class Simulator(reporter: Reporter) {
 
-  val simSize = 1//00//0000//00
+  val simSize = 1000000//00
   reporter.info("Simulation size: " + simSize + "\n")
 
   def simulateThis(vc: VerificationCondition, precision: Precision) = {
@@ -23,13 +23,13 @@ class Simulator(reporter: Reporter) {
 
     val inputs: Map[Variable, (RationalInterval, Rational)] = inputs2intervals(vc.inputs)
 
-    /*val (maxRoundoff, resInterval) = precision match {
+    val (maxRoundoff, resInterval) = precision match {
       case Float32 => runFloatSimulation(inputs, body)
       case Float64 => runDoubleSimulation(inputs, body)
-    }*/
-    val (maxRoundoff, resInterval) = (0.0, Interval(0.0) )
+    }
+    //val (maxRoundoff, resInterval) = (0.0, Interval(0.0) )
 
-    val intInputs: Map[Expr, Interval] = inputs.map( x => (x._1 -> Interval(x._2._1.xlo.toDouble, x._2._1.xhi.toDouble) ))
+    val intInputs: Map[Expr, RationalInterval] = inputs.map( x => (x._1 -> RationalInterval(x._2._1.xlo, x._2._1.xhi) ))
     val xratInputs: Map[Expr, XRationalForm] = inputs.map ( x => (x._1 -> XRationalForm(x._2._1) ) )
 
     vc.simulationRange = Some(resInterval)
@@ -121,12 +121,12 @@ class Simulator(reporter: Reporter) {
     currentVars(ResultVariable())
   }
 
-  private def evaluateInterval(expr: Expr, vars: Map[Expr, Interval]): Interval = {
+  private def evaluateInterval(expr: Expr, vars: Map[Expr, RationalInterval]): RationalInterval = {
     val exprs: Seq[Expr] = expr match {
       case And(args) => args
       case _ => Seq(expr)
     }
-    var currentVars: Map[Expr, Interval] = vars
+    var currentVars: Map[Expr, RationalInterval] = vars
     for (e <- exprs) e match {
       case Equals(variable, value) => currentVars = currentVars + (variable -> evalInterval(value, currentVars))
       case BooleanLiteral(true) => ;
@@ -207,10 +207,10 @@ class Simulator(reporter: Reporter) {
       (Float.NaN, Rational(0))
   }
 
-  private def evalInterval(tree: Expr, vars: Map[Expr, Interval]): Interval = tree match {
+  private def evalInterval(tree: Expr, vars: Map[Expr, RationalInterval]): RationalInterval = tree match {
     case v @ Variable(id) => vars(v)
-    case RationalLiteral(v) => Interval(v.toDouble)
-    case IntLiteral(v) => Interval(v.toDouble)
+    case RationalLiteral(v) => RationalInterval(v, v)
+    case IntLiteral(v) => RationalInterval(Rational(v), Rational(v))
     case UMinus(e) => - evalInterval(e, vars)
     case Plus(lhs, rhs) => evalInterval(lhs, vars) + evalInterval(rhs, vars)
     case Minus(lhs, rhs) => evalInterval(lhs, vars) - evalInterval(rhs, vars)
@@ -218,7 +218,7 @@ class Simulator(reporter: Reporter) {
     case Division(lhs, rhs) => evalInterval(lhs, vars) / evalInterval(rhs, vars)
     case _ =>
       throw UnsupportedFragmentException("Can't handle: " + tree.getClass)
-      EmptyInterval
+      null
   }
 
   private def evalXRationalForm(tree: Expr, vars: Map[Expr, XRationalForm]): XRationalForm = {
@@ -256,16 +256,15 @@ class Simulator(reporter: Reporter) {
 
     for((k, rec) <- vars) {
       if (rec.isComplete) {
-        rec.rndoff match {
-          case Some(true) =>
+        rec.noise match {
+          case Some(n) =>
             val interval = RationalInterval(rec.lo.get, rec.up.get)
-            //val noise = affine.XFloat.roundoff(interval)
-            variableMap = variableMap + (k -> (interval, Rational.zero))
+            variableMap = variableMap + (k -> (interval, n))
 
           case None =>
             val interval = RationalInterval(rec.lo.get, rec.up.get)
-            val noise = rec.noise.get
-            variableMap = variableMap + (k -> (interval, noise))
+            //val noise = affine.XFloat.roundoff(interval)
+            variableMap = variableMap + (k -> (interval, Rational.zero))
         }
       }
     }
