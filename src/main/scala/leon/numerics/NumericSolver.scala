@@ -32,7 +32,7 @@ class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3
 
   override protected[leon] val z3cfg = new Z3Config(
     "MODEL" -> true,
-    "TIMEOUT" -> 10,
+    "TIMEOUT" -> 1000,
     "TYPE_CHECK" -> true,
     "WELL_SORTED_CHECK" -> true
   )
@@ -233,7 +233,8 @@ class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3
       case Some(false) =>
         if (verbose) println("--> bound: UNSAT")
         UNSAT
-      case None => if (printWarnings) println("!!! WARNING: Z3 SOLVER FAILED")
+      case None =>
+        if (printWarnings) println("!!! WARNING: Z3 SOLVER FAILED")
         countTimeouts = countTimeouts + 1
         Unknown
     }

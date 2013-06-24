@@ -8,99 +8,42 @@ import Real._
 
 object Debug {
 
-  def rigidBody(x1: Real, x2: Real, x3: Real): Real = {
-    require(x1 <= 15 && x1 >= -15 && x2 <= 15 && x2 >= -15 &&
-            x3 <= 15 && x3 >= -15)
-    -x1*x2 - 2*x2*x3 - x1 - x3
-  } ensuring (res => -800 <= ~res && ~res <= 750.0 && noise(res, 1e-10))
-
-/*
-  def mult(y2: Real, y3: Real): Real = {
-    require(-15 <= y2 && y2 <= 15 && -15 <= y3 && y3 <= 15 && roundoff(y2, y3))
-    y2 * y3
-  } ensuring (res => -225 <= res && res <= 225 && noise(res, 1e-13))
+  /*def beales(x: Real, y: Real): Real = {
+    require(-4 <= x && x <= 0.5 && 1.5 <= y && y <= 4.45 && roundoff(x) && roundoff(y))
+    (1.5 - x + x*y)*(1.5 - x + x*y) +
+    (2.25 - x + x*y*(x*y))*(2.25 - x + x*y*(x*y)) +
+    (2.625 - x + x*y*(x*y)*(x*y))*(2.625 - x + x*y*(x*y)*(x*y))
+  } ensuring (res => 13.0 <= res && res <= 31629067.0 && noise(res, 1e-7))
 
 
-  def rigidBody1(x1: Real, x2: Real, x3: Real): Real = {
-    require(x1 <= 15 && x1 >= -15 && x2 <= 15 && x2 >= -15 &&
-            x3 <= 15 && x3 >= -15 && roundoff(x1) && roundoff(x2) && roundoff(x3))
-    -mult(x1,x2) - 2*mult(x2, x3) - x1 - x3
-  } ensuring (res => -800 <= res && res <= 750.0 && noise(res, 1e-10))
-*/
-
-  /*
-  def rigidBody11(x1: Real, x2: Real, x3: Real): Real = {
-    require(x1 <= 15 && x1 >= -15 && x2 <= 15 && x2 >= -15 &&
-            x3 <= 15 && x3 >= -15 && roundoff(x1) && roundoff(x2) && roundoff(x3))
-    val t1 = -mult(x1,x2)
-    val t2 = - x1 - x3
-    t1 - 2*mult(x2, x3) + t2
-  } ensuring (res => -800 <= res && res <= 750.0 && noise(res, 1e-10))
-
-
-  def rigidBody12(x1: Real, x2: Real, x3: Real): Real = {
-    require(x1 <= 15 && x1 >= -15 && x2 <= 15 && x2 >= -15 &&
-            x3 <= 15 && x3 >= -15 && roundoff(x1) && roundoff(x2) && roundoff(x3))
-    if (x1 < 3.4) {
-      val t1 = -mult(x1,x2)
-      val t2 = - x1 - x3
-      t1 - 2*mult(x2, x3) + t2
-    } else {
-      -mult(x1,x2) - 2*mult(x2, x3) - x1 - x3
-    }
-
-  } ensuring (res => -800 <= res && res <= 750.0 && noise(res, 1e-10))
+  def bealesFactored(x: Real, y: Real): Real = {
+    require(-4 <= x && x <= 0.5 && 1.5 <= y && y <= 4.45 && roundoff(x) && roundoff(y))
+    (1.5*1.5 + x*x + x*x*y*y - 2*1.5*x + 2*1.5*x*y - 2*x*x*y) +
+    (2.25 - x + x*y*(x*y))*(2.25 - x + x*y*(x*y)) +
+    (2.625 - x + x*y*(x*y)*(x*y))*(2.625 - x + x*y*(x*y)*(x*y))
+  } ensuring (res => 13.0 <= res && res <= 31629067.0 && noise(res, 1e-7))
   */
 
-  /*def f(x: Real): Real = {
-    require(0 <= x && x <= 2.3 && noise(x, 1e-7))
-    val t = if (x <= 1.2) {
-      if (x <= 2.0)
-        x * x
-      else
-        2 * x
-    } else {
-      val t2 = x * x
-      x * t2
-    }
-    t
-  } ensuring (res => res >= 0 && noise(res, 1e-5))
+  def camel2(x: Real, y: Real): Real = {
+    require(-13.9 <= x && x <= 7.98 && -12.8 <= y && y <= 8.9 && roundoff(x) && roundoff(y))
+    2*x*x - 1.05*x*x*x*x + (x*x*x*x*x*x)/6 + x*y + y*y
+  } ensuring (res => 6.7 <= res && res <= 1163650.0 && noise(res, 1e-8))
 
 
+  /*def doppler(u: Real, v: Real, T: Real): Real = {
+    require(-100 <= u && u <= 100 && 20 <= v && v <= 20000 &&
+     -30 <= T && T <= 50 && noise(u, 1e-7) && noise(v, 1e-9) && noise(T, 1e-6))
 
+    (- (331.4 + 0.6 * T) *v) / ((331.4 + 0.6*T + u)*(331.4 + 0.6*T + u))
 
-  def f5(x: Real): Real = {
-    require(0 <= x && x <= 2.3 && noise(x, 1e-7))
-    val y = x * x - 3.4
-    val temp = if (x + y <= 0) {
-      val t1 = x * y
-      2*x + t1
-    } else {
-      5*x
-    }
-    temp
-  } ensuring (res => res >= 0 && noise(res, 1e-5))
+  } ensuring (res => -137.0 <= res && res <= -0.35 && noise(res, 1e-4))
+  
+  def dopplerFactoredOut(u: Real, v: Real, T: Real): Real = {
+    require(-100 <= u && u <= 100 && 20 <= v && v <= 20000 &&
+     -30 <= T && T <= 50 && noise(u, 1e-7) && noise(v, 1e-9) && noise(T, 1e-6))
 
+    (- (331.4*v + 0.6 * T*v)) / (331.4*331.4 + 2*331.4*0.6*T + 2*331.4*u + 2*0.6*T*u + (0.6*T)*(0.6*T) + u*u )
 
-  def f6(x: Real): Real = {
-    require(0 <= x && x <= 2.3 && noise(x, 1e-7))
-    val y = x * x - 3.4
-    if (x + y <= 0) {
-      val t1 = x * y
-      2*x + t1
-    } else {
-      5*x
-    }
-  } ensuring (res => res >= 0 && noise(res, 1e-5))
-
-  def f7(x: Real): Real = {
-    require(0 <= x && x <= 2.3 && noise(x, 1e-7))
-    if (x < 1.2)
-      x * x
-    else
-      x * x * x
-
-  } ensuring (res => res >= 0 && noise(res, 1e-5))
+  } ensuring (res => -137.0 <= res && res <= -0.35 && noise(res, 1e-4))
   */
-
 }

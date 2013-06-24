@@ -12,7 +12,7 @@ import Precision._
 
 class Simulator(reporter: Reporter) {
 
-  val simSize = 1000000//00
+  val simSize = 1//000000//00
   reporter.info("Simulation size: " + simSize + "\n")
 
   def simulateThis(vc: VerificationCondition, precision: Precision) = {

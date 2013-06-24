@@ -51,6 +51,7 @@ object Extractors {
       case Times(t1,t2) => Some((t1,t2,Times))
       case Division(t1,t2) => Some((t1,t2,Division))
       case Modulo(t1,t2) => Some((t1,t2,Modulo))
+      case Power(t1, t2) => Some((t1, t2, Power))
       case Noise(t1, t2) => Some((t1,t2,Noise))
       case MorePrecise(t1, t2) => Some((t1, t2,MorePrecise))
       case LessThan(t1,t2) => Some((t1,t2,LessThan))
@@ -92,6 +93,7 @@ object Extractors {
       case fi @ FunctionInvocation(fd, args) => Some((args, (as => FunctionInvocation(fd, as).setPosInfo(fi))))
       case CaseClass(cd, args) => Some((args, CaseClass(cd, _)))
       case And(args) => Some((args, And.apply))
+      case Product(args) => Some((args, Product.apply))
       case Or(args) => Some((args, Or.apply))
       case FiniteSet(args) => Some((args, FiniteSet))
       case FiniteMap(args) => {

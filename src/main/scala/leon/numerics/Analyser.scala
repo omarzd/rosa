@@ -9,7 +9,7 @@ import purescala.TreeOps._
 import purescala.Definitions._
 import purescala.Common._
 import Utils._
-
+import ArithmeticOps._
 
 class Analyser(reporter: Reporter) {
 
@@ -36,25 +36,29 @@ class Analyser(reporter: Reporter) {
         vc.precondition = Some(BooleanLiteral(true))
     }
 
+    val bodyPreprocessed = funDef.body.get //collectPowers(funDef.body.get)
+
     funDef.postcondition match {
       //invariant
       case Some(ResultVariable()) =>
-        val postConditions = getInvariantCondition(funDef.body.get)
-        val bodyWOLets = convertLetsToEquals(funDef.body.get)
+        val postConditions = getInvariantCondition(bodyPreprocessed)
+        val bodyWOLets = convertLetsToEquals(bodyPreprocessed)
         vc.body = Some(replace(postConditions.map(p => (p, BooleanLiteral(true))).toMap, bodyWOLets))
         vc.allConstraints = List(Constraint(vc.precondition.get, vc.body.get, Or(postConditions), "wholebody"))
         vc.isInvariant = true
       case Some(post) =>
-        vc.body = Some(convertLetsToEquals(addResult(funDef.body.get)))
+        vc.body = Some(convertLetsToEquals(addResult(bodyPreprocessed)))
         val specC = Constraint(vc.precondition.get, vc.body.get, post, "wholeBody")
         vc.allConstraints = List(specC)
         vc.specConstraint = Some(specC)
       // Auxiliary function, nothing to prove
       case None =>
-        vc.body = Some(convertLetsToEquals(addResult(funDef.body.get)))
+        vc.body = Some(convertLetsToEquals(addResult(bodyPreprocessed)))
         //println("vc.body: " + vc.body)
         vc.specConstraint = Some(Constraint(vc.precondition.get, vc.body.get, BooleanLiteral(true), "wholebody"))
     }
+
+    
 
     if (containsFunctionCalls(vc.body.get)) {
       val noiseRemover = new NoiseRemover
@@ -88,7 +92,7 @@ class Analyser(reporter: Reporter) {
     //println(vc.allConstraints.mkString("\n -> ") )
 
     vc.funcArgs = vc.funDef.args.map(v => Variable(v.id).setType(RealType))
-    vc.localVars = allLetDefinitions(funDef.body.get).map(letDef => Variable(letDef._1).setType(RealType))
+    vc.localVars = allLetDefinitions(bodyPreprocessed).map(letDef => Variable(letDef._1).setType(RealType))
 
     vc
   }

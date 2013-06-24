@@ -469,6 +469,34 @@ object Trees {
       if (lhs.getType == RealType || rhs.getType == RealType) RealType
       else Int32Type
   }
+
+  object Product {
+    def apply(l: Expr, r: Expr) : Expr = Product(Seq(l, r))
+    def apply(exprs: Seq[Expr]) : Expr = {
+      val flat = exprs.flatMap(_ match {
+        case Product(es) => es
+        case o => Seq(o)
+      }) 
+      new Product(flat)   
+    }
+    def unapply(prod: Product) : Option[Seq[Expr]] =
+      if(prod == null) None else Some(prod.exprs)
+  }
+  class Product private (val exprs: Seq[Expr]) extends Expr with FixedType {
+    val fixedType = RealType
+    assert(exprs.size >= 2)
+    override def equals(that: Any): Boolean = (that != null) && (that match {
+      case t: Product => t.exprs == exprs
+      case _ => false
+    })
+
+    override def hashCode: Int = exprs.hashCode
+  }
+
+  case class Power(lhs: Expr, rhs: Expr) extends Expr with FixedType {
+    val fixedType = RealType
+  }
+ 
   case class Modulo(lhs: Expr, rhs: Expr) extends Expr with FixedType {
     val fixedType = Int32Type
   }

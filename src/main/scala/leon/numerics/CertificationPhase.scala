@@ -96,7 +96,7 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
     val vcMap: Map[FunDef, VerificationCondition] = vcs.map { t => (t.funDef, t) }.toMap
 
     val prover = new Prover(reporter, ctx, program, vcMap, precision)
-    for(vc <- vcs) prover.check(vc)
+    //for(vc <- vcs) prover.check(vc)
 
     if (simulation) {
       val simulator = new Simulator(reporter)

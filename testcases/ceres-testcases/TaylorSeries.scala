@@ -6,7 +6,7 @@ import Real._
 object TaylorSeries {
    
   // Sim: [-1.425532517660864,0.9999999999999941]    (1.5543122344752192E-15)
-  /*def cos(x: Real): Real = {
+  def cos(x: Real): Real = {
     require(-1.24 <= x && x <= 3.5 && roundoff(x)) //, roundoff(x)
     1 - (x*x)/2.0 + (x*x*x*x)/24.0 - (x*x*x*x*x*x)/720.0
   } ensuring (res => -1.43 <= res && res <= 1.0 && noise(res, 1e-12))
@@ -36,7 +36,7 @@ object TaylorSeries {
     require(-1.23 <= x && x <= 2.34 && roundoff(x))
     1 + (x*x)/2.0 + (x*x*x*x)/24.0 + (x*x*x*x*x*x)/720.0
   } ensuring (res => 1.0 <= res && res <= 5.5 && noise(res, 1e-12))
-  */
+  
   // Sim: [0.6786651176339717,2.986100724817679]    (1.3322676295501878E-15)
   def exOverCosx(x: Real): Real = {
     require(-1.5 <= x && x <= 0.8 && roundoff(x))
@@ -78,27 +78,27 @@ object TaylorSeries {
 
   // Sim: [1.168748495960413,2.068836443423501]    (8.881784197001252E-16)
   // Fails to time out
-  /*def sqrt(x: Real): Real = { // around 3.14
+  def sqrt(x: Real): Real = { // around 3.14
     require(1.35 <= x && x <= 4.28 && roundoff(x))
     1.772 + 0.282166*(x - 3.14) - 0.0224655*(x - 3.14)*(x - 3.14) +
     0.0035773*(x - 3.14)*(x - 3.14)*(x - 3.14) -
     0.000712043*(x - 3.14)*(x - 3.14)*(x - 3.14)*(x - 3.14) +
     0.000158736*(x - 3.14)*(x - 3.14)*(x - 3.14)*(x - 3.14) 
-  } ensuring (res => 1.0 <= res && res <= 2.4 && noise(res) <= 1e-12)
-  */
+  } ensuring (res => 1.0 <= res && res <= 2.4 && noise(res, 1e-12))
+  
 
   // 0.0000272113 is not representable as Int/Int
-  /*def sqrt2(x: Real): Real = { // around 7.98
+  def sqrt2(x: Real): Real = { // around 7.98
     require(3.35 <= x && x <= 12.28)
     2.82489 + 0.176998*(x- 7.98) - 0.00554505*(x- 7.98)*(x- 7.98) +
     0.000347434*(x- 7.98)*(x- 7.98)*(x- 7.98) -
     0.0000272113*(x- 7.98)*(x- 7.98)*(x- 7.98)*(x- 7.98) 
   } ensuring (res => res <= 1.2)
-  */
+  
 
   // sqrt(3*x - 0.3)
   // Sim: [0.2669926110387539,4.520059737484441]    (8.271161533457416E-15)
-  /*def sqrt3(x: Real): Real = { // around 3.2
+  def sqrt3(x: Real): Real = { // around 3.2
     require(3.35 <= x && x <= 12.28 && roundoff(x))
     3.04959 + 0.491869*(x - 3.2) - 0.0396669*(x - 3.2)*(x - 3.2) +
     0.00639788*(x - 3.2)*(x - 3.2)*(x - 3.2) -
@@ -110,5 +110,5 @@ object TaylorSeries {
     require(-1.3 <= x && x <= 1.3 && roundoff(x))
     x + (x*x*x)/3.0 + (2*x*x*x*x*x)/15.0
   } ensuring (res => -2.5 <= res && res <= 2.6 && noise(res, 1e-12))
-  */
+  
 }

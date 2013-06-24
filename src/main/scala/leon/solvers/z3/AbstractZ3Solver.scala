@@ -439,6 +439,7 @@ trait AbstractZ3Solver extends solvers.IncrementalSolverBuilder {
         case Times(l, r) => z3.mkMul(rec(l), rec(r))
         case Division(l, r) => z3.mkDiv(rec(l), rec(r))
         case Modulo(l, r) => z3.mkMod(rec(l), rec(r))
+        case Power(l, r) => z3.mkPower(rec(l), rec(r))
         case UMinus(e) => z3.mkUnaryMinus(rec(e))
         case LessThan(l, r) => z3.mkLT(rec(l), rec(r))
         case LessEquals(l, r) => z3.mkLE(rec(l), rec(r))
