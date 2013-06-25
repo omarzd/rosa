@@ -26,16 +26,6 @@ case class Constraint(pre: Expr, body: Expr, post: Expr, description: String) {
   var status: Option[Valid] = None
   var model: Option[Map[Identifier, Expr]] = None
   var strategy: String = ""
-
-  def numVariables: Int = variablesOf(pre).size + variablesOf(body).size
-  def size: Int = formulaSize(pre) + formulaSize(body)
-
-  def solved: Boolean = status match {
-    case Some(VALID) => true
-    case Some(INVALID) => false
-    case _ => false
-  }
-
   lazy val paths = collectPaths(body)
 
 
@@ -44,8 +34,8 @@ case class Constraint(pre: Expr, body: Expr, post: Expr, description: String) {
       //Seq(Uninterpreted_None, PostInlining_None, PostInlining_AA, FullInlining_None, FullInlining_AA)
       Seq(PostInlining_None, PostInlining_AA, FullInlining_None, FullInlining_AA)
     } else {
-      //Seq(Uninterpreted_None, NoFncs_AA)
-      Seq(NoFncs_AA)
+      Seq(Uninterpreted_None, NoFncs_AA)
+      //Seq(NoFncs_AA)
     }
 
   def hasNextApproximation = !approxStrategy.isEmpty
@@ -71,8 +61,14 @@ case class Constraint(pre: Expr, body: Expr, post: Expr, description: String) {
     status = s._1
     model = s._2
   }
-
+  def solved: Boolean = status match {
+    case Some(VALID) => true
+    case Some(INVALID) => false
+    case _ => false
+  }
   override def toString: String = "(%s && %s) ==> %s".format(pre.toString, body.toString, post.toString)
+  def numVariables: Int = variablesOf(pre).size + variablesOf(body).size
+  def size: Int = formulaSize(pre) + formulaSize(body)
 
 }
 

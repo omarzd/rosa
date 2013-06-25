@@ -15,6 +15,7 @@ import affine.XFloat._
 import Utils._
 
 import Valid._
+import Sat._
 import ApproximationType._
 import Precision._
 
@@ -28,6 +29,63 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
   val unitRoundoff = getUnitRoundoff(precision)
 
   def check(vc: VerificationCondition) = {
+    reporter.info("")
+    reporter.info("----------> checking VC of " + vc.funDef.id.name)
+
+    val start = System.currentTimeMillis
+    for (c <- vc.allConstraints) {
+      reporter.info("----------> checking constraint: " + c.description)
+      if (verbose) {println("pre: " + c.pre); println("body: " + c.body); println("post: " + c.post)}
+
+      val approximator = new Approximator(reporter, c, vc.allVariables, unitRoundoff, skipZ3Only = false)
+    
+      var currentApprox = approximator.nextApproximation
+      while (!currentApprox.isEmpty) {
+        //println("approx: " + currentApprox.get)
+        // TODO: store this approximation?
+        c.overrideStatus(checkApproximation(currentApprox.get))
+        reporter.info("RESULT: " + c.status)
+        //if (!c.model.isEmpty) reporter.info(c.model.get)
+
+        currentApprox = approximator.nextApproximation
+      }
+    }
+
+    val totalTime = (System.currentTimeMillis - start)
+    vc.verificationTime = Some(totalTime)
+  }
+
+  //case class APath(idealCondition: Expr, noisyCondition: Expr, ideal: Expr, noisy: Expr)
+  //case class Approximation(pre: Expr, paths: Set[APath], globalBody: Expr, post: Expr)
+
+  private def checkApproximation(a: Approximation): (Option[Valid], Option[Map[Identifier, Expr]]) = {
+
+    // Put all paths together
+    var (idealPart, noisyPart) = (Seq[Expr](), Seq[Expr]())
+
+    for(path <- a.paths) {
+      idealPart = idealPart :+ True//And(path.idealCondition, path.ideal)
+      noisyPart = noisyPart :+ And(path.noisyCondition, path.noisy)
+    }
+    val body = if(idealPart.isEmpty && noisyPart.isEmpty) BooleanLiteral(true)
+      else if(!idealPart.isEmpty && !noisyPart.isEmpty) And(Or(idealPart), Or(noisyPart))
+      else {
+        reporter.error("one of realPart or noisyPart is empty")
+        BooleanLiteral(true)
+      }
+
+    val toCheck = Implies(And(a.pre, And(body, a.globalBody)), a.post)
+    println("toCheck: " + toCheck)
+
+    // If precondition is false, we'll prove anything, so don't try to prove at all
+    if (reporter.errorCount == 0 && sanityCheck(a.pre, And(body, a.globalBody))) {
+      val (valid, model) = solver.checkValid(toCheck)
+      (Some(valid), model)
+    } else
+      (None, None)
+  }
+
+  def check2(vc: VerificationCondition) = {
     reporter.info("")
     reporter.info("----------> checking VC of " + vc.funDef.id.name)
 
@@ -50,6 +108,43 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
 
     val totalTime = (System.currentTimeMillis - start)
     vc.verificationTime = Some(totalTime)
+  }
+
+  private def checkWithZ3(pre: Expr, paths: Set[Path], post: Expr, variables: Seq[Variable]): (Option[Valid], Option[Map[Identifier, Expr]]) = {
+    val (resVar, eps, buddies) = getVariables(variables)
+    val trans = new NumericConstraintTransformer(buddies, resVar, eps, RoundoffType.RoundoffMultiplier, reporter)
+
+    var (realPart, noisyPart) = (Seq[Expr](), Seq[Expr]())
+
+    for(path <- paths) {
+      // TODO: check that this does not fail if we have just one expression
+      val (r, n) = trans.transformBlock(And(path.expression))
+      realPart = realPart :+ And(path.condition, r)
+      noisyPart = noisyPart :+ And(trans.getNoisyCondition(path.condition), n)
+    }
+
+    val precondition = trans.transformCondition(pre)
+    val postcondition = trans.transformCondition(post)
+
+    val body = if(realPart.isEmpty && noisyPart.isEmpty) BooleanLiteral(true)
+      else if(!realPart.isEmpty && !noisyPart.isEmpty) And(Or(realPart), Or(noisyPart))
+      else {
+        reporter.error("one of realPart or noisyPart is empty")
+        BooleanLiteral(true)
+      }
+    // This is to make Z3 gives us also the error
+    // TODO: maybe also add this for the input variables?
+    val resultError = Equals(getNewResErrorVariable, Minus(resVar, buddies(resVar)))
+    val machineEpsilon = Equals(eps, RationalLiteral(unitRoundoff))
+    val toCheck = Implies(And(precondition, And(body, And(resultError, machineEpsilon))), postcondition)
+    println("toCheck: " + toCheck)
+
+    // If precondition is false, we'll prove anything, so don't try to prove at all
+    if (reporter.errorCount == 0 && sanityCheck(precondition, body)) {
+      val (valid, model) = solver.checkValid(toCheck)
+      (Some(valid), model)
+    } else
+      (None, None)
   }
 
   // TODO: we can cache some of the body transforms and reuse for AA...
@@ -122,42 +217,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
 
   
 
-  private def checkWithZ3(pre: Expr, paths: Set[Path], post: Expr, variables: Seq[Variable]): (Option[Valid], Option[Map[Identifier, Expr]]) = {
-    val (resVar, eps, buddies) = getVariables(variables)
-    val trans = new NumericConstraintTransformer(buddies, resVar, eps, RoundoffType.RoundoffMultiplier, reporter)
-
-    var (realPart, noisyPart) = (Seq[Expr](), Seq[Expr]())
-
-    for(path <- paths) {
-      // TODO: check that this does not fail if we have just one expression
-      val (r, n) = trans.transformBlock(And(path.expression))
-      realPart = realPart :+ And(path.condition, r)
-      noisyPart = noisyPart :+ And(trans.getNoisyCondition(path.condition), n)
-    }
-
-    val precondition = trans.transformCondition(pre)
-    val postcondition = trans.transformCondition(post)
-
-    val body = if(realPart.isEmpty && noisyPart.isEmpty) BooleanLiteral(true)
-      else if(!realPart.isEmpty && !noisyPart.isEmpty) And(Or(realPart), Or(noisyPart))
-      else {
-        reporter.error("one of realPart or noisyPart is empty")
-        BooleanLiteral(true)
-      }
-    // This is to make Z3 gives us also the error
-    // TODO: maybe also add this for the input variables?
-    val resultError = Equals(getNewResErrorVariable, Minus(resVar, buddies(resVar)))
-    val machineEpsilon = Equals(eps, RationalLiteral(unitRoundoff))
-    val toCheck = Implies(And(precondition, And(body, And(resultError, machineEpsilon))), postcondition)
-    //println("toCheck: " + toCheck)
-
-    // If precondition is false, we'll prove anything, so don't try to prove at all
-    if (reporter.errorCount == 0 && sanityCheck(precondition, body)) {
-      val (valid, model) = solver.checkValid(toCheck)
-      (Some(valid), model)
-    } else
-      (None, None)
-  }
+  
 
 
   private def computeApproximation(paths: Set[Path], precondition: Expr, inputs: Map[Variable, Record]) = {
@@ -236,19 +296,19 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
 
   // if true, we're sane
   private def sanityCheck(pre: Expr, body: Expr = BooleanLiteral(true)): Boolean = {
-    val sanityCondition = Implies(And(pre, body), BooleanLiteral(false))
-    solver.checkValid(sanityCondition) match {
-      case (VALID, model) =>
+    val sanityCondition = And(pre, body)
+    solver.checkSat(sanityCondition) match {
+      case (SAT, model) =>
+        reporter.info("Sanity check passed! :-)")
+        //reporter.info("model: " + model)
+        true
+      case (UNSAT, model) =>
         reporter.warning("Not sane! " + sanityCondition)
         false
-      case (INVALID, model) =>
-        //reporter.info("Sanity check passed! :-)")
-        true
       case _ =>
         reporter.warning("Sanity check failed! ")// + sanityCondition)
         false
     }
-
   }
 
   private def getVariables(variables: Seq[Variable]): (Variable, Variable, Map[Expr, Expr]) = {
@@ -270,7 +330,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
     case _ => expr
   }
 
-  
+
   /*private def computeApproximation(c: Constraint, inputs: Map[Variable, Record]) = {
     for (path <- c.paths) {
       val pathCondition = And(path.condition, filterPreconditionForBoundsIteration(c.pre))

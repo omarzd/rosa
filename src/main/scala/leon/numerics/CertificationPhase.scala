@@ -21,7 +21,7 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
   val name = "Certification"
   val description = "Floating-point certification"
   var simulation = false
-  var specgen = true
+  var specgen = false
   var precision: Precision = Float64
 
   override val definedOptions: Set[LeonOptionDef] = Set(
