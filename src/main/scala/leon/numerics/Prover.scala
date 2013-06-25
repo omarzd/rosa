@@ -120,19 +120,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
       // TODO: If neither work, do partial approx.
     }
 
-  /*def addSpecs(vc: VerificationCondition): VerificationCondition = {
-    //val start = System.currentTimeMillis
-    // if there are constraints, then those have already been handled, only deal with VCs without post
-    if(!vc.specConstraint.get.approximated) {
-      //computeApproximation(vc.specConstraint.get, vc.inputs)
-    }
-
-    //val totalTime = (System.currentTimeMillis - start)
-    //vc.verificationTime = Some(totalTime)
-    vc
-  }*/
-
-
+  
 
   private def checkWithZ3(pre: Expr, paths: Set[Path], post: Expr, variables: Seq[Variable]): (Option[Valid], Option[Map[Identifier, Expr]]) = {
     val (resVar, eps, buddies) = getVariables(variables)
@@ -172,45 +160,6 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
   }
 
 
-  /*private def computeApproximation(c: Constraint, inputs: Map[Variable, Record]) = {
-    for (path <- c.paths) {
-      val pathCondition = And(path.condition, filterPreconditionForBoundsIteration(c.pre))
-      if (sanityCheck(pathCondition)) {  // If this implies false, range tightening fails
-        // The condition given to the solver is the real(ideal)-valued one, since we use Z3 for the real part only.
-        val (variables, indices) = variables2xfloats(inputs, solver, pathCondition)
-        path.values = inXFloats(path.expression, variables, solver, pathCondition) -- inputs.keys
-        path.indices= indices
-
-      } else {
-        reporter.warning("skipping path " + path)
-        // TODO: what to do here? we only checked the ideal part is impossible,
-        // but the floating-point part may still be possible
-        // although this would be quite the strange scenario...
-      }
-    }
-    c.approximated = true
-  }*/
-
-  /*private def computeApproximation(c: ConstraintApproximation, inputs: Map[Variable, Record]) = {
-    for (path <- c.paths) {
-      val pathCondition = And(path.condition, filterPreconditionForBoundsIteration(c.pre))
-      if (sanityCheck(pathCondition)) {  // If this implies false, range tightening fails
-        // The condition given to the solver is the real(ideal)-valued one, since we use Z3 for the real part only.
-        val (variables, indices) = variables2xfloats(inputs, solver, pathCondition)
-        path.values = inXFloats(path.expression, variables, solver, pathCondition) -- inputs.keys
-        println("path values: " + path.values)
-        path.indices= indices
-
-      } else {
-        reporter.warning("skipping path " + path)
-        // TODO: what to do here? we only checked the ideal part is impossible,
-        // but the floating-point part may still be possible
-        // although this would be quite the strange scenario...
-      }
-    }
-    //c.approximated = true
-  }*/
-
   private def computeApproximation(paths: Set[Path], precondition: Expr, inputs: Map[Variable, Record]) = {
     for (path <- paths) {
       val pathCondition = And(path.condition, filterPreconditionForBoundsIteration(precondition))
@@ -241,19 +190,6 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
     (newConstraint, approx)
   }
 
- /* private def approximateConstraint(c: Constraint, inputs: Map[Variable, Record]): Expr = {
-    computeApproximation(c, inputs)
-    val approx = mergeRealPathResults(c.paths)
-    val newConstraint = constraintFromResults(approx)
-    newConstraint
-  }*/
-
-  /*private def approximateConstraint(c: ConstraintApproximation, inputs: Map[Variable, Record]): Expr = {
-    computeApproximation(c, inputs)
-    val approx = mergeRealPathResults(c.paths)
-    val newConstraint = constraintFromResults(approx)
-    newConstraint
-  }*/
 
 
 
@@ -333,6 +269,75 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
     case Roundoff(e) => BooleanLiteral(true)
     case _ => expr
   }
+
+  
+  /*private def computeApproximation(c: Constraint, inputs: Map[Variable, Record]) = {
+    for (path <- c.paths) {
+      val pathCondition = And(path.condition, filterPreconditionForBoundsIteration(c.pre))
+      if (sanityCheck(pathCondition)) {  // If this implies false, range tightening fails
+        // The condition given to the solver is the real(ideal)-valued one, since we use Z3 for the real part only.
+        val (variables, indices) = variables2xfloats(inputs, solver, pathCondition)
+        path.values = inXFloats(path.expression, variables, solver, pathCondition) -- inputs.keys
+        path.indices= indices
+
+      } else {
+        reporter.warning("skipping path " + path)
+        // TODO: what to do here? we only checked the ideal part is impossible,
+        // but the floating-point part may still be possible
+        // although this would be quite the strange scenario...
+      }
+    }
+    c.approximated = true
+  }*/
+
+  /*private def computeApproximation(c: ConstraintApproximation, inputs: Map[Variable, Record]) = {
+    for (path <- c.paths) {
+      val pathCondition = And(path.condition, filterPreconditionForBoundsIteration(c.pre))
+      if (sanityCheck(pathCondition)) {  // If this implies false, range tightening fails
+        // The condition given to the solver is the real(ideal)-valued one, since we use Z3 for the real part only.
+        val (variables, indices) = variables2xfloats(inputs, solver, pathCondition)
+        path.values = inXFloats(path.expression, variables, solver, pathCondition) -- inputs.keys
+        println("path values: " + path.values)
+        path.indices= indices
+
+      } else {
+        reporter.warning("skipping path " + path)
+        // TODO: what to do here? we only checked the ideal part is impossible,
+        // but the floating-point part may still be possible
+        // although this would be quite the strange scenario...
+      }
+    }
+    //c.approximated = true
+  }*/
+
+
+   /* private def approximateConstraint(c: Constraint, inputs: Map[Variable, Record]): Expr = {
+    computeApproximation(c, inputs)
+    val approx = mergeRealPathResults(c.paths)
+    val newConstraint = constraintFromResults(approx)
+    newConstraint
+  }*/
+
+  /*private def approximateConstraint(c: ConstraintApproximation, inputs: Map[Variable, Record]): Expr = {
+    computeApproximation(c, inputs)
+    val approx = mergeRealPathResults(c.paths)
+    val newConstraint = constraintFromResults(approx)
+    newConstraint
+  }*/
+
+
+/*def addSpecs(vc: VerificationCondition): VerificationCondition = {
+    //val start = System.currentTimeMillis
+    // if there are constraints, then those have already been handled, only deal with VCs without post
+    if(!vc.specConstraint.get.approximated) {
+      //computeApproximation(vc.specConstraint.get, vc.inputs)
+    }
+
+    //val totalTime = (System.currentTimeMillis - start)
+    //vc.verificationTime = Some(totalTime)
+    vc
+  }*/
+
 
 
   // Overrides the status with new result

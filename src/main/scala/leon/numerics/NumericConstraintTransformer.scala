@@ -90,7 +90,7 @@ class NumericConstraintTransformer(buddy: Map[Expr, Expr], ress: Variable, eps: 
 
       case Actual(x) => reporter.error("Actual only allowed on variables, but not on: " + x.getClass); e
 
-      case MorePrecise(x @ Variable(id1), y @ Variable(id2)) =>
+      /*case MorePrecise(x @ Variable(id1), y @ Variable(id2)) =>
         val x0 = buddy(x)
         val y0 = buddy(y)
         val y0_y = Minus(y0, y)
@@ -104,7 +104,7 @@ class NumericConstraintTransformer(buddy: Map[Expr, Expr], ress: Variable, eps: 
 
       case MorePrecise(x, y) =>
         reporter.error("MorePrecise only allowed on variables, but not on: " + x.getClass + ", " + y.getClass); e
-
+      */
       case _ => e
     }
 
