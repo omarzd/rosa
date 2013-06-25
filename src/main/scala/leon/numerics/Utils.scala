@@ -59,7 +59,7 @@ object Utils {
     (Plus(new RationalLiteral(1), delta) , delta)
   }
 
-  // TODO: rename back to getVariables, once duplicate in Proves is gone
+  // TODO: rename back to getVariables, once duplicate in Proves
   def getInitialVariables(variables: Seq[Variable]): (Variable, Variable, Map[Expr, Expr]) = {
     val resVar = Variable(FreshIdentifier("#ress")).setType(RealType)
     val machineEps = Variable(FreshIdentifier("#eps")).setType(RealType)

@@ -23,11 +23,12 @@ object Debug {
   } ensuring (res => noise(res, 1e-11))
   */
 
-  def quadraticClassicRoot1(a: Real, b: Real, c: Real): Real = {
-    require(a.in(2.5, 3.5) && b.in(54.0, 57.0) && c.in(0.5, 1.5))
+  def quadraticClassicRoot1(a: Real): Real = {
+    require(a.in(2.5, 3.5))
     
-    a/(a * 2.0)
-
+    //a/(a * c)
+    1.0/(a * 2.0)
+    //2.0 * a
   } ensuring (res => noise(res, 1e-11))
   
 }

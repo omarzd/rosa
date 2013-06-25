@@ -3,6 +3,7 @@
 package leon
 package solvers.z3
 
+import z3.Z3Wrapper
 import z3.scala._
 import purescala.Common._
 import purescala.Definitions._
@@ -104,7 +105,7 @@ trait AbstractZ3Solver extends solvers.IncrementalSolverBuilder {
       counter = 0
 
       z3 = new Z3Context(z3cfg)
-
+      Z3Wrapper.openLog("z3.log")
       prepareSorts
       prepareFunctions
 
