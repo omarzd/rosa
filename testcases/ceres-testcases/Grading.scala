@@ -1,10 +1,64 @@
 
 
+import leon.Real
+import Real._
+
+import leon.Utils._
+
+object Grading {
+
+  //def isRatio(x:Real): Boolean = {0.0 <= x && x <= 1.0}
+
+  def invariant(project: Real, homeworks: Real, quiz: Real) : Boolean = {
+    //require(isRatio(project) && isRatio(homeworks) && isRatio(quiz))
+    require(0.0 < project && project < 1.0 && 0.0 < homeworks && homeworks < 1.0 && 0.0 < quiz && quiz < 1.0)
+
+    goodGradingNoRounding(project, homeworks, quiz) >= badGradingNoRounding(project, homeworks, quiz)
+
+  } holds
+
+  def goodGradingNoRounding(project: Real, homeworks: Real, quiz: Real) : Real = {
+    //require(isRatio(project) && isRatio(homeworks) && isRatio(quiz))
+    require(0.0 < project && project < 1.0 && 0.0 < homeworks && homeworks < 1.0 && 0.0 < quiz && quiz < 1.0)
+
+    val result: Real = 
+      if (project >= 0.5 && (0.45*homeworks + 0.55*quiz) >= 0.5) {
+        ((5*(0.55*project + 0.45*(0.45*homeworks + 0.55*quiz)) + 1.24999)*2.0)/2.0
+
+      } else {   
+        val grade = ((5*(0.55*project + 0.45*(0.45*homeworks + 0.55*quiz)) + 1.24999)*2.0)/2.0
+        if (grade < 3.5) { //min(grade, 3.5)
+          grade
+        } else {
+          3.5
+        }
+      }
+    result
+  } ensuring (result => 1.0 <= result && result <= 6.0)
 
 
-  def isRatio(x:Double):Boolean = {0.0 <= x && x <= 1.0}
+  def badGradingNoRounding(project: Real, homeworks: Real, quiz: Real) : Real = {
+    //require(isRatio(project) && isRatio(homeworks) && isRatio(quiz))
+    require(0.0 < project && project < 1.0 && 0.0 < homeworks && homeworks < 1.0 && 0.0 < quiz && quiz < 1.0)
+
+    val result: Real =  
+      if (project >= 0.6 && quiz >= 0.6 && homeworks >= 0.6)
+        ((5*(0.55*project + 0.2*homeworks + 0.25*quiz) + 1.24999)*2.0)/2.0
+      else {
+        val grade = ((5*(0.55*project + 0.2*homeworks + 0.25*quiz) + 1.24999)*2.0)/2.0
+        if (grade < 3.5) {
+          grade
+        } else {
+          3.5
+        }
+      }
+    result
+  } ensuring (result => 1.0 <= result && result <= 6.0)
+
+
+
   // Input: ratios of points achieved relative to maximum possible
-  def finalGradeGood(project: Double, homeworks: Double, quiz: Double) : Double = {
+  /*def finalGradeGood(project: Double, homeworks: Double, quiz: Double) : Double = {
     require(isRatio(project) && isRatio(homeworks) && isRatio(quiz))
    
     if (project >= 0.5 && (0.45*homeworks + 0.55*quiz) >= 0.5)
@@ -22,10 +76,10 @@
     else
       min(round((5*(0.55*project + 0.2*homeworks + 0.25*quiz) + 1.24999)*2.0)/2.0, 3.5)
 
-  } ensuring (result => 1.0 <= result && result <= 6.0)
+  } ensuring (result => 1.0 <= result && result <= 6.0)*/
+}
 
-
-object GoodPolicy {
+/*object GoodPolicy {
   val version = "December 2012, Version 1.0"
 
   def roundToHalf(grade: Double) : Double =
@@ -75,5 +129,5 @@ object BadPolicy {
     else
       min(base, 3.5)
   } ensuring (result => 1.0 <= result && result <= 6.0)
-}
+}*/
 

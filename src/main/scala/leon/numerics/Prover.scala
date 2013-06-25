@@ -43,7 +43,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
         c.approximations = c.approximations :+ approx
         c.overrideStatus(checkWithZ3(approx.pre, approx.paths, approx.post, vc.allVariables ++ approx.vars))
         reporter.info("RESULT: " + c.status)
-        if (!c.model.isEmpty) reporter.info(c.model.get)
+        //if (!c.model.isEmpty) reporter.info(c.model.get)
 
       }
     }
@@ -62,6 +62,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
       val (newConstraint, values) = approximatePaths(c.paths, c.pre, inputs)
       reporter.info("Timeouts: " + solver.countTimeouts)
       println("AA computed: " + newConstraint)
+      // TODO: simplify constraint, we don't need all the info
       val cnstr = ConstraintApproximation(newConstraint, BooleanLiteral(true), c.post, Set.empty, tpe)
       cnstr.values = values
       cnstr

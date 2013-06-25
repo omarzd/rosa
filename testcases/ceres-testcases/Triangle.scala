@@ -5,6 +5,16 @@ import Real._
 
 object Triangle {
 
+  // a=9.0, b= SmartFloat(4.8, 0.09), c= SmartFloat(4.8, 0.09)
+  def triangleTextbook(a: Real, b: Real, c: Real): Real = {
+    require(a.in(8.4, 8.6) && b.in(4.7, 4.9) && c.in(4.7, 4.9) && roundoff(a, b, c))
+
+    val s = (a + b + c)/2.0
+    sqrt(s * (s - a) * (s - b) * (s - c))
+
+  } ensuring (res => noise(res, 1e-13))
+
+
   def triangleKahan(a: Real, b: Real, c: Real): Real = {
     require(a.in(8.4, 8.6) && b.in(4.7, 4.9) && c.in(4.7, 4.9) && roundoff(a, b, c))
 
@@ -22,7 +32,7 @@ object Triangle {
       }
     }
     else if(c < b) {
-      if(c < a) {
+      if(b < a) {
         sqrt((c+(a+b)) * (b-(c-a)) * (b+(c-a)) * (c+(a-b))) / 4.0
       }
       else {
@@ -67,13 +77,5 @@ object Triangle {
 
   }*/
 
-  // a=9.0, b= SmartFloat(4.8, 0.09), c= SmartFloat(4.8, 0.09)
-  def triangleTextbook(a: Real, b: Real, c: Real): Real = {
-    require(a.in(8.4, 8.6) && b.in(4.7, 4.9) && c.in(4.7, 4.9) && roundoff(a, b, c))
-
-    val s = (a + b + c)/2.0
-    sqrt(s * (s - a) * (s - b) * (s - c))
-
-  } ensuring (res => noise(res, 1e-13))
-
+  
 }

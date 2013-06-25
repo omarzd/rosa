@@ -44,8 +44,8 @@ case class Constraint(pre: Expr, body: Expr, post: Expr, description: String) {
       //Seq(Uninterpreted_None, PostInlining_None, PostInlining_AA, FullInlining_None, FullInlining_AA)
       Seq(PostInlining_None, PostInlining_AA, FullInlining_None, FullInlining_AA)
     } else {
-      //Seq(Uninterpreted_None, NoFncs_AA)
-      Seq(NoFncs_AA)
+      Seq(Uninterpreted_None, NoFncs_AA)
+      //Seq(NoFncs_AA)
     }
 
   def hasNextApproximation = !approxStrategy.isEmpty

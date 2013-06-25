@@ -933,7 +933,7 @@ trait CodeExtraction extends Extractors {
             Actual(rTree).setType(RealType)
           case ExIn(id, t1, t2) =>
             val v = rec(id)
-            And(LessEquals(rec(t1), v), LessEquals(v, rec(t2)))
+            And(LessThan(rec(t1), v), LessThan(v, rec(t2)))
           case ExMorePrecise(t, n) => MorePrecise(rec(t), rec(n)).setType(BooleanType)
           case ExSqrt(t) => Sqrt(rec(t)).setType(RealType)
           case ExFiniteSet(tt, args) => {
