@@ -9,6 +9,8 @@ case class Path(condition: Expr, expression: List[Expr]) {
   var values: Map[Expr, XFloat] = Map.empty
   var indices: Map[Int, Expr] = Map.empty
 
+  var feasible = true //until further notice
+
   def addCondition(c: Expr): Path =
     Path(And(condition, c), expression)
 

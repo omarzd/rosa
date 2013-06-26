@@ -251,6 +251,13 @@ object Utils {
                                   Noise(kv._1, RationalLiteral(kv._2._2)))))
   }
 
+  def constraintFromXFloats(results: Map[Expr, XFloat]): Expr = {
+    And(results.foldLeft(Seq[Expr]())(
+      (seq, kv) => seq ++ Seq(LessEquals(RationalLiteral(kv._2.realInterval.xlo), kv._1),
+                                  LessEquals(kv._1, RationalLiteral(kv._2.realInterval.xhi)),
+                                  Noise(kv._1, RationalLiteral(kv._2.maxError)))))
+  }
+
   def actualConstraintFromResults(results: Map[Expr, (RationalInterval, Rational)]): Expr = {
     And(results.foldLeft(Seq[Expr]()) ((seq, kv) =>  interval2constraint(kv._1, kv._2._1, kv._2._2)))
   }

@@ -14,7 +14,11 @@ import ApproximationType._
 
 // ApproximationPath
 case class APath(pathCondition: Expr, idealBody: Expr, idealCnst: Expr, actualBody: Expr, actualCnst: Expr) {
-  def updateNoisy(newBody: Expr, newCnst: Expr): APath = APath(pathCondition, idealBody, idealCnst, newBody, newCnst)
+  def updateNoisy(newBody: Expr, newCnst: Expr): APath = {
+    println("updating: " + newBody)
+    println("updating: " + newCnst)
+    APath(pathCondition, idealBody, idealCnst, newBody, newCnst)
+  }
 }
 
 // This is an approximation of an constraint.
@@ -42,16 +46,18 @@ case class Constraint(pre: Expr, body: Expr, post: Expr, description: String) {
   }
 
   lazy val paths = collectPaths(body)
+  var pathsApproximated = false
 
 
   var approxStrategy =
     if (containsFunctionCalls(body) || containsFunctionCalls(pre) || containsFunctionCalls(post)) {
       //Seq(Uninterpreted_None, PostInlining_None, PostInlining_AA, FullInlining_None, FullInlining_AA)
-      Seq(PostInlining_None, PostInlining_AA, FullInlining_None, FullInlining_AA)
+      Seq(PostInlining_None, PostInlining_AA, PostInlining_AAPathSensitive, FullInlining_None, FullInlining_AA, FullInlining_AAPathSensitive)
       //Seq(FullInlining_AA)
     } else {
       //Seq(Uninterpreted_None, NoFncs_AA)
-      Seq(NoFncs_AA)
+      //Seq(NoFncs_AA, NoFncs_AAPathSensitive)
+      Seq(NoFncs_AAPathSensitive)
     }
 
   def hasNextApproximation = !approxStrategy.isEmpty
