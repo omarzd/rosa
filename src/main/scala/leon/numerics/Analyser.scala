@@ -27,16 +27,11 @@ class Analyser(reporter: Reporter) {
     val vc = new VerificationCondition(funDef)
     funDef.precondition match {
       case Some(p) =>
-        vc.inputs = getVariableRecords(p)   //: Map[Variable, Record]
+        val collector = new VariableCollector
+        collector.transform(p)
+        vc.inputs = collector.recordMap
         if (verbose) reporter.info("inputs: " + vc.inputs)
-        var impliedRoundoffs = Seq[Expr]()
-        for (r <- vc.inputs) {
-          if(r._2.noise.isEmpty && r._2.rndoff.isEmpty) {
-            impliedRoundoffs = impliedRoundoffs :+ Roundoff(r._1)
-          }
-        }
-        println("impliedRoundoffs: " + impliedRoundoffs)
-        vc.precondition = Some(And(p, And(impliedRoundoffs)))
+        vc.precondition = Some(p)
       case None =>
         vc.precondition = Some(BooleanLiteral(true))
     }

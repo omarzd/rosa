@@ -13,8 +13,6 @@ import affine.XFloat
 
 
 object Utils {
-  val True = BooleanLiteral(true)
-
   private var errCounter = 0
   private var deltaCounter = 0
   private var sqrtCounter = 0
@@ -59,17 +57,8 @@ object Utils {
     (Plus(new RationalLiteral(1), delta) , delta)
   }
 
-  // TODO: rename back to getVariables, once duplicate in Proves
-  def getInitialVariables(variables: Seq[Variable]): (Variable, Variable, Map[Expr, Expr]) = {
-    val resVar = Variable(FreshIdentifier("#ress")).setType(RealType)
-    val machineEps = Variable(FreshIdentifier("#eps")).setType(RealType)
 
-    var buddies: Map[Expr, Expr] =
-      variables.foldLeft(Map[Expr, Expr](resVar -> Variable(FreshIdentifier("#res_0")).setType(RealType)))(
-        (map, nextVar) => map + (nextVar -> Variable(FreshIdentifier("#"+nextVar.id.name+"_0")).setType(RealType))
-      )
-    (resVar, machineEps, buddies)
-  }
+
 
   def formatOption[T](res: Option[T]): String = res match {
     case Some(xf) => xf.toString

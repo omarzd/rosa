@@ -66,16 +66,10 @@ class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3
   }
 
   def checkSat(expr: Expr): (Sat, Z3Model) = {
-    println("\n cons: " + expr)
     solver.push
     val variables = variablesOf(expr)
     val cnstr = toZ3Formula(expr).get
-    //println("asserting constraint: " + cnstr)
     solver.assertCnstr(cnstr)
-    for (a <- solver.getAssertions)
-      println(a)
-    val x = solver.check
-    println(x)
     val res: (Sat, Z3Model) = solver.check match {
       case Some(true) =>
         if (verbose) println("--> cond: SAT")
