@@ -40,6 +40,14 @@ class PostconditionInliner(reporter: Reporter) extends TransformerWithPC {
         super.rec(e, path)
   }
 
+  def inlinePostcondition(pre: Expr, body: Expr, post: Expr): (Expr, Expr, Expr, Set[Variable]) = {
+    val (inlinedPre, cnstrPre, varsPre) = inlineFncPost(pre)
+    val (inlinedPost, cnstrPost, varsPost) = inlineFncPost(post)
+    val (inlinedBody, cnstrBody, varsBody) = inlineFncPost(body)
+
+    (And(inlinedPre, And(cnstrPre ++ cnstrBody)), inlinedBody, And(inlinedPost, And(cnstrPost)), varsPre ++ varsPost ++ varsBody)
+  }
+
   //@return (expr with inlined post, contraints on fresh variables, fresh variables used)
   def inlineFncPost(expr: Expr): (Expr, Seq[Expr], Set[Variable]) = {
     constraints = Seq[Expr]()

@@ -13,6 +13,8 @@ import affine.XFloat
 
 
 object Utils {
+  val True = BooleanLiteral(true)
+
   private var errCounter = 0
   private var deltaCounter = 0
   private var sqrtCounter = 0

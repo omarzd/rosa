@@ -43,6 +43,15 @@ class FullInliner(reporter: Reporter, vcMap: Map[FunDef, VerificationCondition])
         super.rec(e, path)
   }
 
+  def inlineFunctions(pre: Expr, body: Expr, post: Expr): (Expr, Expr, Expr, Set[Variable]) = {
+    val (inlinedPre, cnstrPre, varsPre) = inlineFncCalls(pre)
+    val (inlinedPost, cnstrPost, varsPost) = inlineFncCalls(post)
+    val (inlinedBody, cnstrBody, varsBody) = inlineFncCalls(body)
+
+    //cntrs are the function bodies
+    (And(inlinedPre, And(cnstrPre)), And(inlinedBody, And(cnstrPost ++ cnstrBody)), inlinedPost, varsPre ++ varsPost ++ varsBody)
+  }
+
   //@return (expr with inlined post, contraints on fresh variables, fresh variables used)
   def inlineFncCalls(expr: Expr): (Expr, Seq[Expr], Set[Variable]) = {
     constraints = Seq[Expr]()

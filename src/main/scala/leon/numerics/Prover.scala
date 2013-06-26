@@ -14,6 +14,7 @@ import affine.XFloat._
 
 import Utils._
 
+import Sat._
 import Valid._
 import ApproximationType._
 import Precision._
@@ -68,59 +69,38 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
       cnstr
 
     case PostInlining_None =>
-      val (inlinedPre, cnstrPre, varsPre) = postInliner.inlineFncPost(c.pre)
-      val (inlinedBody, cnstrBody, varsBody) = postInliner.inlineFncPost(c.body)
-      val (inlinedPost, cnstrPost, varsPost) = postInliner.inlineFncPost(c.post)
-      ConstraintApproximation(
-        And(Seq(inlinedPre) ++ cnstrPre ++ cnstrBody), inlinedBody,
-        And(Seq(inlinedPost) ++ cnstrPost), varsBody ++ varsPost ++ varsPre, tpe)
+      val (newPre, newBody, newPost, vars) = postInliner.inlinePostcondition(c.pre, c.body, c.post)
+      ConstraintApproximation(newPre, newBody, newPost, vars, tpe)
 
     case PostInlining_AA =>
-      val (inlinedBody, cnstrBody, varsBody) = postInliner.inlineFncPost(c.body)
-      //val (inlinedPre, cnstrPre, varsPre) = postInliner.inlineFncPost(c.pre)
-      val (inlinedPost, cnstrPost, varsPost) = postInliner.inlineFncPost(c.post)
-
-      val (newConstraint, values) = approximatePaths(collectPaths(inlinedBody),
-         And(Seq(c.pre) ++ cnstrBody), inputs ++ getVariableRecords(And(cnstrBody) ))
-      //reporter.info("AA computed: " + newConstraint)
-
+      val (newPre, newBody, newPost, vars) = postInliner.inlinePostcondition(c.pre, c.body, c.post)
+      val (newConstraint, values) = approximatePaths(collectPaths(newBody), newPre, getVariableRecords(newPre))
 
       val cnstr = ConstraintApproximation(newConstraint, BooleanLiteral(true),
-         And(Seq(inlinedPost) ++ cnstrPost), varsPost ++ varsBody, tpe)
+         newPost, vars, tpe)
       cnstr.values = values
       cnstr
 
     case FullInlining_None =>
-      val (inlinedPre, cnstrPre, varsPre) = fullInliner.inlineFncCalls(c.pre)
-      val (inlinedBody, cnstrBody, varsBody) = fullInliner.inlineFncCalls(c.body)
-      val (inlinedPost, cnstrPost, varsPost) = fullInliner.inlineFncCalls(c.post)
-
-      ConstraintApproximation(
-        And(Seq(inlinedPre) ++ cnstrPre), And(inlinedBody, And(cnstrPost ++ cnstrBody)), //cntrs are the function bodies
-        And(Seq(inlinedPost)), varsBody ++ varsPost ++ varsPre, tpe)
+      val (newPre, newBody, newPost, vars) = fullInliner.inlineFunctions(c.pre, c.body, c.post)
+      ConstraintApproximation(newPre, newBody, newPost, vars, tpe)
 
 
     case FullInlining_AA =>
-      //TODO: val (inlinedPre, cnstrPre, varsPre) = fullInliner.inlineFncCalls(c.pre)
-      val (inlinedBody, cnstrBody, varsBody) = fullInliner.inlineFncCalls(c.body)
-      val (inlinedPost, cnstrPost, varsPost) = fullInliner.inlineFncCalls(c.post) // cntrs are the function bodies
+      val (newPre, newBody, newPost, vars) = postInliner.inlinePostcondition(c.pre, c.body, c.post)
+      val (newConstraint, values) = approximatePaths(collectPaths(newBody), newPre, getVariableRecords(newPre))
 
-      // we need to approximate the body
-      val newBody = And(And(cnstrBody ++ cnstrPost), inlinedBody)
-
-      //println("new body: " + newBody)
-      val (newConstraint, values) = approximatePaths(collectPaths(newBody),
-        c.pre, inputs) //add varsPost?
-      //reporter.info("AA computed: " + newConstraint)
-
-      val cnstr = ConstraintApproximation(newConstraint, BooleanLiteral(true), And(Seq(inlinedPost)), varsPost ++ varsBody, tpe)
+      val cnstr = ConstraintApproximation(newConstraint, BooleanLiteral(true),
+         newPost, vars, tpe)
       cnstr.values = values
       cnstr
+
+    // TODO: next step: check every path separately
 
       // TODO: If neither work, do partial approx.
     }
 
-  
+
 
   private def checkWithZ3(pre: Expr, paths: Set[Path], post: Expr, variables: Seq[Variable]): (Option[Valid], Option[Map[Identifier, Expr]]) = {
     val (resVar, eps, buddies) = getVariables(variables)
@@ -149,7 +129,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
     val resultError = Equals(getNewResErrorVariable, Minus(resVar, buddies(resVar)))
     val machineEpsilon = Equals(eps, RationalLiteral(unitRoundoff))
     val toCheck = Implies(And(precondition, And(body, And(resultError, machineEpsilon))), postcondition)
-    //println("toCheck: " + toCheck)
+    println("toCheck: " + toCheck)
 
     // If precondition is false, we'll prove anything, so don't try to prove at all
     if (reporter.errorCount == 0 && sanityCheck(precondition, body)) {
@@ -236,19 +216,19 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
 
   // if true, we're sane
   private def sanityCheck(pre: Expr, body: Expr = BooleanLiteral(true)): Boolean = {
-    val sanityCondition = Implies(And(pre, body), BooleanLiteral(false))
-    solver.checkValid(sanityCondition) match {
-      case (VALID, model) =>
+    val sanityCondition = And(pre, body)
+    solver.checkSat(sanityCondition) match {
+      case (SAT, model) =>
+        reporter.info("Sanity check passed! :-)")
+        //reporter.info("model: " + model)
+        true
+      case (UNSAT, model) =>
         reporter.warning("Not sane! " + sanityCondition)
         false
-      case (INVALID, model) =>
-        //reporter.info("Sanity check passed! :-)")
-        true
       case _ =>
         reporter.warning("Sanity check failed! ")// + sanityCondition)
         false
     }
-
   }
 
   private def getVariables(variables: Seq[Variable]): (Variable, Variable, Map[Expr, Expr]) = {
@@ -270,7 +250,18 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
     case _ => expr
   }
 
-  
+  private def filterDeltas(expr: Expr): Expr = expr match {
+    case And(args) => And(args.map(a => filterDeltas(a)))
+    case LessEquals(Variable(id1), Variable(id2)) if (id1.toString.contains("#delta_") && id2.toString == "#eps") =>
+      //println("filtering out: " + expr)
+      True
+    case LessEquals(UMinus(Variable(id1)), Variable(id2)) if (id1.toString == "#eps" && id2.toString.contains("#delta_")) =>
+      //println("filtering out: " + expr)
+      True
+
+    case _ => expr
+  }
+
   /*private def computeApproximation(c: Constraint, inputs: Map[Variable, Record]) = {
     for (path <- c.paths) {
       val pathCondition = And(path.condition, filterPreconditionForBoundsIteration(c.pre))
