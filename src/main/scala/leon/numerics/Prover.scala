@@ -27,6 +27,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
   val fullInliner = new FullInliner(reporter, vcMap)
 
   val unitRoundoff = getUnitRoundoff(precision)
+  val unitRoundoffDefault = getUnitRoundoff(Float64)
 
   def check(vc: VerificationCondition) = {
     reporter.info("")
@@ -174,6 +175,61 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
     }
     (Some(VALID), None)
   }
+
+  /*private def checkWithVariablePrecision(ca: ConstraintApproximation, parameters: Seq[Variable]): (Option[Valid], Option[Map[Identifier, Expr]]) = {
+    val (resVar, eps, buddies) = getVariables(parameters ++ ca.vars)
+    val trans = new NumericConstraintTransformer(buddies, resVar, eps, RoundoffType.RoundoffMultiplier, reporter)
+    val precondition = trans.transformCondition(ca.pre)
+    val postcondition = trans.transformCondition(ca.post)
+
+    var (idealPart, actualPart) = (Seq[Expr](), Seq[Expr]())
+    for(path <- ca.paths) {
+      val (aI, nI) = trans.transformBlock(path.idealBody)
+      idealPart = idealPart :+ And(And(path.pathCondition, trans.transformCondition(path.idealCnst)), aI)
+      val (aN, nN) = trans.transformBlock(path.actualBody)
+      actualPart = actualPart :+ And(And(trans.getNoisyCondition(path.pathCondition), trans.transformCondition(path.actualCnst)), nN)
+    }
+        
+    val body = And(Or(idealPart), Or(actualPart))
+    
+    val resultError = Equals(getNewResErrorVariable, Minus(resVar, buddies(resVar))) // let z3 give us error explicitly
+    val machineEpsilonWanted = Equals(eps, RationalLiteral(unitRoundoff))
+    val machineEpsilonDefault = Equals(eps, RationalLiteral(unitRoundoffDefault))
+
+    val toCheck = And(And(precondition, resultError), Not(postcondition))
+    //val toCheck = Implies(And(precondition, And(body, And(resultError, machineEpsilon))), postcondition)
+    println("toCheck: " + toCheck)
+
+    val firstTry = if (reporter.errorCount == 0 && sanityCheck(precondition, body)) {
+      solver.push
+      solver.assertCnstr(toCheck)
+      val (res, model) = solver.checkSat(machineEpsilonWanted)
+
+      solver.pop
+      println("first try: " + res)
+      (Some(res), model)
+    } else {
+      (None, None)
+    }
+
+    // So at this point, all paths should be feasible
+    firstTry match {
+      case (Some(VALID), _) => firstTry
+      case _ => // try again
+        val paths = idealPart.zip(actualPart)
+        for ((i, a) <- paths) {
+          val cnstr = Implies(And(precondition, And(And(i, a), And(resultError, machineEpsilon))), postcondition)
+          println("checking path: " + And(i, a))
+          val (res, model) = solver.checkValid(cnstr)
+          println("with result: " + res)
+          if (res != VALID) {
+            reporter.info("path could not be proven: " + And(i, a))
+            return (Some(res), model)
+          }
+        }
+    }
+    (Some(VALID), None)
+  }*/
 
   // Computes one constraint that overapproximates the paths given.
   private def approximatePaths(paths: Set[Path], pre: Expr, inputs: Map[Variable, Record]): (Expr, Map[Expr, (RationalInterval, Rational)]) = {
