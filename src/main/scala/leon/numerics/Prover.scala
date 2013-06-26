@@ -42,7 +42,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
         reporter.info("Computing approximation: " + next)
         val approx = getNextApproximation(next, c, vc.inputs)
         c.approximations = c.approximations :+ approx
-        c.overrideStatus(checkWithZ3(approx.pre, approx.paths, approx.post, vc.allVariables ++ approx.vars))
+        c.overrideStatus(checkWithZ3(approx, vc.allVariables))
         reporter.info("RESULT: " + c.status)
         //if (!c.model.isEmpty) reporter.info(c.model.get)
 
@@ -53,92 +53,109 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
     vc.verificationTime = Some(totalTime)
   }
 
+  //case class APath(pathCondition: Expr, idealBody: Expr, idealCnst: Expr, actualBody: Expr, actualCnst: Expr)
+  //case class ConstraintApproximation(pre: Expr, body: Set[APath], post: Expr, vars: Set[Variable], tpe: ApproximationType)
+
   // TODO: we can cache some of the body transforms and reuse for AA...
   def getNextApproximation(tpe: ApproximationType, c: Constraint, inputs: Map[Variable, Record]): ConstraintApproximation = tpe match {
+    /* ******************
+       NO APPROXIMATION    
+    * ******************* */
     case Uninterpreted_None =>
-      ConstraintApproximation(c.pre, c.body, c.post, Set.empty, tpe)  // nothing with uninterpreted functions
-
-    case NoFncs_AA =>
-      solver.countTimeouts = 0
-      val (newConstraint, values) = approximatePaths(c.paths, c.pre, inputs)
-      reporter.info("Timeouts: " + solver.countTimeouts)
-      println("AA computed: " + newConstraint)
-      // TODO: simplify constraint, we don't need all the info
-      val cnstr = ConstraintApproximation(newConstraint, BooleanLiteral(true), c.post, Set.empty, tpe)
-      cnstr.values = values
-      cnstr
+      val paths = collectPaths(c.body).map(p => getAPath(p))
+      ConstraintApproximation(c.pre, paths, c.post, Set.empty, tpe)
 
     case PostInlining_None =>
       val (newPre, newBody, newPost, vars) = postInliner.inlinePostcondition(c.pre, c.body, c.post)
-      ConstraintApproximation(newPre, newBody, newPost, vars, tpe)
+      val paths = collectPaths(newBody).map(p => getAPath(p))
+      ConstraintApproximation(newPre, paths, newPost, vars, tpe)
+
+    case FullInlining_None =>
+      val (newPre, newBody, newPost, vars) = fullInliner.inlineFunctions(c.pre, c.body, c.post)
+      val paths = collectPaths(newBody).map(p => getAPath(p))
+      ConstraintApproximation(newPre, paths, newPost, vars, tpe)
+
+    /* ******************
+       Full APPROXIMATION    
+    * ******************* */
+    case NoFncs_AA =>
+      val (newConstraint, values) = approximatePaths(c.paths, c.pre, inputs)
+      println("AA computed: " + newConstraint)
+      // TODO: simplify constraint, we don't need all the info
+      val paths = collectPaths(c.body).map(p => getAPath(p).updateNoisy(True, True))
+      val cnstr = ConstraintApproximation(newConstraint, paths, c.post, Set.empty, tpe)
+      cnstr.values = values
+      cnstr
 
     case PostInlining_AA =>
       val (newPre, newBody, newPost, vars) = postInliner.inlinePostcondition(c.pre, c.body, c.post)
       val (newConstraint, values) = approximatePaths(collectPaths(newBody), newPre, getVariableRecords(newPre))
-
-      val cnstr = ConstraintApproximation(newConstraint, BooleanLiteral(true),
-         newPost, vars, tpe)
+      val paths = collectPaths(newBody).map(p => getAPath(p).updateNoisy(True, True))
+      val cnstr = ConstraintApproximation(newConstraint, paths, newPost, vars, tpe)
       cnstr.values = values
-      cnstr
-
-    case FullInlining_None =>
-      val (newPre, newBody, newPost, vars) = fullInliner.inlineFunctions(c.pre, c.body, c.post)
-      ConstraintApproximation(newPre, newBody, newPost, vars, tpe)
-
+      cnstr   
 
     case FullInlining_AA =>
       val (newPre, newBody, newPost, vars) = postInliner.inlinePostcondition(c.pre, c.body, c.post)
       val (newConstraint, values) = approximatePaths(collectPaths(newBody), newPre, getVariableRecords(newPre))
-
-      val cnstr = ConstraintApproximation(newConstraint, BooleanLiteral(true),
-         newPost, vars, tpe)
+      val paths = collectPaths(newBody).map(p => getAPath(p).updateNoisy(True, True))
+      val cnstr = ConstraintApproximation(newConstraint, paths, newPost, vars, tpe)
       cnstr.values = values
       cnstr
 
     // TODO: next step: check every path separately
 
       // TODO: If neither work, do partial approx.
-    }
+  }
 
 
 
-  private def checkWithZ3(pre: Expr, paths: Set[Path], post: Expr, variables: Seq[Variable]): (Option[Valid], Option[Map[Identifier, Expr]]) = {
-    val (resVar, eps, buddies) = getVariables(variables)
+
+  private def checkWithZ3(ca: ConstraintApproximation, parameters: Seq[Variable]): (Option[Valid], Option[Map[Identifier, Expr]]) = {
+    val (resVar, eps, buddies) = getVariables(parameters ++ ca.vars)
     val trans = new NumericConstraintTransformer(buddies, resVar, eps, RoundoffType.RoundoffMultiplier, reporter)
+    val precondition = trans.transformCondition(ca.pre)
+    val postcondition = trans.transformCondition(ca.post)
 
-    var (realPart, noisyPart) = (Seq[Expr](), Seq[Expr]())
-
-    for(path <- paths) {
-      // TODO: check that this does not fail if we have just one expression
-      val (r, n) = trans.transformBlock(And(path.expression))
-      realPart = realPart :+ And(path.condition, r)
-      noisyPart = noisyPart :+ And(trans.getNoisyCondition(path.condition), n)
+    var (idealPart, actualPart) = (Seq[Expr](), Seq[Expr]())
+    for(path <- ca.paths) {
+      val (aI, nI) = trans.transformBlock(path.idealBody)
+      idealPart = idealPart :+ And(And(path.pathCondition, path.idealCnst), aI)
+      val (aN, nN) = trans.transformBlock(path.actualBody)
+      actualPart = actualPart :+ And(And(trans.getNoisyCondition(path.pathCondition), path.actualCnst), nN)
     }
-
-    val precondition = trans.transformCondition(pre)
-    val postcondition = trans.transformCondition(post)
-
-    val body = if(realPart.isEmpty && noisyPart.isEmpty) BooleanLiteral(true)
-      else if(!realPart.isEmpty && !noisyPart.isEmpty) And(Or(realPart), Or(noisyPart))
-      else {
-        reporter.error("one of realPart or noisyPart is empty")
-        BooleanLiteral(true)
-      }
+        
+    val body = And(Or(idealPart), Or(actualPart))
     // This is to make Z3 gives us also the error
-    // TODO: maybe also add this for the input variables?
     val resultError = Equals(getNewResErrorVariable, Minus(resVar, buddies(resVar)))
     val machineEpsilon = Equals(eps, RationalLiteral(unitRoundoff))
     val toCheck = Implies(And(precondition, And(body, And(resultError, machineEpsilon))), postcondition)
     println("toCheck: " + toCheck)
 
-    // If precondition is false, we'll prove anything, so don't try to prove at all
-    if (reporter.errorCount == 0 && sanityCheck(precondition, body)) {
-      val (valid, model) = solver.checkValid(toCheck)
-      (Some(valid), model)
-    } else
+    val firstTry = if (reporter.errorCount == 0 && sanityCheck(precondition, body)) {
+      val (res, model) = solver.checkValid(toCheck)
+      (Some(res), model)
+    } else {
       (None, None)
-  }
+    }
 
+    firstTry match {
+      case (Some(VALID), _) => firstTry
+      case _ => // try again
+        val paths = idealPart.zip(actualPart)
+        for ((i, a) <- paths) {
+          val cnstr = Implies(And(precondition, And(And(i, a), And(resultError, machineEpsilon))), postcondition)
+          println("checking path: " + And(i, a))
+          val (res, model) = solver.checkValid(toCheck)
+          println("with result: " + res)
+          if (res != VALID) {
+            reporter.info("path could not be proven: " + And(i, a))
+            return (Some(res), model)
+          }
+        }
+    }
+    (Some(VALID), None)
+  }
 
   private def computeApproximation(paths: Set[Path], precondition: Expr, inputs: Map[Variable, Record]) = {
     for (path <- paths) {
@@ -147,7 +164,9 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
         // The condition given to the solver is the real(ideal)-valued one, since we use Z3 for the real part only.
         val config = XFloatConfig(reporter, solver, pathCondition, precision, unitRoundoff)
         val (variables, indices) = variables2xfloats(inputs, config)
+        solver.countTimeouts = 0
         path.values = inXFloats(path.expression, variables, config) -- inputs.keys
+        reporter.info("Timeouts: " + solver.countTimeouts)
         //println("path values: " + path.values)
         path.indices= indices
 
@@ -170,8 +189,8 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
     (newConstraint, approx)
   }
 
-
-
+  private def getAPath(path: Path): APath = APath(path.condition, And(path.expression), True, And(path.expression), True)
+  
 
 
   // Returns a map from all variables to their final value, including local vars
@@ -262,59 +281,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
     case _ => expr
   }
 
-  /*private def computeApproximation(c: Constraint, inputs: Map[Variable, Record]) = {
-    for (path <- c.paths) {
-      val pathCondition = And(path.condition, filterPreconditionForBoundsIteration(c.pre))
-      if (sanityCheck(pathCondition)) {  // If this implies false, range tightening fails
-        // The condition given to the solver is the real(ideal)-valued one, since we use Z3 for the real part only.
-        val (variables, indices) = variables2xfloats(inputs, solver, pathCondition)
-        path.values = inXFloats(path.expression, variables, solver, pathCondition) -- inputs.keys
-        path.indices= indices
-
-      } else {
-        reporter.warning("skipping path " + path)
-        // TODO: what to do here? we only checked the ideal part is impossible,
-        // but the floating-point part may still be possible
-        // although this would be quite the strange scenario...
-      }
-    }
-    c.approximated = true
-  }*/
-
-  /*private def computeApproximation(c: ConstraintApproximation, inputs: Map[Variable, Record]) = {
-    for (path <- c.paths) {
-      val pathCondition = And(path.condition, filterPreconditionForBoundsIteration(c.pre))
-      if (sanityCheck(pathCondition)) {  // If this implies false, range tightening fails
-        // The condition given to the solver is the real(ideal)-valued one, since we use Z3 for the real part only.
-        val (variables, indices) = variables2xfloats(inputs, solver, pathCondition)
-        path.values = inXFloats(path.expression, variables, solver, pathCondition) -- inputs.keys
-        println("path values: " + path.values)
-        path.indices= indices
-
-      } else {
-        reporter.warning("skipping path " + path)
-        // TODO: what to do here? we only checked the ideal part is impossible,
-        // but the floating-point part may still be possible
-        // although this would be quite the strange scenario...
-      }
-    }
-    //c.approximated = true
-  }*/
-
-
-   /* private def approximateConstraint(c: Constraint, inputs: Map[Variable, Record]): Expr = {
-    computeApproximation(c, inputs)
-    val approx = mergeRealPathResults(c.paths)
-    val newConstraint = constraintFromResults(approx)
-    newConstraint
-  }*/
-
-  /*private def approximateConstraint(c: ConstraintApproximation, inputs: Map[Variable, Record]): Expr = {
-    computeApproximation(c, inputs)
-    val approx = mergeRealPathResults(c.paths)
-    val newConstraint = constraintFromResults(approx)
-    newConstraint
-  }*/
+  
 
 
 /*def addSpecs(vc: VerificationCondition): VerificationCondition = {
@@ -329,65 +296,4 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
     vc
   }*/
 
-
-
-  // Overrides the status with new result
-  /*private def checkConstraint(c: Constraint, variables: Seq[Variable]) = {
-    val (resVar, eps, buddies) = getVariables(variables)
-    val trans = new NumericConstraintTransformer(buddies, resVar, eps, RoundoffType.RoundoffMultiplier, reporter)
-
-    var realPart: Seq[Expr] = Seq.empty
-    var noisyPart: Seq[Expr] = Seq.empty
-
-    for(path <- c.paths) {
-      val (r, n) = trans.transformBlock(And(path.expression))
-      realPart = realPart :+ And(path.condition, r)
-      noisyPart = noisyPart :+ And(trans.getNoisyCondition(path.condition), n)
-    }
-
-    val precondition = trans.transformCondition(c.pre)
-    val postcondition = trans.transformCondition(c.post)
-
-    val body = if(realPart.isEmpty && noisyPart.isEmpty) BooleanLiteral(true)
-      else if(!realPart.isEmpty && !noisyPart.isEmpty) And(Or(realPart), Or(noisyPart))
-      else {
-        reporter.error("one of realPart or noisyPart is empty")
-        BooleanLiteral(true)
-      }
-    val toCheck = Implies(And(precondition, body), postcondition)
-    println("toCheck: " + toCheck)
-
-    // If precondition is false, we'll prove anything, so don't try to prove at all
-    if (reporter.errorCount == 0 && sanityCheck(precondition, body)) {
-      val (valid, model) = solver.checkValid(toCheck)
-      c.status = Some(valid)
-      c.model = model
-    }
-  }*/
-
-  /*private def approximateConstraint(c: Constraint, inputs: Map[Variable, Record]): Constraint = {
-    reporter.info("Now trying with XFloat only...")
-
-    val paths = c.paths.map(p => p.addCondition(filterPreconditionForBoundsIteration(c.pre)))
-    //println("paths: \n" + paths.mkString("\n"))
-
-    for (path <- paths) {
-      if (sanityCheck(path.condition)) {  // If this implies false, range tightening fails
-
-        // The condition given to the solver is the real(ideal)-valued one, since we use Z3 for the real part only.
-        val (variables, indices) = variables2xfloats(inputs, solver, path.condition)
-        path.values = inXFloats(path.expression, variables, solver, path.condition) -- inputs.keys
-
-      } else {
-        reporter.warning("skipping path " + path)
-        // TODO: what to do here? we only checked the ideal part is impossible,
-        // but the floating-point part may still be possible
-        // although this would be quite the strange scenario...
-      }
-    }
-
-    val approx = mergePathResults(paths)
-    val newConstraint = constraintFromResults(approx)
-    Constraint(And(c.pre, newConstraint), BooleanLiteral(true), c.post)
-  }*/
 }

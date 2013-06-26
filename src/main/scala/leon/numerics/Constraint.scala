@@ -12,13 +12,18 @@ import Valid._
 import Utils._
 import ApproximationType._
 
+// ApproximationPath
+case class APath(pathCondition: Expr, idealBody: Expr, idealCnst: Expr, actualBody: Expr, actualCnst: Expr) {
+  def updateNoisy(newBody: Expr, newCnst: Expr): APath = APath(pathCondition, idealBody, idealCnst, newBody, newCnst)
+}
+
 // This is an approximation of an constraint.
 // vars: additional free variables created
-case class ConstraintApproximation(pre: Expr, body: Expr, post: Expr, vars: Set[Variable], tpe: ApproximationType) {
+case class ConstraintApproximation(pre: Expr, paths: Set[APath], post: Expr, vars: Set[Variable], tpe: ApproximationType) {
   var values: Map[Expr, (RationalInterval, Rational)] = Map.empty
 
-  lazy val paths = collectPaths(body)
-  override def toString: String = "APP(%s && %s) ==> %s".format(pre.toString, body.toString, post.toString)
+  //lazy val paths = collectPaths(body)
+  override def toString: String = "APP(%s && %s) ==> %s".format(pre.toString, paths.toString, post.toString)
 }
 
 // An original (unapproximated constraint) derived from somewhere in the program.
@@ -43,7 +48,7 @@ case class Constraint(pre: Expr, body: Expr, post: Expr, description: String) {
     if (containsFunctionCalls(body) || containsFunctionCalls(pre) || containsFunctionCalls(post)) {
       //Seq(Uninterpreted_None, PostInlining_None, PostInlining_AA, FullInlining_None, FullInlining_AA)
       Seq(PostInlining_None, PostInlining_AA, FullInlining_None, FullInlining_AA)
-      Seq(FullInlining_AA)
+      //Seq(FullInlining_AA)
     } else {
       //Seq(Uninterpreted_None, NoFncs_AA)
       Seq(NoFncs_AA)
