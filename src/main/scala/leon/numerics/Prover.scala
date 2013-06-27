@@ -125,6 +125,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
       }
       ConstraintApproximation(newPre, apaths, newPost, vars, tpe)
     
+    // TODO: automatic approximation of functions called without postcondition
       // TODO: If neither work, do partial approx.
   }
 
