@@ -1,0 +1,36 @@
+numerics/CertificationPhase.scala:      // TODO: why does the function body have to be defined?! We could also have functions that only function as API (e.g. closed source).
+numerics/CertificationPhase.scala:  // TODO: add the correct runtime checks
+numerics/CertificationPhase.scala:    // TODO: fail in some reasonable way if neither roundoff nor noise is specified
+numerics/CertificationPhase.scala:    // TODO: make specgen possible to disable
+numerics/Analyser.scala:                  // TODO: if we have no precondition given, do we want to compute it?
+numerics/NumericSolver.scala:  // TODO: Invariant: the lower bound is always sound, and the upper bound not
+numerics/NumericSolver.scala:  //TODO: Invariant the upper bound is always sound, the lower bnd not
+numerics/FullInliner.scala:  // TODO: do we need this?
+numerics/Utils.scala:        // TODO: in one loop?
+numerics/Utils.scala:    // TODO: do we need this?
+numerics/Prover.scala:    // TODO: we can cache some of the body transforms and reuse for AA...
+numerics/Prover.scala:      // TODO: what happened with the precondition?
+numerics/Prover.scala:      // TODO: simplify constraint, we don't need all the info
+numerics/Prover.scala:      // TODO: collectPaths(c.body) == c.paths
+numerics/Prover.scala:      // TODO: automatic approximation of functions called without postcondition
+numerics/Prover.scala:      // TODO: If neither work, do partial approx.
+numerics/Prover.scala:      // TODO: what to do here? we only checked the ideal part is impossible,
+numerics/affine/XFloat.scala:    // TODO: scale the result
+numerics/affine/XFloat.scala:  // TODO: alright, this is not exact
+numerics/affine/XFloat.scala: // TODO: would this also work with an interval for approxRange? (MUCH faster)
+numerics/affine/XFloat.scala: // TODO: save the computed tight bounds!
+numerics/affine/XFloat.scala:    // TODO: method on RationalInterval
+numerics/affine/XFloat.scala:    // TODO: scale the result
+numerics/affine/XFloat.scala:    // TODO: this is probably hugely inefficient to do it this way
+numerics/affine/XFloat.scala:    // TODO: we could also preprocess the sqrt tree here, but may be more expensive
+numerics/affine/RationalAffineUtils.scala:  // TODO: check this
+numerics/affine/RationalAffineUtils.scala:  // TODO: fold
+numerics/affine/RationalAffineUtils.scala:      val x = 0  // TODO: can we get rid of this?
+numerics/PostconditionInliner.scala:  // TODO: do we need this?
+numerics/CodeGeneration.scala:      // TODO: noise(x) does not really exist in Doubles!
+numerics/CodeGeneration.scala:  // TODO: this should be parametric in which float we tested
+numerics/CodeGeneration.scala:    // TODO: do we need this?
+numerics/NumericConstraintTransformer.scala:      // TODO: roundoff only if not exact
+numerics/SpecGen.scala:    // TODO: what do we do with invariants?
+numerics/SpecGen.scala:          // TODO: add error on computing the path condition
+numerics/SpecGen.scala:      // TODO: not quite right! it should be the error on variable, or rather whether it was there or not...
