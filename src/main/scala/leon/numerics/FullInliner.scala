@@ -20,7 +20,6 @@ class FullInliner(reporter: Reporter, vcMap: Map[FunDef, VerificationCondition])
   var constraints = Seq[Expr]()
   var vars = Set[Variable]()
 
-  // TODO: do we need this?
   def register(e: Expr, path: C) = path :+ e
 
   override def rec(e: Expr, path: C) = e match {

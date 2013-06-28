@@ -200,12 +200,13 @@ class NumericConstraintTransformer(buddy: Map[Expr, Expr], ress: Variable, eps: 
 
     case v: Variable => (v, buddy(v))
 
-    case r: RationalLiteral =>
-      // TODO: roundoff only if not exact
-      val (mult, dlt) = getFreshRndoffMultiplier
-      addExtra(constrainDelta(dlt))
-      (r, Times(r, mult))
-
+    case r @ RationalLiteral(v) =>
+      if (isExact(v)) (r, r)
+      else {
+        val (mult, dlt) = getFreshRndoffMultiplier
+        addExtra(constrainDelta(dlt))
+        (r, Times(r, mult))
+      }
     case fnc @ FunctionInvocation(funDef, args) =>
       (fnc, FunctionInvocation(funDef, args.map(a => buddy(a))))
 

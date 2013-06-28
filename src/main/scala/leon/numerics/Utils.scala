@@ -289,7 +289,6 @@ object Utils {
     type C = Seq[Expr]
     val initC = Nil
 
-    // TODO: do we need this?
     def register(e: Expr, path: C) = path :+ e
 
     override def rec(e: Expr, path: C) = e match {
@@ -298,6 +297,5 @@ object Utils {
       case _ =>
         super.rec(e, path)
     }
-
   }
 }

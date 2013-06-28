@@ -65,7 +65,6 @@ class CodeGeneration(reporter: Reporter, precision: Precision) {
     type C = Seq[Expr]
     val initC = Nil
 
-    // TODO: do we need this?
     def register(e: Expr, path: C) = path :+ e
 
     override def rec(e: Expr, path: C) = e match {
