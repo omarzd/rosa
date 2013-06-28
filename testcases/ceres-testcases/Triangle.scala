@@ -16,7 +16,7 @@ object Triangle {
   } ensuring (res => noise(res, 1e-13))
 
 
-  def triangleStable(a: Real, b: Real, c: Real): Real = {
+  /*def triangleStable(a: Real, b: Real, c: Real): Real = {
     require(a.in(1.0, 9.0) && b.in(1.0, 9.0) && c.in(1.0, 9.0) &&
       a + b > c + 0.1 && a + c > b + 0.1 && b + c > a + 0.1)
 
@@ -51,6 +51,7 @@ object Triangle {
       sqrt(c+(b+a)) * (a-(c-b)) * (a+(c-b)) * (c+(b-a)) / 4.0
     }
   } ensuring (res => noise(res, 1e-13))
+  */
 
   /*def invariant(a: Real, b: Real, c: Real): Boolean = {
     require(a.in(8.4, 8.6) && b.in(4.7, 4.9) && c.in(4.7, 4.9) &&

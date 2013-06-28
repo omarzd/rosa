@@ -26,6 +26,12 @@ resolvers += "Typesafe Repository" at "http://repo.typesafe.com/typesafe/release
 
 libraryDependencies += "com.typesafe.akka" % "akka-actor" % "2.0.4"
 
+javaOptions += "-Xmx1G"
+
+javaOptions += "-Xms512M"
+
+javaOptions += "-Xss1M"
+
 fork in run := true
 
 fork in test := true

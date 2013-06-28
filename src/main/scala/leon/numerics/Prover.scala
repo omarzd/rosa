@@ -122,7 +122,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
     val sanityCondition = And(pre, body)
     solver.checkSat(sanityCondition) match {
       case (SAT, model) =>
-        reporter.info("Sanity check passed! :-)")
+        //reporter.info("Sanity check passed! :-)")
         //reporter.info("model: " + model)
         true
       case (UNSAT, model) =>
@@ -220,12 +220,13 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
       // TODO: what happened with the precondition?
       val (newConstraint, values) = approximatePaths(c.paths, c.pre, inputs)
       println("AA computed: " + newConstraint)
+      println("values: " + values)
       // TODO: simplify constraint, we don't need all the info
       /*val paths = c.paths.collect {
         case p: Path if (p.feasible) => getAPath(p).updateNoisy(True, True)
       }*/
       // Add either the range or the real part, not both (slows Z3 down)
-      ConstraintApproximation(newConstraint, Set(allTrueAPath), c.post, Set.empty, tpe)
+      ConstraintApproximation(newConstraint, Set(allTrueAPath), c.post, Set.empty, tpe, values)
 
     case NoFncs_AAPathSensitive =>
       val paths = c.paths
@@ -238,8 +239,9 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
     case PostInlining_AA =>
       val (newPre, newBody, newPost, vars) = postInliner.inlinePostcondition(c.pre, c.body, c.post)
       val (newConstraint, values) = approximatePaths(collectPaths(newBody), newPre, getVariableRecords(newPre))
-      //val paths = collectPaths(newBody).map(p => getAPath(p).updateNoisy(True, True))
-      ConstraintApproximation(newConstraint, Set(allTrueAPath), newPost, vars, tpe)
+      val paths = collectPaths(newBody).map(p => getAPath(p).updateNoisy(True, True))
+      //ConstraintApproximation(newConstraint, Set(allTrueAPath), newPost, vars, tpe)
+      ConstraintApproximation(newConstraint, paths, newPost, vars, tpe, values)
 
     case PostInlining_AAPathSensitive =>
       val (newPre, newBody, newPost, vars) = postInliner.inlinePostcondition(c.pre, c.body, c.post)
@@ -254,7 +256,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
       val (newPre, newBody, newPost, vars) = postInliner.inlinePostcondition(c.pre, c.body, c.post)
       val (newConstraint, values) = approximatePaths(collectPaths(newBody), newPre, getVariableRecords(newPre))
       //val paths = collectPaths(newBody).map(p => getAPath(p).updateNoisy(True, True))
-      ConstraintApproximation(newConstraint, Set(allTrueAPath), newPost, vars, tpe)
+      ConstraintApproximation(newConstraint, Set(allTrueAPath), newPost, vars, tpe, values)
 
     case FullInlining_AAPathSensitive =>
       val (newPre, newBody, newPost, vars) = postInliner.inlinePostcondition(c.pre, c.body, c.post)
@@ -304,7 +306,10 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
   }
 
 
-  private def getAPath(path: Path): APath = APath(path.condition, And(path.expression), True, And(path.expression), True)
+  private def getAPath(path: Path): APath = {
+    println("path.values: " + path.values)
+    APath(path.condition, And(path.expression), True, And(path.expression), True, path.values)
+  }
 
 
   // Returns a map from all variables to their final value, including local vars
@@ -353,21 +358,21 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
   private def getPost(c: Constraint, inputs: Map[Variable, Record]): Expr = (specGenType, c.hasFunctionCalls) match {
     case (Simple, false) =>
       val approx = findApproximation(c, inputs, List(NoFncs_AA))
-      approx.pre
+      constraintFromResults(Map(ResultVariable() -> approx.values(ResultVariable())))
     case (Simple, true) =>
       val approx = findApproximation(c, inputs, List(PostInlining_AA, FullInlining_AA))
-      approx.pre
+      constraintFromResults(Map(ResultVariable() -> approx.values(ResultVariable())))
 
     case (PathSensitive, false) =>
       val approx = findApproximation(c, inputs, List(NoFncs_AAPathSensitive))
       val newPost: Seq[Expr] = approx.paths.foldLeft(Seq[Expr]())(
-            (s, p) => s :+ And(p.pathCondition, p.actualCnst))
+            (s, p) => s :+ And(p.pathCondition, constraintFromXFloats(Map(ResultVariable() -> p.values(ResultVariable())))))
       Or(newPost)
 
     case (PathSensitive, true) =>
       val approx = findApproximation(c, inputs, List(PostInlining_AAPathSensitive, FullInlining_AAPathSensitive))
       val newPost: Seq[Expr] = approx.paths.foldLeft(Seq[Expr]())(
-            (s, p) => s :+ And(p.pathCondition, p.actualCnst))
+            (s, p) => s :+ And(p.pathCondition, constraintFromXFloats(Map(ResultVariable() -> p.values(ResultVariable())))))
       Or(newPost)
 
     // TODO: this may have to be different if we have to use the function for verification

@@ -12,19 +12,20 @@ import Valid._
 import Utils._
 import ApproximationType._
 
+import affine.XFloat
+
 // ApproximationPath
-case class APath(pathCondition: Expr, idealBody: Expr, idealCnst: Expr, actualBody: Expr, actualCnst: Expr) {
-  def updateNoisy(newBody: Expr, newCnst: Expr): APath = {
-    APath(pathCondition, idealBody, idealCnst, newBody, newCnst)
-  }
+case class APath(pathCondition: Expr, idealBody: Expr, idealCnst: Expr, actualBody: Expr, actualCnst: Expr,
+  values: Map[Expr, XFloat] = Map.empty) {
+  def updateNoisy(newBody: Expr, newCnst: Expr): APath = APath(pathCondition, idealBody, idealCnst, newBody, newCnst, values)
+
 }
 
 // This is an approximation of an constraint.
 // vars: additional free variables created
-case class ConstraintApproximation(pre: Expr, paths: Set[APath], post: Expr, vars: Set[Variable], tpe: ApproximationType) {
-  var values: Map[Expr, (RationalInterval, Rational)] = Map.empty
+case class ConstraintApproximation(pre: Expr, paths: Set[APath], post: Expr, vars: Set[Variable], tpe: ApproximationType,
+  values: Map[Expr, (RationalInterval, Rational)] = Map.empty) {
 
-  //lazy val paths = collectPaths(body)
   //override def toString: String = "APP(%s && %s) ==> %s".format(pre.toString, paths.toString, post.toString)
   override def toString: String = tpe.toString
 }
