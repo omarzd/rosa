@@ -192,6 +192,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
   /* *************************
         Approximations
   **************************** */
+  val allTrueAPath = APath(True, True, True, True, True)
 
     // TODO: we can cache some of the body transforms and reuse for AA...
   def getNextApproximation(tpe: ApproximationType, c: Constraint, inputs: Map[Variable, Record]): ConstraintApproximation = tpe match {
@@ -220,11 +221,11 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
       val (newConstraint, values) = approximatePaths(c.paths, c.pre, inputs)
       println("AA computed: " + newConstraint)
       // TODO: simplify constraint, we don't need all the info
-      // TODO: collectPaths(c.body) == c.paths
-      val paths = collectPaths(c.body).collect {
+      /*val paths = c.paths.collect {
         case p: Path if (p.feasible) => getAPath(p).updateNoisy(True, True)
-      }
-      ConstraintApproximation(newConstraint, paths, c.post, Set.empty, tpe)
+      }*/
+      // Add either the range or the real part, not both (slows Z3 down)
+      ConstraintApproximation(newConstraint, Set(allTrueAPath), c.post, Set.empty, tpe)
 
     case NoFncs_AAPathSensitive =>
       val paths = c.paths
@@ -237,8 +238,8 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
     case PostInlining_AA =>
       val (newPre, newBody, newPost, vars) = postInliner.inlinePostcondition(c.pre, c.body, c.post)
       val (newConstraint, values) = approximatePaths(collectPaths(newBody), newPre, getVariableRecords(newPre))
-      val paths = collectPaths(newBody).map(p => getAPath(p).updateNoisy(True, True))
-      ConstraintApproximation(newConstraint, paths, newPost, vars, tpe)
+      //val paths = collectPaths(newBody).map(p => getAPath(p).updateNoisy(True, True))
+      ConstraintApproximation(newConstraint, Set(allTrueAPath), newPost, vars, tpe)
 
     case PostInlining_AAPathSensitive =>
       val (newPre, newBody, newPost, vars) = postInliner.inlinePostcondition(c.pre, c.body, c.post)
@@ -252,8 +253,8 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
     case FullInlining_AA =>
       val (newPre, newBody, newPost, vars) = postInliner.inlinePostcondition(c.pre, c.body, c.post)
       val (newConstraint, values) = approximatePaths(collectPaths(newBody), newPre, getVariableRecords(newPre))
-      val paths = collectPaths(newBody).map(p => getAPath(p).updateNoisy(True, True))
-      ConstraintApproximation(newConstraint, paths, newPost, vars, tpe)
+      //val paths = collectPaths(newBody).map(p => getAPath(p).updateNoisy(True, True))
+      ConstraintApproximation(newConstraint, Set(allTrueAPath), newPost, vars, tpe)
 
     case FullInlining_AAPathSensitive =>
       val (newPre, newBody, newPost, vars) = postInliner.inlinePostcondition(c.pre, c.body, c.post)
