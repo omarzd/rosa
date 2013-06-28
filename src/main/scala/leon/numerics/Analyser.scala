@@ -50,15 +50,13 @@ class Analyser(reporter: Reporter) {
         vc.body = Some(convertLetsToEquals(addResult(bodyPreprocessed)))
         val specC = Constraint(vc.precondition.get, vc.body.get, post, "wholeBody")
         vc.allConstraints = List(specC)
-        vc.specConstraint = Some(specC)
+
       // Auxiliary function, nothing to prove
       case None =>
         vc.body = Some(convertLetsToEquals(addResult(bodyPreprocessed)))
-        //println("vc.body: " + vc.body)
-        vc.specConstraint = Some(Constraint(vc.precondition.get, vc.body.get, BooleanLiteral(true), "wholebody"))
     }
 
-    
+
 
     if (containsFunctionCalls(vc.body.get)) {
       val noiseRemover = new NoiseRemover

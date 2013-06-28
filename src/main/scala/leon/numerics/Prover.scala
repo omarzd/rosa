@@ -18,9 +18,11 @@ import Sat._
 import Valid._
 import ApproximationType._
 import Precision._
+import SpecGenType._
 
 
-class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[FunDef, VerificationCondition], precision: Precision) {
+class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[FunDef, VerificationCondition],
+  precision: Precision, specGenType: SpecGenType) {
   val verbose = false
   val solver = new NumericSolver(ctx, program)
   val postInliner = new PostconditionInliner(reporter)
@@ -42,22 +44,27 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
         val next = c.getNextApproxType.get
         reporter.info("Computing approximation: " + next)
         val approx = getNextApproximation(next, c, vc.inputs)
-        c.approximations = c.approximations :+ approx
+        c.approximations = Seq(approx) ++ c.approximations
         c.overrideStatus(checkWithZ3(approx, vc.allVariables))
         reporter.info("RESULT: " + c.status)
-        //if (!c.model.isEmpty) reporter.info(c.model.get)
-
       }
     }
+
+    val mainCnstr = if(vc.allConstraints.size > 0) vc.allConstraints.head
+      else Constraint(vc.precondition.get, vc.body.get, BooleanLiteral(true), "wholebody")
+    vc.generatedPost = Some(getPost(mainCnstr, vc.inputs))
+    reporter.info("Generated post: " + vc.generatedPost)
 
     val totalTime = (System.currentTimeMillis - start)
     vc.verificationTime = Some(totalTime)
   }
 
+
+
     // TODO: we can cache some of the body transforms and reuse for AA...
   def getNextApproximation(tpe: ApproximationType, c: Constraint, inputs: Map[Variable, Record]): ConstraintApproximation = tpe match {
     /* ******************
-       NO APPROXIMATION    
+       NO APPROXIMATION
     * ******************* */
     case Uninterpreted_None =>
       val paths = collectPaths(c.body).map(p => getAPath(p))
@@ -74,7 +81,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
       ConstraintApproximation(newPre, paths, newPost, vars, tpe)
 
     /* ******************
-       Full APPROXIMATION    
+       Full APPROXIMATION
     * ******************* */
     case NoFncs_AA =>
       // TODO: what happened with the precondition?
@@ -99,7 +106,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
       val (newPre, newBody, newPost, vars) = postInliner.inlinePostcondition(c.pre, c.body, c.post)
       val (newConstraint, values) = approximatePaths(collectPaths(newBody), newPre, getVariableRecords(newPre))
       val paths = collectPaths(newBody).map(p => getAPath(p).updateNoisy(True, True))
-      ConstraintApproximation(newConstraint, paths, newPost, vars, tpe)  
+      ConstraintApproximation(newConstraint, paths, newPost, vars, tpe)
 
     case PostInlining_AAPathSensitive =>
       val (newPre, newBody, newPost, vars) = postInliner.inlinePostcondition(c.pre, c.body, c.post)
@@ -108,14 +115,14 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
       val apaths = paths.collect {
         case p: Path if (p.feasible) => getAPath(p).updateNoisy(True, constraintFromXFloats(p.values))
       }
-      ConstraintApproximation(newPre, apaths, newPost, vars, tpe)  
+      ConstraintApproximation(newPre, apaths, newPost, vars, tpe)
 
     case FullInlining_AA =>
       val (newPre, newBody, newPost, vars) = postInliner.inlinePostcondition(c.pre, c.body, c.post)
       val (newConstraint, values) = approximatePaths(collectPaths(newBody), newPre, getVariableRecords(newPre))
       val paths = collectPaths(newBody).map(p => getAPath(p).updateNoisy(True, True))
       ConstraintApproximation(newConstraint, paths, newPost, vars, tpe)
-    
+
     case FullInlining_AAPathSensitive =>
       val (newPre, newBody, newPost, vars) = postInliner.inlinePostcondition(c.pre, c.body, c.post)
       val paths = collectPaths(newBody)
@@ -124,7 +131,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
         case p: Path if (p.feasible) => getAPath(p).updateNoisy(True, constraintFromXFloats(p.values))
       }
       ConstraintApproximation(newPre, apaths, newPost, vars, tpe)
-    
+
       // TODO: If neither work, do partial approx.
   }
 
@@ -141,9 +148,9 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
       val (aN, nN) = trans.transformBlock(path.actualBody)
       actualPart = actualPart :+ And(And(trans.getNoisyCondition(path.pathCondition), trans.transformCondition(path.actualCnst)), nN)
     }
-        
+
     val body = And(Or(idealPart), Or(actualPart))
-    
+
     val resultError = Equals(getNewResErrorVariable, Minus(resVar, buddies(resVar))) // let z3 give us error explicitly
     val machineEpsilon = Equals(eps, RationalLiteral(unitRoundoff))
     val toCheck = Implies(And(precondition, And(body, And(resultError, machineEpsilon))), postcondition)
@@ -189,9 +196,9 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
       val (aN, nN) = trans.transformBlock(path.actualBody)
       actualPart = actualPart :+ And(And(trans.getNoisyCondition(path.pathCondition), trans.transformCondition(path.actualCnst)), nN)
     }
-        
+
     val body = And(Or(idealPart), Or(actualPart))
-    
+
     val resultError = Equals(getNewResErrorVariable, Minus(resVar, buddies(resVar))) // let z3 give us error explicitly
     val machineEpsilonWanted = Equals(eps, RationalLiteral(unitRoundoff))
     val machineEpsilonDefault = Equals(eps, RationalLiteral(unitRoundoffDefault))
@@ -240,7 +247,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
     val newConstraint = constraintFromResults(approx)
     (newConstraint, approx)
   }
-  
+
 
   private def computeApproximation(path: Path, precondition: Expr, inputs: Map[Variable, Record]) = {
     val pathCondition = And(path.condition, filterPreconditionForBoundsIteration(precondition))
@@ -263,9 +270,9 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
     }
   }
 
-  
+
   private def getAPath(path: Path): APath = APath(path.condition, And(path.expression), True, And(path.expression), True)
-  
+
 
   // Returns a map from all variables to their final value, including local vars
   private def inXFloats(exprs: List[Expr], vars: Map[Expr, XFloat], config: XFloatConfig): Map[Expr, XFloat] = {
@@ -355,19 +362,86 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
     case _ => expr
   }
 
-  
+  /* *************************
+    Specification Generation.
+  **************************** */
+  private def getPost(c: Constraint, inputs: Map[Variable, Record]): Expr = (specGenType, c.hasFunctionCalls) match {
+    case (Simple, false) =>
+      val approx = findApproximation(c, inputs, List(NoFncs_AA))
+      approx.pre
+    case (Simple, true) =>
+      val approx = findApproximation(c, inputs, List(PostInlining_AA, FullInlining_AA))
+      approx.pre
 
+    case (PathSensitive, false) =>
+      val approx = findApproximation(c, inputs, List(NoFncs_AAPathSensitive))
+      val newPost: Seq[Expr] = approx.paths.foldLeft(Seq[Expr]())(
+            (s, p) => s :+ And(p.pathCondition, p.actualCnst))
+      Or(newPost)
 
-/*def addSpecs(vc: VerificationCondition): VerificationCondition = {
-    //val start = System.currentTimeMillis
-    // if there are constraints, then those have already been handled, only deal with VCs without post
-    if(!vc.specConstraint.get.approximated) {
-      //computeApproximation(vc.specConstraint.get, vc.inputs)
+    case (PathSensitive, true) =>
+      val approx = findApproximation(c, inputs, List(PostInlining_AAPathSensitive, FullInlining_AAPathSensitive))
+      val newPost: Seq[Expr] = approx.paths.foldLeft(Seq[Expr]())(
+            (s, p) => s :+ And(p.pathCondition, p.actualCnst))
+      Or(newPost)
+
+    // TODO: this may have to be different if we have to use the function for verification
+    case (NoGen, _) => True
+  }
+
+  private def findApproximation(c: Constraint, inputs: Map[Variable, Record], tpes: List[ApproximationType]): ConstraintApproximation = {
+    c.approximations.find(a => tpes.contains(a.tpe)) match {
+      case Some(app) => app
+      case None => getNextApproximation(tpes.head, c, inputs)
     }
+  }
 
-    //val totalTime = (System.currentTimeMillis - start)
-    //vc.verificationTime = Some(totalTime)
-    vc
+  /*def generateSpecMoreInfo(vc: VerificationCondition) = {
+    reporter.info("")
+    reporter.info("----------> generating postcondition for: " + vc.funDef.id.name)
+
+    // TODO: what do we do with invariants?
+    vc.specConstraint match {
+      case Some(c) =>
+        var args = Seq[Expr]()
+        for (path <- c.paths) {
+          // TODO: add error on computing the path condition
+          val cond = path.condition
+          val res = path.values(ResultVariable())
+
+          res.interval
+
+          val errorExpr = getErrorExpression(res.error, path.indices)
+          args = args :+ And(Seq(cond, LessEquals(RationalLiteral(res.interval.xlo), ResultVariable()),
+            LessEquals(ResultVariable(), RationalLiteral(res.interval.xhi)),
+            Noise(ResultVariable(), errorExpr)))
+        }
+
+
+        val newConstraint = Or(args)
+        reporter.info("computed spec: " + newConstraint)
+        vc.generatedPost = Some(newConstraint)
+
+      case None =>
+        reporter.warning("Forgotten spec constraint?")
+    }
+  }
+
+  def getErrorExpression(a: XRationalForm, indices: Map[Int, Expr]): Expr = {
+    val indexSet: Set[Int] = indices.keys.toSet
+    val (lin, rest) = a.noise.partition(d => indexSet(d.index))
+
+    val maxError = affine.Utils.sumSeq(rest)
+    val restError = RationalInterval(-maxError, maxError) + RationalInterval(a.x0, a.x0)
+
+    val restErrorVar = getNewErrorVar
+    var cnstr: Expr = restErrorVar
+
+    for (dev <- lin) {
+      // TODO: not quite right! it should be the error on variable, or rather whether it was there or not...
+      cnstr = Plus(cnstr, Times(RationalLiteral(dev.value), getNamedError(indices(dev.index))))
+    }
+    And(ratint2expr(restError, restErrorVar), cnstr)
   }*/
 
 }

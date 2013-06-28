@@ -7,12 +7,13 @@ import purescala.Trees._
 import purescala.TreeOps._
 import purescala.TypeTrees._
 import Precision._
+import SpecGenType._
 
 class CodeGeneration(reporter: Reporter, precision: Precision) {
   val specTransformer = new SpecTransformer
 
   // Produces something that does not typecheck. But printed it should be fine.
-  def specToCode(programId: Identifier, objectId: Identifier, vcs: Seq[VerificationCondition], specGen: Boolean): Program = {
+  def specToCode(programId: Identifier, objectId: Identifier, vcs: Seq[VerificationCondition], specGenType: SpecGenType): Program = {
 
     var defs: Seq[Definition] = Seq.empty
 
@@ -32,7 +33,7 @@ class CodeGeneration(reporter: Reporter, precision: Precision) {
         case None => ;
       }
 
-      if (specGen) {
+      if (specGenType != None) {
         funDef.postcondition = vc.generatedPost
       } else {
         funDef.postcondition = f.postcondition

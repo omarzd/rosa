@@ -8,25 +8,25 @@ import Real._
 
 object Debug {
 
-  def quadraticClassicRoot1(a: Real, b: Real, c: Real): Real = {
-    require(a.in(2.5, 3.5) && b.in(54.0, 57.0) && c.in(0.5, 1.5))
-    val discr = b*b - a * c * 4.0
+  def doppler(u: Real, v: Real, T: Real): Real = {
+    require(-100 <= u && u <= 100 && 20 <= v && v <= 20000 &&
+     -30 <= T && T <= 50 && noise(u, 1e-7) && noise(v, 1e-9) && noise(T, 1e-6))
 
-    (-b - sqrt(discr))/(a * 2.0)
-  } ensuring (res => noise(res, 1e-13))
+    (- (331.4 + 0.6 * T) *v) / ((331.4 + 0.6*T + u)*(331.4 + 0.6*T + u))
 
-  def quadraticSmartRoot2(a: Real, b: Real, c: Real): Real = {
-    require(a.in(2.5, 3.5) && b.in(54.0, 57.0) && c.in(0.5, 1.5))
+  } ensuring (res => -138.0 <= res && res <= -0.35 && noise(res, 1e-4))
 
-    val discr = b*b - a * c * 4.0
 
-    if(b*b - a*c > 10.0) {
-      if(b > 0.0) c * 2.0 /(-b - sqrt(discr))
-      else if(b < 0.0)  (-b + sqrt(discr))/(a * 2.0)
-      else (-b + sqrt(discr))/(a * 2.0)
-    }
-    else {
-      (-b + sqrt(discr))/(a * 2.0)
-    }
-  } ensuring (res => noise(res, 1e-13))
+  def doppler0(u: Real, v: Real, T: Real): Real = {
+    require(-100 <= u && u <= 100 && 20 <= v && v <= 20000 &&
+     -30 <= T && T <= 50 && roundoff(u, v, T))
+    (- (331.4 + 0.6 * T) *v) / ((331.4 + 0.6*T + u)*(331.4 + 0.6*T + u))
+  }
+
+  def doppler1(u: Real, v: Real, T: Real): Real = {
+    require(-100 <= u && u <= 100 && 20 <= v && v <= 20000 &&
+     -30 <= T && T <= 50 && roundoff(u, v, T))
+    (- (331.4 + 0.6 * T) *v) / ((331.4 + 0.6*T + u)*(331.4 + 0.6*T + u))
+  } ensuring (res => -400.0 <= res && res <= 200.0 && noise(res, 1e-5))
+
 }

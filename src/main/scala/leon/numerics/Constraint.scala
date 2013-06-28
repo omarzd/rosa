@@ -27,7 +27,8 @@ case class ConstraintApproximation(pre: Expr, paths: Set[APath], post: Expr, var
   var values: Map[Expr, (RationalInterval, Rational)] = Map.empty
 
   //lazy val paths = collectPaths(body)
-  override def toString: String = "APP(%s && %s) ==> %s".format(pre.toString, paths.toString, post.toString)
+  //override def toString: String = "APP(%s && %s) ==> %s".format(pre.toString, paths.toString, post.toString)
+  override def toString: String = tpe.toString
 }
 
 // An original (unapproximated constraint) derived from somewhere in the program.
@@ -48,9 +49,10 @@ case class Constraint(pre: Expr, body: Expr, post: Expr, description: String) {
   lazy val paths = collectPaths(body)
   var pathsApproximated = false
 
+  val hasFunctionCalls = (containsFunctionCalls(body) || containsFunctionCalls(pre) || containsFunctionCalls(post))
 
   var approxStrategy =
-    if (containsFunctionCalls(body) || containsFunctionCalls(pre) || containsFunctionCalls(post)) {
+    if (hasFunctionCalls) {
       //Seq(Uninterpreted_None, PostInlining_None, PostInlining_AA, FullInlining_None, FullInlining_AA)
       Seq(PostInlining_None, PostInlining_AA, PostInlining_AAPathSensitive, FullInlining_None, FullInlining_AA, FullInlining_AAPathSensitive)
       //Seq(FullInlining_AA)
@@ -71,6 +73,7 @@ case class Constraint(pre: Expr, body: Expr, post: Expr, description: String) {
     }
   }
 
+  // Should be sorted with most precise first
   var approximations = Seq[ConstraintApproximation]()
 
 

@@ -39,7 +39,6 @@ class VerificationCondition(val funDef: FunDef) {
   /*
     Generated specification.
   */
-  var specConstraint: Option[Constraint] = None
   var generatedPost: Option[Expr] = None
   var isInvariant = false
 

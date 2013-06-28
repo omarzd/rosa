@@ -11,6 +11,7 @@ import purescala.Trees._
 import purescala.TreeOps._
 import purescala.TypeTrees._
 import Precision._
+import SpecGenType._
 import purescala.ScalaPrinter
 
 import Utils._
@@ -21,13 +22,13 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
   val name = "Certification"
   val description = "Floating-point certification"
   var simulation = false
-  var specgen = false
+  var specgenType: SpecGenType = Simple
   var precision: Precision = Float64
 
   override val definedOptions: Set[LeonOptionDef] = Set(
     LeonValueOptionDef("functions", "--functions=f1:f2", "Limit verification to f1, f2,..."),
     LeonFlagOptionDef("simulation", "--simulation", "Run a simulation instead of verification"),
-    LeonFlagOptionDef("specgen", "--specgen", "Generate specifications in addition to verification."),
+    LeonValueOptionDef("specgen", "--specgen=simple", "What kind of specs to generate: none, simple, pathsensitive"),
     LeonValueOptionDef("precision", "--precision=double", "Which precision to assume of the underlying floating-point arithmetic: single, double.")
   )
 
@@ -46,7 +47,7 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
   // TODO: add the correct runtime checks
   def generateCode(reporter: Reporter, program: Program, vcs: Seq[VerificationCondition]) = {
     val codeGen = new CodeGeneration(reporter, Float64)
-    val newProgram = codeGen.specToCode(program.id, program.mainObject.id, vcs, specgen)
+    val newProgram = codeGen.specToCode(program.id, program.mainObject.id, vcs, specgenType)
     val newProgramAsString = ScalaPrinter(newProgram)
     reporter.info("Generated program with %d lines.".format(newProgramAsString.lines.length))
     //reporter.info(newProgramAsString)
@@ -65,11 +66,18 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
     for (opt <- ctx.options) opt match {
       case LeonValueOption("functions", ListValue(fs)) => functionsToAnalyse = Set() ++ fs
       case LeonFlagOption("simulation") => simulation = true
-      case LeonFlagOption("specgen") => specgen = true
-      case LeonValueOption("precision", ListValue(p)) =>
-        if (p.head == "double") precision = Float64
-        else if (p.head == "single") precision = Float32
-        else reporter.warning("Ignoring unknown precision: " + p)
+      case LeonValueOption("precision", ListValue(p)) => p.head match {
+        case "double" => precision = Float64
+        case "single" => precision = Float32
+        case _=> reporter.warning("Ignoring unknown precision: " + p)
+      }
+
+      case LeonValueOption("specgen", ListValue(s)) => s.head match {
+        case "simple" => specgenType = Simple
+        case "pathsensitive" => specgenType = PathSensitive
+        case "none" => specgenType = NoGen
+        case _=> reporter.warning("Ignoring unknown specgen type: " + s)
+      }
       case _ =>
     }
 
@@ -85,17 +93,13 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
         toAnalyze
       }
 
-    // TODO: fail in some reasonable way if neither roundoff nor noise is specified
-    // TODO: make specgen possible to disable
     val vcs = generateVCs(reporter, sortedFncs)
 
-    if (reporter.errorCount > 0) {
-      throw LeonFatalError()
-    }
+    if (reporter.errorCount > 0) throw LeonFatalError()
 
     val vcMap: Map[FunDef, VerificationCondition] = vcs.map { t => (t.funDef, t) }.toMap
 
-    val prover = new Prover(reporter, ctx, program, vcMap, precision)
+    val prover = new Prover(reporter, ctx, program, vcMap, precision, specgenType)
     for(vc <- vcs) prover.check(vc)
 
     if (simulation) {
@@ -103,16 +107,8 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
       for(vc <- vcs) simulator.simulateThis(vc, precision)
     }
 
-    if (specgen) {
-      val specgen = new SpecGen(reporter, prover)
-      for(vc <- vcs) specgen.generateSpec(vc)
-    }
-
     generateCode(reporter, program, vcs)
     new CertificationReport(vcs)
-
-
-
   }
 
 }
