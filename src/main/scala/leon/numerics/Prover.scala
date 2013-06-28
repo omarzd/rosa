@@ -88,7 +88,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
     println("toCheck: " + toCheck)
 
     // At this point the sanity check has to pass, i.e. all infeasible paths have been ruled out.
-    val firstTry = if (reporter.errorCount == 0 && sanityCheck(precondition, body))
+    val firstTry = if (reporter.errorCount == 0 && sanityCheck(precondition, false, body))
       solver.checkSat(toCheck)
     else
       (None, None)
@@ -118,7 +118,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
   }
 
   // if true, we're sane
-  private def sanityCheck(pre: Expr, body: Expr = BooleanLiteral(true)): Boolean = {
+  private def sanityCheck(pre: Expr, silent: Boolean = true, body: Expr = BooleanLiteral(true)): Boolean = {
     val sanityCondition = And(pre, body)
     solver.checkSat(sanityCondition) match {
       case (SAT, model) =>
@@ -126,7 +126,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
         //reporter.info("model: " + model)
         true
       case (UNSAT, model) =>
-        reporter.warning("Not sane! " + sanityCondition)
+        if (!silent) reporter.warning("Not sane! " + sanityCondition)
         false
       case _ =>
         reporter.warning("Sanity check failed! ")// + sanityCondition)
@@ -217,16 +217,8 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
        Full APPROXIMATION
     * ******************* */
     case NoFncs_AA =>
-      // TODO: what happened with the precondition?
-      val (newConstraint, values) = approximatePaths(c.paths, c.pre, inputs)
-      println("AA computed: " + newConstraint)
-      println("values: " + values)
-      // TODO: simplify constraint, we don't need all the info
-      /*val paths = c.paths.collect {
-        case p: Path if (p.feasible) => getAPath(p).updateNoisy(True, True)
-      }*/
-      // Add either the range or the real part, not both (slows Z3 down)
-      ConstraintApproximation(newConstraint, Set(allTrueAPath), c.post, Set.empty, tpe, values)
+      val (newConstraint, apaths, values) = computeApproxForRes(c.paths, c.pre, inputs)
+      ConstraintApproximation(And(c.pre, newConstraint), apaths, c.post, Set.empty, tpe, values)
 
     case NoFncs_AAPathSensitive =>
       val paths = c.paths
@@ -238,10 +230,8 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
 
     case PostInlining_AA =>
       val (newPre, newBody, newPost, vars) = postInliner.inlinePostcondition(c.pre, c.body, c.post)
-      val (newConstraint, values) = approximatePaths(collectPaths(newBody), newPre, getVariableRecords(newPre))
-      val paths = collectPaths(newBody).map(p => getAPath(p).updateNoisy(True, True))
-      //ConstraintApproximation(newConstraint, Set(allTrueAPath), newPost, vars, tpe)
-      ConstraintApproximation(newConstraint, paths, newPost, vars, tpe, values)
+      val (newConstraint, apaths, values) = computeApproxForRes(collectPaths(newBody), newPre, getVariableRecords(newPre))
+      ConstraintApproximation(And(newPre, newConstraint), apaths, newPost, vars, tpe, values)
 
     case PostInlining_AAPathSensitive =>
       val (newPre, newBody, newPost, vars) = postInliner.inlinePostcondition(c.pre, c.body, c.post)
@@ -254,9 +244,8 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
 
     case FullInlining_AA =>
       val (newPre, newBody, newPost, vars) = postInliner.inlinePostcondition(c.pre, c.body, c.post)
-      val (newConstraint, values) = approximatePaths(collectPaths(newBody), newPre, getVariableRecords(newPre))
-      //val paths = collectPaths(newBody).map(p => getAPath(p).updateNoisy(True, True))
-      ConstraintApproximation(newConstraint, Set(allTrueAPath), newPost, vars, tpe, values)
+      val (newConstraint, apaths, values) = computeApproxForRes(collectPaths(newBody), newPre, getVariableRecords(newPre))
+      ConstraintApproximation(And(newPre, newConstraint), apaths, newPost, vars, tpe, values)
 
     case FullInlining_AAPathSensitive =>
       val (newPre, newBody, newPost, vars) = postInliner.inlinePostcondition(c.pre, c.body, c.post)
@@ -269,6 +258,15 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
 
       // TODO: automatic approximation of functions called without postcondition
       // TODO: If neither work, do partial approx.
+  }
+
+  private def computeApproxForRes(paths: Set[Path], pre: Expr, inputs: Map[Variable, Record]):
+    (Expr, Set[APath], Map[Expr, (RationalInterval, Rational)]) = {
+    for (p <- paths) computeApproximation(p, pre, inputs)
+    val (interval, error) = mergeRealPathResults(paths)(ResultVariable())
+    val newConstraint = Noise(ResultVariable(), RationalLiteral(error))
+    val apaths = paths.collect { case p: Path if (p.feasible) => getAPathRealOnly(p) }
+    (newConstraint, apaths, Map(ResultVariable() -> (interval, error)))
   }
 
 
@@ -297,7 +295,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
       path.indices= indices
 
     } else {
-      reporter.warning("skipping path " + path)
+      reporter.warning("skipping path " + path.condition)
       path.feasible = false
       // TODO: what to do here? we only checked the ideal part is impossible,
       // but the floating-point part may still be possible
@@ -306,10 +304,11 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
   }
 
 
-  private def getAPath(path: Path): APath = {
-    println("path.values: " + path.values)
+  private def getAPath(path: Path): APath =
     APath(path.condition, And(path.expression), True, And(path.expression), True, path.values)
-  }
+
+  private def getAPathRealOnly(path: Path): APath =
+    APath(path.condition, And(path.expression), True, True, True, path.values)
 
 
   // Returns a map from all variables to their final value, including local vars

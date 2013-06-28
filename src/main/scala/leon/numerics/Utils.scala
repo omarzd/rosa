@@ -244,6 +244,14 @@ object Utils {
     resMap
   }
 
+  /*def noiseConstraintFromResults(results: Map[Expr, (RationalInterval, Rational)]): Expr = {
+    And(results.foldLeft(Seq[Expr]())(
+      (seq, kv) => seq ++ Seq(LessEquals(RationalLiteral(kv._2._1.xlo), kv._1),
+                                  LessEquals(kv._1, RationalLiteral(kv._2._1.xhi)),
+                                  Noise(kv._1, RationalLiteral(kv._2._2)))))
+  }*/
+
+
   def constraintFromResults(results: Map[Expr, (RationalInterval, Rational)]): Expr = {
     And(results.foldLeft(Seq[Expr]())(
       (seq, kv) => seq ++ Seq(LessEquals(RationalLiteral(kv._2._1.xlo), kv._1),
