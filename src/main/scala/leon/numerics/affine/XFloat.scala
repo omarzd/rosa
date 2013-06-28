@@ -359,7 +359,7 @@ class XFloat(val tree: Expr, val approxRange: XRationalForm, val approxInterval:
     //println("initial approx: " + approx)
 
     val res = config.solver.tightenRange(preprocessedTree, condition, approx)
-    
+
     //val res = approx
     //println("after tightening: " + res)
 

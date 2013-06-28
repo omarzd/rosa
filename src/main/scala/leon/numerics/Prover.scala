@@ -282,6 +282,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
 
 
   private def computeApproximation(path: Path, precondition: Expr, inputs: Map[Variable, Record]) = {
+    println("approximating path : " + path.condition)
     val pathCondition = And(path.condition, filterPreconditionForBoundsIteration(precondition))
     if (sanityCheck(pathCondition)) {
       // The condition given to the solver is the real(ideal)-valued one, since we use Z3 for the real part only.

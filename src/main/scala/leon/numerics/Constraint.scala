@@ -15,8 +15,6 @@ import ApproximationType._
 // ApproximationPath
 case class APath(pathCondition: Expr, idealBody: Expr, idealCnst: Expr, actualBody: Expr, actualCnst: Expr) {
   def updateNoisy(newBody: Expr, newCnst: Expr): APath = {
-    println("updating: " + newBody)
-    println("updating: " + newCnst)
     APath(pathCondition, idealBody, idealCnst, newBody, newCnst)
   }
 }
