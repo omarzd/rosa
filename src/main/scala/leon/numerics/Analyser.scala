@@ -16,12 +16,12 @@ class Analyser(reporter: Reporter) {
   val verbose = false
 
   def analyzeThis(funDef: FunDef): VerificationCondition = {
-    reporter.info("")
-    reporter.info("-----> Analysing function " + funDef.id.name + "...")
+    if (verbose) reporter.info("")
+    if (verbose) reporter.info("-----> Analysing function " + funDef.id.name + "...")
 
-    //println("pre: " + funDef.precondition)
-    //println("\nbody: " + funDef.body)
-    //println("\npost: " + funDef.postcondition)
+    if (verbose) println("pre: " + funDef.precondition)
+    if (verbose) println("\nbody: " + funDef.body)
+    if (verbose) println("\npost: " + funDef.postcondition)
 
 
     val vc = new VerificationCondition(funDef)

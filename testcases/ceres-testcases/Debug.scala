@@ -14,7 +14,7 @@ object Debug {
 
     (- (331.4 + 0.6 * T) *v) / ((331.4 + 0.6*T + u)*(331.4 + 0.6*T + u))
 
-  } ensuring (res => -138.0 <= res && res <= -0.35 && noise(res, 1e-4))
+  } ensuring (res => -138.0 <= res && res <= -5.35 && noise(res, 1e-4))
 
 
   def doppler0(u: Real, v: Real, T: Real): Real = {
