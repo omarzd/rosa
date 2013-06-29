@@ -19,7 +19,7 @@ object Mean {
 
   def aspecIsAlwaysLess(y1: Real, y2: Real, y3: Real, y4: Real, y5: Real, y6: Real): Boolean = {
     require(y1.in(-1200, 1200) && y2.in(-1200, 1200) && y3.in(-1200, 1200) &&
-     y4.in(-1200, 1200) && y5.in(-1200, 1200) && y6.in(-1200, 1200) && roundoff(y1, y2, y3, y4, y5) && roundoff(y6))
+     y4.in(-1200, 1200) && y5.in(-1200, 1200) && y6.in(-1200, 1200))
 
     meanSpec(y1, y2, y3, y4, y5, y6) <= meanImpl(y1, y2, y3, y4, y5, y6)
   } holds
@@ -34,7 +34,7 @@ object Mean {
 
   def meanSpec(x1: Real, x2: Real, x3: Real, x4: Real, x5: Real, x6: Real): Real = {
     require(x1.in(-1200, 1200) && x2.in(-1200, 1200) && x3.in(-1200, 1200) &&
-     x4.in(-1200, 1200) && x5.in(-1200, 1200) && x6.in(-1200, 1200) && roundoff(x1, x2, x3, x4, x5) && roundoff(x6))
+     x4.in(-1200, 1200) && x5.in(-1200, 1200) && x6.in(-1200, 1200))
 
     (x1 + x2 + x3 + x4 + x5 + x6) / 6.0
   }// ensuring(res => res <= 1200.0 && -1200.0 <= res && noise(res, 1e-10))
@@ -42,7 +42,7 @@ object Mean {
 
   def meanImpl(x1: Real, x2: Real, x3: Real, x4: Real, x5: Real, x6: Real): Real = {
     require(x1.in(-1200, 1200) && x2.in(-1200, 1200) && x3.in(-1200, 1200) &&
-     x4.in(-1200, 1200) && x5.in(-1200, 1200) && x6.in(-1200, 1200) && roundoff(x1, x2, x3, x4, x5) && roundoff(x6))
+     x4.in(-1200, 1200) && x5.in(-1200, 1200) && x6.in(-1200, 1200))
 
     val i1 = x1
     val i2 = (i1 + x2)/2.0
@@ -55,7 +55,7 @@ object Mean {
 
   /*def meanInlined(x1: Real, x2: Real, x3: Real, x4: Real, x5: Real, x6: Real): Boolean = {
     require(x1.in(-1200, 1200) && x2.in(-1200, 1200) && x3.in(-1200, 1200) &&
-     x4.in(-1200, 1200) && x5.in(-1200, 1200) && x6.in(-1200, 1200) && roundoff(x1, x2, x3, x4, x5) && roundoff(x6))
+     x4.in(-1200, 1200) && x5.in(-1200, 1200) && x6.in(-1200, 1200))
 
     val meanSpec = (x1 + x2 + x3 + x4 + x5 + x6) / 6.0
 
@@ -73,7 +73,7 @@ object Mean {
 
   /*def invariant1(y1: Real, y2: Real, y3: Real, y4: Real, y5: Real, y6: Real): Boolean = {
     require(y1.in(-1200, 1200) && y2.in(-1200, 1200) && y3.in(-1200, 1200) &&
-     y4.in(-1200, 1200) && y5.in(-1200, 1200) && y6.in(-1200, 1200) && roundoff(y1, y2, y3, y4, y5) && roundoff(y6))
+     y4.in(-1200, 1200) && y5.in(-1200, 1200) && y6.in(-1200, 1200))
 
     val m1 = meanSpec(y1, y2, y3, y4, y5, y6)
     val m2 = meanImpl(y1, y2, y3, y4, y5, y6)
