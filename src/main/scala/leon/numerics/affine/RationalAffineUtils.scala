@@ -33,7 +33,6 @@ object Utils {
   }
 
 
-  // TODO: fold
   def sumQueue(q: Queue[Deviation]): Rational = {
     var sum = Rational.zero
     val iter = q.iterator
@@ -63,7 +62,7 @@ object Utils {
     val fCouple = (xi: Deviation, yi: Deviation) => {
       val zi =  xi + yi
       if (!zi.isZero) deviation += zi
-      val x = 0  // TODO: can we get rid of this?
+      val x = 0
     }
     //println("addQueues")
     RationalDoubleQueueIterator.iterate(iterX, iterY, dummyDev, fx, fy, fCouple)
