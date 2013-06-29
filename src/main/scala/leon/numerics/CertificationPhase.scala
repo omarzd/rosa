@@ -94,13 +94,23 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
       }
 
     val vcs = generateVCs(reporter, sortedFncs)
-
     if (reporter.errorCount > 0) throw LeonFatalError()
-
     val vcMap: Map[FunDef, VerificationCondition] = vcs.map { t => (t.funDef, t) }.toMap
+    val sortedVCs = vcs.sortWith(
+      (vc1, vc2) =>
+        if (vc1.allFncCalls.size == 0) true
+        else if (vc2.allFncCalls.size == 0) false
+        else if (!vc1.allFncCalls.contains(vc2.id)) true
+        else if (!vc2.allFncCalls.contains(vc1.id)) false
+        else true//mutually recursive
+      )
+    //println("vcs: " + vcs)
+    //println("sorted: " + sortedVCs)
+    //for(vc <- vcs) prover.check(vc)
+
 
     val prover = new Prover(reporter, ctx, program, vcMap, precision, specgenType)
-    for(vc <- vcs) prover.check(vc)
+    for(vc <- vcs) prover.check(sortedVCs)
 
     if (simulation) {
       val simulator = new Simulator(reporter)
