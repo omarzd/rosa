@@ -19,9 +19,6 @@ import scala.math.{ScalaNumericConversions, ScalaNumber}
     def roundoff(x1: Real, x2: Real, x3: Real, x4: Real): Boolean = { throw new NotExecutableException(exMsg); false }
     def roundoff(x1: Real, x2: Real, x3: Real, x4: Real, x5: Real): Boolean = { throw new NotExecutableException(exMsg); false }
 
-
-    def morePrecise(x: Real, y: Real): Boolean = { throw new NotExecutableException(exMsg); false }
-
     def sqrt(x: Real): Real = { throw new NotExecutableException(exMsg); null }
 
   }
