@@ -582,13 +582,6 @@ trait Extractors {
       }
     }
 
-    object ExMorePrecise {
-      def unapply(tree: Apply): Option[(Tree, Tree)] = tree match {
-        case Apply(select, List(arg1, arg2)) if (select.toString == "leon.Real.morePrecise") => Some((arg1, arg2))
-        case _ => None
-      }
-    }
-
     object ExNoise {
       def unapply(tree: Apply): Option[(Tree, Tree)] = tree match {
         case Apply(select, List(arg1, arg2)) if (select.toString == "leon.Real.noise") => Some((arg1, arg2))

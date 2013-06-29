@@ -521,10 +521,6 @@ object Trees {
     val fixedType = BooleanType
   }
 
-  case class MorePrecise(lhs: Expr, rhs: Expr) extends Expr with FixedType {
-    val fixedType = BooleanType
-  }
-
   case class Actual(expr: Expr) extends Expr with FixedType {
     val fixedType = RealType
   }
@@ -532,11 +528,6 @@ object Trees {
   case class Sqrt(expr: Expr) extends Expr with FixedType {
     val fixedType = RealType
   }
-
-  // TODO: this can probably go, right?
-  /*case class Abs(expr: Expr) extends Expr with FixedType {
-    val fixedType = RealType
-  }*/
 
   /* Set expressions */
   case class FiniteSet(elements: Seq[Expr]) extends Expr {

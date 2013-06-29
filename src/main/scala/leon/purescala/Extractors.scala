@@ -53,7 +53,6 @@ object Extractors {
       case Modulo(t1,t2) => Some((t1,t2,Modulo))
       case Power(t1, t2) => Some((t1, t2, Power))
       case Noise(t1, t2) => Some((t1,t2,Noise))
-      case MorePrecise(t1, t2) => Some((t1, t2,MorePrecise))
       case LessThan(t1,t2) => Some((t1,t2,LessThan))
       case GreaterThan(t1,t2) => Some((t1,t2,GreaterThan))
       case LessEquals(t1,t2) => Some((t1,t2,LessEquals))
