@@ -38,7 +38,7 @@ object Mean {
      x4.in(-1200, 1200) && x5.in(-1200, 1200) && x6.in(-1200, 1200) && roundoff(x1, x2, x3, x4, x5) && roundoff(x6))
 
     (x1 + x2 + x3 + x4 + x5 + x6) / 6.0
-  } ensuring(res => res <= 1200.0 && -1200.0 <= res && noise(res, 1e-10))
+  }// ensuring(res => res <= 1200.0 && -1200.0 <= res && noise(res, 1e-10))
 
 
   def meanImpl(x1: Real, x2: Real, x3: Real, x4: Real, x5: Real, x6: Real): Real = {
@@ -52,7 +52,7 @@ object Mean {
     val i5 = (4*i4 + x5)/5.0
     val i6 = (5*i5 + x6)/6.0
     i6
-  }  ensuring(res => res <= 1200.0 && -1200.0 <= res && noise(res, 1e-10))
+  }//  ensuring(res => res <= 1200.0 && -1200.0 <= res && noise(res, 1e-10))
 
   /*def meanInlined(x1: Real, x2: Real, x3: Real, x4: Real, x5: Real, x6: Real): Boolean = {
     require(x1.in(-1200, 1200) && x2.in(-1200, 1200) && x3.in(-1200, 1200) &&

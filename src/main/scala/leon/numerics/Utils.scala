@@ -14,6 +14,7 @@ import affine.XFloat
 
 object Utils {
   val True = BooleanLiteral(true)
+  val False = BooleanLiteral(false)
 
   def formatOption[T](res: Option[T]): String = res match {
     case Some(xf) => xf.toString
@@ -102,6 +103,7 @@ object Utils {
     }
 
   }
+
 
   def collectPaths(expr: Expr): Set[Path] = expr match {
     case IfExpr(cond, then, elze) =>

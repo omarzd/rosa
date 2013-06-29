@@ -52,13 +52,11 @@ case class Constraint(pre: Expr, body: Expr, post: Expr, description: String) {
 
   var approxStrategy =
     if (hasFunctionCalls) {
-      //Seq(Uninterpreted_None, PostInlining_None, PostInlining_AA, FullInlining_None, FullInlining_AA)
+      //Seq(Uninterpreted_None) ++
       Seq(PostInlining_None, PostInlining_AA, PostInlining_AAPathSensitive, FullInlining_None, FullInlining_AA, FullInlining_AAPathSensitive)
-      //Seq(FullInlining_AA)
     } else {
-      Seq(Uninterpreted_None, NoFncs_AA)
-      //Seq(NoFncs_AA, NoFncs_AAPathSensitive)
-      //Seq(NoFncs_AAPathSensitive)
+      //Seq(Uninterpreted_None) ++
+      Seq(NoFncs_AA, NoFncs_AAPathSensitive)
     }
 
   def hasNextApproximation = !approxStrategy.isEmpty
@@ -72,9 +70,7 @@ case class Constraint(pre: Expr, body: Expr, post: Expr, description: String) {
     }
   }
 
-  // Should be sorted with most precise first
   var approximations = Seq[ConstraintApproximation]()
-
 
   // whether we already ran the AA approximation
   def approximationForSpec: Option[ConstraintApproximation] = {

@@ -17,111 +17,106 @@ import VariableShop._
 class NumericConstraintTransformer(buddy: Map[Expr, Expr], ress: Variable, eps: Variable,
   roundoffType: RoundoffType, reporter: Reporter) {
 
-    var errors: Seq[String] = Seq.empty
-    var extraConstraints: Seq[Expr] = Seq.empty
+  var errors: Seq[String] = Seq.empty
+  var extraConstraints: Seq[Expr] = Seq.empty
 
-    def addExtra(e: Expr) = extraConstraints = extraConstraints :+ e
+  def addExtra(e: Expr) = extraConstraints = extraConstraints :+ e
 
-    def init = {
-      errors = Seq.empty
-      extraConstraints = Seq[Equals]()//Seq(Equals(eps, RationalLiteral(unitRndoff)))
+  def init = {
+    errors = Seq.empty
+    extraConstraints = Seq[Equals]()//Seq(Equals(eps, RationalLiteral(unitRndoff)))
+  }
+
+  def printErrors = for (err <- errors) reporter.error(err)
+
+
+  def transformBlock(body: Expr): (Expr, Expr) = {
+    init
+    val (bodyCReal, bodyCNoisy) = transformBody(body)
+    printErrors
+    (bodyCReal, And(Seq(bodyCNoisy) ++ extraConstraints))
+  }
+
+  def transformIdealBlock(body: Expr): Expr = {
+    init
+    val newBody = transformIdealBody(body)
+    printErrors
+    And(Seq(newBody) ++ extraConstraints)
+  }
+
+  def transformNoisyBlock(body: Expr): Expr = {
+    init
+    val newBody = transformNoisyBody(body)
+    printErrors
+    And(Seq(newBody) ++ extraConstraints)
+  }
+
+  def transformCondition(cond: Expr): Expr = {
+    init
+    val condC = cond match {
+      case And(args) => args.map(p => transformPrePost(p))
+      case _ => Seq(transformPrePost(cond))
     }
+    printErrors
+    And(condC ++ extraConstraints)
+  }
 
-    def printErrors = for (err <- errors) reporter.error(err)
+  def getNoisyCondition(e: Expr): Expr = {
+    replace(buddy, e)
+  }
 
-
-    def transformBlock(body: Expr): (Expr, Expr) = {
-      init
-      val (bodyCReal, bodyCNoisy) = transformBody(body)
-      printErrors
-      (bodyCReal, And(Seq(bodyCNoisy) ++ extraConstraints))
-    }
-
-    def transformIdealBlock(body: Expr): Expr = {
-      init
-      val newBody = transformIdealBody(body)
-      printErrors
-      And(Seq(newBody) ++ extraConstraints)
-    }
-
-    def transformNoisyBlock(body: Expr): Expr = {
-      init
-      val newBody = transformNoisyBody(body)
-      printErrors
-      And(Seq(newBody) ++ extraConstraints)
-    }
-
-    def transformCondition(cond: Expr): Expr = {
-      init
-      val condC = cond match {
-        case And(args) => args.map(p => transformPrePost(p))
-        case _ => Seq(transformPrePost(cond))
+  def transformPrePost(e: Expr): Expr = e match {
+    case Noise(v @ Variable(id), r @ RationalLiteral(value)) =>
+      if (value < Rational.zero) { errors = errors :+ "Noise must be positive."; Error("negative noise " + value).setType(BooleanType)
+      } else {
+        And(LessEquals(RationalLiteral(-value), Minus(v, buddy(v))),
+          LessEquals(Minus(v, buddy(v)), r))
       }
-      printErrors
-      And(condC ++ extraConstraints)
-    }
+    case Noise(ResultVariable(), r @ RationalLiteral(value)) =>
+      if (value < Rational.zero) { errors = errors :+ "Noise must be positive."; Error("negative noise " + value).setType(BooleanType)
+      } else {
+        And(LessEquals(RationalLiteral(-value), Minus(ress, buddy(ress))),
+          LessEquals(Minus(ress, buddy(ress)), r))
+      }
 
-    def getNoisyCondition(e: Expr): Expr = {
-      replace(buddy, e)
-    }
+    case Roundoff(v @ Variable(id)) =>
+      val delta = getNewDelta
+      extraConstraints = extraConstraints :+ constrainDelta(delta)
+      Equals(buddy(v), Times(Plus(new RationalLiteral(1), delta), v))
 
-    def transformPrePost(e: Expr): Expr = e match {
-      case Noise(v @ Variable(id), r @ RationalLiteral(value)) =>
-        if (value < Rational.zero) { errors = errors :+ "Noise must be positive."; Error("negative noise " + value).setType(BooleanType)
-        } else {
-          And(LessEquals(RationalLiteral(-value), Minus(v, buddy(v))),
-            LessEquals(Minus(v, buddy(v)), r))
-        }
+    case LessThan(ResultVariable(), RationalLiteral(_)) | LessThan(RationalLiteral(_), ResultVariable()) =>
+      replace(Map(ResultVariable() -> ress), e)
+    case LessEquals(ResultVariable(), RationalLiteral(_)) | LessEquals(RationalLiteral(_), ResultVariable()) =>
+      replace(Map(ResultVariable() -> ress), e)
+    case GreaterThan(ResultVariable(), RationalLiteral(_)) | GreaterThan(RationalLiteral(_), ResultVariable()) =>
+      replace(Map(ResultVariable() -> ress), e)
+    case GreaterEquals(ResultVariable(), RationalLiteral(_)) | GreaterEquals(RationalLiteral(_), ResultVariable()) =>
+      replace(Map(ResultVariable() -> ress), e)
 
-      case Noise(ResultVariable(), r @ RationalLiteral(value)) =>
-        if (value < Rational.zero) { errors = errors :+ "Noise must be positive."; Error("negative noise " + value).setType(BooleanType)
-        } else {
-          And(LessEquals(RationalLiteral(-value), Minus(ress, buddy(ress))),
-            LessEquals(Minus(ress, buddy(ress)), r))
-        }
+    case LessThan(x, y) => LessThan(transformPrePost(x), transformPrePost(y))
+    case GreaterThan(x, y) => GreaterThan(transformPrePost(x), transformPrePost(y))
+    case LessEquals(x, y) => LessEquals(transformPrePost(x), transformPrePost(y))
+    case GreaterEquals(x, y) => GreaterEquals(transformPrePost(x), transformPrePost(y))
 
-      case Roundoff(v @ Variable(id)) =>
-        val delta = getNewDelta
-        extraConstraints = extraConstraints :+ constrainDelta(delta)
-        Equals(buddy(v), Times(Plus(new RationalLiteral(1), delta), v))
+    case Plus(x, y) => Plus(transformPrePost(x), transformPrePost(y))
+    case Minus(x, y) => Minus(transformPrePost(x), transformPrePost(y))
+    case Times(x, y) => Times(transformPrePost(x), transformPrePost(y))
+    case Division(x, y) => Division(transformPrePost(x), transformPrePost(y))
+    case UMinus(x) => UMinus(transformPrePost(x))
 
-      case LessThan(ResultVariable(), RationalLiteral(_)) | LessThan(RationalLiteral(_), ResultVariable()) =>
-        replace(Map(ResultVariable() -> ress), e)
-      case LessEquals(ResultVariable(), RationalLiteral(_)) | LessEquals(RationalLiteral(_), ResultVariable()) =>
-        replace(Map(ResultVariable() -> ress), e)
-      case GreaterThan(ResultVariable(), RationalLiteral(_)) | GreaterThan(RationalLiteral(_), ResultVariable()) =>
-        replace(Map(ResultVariable() -> ress), e)
-      case GreaterEquals(ResultVariable(), RationalLiteral(_)) | GreaterEquals(RationalLiteral(_), ResultVariable()) =>
-        replace(Map(ResultVariable() -> ress), e)
+    case Sqrt(x) =>
+      val r = getNewSqrtVariable
+      val xR = transformPrePost(x)
+      extraConstraints ++= Seq(Equals(Times(r, r), xR), LessEquals(RationalLiteral(zero), r))
+      r
 
-      case LessThan(x, y) => LessThan(transformPrePost(x), transformPrePost(y))
-      case GreaterThan(x, y) => GreaterThan(transformPrePost(x), transformPrePost(y))
-      case LessEquals(x, y) => LessEquals(transformPrePost(x), transformPrePost(y))
-      case GreaterEquals(x, y) => GreaterEquals(transformPrePost(x), transformPrePost(y))
+    case a @ Actual(v @ Variable(id)) => buddy(v)
+    case Actual(ResultVariable()) => buddy(ress)
 
-      case a @ Actual(v @ Variable(id)) => buddy(v)
-      case Actual(ResultVariable()) => buddy(ress)
-
-      case Actual(x) => reporter.error("Actual only allowed on variables, but not on: " + x.getClass); e
-
-      /*case MorePrecise(x @ Variable(id1), y @ Variable(id2)) =>
-        val x0 = buddy(x)
-        val y0 = buddy(y)
-        val y0_y = Minus(y0, y)
-        val y_y0 = Minus(y, y0)
-        val x0_x = Minus(x0, x)
-        val x_x0 = Minus(x, x0)
-        And(Seq(
-          LessEquals(y0_y, x_x0), LessEquals(y_y0, x_x0),
-          LessEquals(x_x0, y_y0), LessEquals(x_x0, y0_y)
-          ))
-
-      case MorePrecise(x, y) =>
-        reporter.error("MorePrecise only allowed on variables, but not on: " + x.getClass + ", " + y.getClass); e
-      */
-      case _ => e
-    }
-
+    case Actual(x) => reporter.error("Actual only allowed on variables, but not on: " + x.getClass); e
+    case _ => e
+  }
+  
   def transformIdealBody(e: Expr): Expr = e match {
     case Equals(v @ Variable(id), valueExpr) =>
       val real = transformIdealBody(valueExpr)
@@ -138,14 +133,7 @@ class NumericConstraintTransformer(buddy: Map[Expr, Expr], ress: Variable, eps: 
       IfExpr(realC, thenR, elseR)
 
     case And(args) =>
-      //var esReal: Seq[Expr] = Seq.empty
-
-      val esReal = args.foldLeft(Seq[Expr]())( (seq, arg) => seq :+ transformIdealBody(arg) )
-      /*for (arg <- args) {
-        val eReal = transformIdealBody(arg)
-        esReal = esReal :+ eReal
-      }*/
-      And(esReal)
+      And(args.foldLeft(Seq[Expr]())( (seq, arg) => seq :+ transformIdealBody(arg) ))
 
     case Plus(x, y) => Plus(transformIdealBody(x), transformIdealBody(y))
     case Minus(x, y) => Minus(transformIdealBody(x), transformIdealBody(y))
@@ -188,22 +176,8 @@ class NumericConstraintTransformer(buddy: Map[Expr, Expr], ress: Variable, eps: 
       IfExpr(noisyC, thenN, elseN)
 
     case And(args) =>
-      val esReal = args.foldLeft(Seq[Expr]())( (seq, arg) => seq :+ transformNoisyBody(arg) )
-      /*for (arg <- args) {
-        val eReal = transformIdealBody(arg)
-        esReal = esReal :+ eReal
-      }*/
-      And(esReal)
-      /*var esReal: Seq[Expr] = Seq.empty
-      var esNoisy: Seq[Expr] = Seq.empty
-
-      for (arg <- args) {
-        val (eReal, eNoisy) = transformNoisyBody(arg)
-        esReal = esReal :+ eReal
-        esNoisy = esNoisy :+ eNoisy
-      }
-      (And(esReal), And(esNoisy))*/
-
+      And(args.foldLeft(Seq[Expr]())( (seq, arg) => seq :+ transformNoisyBody(arg) ))
+      
     case Plus(x, y) =>
       val (mult, dlt) = getFreshRndoffMultiplier
       addExtra(constrainDelta(dlt))

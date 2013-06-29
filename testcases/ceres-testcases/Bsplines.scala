@@ -9,7 +9,6 @@ import Real._
 */
 object Bsplines {
 
-  // Z3 does not time out if let loose on the whole constraint
   def bspline0(u: Real): Real = {
     require(0 <= u && u <= 1)
     (1 - u) * (1 - u) * (1 - u)/6.0
@@ -20,8 +19,6 @@ object Bsplines {
     (1 - u) * (1 - u) * (1 - u) / 6.0
   } ensuring (res => 0 <= res && res <= 0.17 && noise(res, 1e-15))
 
-
-  //Z3 does not time out
   def bspline1(u: Real): Real = {
     require(0 <= u && u <= 1)
     (3 * u*u*u - 6 * u*u + 4) / 6.0

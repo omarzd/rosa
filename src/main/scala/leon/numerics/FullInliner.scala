@@ -49,7 +49,7 @@ class FullInliner(reporter: Reporter, vcMap: Map[FunDef, VerificationCondition])
     val (inlinedBody, cnstrBody, varsBody) = inlineFncCalls(body)
 
     //cntrs are the function bodies
-    (And(inlinedPre, And(cnstrPre)), And(inlinedBody, And(cnstrPost ++ cnstrBody)), inlinedPost, varsPre ++ varsPost ++ varsBody)
+    (And(And(cnstrPre), inlinedPre), And(And(cnstrBody), And(inlinedBody, And(cnstrPost))), inlinedPost, varsPre ++ varsPost ++ varsBody)
   }
 
   //@return (expr with inlined post, contraints on fresh variables, fresh variables used)

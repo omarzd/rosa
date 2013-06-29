@@ -129,23 +129,6 @@ class Analyser(reporter: Reporter) {
 
 
 
-  // It is complete, if the result is bounded below and above and the noise is specified.
-/*  private def isComplete(post: Expr): Boolean = {
-    post match {
-      case and @ And(args) =>
-        val variableBounds = Utils.getVariableBounds(and)
-        val noise = TreeOps.contains(and, (
-          a => a match {
-            case Noise(ResultVariable()) => true
-            case _ => false
-          }))
-        noise && variableBounds.contains(Variable(FreshIdentifier("#res")))
-
-      case _ =>
-        reporter.warning("Unsupported type of postcondition: " + post)
-        false
-    }
-  }
-*/
+  
 
 }
