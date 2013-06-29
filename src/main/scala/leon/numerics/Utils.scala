@@ -245,8 +245,27 @@ object Utils {
     def register(e: Expr, path: C) = path :+ e
 
     override def rec(e: Expr, path: C) = e match {
-      //case Noise(_, _) => BooleanLiteral(true)
       case Roundoff(expr) => BooleanLiteral(true)
+      case _ =>
+        super.rec(e, path)
+    }
+  }
+
+  class BoundsConverter(eps2: Variable, offset: Variable) extends TransformerWithPC {
+    type C = Seq[Expr]
+    val initC = Nil
+
+    def register(e: Expr, path: C) = path :+ e
+
+    override def rec(e: Expr, path: C) = e match {
+      case LessEquals(UMinus(eps), delta) if (eps.toString == "#eps") => LessThan(UMinus(eps2), delta)
+      case LessEquals(delta, eps) if (eps.toString == "#eps") => LessThan(delta, eps2)
+      case Equals(eps, machineEps) if (eps.toString == "#eps") => Equals(eps2, machineEps)
+
+      case LessEquals(r @ RationalLiteral(v), x) => LessThan(Minus(r, offset), x)
+      case GreaterEquals(x, r @ RationalLiteral(v)) => GreaterThan(x, Minus(r, offset))
+      case LessEquals(x, y) => LessThan(x, Plus(y, offset))
+      case GreaterEquals(x, y) => GreaterThan(Plus(x, offset), y)
       case _ =>
         super.rec(e, path)
     }

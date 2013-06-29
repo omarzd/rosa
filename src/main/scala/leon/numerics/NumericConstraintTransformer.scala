@@ -69,14 +69,12 @@ class NumericConstraintTransformer(buddy: Map[Expr, Expr], ress: Variable, eps: 
     case Noise(v @ Variable(id), r @ RationalLiteral(value)) =>
       if (value < Rational.zero) { errors = errors :+ "Noise must be positive."; Error("negative noise " + value).setType(BooleanType)
       } else {
-        And(LessEquals(RationalLiteral(-value), Minus(v, buddy(v))),
-          LessEquals(Minus(v, buddy(v)), r))
+        And(LessEquals(RationalLiteral(-value), Minus(v, buddy(v))), LessEquals(Minus(v, buddy(v)), r))
       }
     case Noise(ResultVariable(), r @ RationalLiteral(value)) =>
       if (value < Rational.zero) { errors = errors :+ "Noise must be positive."; Error("negative noise " + value).setType(BooleanType)
       } else {
-        And(LessEquals(RationalLiteral(-value), Minus(ress, buddy(ress))),
-          LessEquals(Minus(ress, buddy(ress)), r))
+        And(LessEquals(RationalLiteral(-value), Minus(ress, buddy(ress))), LessEquals(Minus(ress, buddy(ress)), r))
       }
 
     case Roundoff(v @ Variable(id)) =>

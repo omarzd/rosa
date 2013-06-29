@@ -25,11 +25,10 @@ class Analyser(reporter: Reporter) {
     val vc = new VerificationCondition(funDef)
     funDef.precondition match {
       case Some(p) =>
-        val collector = new VariableCollector
-        collector.transform(p)
-        vc.inputs = collector.recordMap
+        vc.inputs = getVariableRecords(p)
         if (verbose) reporter.info("inputs: " + vc.inputs)
-        vc.precondition = Some(p)
+        val impliedRndoff = vc.inputs.collect { case (k, Record(_, _, None, None)) =>  Roundoff(k) }
+        vc.precondition = Some(And(p, And(impliedRndoff.toSeq)))
         vc.allFncCalls ++= functionCallsOf(p).map(invc => invc.funDef.id.toString)
       case None =>
         vc.precondition = Some(BooleanLiteral(true))

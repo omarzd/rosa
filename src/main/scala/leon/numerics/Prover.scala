@@ -57,8 +57,6 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
       }
     }
 
-
-
     if (!vc.isInvariant) {
       val mainCnstr = if(vc.allConstraints.size > 0) vc.allConstraints.head
         else Constraint(vc.precondition.get, vc.body.get, BooleanLiteral(true), "wholebody")
@@ -94,8 +92,15 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
 
 
     //val toCheck = Implies(And(precondition, body), postcondition)
-    val toCheck = And(And(precondition, body), Not(postcondition)) //has to be unsat
+    var toCheck = And(And(precondition, body), Not(postcondition)) //has to be unsat
     println("toCheck: " + toCheck)
+
+    /*val eps2 = Variable(FreshIdentifier("#eps2")).setType(RealType)
+    val boundsConverter = new BoundsConverter(eps2, eps)
+    val toCheck2 = boundsConverter.transform(toCheck)
+    println("\n new to Check:")
+    println(toCheck2)
+    //toCheck = toCheck2*/
 
     // At this point the sanity check has to pass, i.e. all infeasible paths have been ruled out.
     val firstTry = if (reporter.errorCount == 0 && sanityCheck(precondition, false, body))
@@ -104,6 +109,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
       (None, None)
 
     println("first try: " + firstTry._1)
+    println(firstTry._2)
 
     firstTry match {
       case (UNSAT, _) => (Some(VALID), None)

@@ -11,7 +11,6 @@ import purescala.Common._
 
 object VariableShop {
 
-
   private var errCounter = 0
   private var deltaCounter = 0
   private var sqrtCounter = 0
