@@ -17,8 +17,7 @@ class Analyser(reporter: Reporter) {
 
   def analyzeThis(funDef: FunDef): VerificationCondition = {
     if (verbose) reporter.info("")
-    if (verbose) reporter.info("-----> Analysing function " + funDef.id.name + "...")
-
+    //if (verbose) reporter.info("-----> Analysing function " + funDef.id.name + "...")
     if (verbose) println("pre: " + funDef.precondition)
     if (verbose) println("\nbody: " + funDef.body)
     if (verbose) println("\npost: " + funDef.postcondition)
@@ -36,35 +35,36 @@ class Analyser(reporter: Reporter) {
         vc.precondition = Some(BooleanLiteral(true))
     }
 
-    val bodyPreprocessed = funDef.body.get
-    // TODO: what happens when we have sqrt?
     vc.allFncCalls ++= functionCallsOf(funDef.body.get).map(invc => invc.funDef.id.toString)
+    println("all fnc calls: " + vc.allFncCalls)
     
     vc.isInvariant = funDef.returnType == BooleanType
 
-    funDef.postcondition match {
+    var bodyProcessed = funDef.postcondition match {
       //invariant
       case Some(ResultVariable()) =>
-        val postConditions = getInvariantCondition(bodyPreprocessed)
-        val bodyWOLets = convertLetsToEquals(bodyPreprocessed)
+        val postConditions = getInvariantCondition(funDef.body.get)
+        val bodyWOLets = convertLetsToEquals(funDef.body.get)
         vc.body = Some(replace(postConditions.map(p => (p, BooleanLiteral(true))).toMap, bodyWOLets))
         vc.allConstraints = List(Constraint(vc.precondition.get, vc.body.get, Or(postConditions), "wholebody"))
+        bodyWOLets
+      // 'Normal' function R^n -> R
       case Some(post) =>
-        vc.body = Some(convertLetsToEquals(addResult(bodyPreprocessed)))
+        vc.body = Some(convertLetsToEquals(addResult(funDef.body.get)))
         val specC = Constraint(vc.precondition.get, vc.body.get, post, "wholeBody")
         vc.allConstraints = List(specC)
         vc.allFncCalls ++= functionCallsOf(post).map(invc => invc.funDef.id.toString)
-
+        vc.body.get
       // Auxiliary function, nothing to prove
       case None =>
         if (vc.isInvariant) reporter.warning("Forgotten holds on invariant " + funDef.id + "?")
-        vc.body = Some(convertLetsToEquals(addResult(bodyPreprocessed)))
+        vc.body = Some(convertLetsToEquals(addResult(funDef.body.get)))
+        vc.body.get
     }
 
-    // TODO: for invariant this has to be done also for the postcondition
-    if (containsFunctionCalls(vc.body.get)) {
+    if (containsFunctionCalls(bodyProcessed)) {
       val noiseRemover = new NoiseRemover
-      val paths = collectPaths(vc.body.get)
+      val paths = collectPaths(bodyProcessed)
       for (path <- paths) {
         var i = 0
         while (i != -1) {
@@ -81,7 +81,6 @@ class Analyser(reporter: Reporter) {
                   vc.allConstraints = vc.allConstraints :+ Constraint(
                       And(vc.precondition.get, path.condition), And(pathToFncCall), postcondition, "pre of call " + fncCall.toString)
                 case None => ;
-                  // TODO: if we have no precondition given, do we want to compute it?
               }
             }
           } else { i = -1}
@@ -94,7 +93,7 @@ class Analyser(reporter: Reporter) {
     //println(vc.allConstraints.mkString("\n -> ") )
 
     vc.funcArgs = vc.funDef.args.map(v => Variable(v.id).setType(RealType))
-    vc.localVars = allLetDefinitions(bodyPreprocessed).map(letDef => Variable(letDef._1).setType(RealType))
+    vc.localVars = allLetDefinitions(funDef.body.get).map(letDef => Variable(letDef._1).setType(RealType))
 
     vc
   }

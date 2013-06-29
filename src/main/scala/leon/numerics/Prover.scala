@@ -37,8 +37,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
   def check(vc: VerificationCondition) = {
     reporter.info("")
     reporter.info("----------> checking VC of " + vc.funDef.id.name)
-    println("is invariant? " + vc.isInvariant)
-
+    
     val start = System.currentTimeMillis
     for (c <- vc.allConstraints) {
       reporter.info("----------> checking constraint: " + c.description)
@@ -63,7 +62,6 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
     if (!vc.isInvariant) {
       val mainCnstr = if(vc.allConstraints.size > 0) vc.allConstraints.head
         else Constraint(vc.precondition.get, vc.body.get, BooleanLiteral(true), "wholebody")
-      println("main constraint: " + mainCnstr)
       vc.generatedPost = Some(getPost(mainCnstr, vc.inputs))
       reporter.info("Generated post: " + vc.generatedPost)
     }
@@ -247,7 +245,6 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
       postInliner.inlinePostcondition(c.pre, c.body, c.post) match {
         case Some((newPre, newBody, newPost, vars)) =>
           val (newConstraint, apaths, values) = computeApproxForRes(collectPaths(newBody), newPre, getVariableRecords(newPre))
-          println("newPre: " + newPre)
           Some(ConstraintApproximation(And(newPre, newConstraint), apaths, newPost, vars, tpe, values))
 
         case None => None
@@ -258,7 +255,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
       postInliner.inlinePostcondition(c.pre, c.body, c.post) match {
         case Some((newPre, newBody, newPost, vars)) =>
           val paths = collectPaths(newBody)
-          for (p <- paths) computeApproximation(p, newPre, inputs)
+          for (p <- paths) computeApproximation(p, newPre, getVariableRecords(newPre))
           val apaths = paths.collect {
             case p: Path if (p.feasible) => getAPath(p).updateNoisy(True, constraintFromXFloats(p.values))
           }
@@ -275,7 +272,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
     case FullInlining_AAPathSensitive =>
       val (newPre, newBody, newPost, vars) = fullInliner.inlineFunctions(c.pre, c.body, c.post)
       val paths = collectPaths(newBody)
-      for (p <- paths) computeApproximation(p, newPre, inputs)
+      for (p <- paths) computeApproximation(p, newPre, getVariableRecords(newPre))
       val apaths = paths.collect {
         case p: Path if (p.feasible) => getAPath(p).updateNoisy(True, constraintFromXFloats(p.values))
       }
