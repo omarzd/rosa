@@ -46,10 +46,14 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
       while (c.hasNextApproximation && !c.solved) {
         val next = c.getNextApproxType.get
         reporter.info("Computing approximation: " + next)
-        val approx = getNextApproximation(next, c, vc.inputs)
-        c.approximations = Seq(approx) ++ c.approximations
-        c.overrideStatus(checkWithZ3(approx, vc.allVariables))
-        reporter.info("RESULT: " + c.status)
+        getNextApproximation(next, c, vc.inputs) match {
+          case Some(approx) =>
+            c.approximations = Seq(approx) ++ c.approximations
+            c.overrideStatus(checkWithZ3(approx, vc.allVariables))
+            reporter.info("RESULT: " + c.status)
+          case None =>
+            reporter.info("Skipping")
+        }        
       }
     }
 
@@ -200,33 +204,32 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
   val allTrueAPath = APath(True, True, True, True, True)
 
     // TODO: we can cache some of the body transforms and reuse for AA...
-  def getNextApproximation(tpe: ApproximationType, c: Constraint, inputs: Map[Variable, Record]): ConstraintApproximation = tpe match {
+  def getNextApproximation(tpe: ApproximationType, c: Constraint, inputs: Map[Variable, Record]): Option[ConstraintApproximation] = tpe match {
     /* ******************
        NO APPROXIMATION
     * ******************* */
     case Uninterpreted_None =>
       val paths = collectPaths(c.body).map(p => getAPath(p))
-      ConstraintApproximation(c.pre, paths, c.post, Set.empty, tpe)
+      Some(ConstraintApproximation(c.pre, paths, c.post, Set.empty, tpe))
 
     case PostInlining_None =>
       postInliner.inlinePostcondition(c.pre, c.body, c.post) match {
         case Some((newPre, newBody, newPost, vars)) =>
-          ConstraintApproximation(newPre, collectPaths(newBody).map(p => getAPath(p)), newPost, vars, tpe)
-        case None =>
-          ConstraintApproximation(True, Set.empty, False, Set.empty, tpe)
+          Some(ConstraintApproximation(newPre, collectPaths(newBody).map(p => getAPath(p)), newPost, vars, tpe))
+        case None => None
       }
       
     case FullInlining_None =>
       val (newPre, newBody, newPost, vars) = fullInliner.inlineFunctions(c.pre, c.body, c.post)
       val paths = collectPaths(newBody).map(p => getAPath(p))
-      ConstraintApproximation(newPre, paths, newPost, vars, tpe)
+      Some(ConstraintApproximation(newPre, paths, newPost, vars, tpe))
 
     /* ******************
        Full APPROXIMATION
     * ******************* */
     case NoFncs_AA =>
       val (newConstraint, apaths, values) = computeApproxForRes(c.paths, c.pre, inputs)
-      ConstraintApproximation(And(c.pre, newConstraint), apaths, c.post, Set.empty, tpe, values)
+      Some(ConstraintApproximation(And(c.pre, newConstraint), apaths, c.post, Set.empty, tpe, values))
 
     case NoFncs_AAPathSensitive =>
       val paths = c.paths
@@ -234,18 +237,16 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
       val apaths = paths.collect {
         case p: Path if (p.feasible) => getAPath(p).updateNoisy(True, constraintFromXFloats(p.values))
       }
-      ConstraintApproximation(c.pre, apaths, c.post, Set.empty, tpe)
+      Some(ConstraintApproximation(c.pre, apaths, c.post, Set.empty, tpe))
 
     case PostInlining_AA =>
       postInliner.inlinePostcondition(c.pre, c.body, c.post) match {
         case Some((newPre, newBody, newPost, vars)) =>
           val (newConstraint, apaths, values) = computeApproxForRes(collectPaths(newBody), newPre, getVariableRecords(newPre))
           println("newPre: " + newPre)
-          ConstraintApproximation(And(newPre, newConstraint), apaths, newPost, vars, tpe, values)
+          Some(ConstraintApproximation(And(newPre, newConstraint), apaths, newPost, vars, tpe, values))
 
-        case None =>
-          // TODO: return None will be faster (don't have to go all the way to Z3)
-          ConstraintApproximation(True, Set.empty, False, Set.empty, tpe)
+        case None => None
       }
       
       
@@ -257,16 +258,15 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
           val apaths = paths.collect {
             case p: Path if (p.feasible) => getAPath(p).updateNoisy(True, constraintFromXFloats(p.values))
           }
-          ConstraintApproximation(newPre, apaths, newPost, vars, tpe)
+          Some(ConstraintApproximation(newPre, apaths, newPost, vars, tpe))
 
-        case None =>
-          ConstraintApproximation(True, Set.empty, False, Set.empty, tpe)
+        case None => None
       }
       
     case FullInlining_AA =>
       val (newPre, newBody, newPost, vars) = fullInliner.inlineFunctions(c.pre, c.body, c.post)
       val (newConstraint, apaths, values) = computeApproxForRes(collectPaths(newBody), newPre, getVariableRecords(newPre))
-      ConstraintApproximation(And(newPre, newConstraint), apaths, newPost, vars, tpe, values)
+      Some(ConstraintApproximation(And(newPre, newConstraint), apaths, newPost, vars, tpe, values))
 
     case FullInlining_AAPathSensitive =>
       val (newPre, newBody, newPost, vars) = fullInliner.inlineFunctions(c.pre, c.body, c.post)
@@ -275,7 +275,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
       val apaths = paths.collect {
         case p: Path if (p.feasible) => getAPath(p).updateNoisy(True, constraintFromXFloats(p.values))
       }
-      ConstraintApproximation(newPre, apaths, newPost, vars, tpe)
+      Some(ConstraintApproximation(newPre, apaths, newPost, vars, tpe))
 
       // TODO: automatic approximation of functions called without postcondition
       // TODO: If neither work, do partial approx.
@@ -380,31 +380,40 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
   **************************** */
   private def getPost(c: Constraint, inputs: Map[Variable, Record]): Expr = (specGenType, c.hasFunctionCalls) match {
     case (Simple, false) =>
-      val approx = findApproximation(c, inputs, List(NoFncs_AA))
-      constraintFromResults(Map(ResultVariable() -> approx.values(ResultVariable())))
+      findApproximation(c, inputs, List(NoFncs_AA)) match {
+        case Some(approx) => constraintFromResults(Map(ResultVariable() -> approx.values(ResultVariable())))
+        case None => True
+      }
+      
     case (Simple, true) =>
-      val approx = findApproximation(c, inputs, List(PostInlining_AA, FullInlining_AA))
-      constraintFromResults(Map(ResultVariable() -> approx.values(ResultVariable())))
-
+      findApproximation(c, inputs, List(PostInlining_AA, FullInlining_AA)) match {
+        case Some(approx) => constraintFromResults(Map(ResultVariable() -> approx.values(ResultVariable())))
+        case None => True
+      }
+      
     case (PathSensitive, false) =>
-      val approx = findApproximation(c, inputs, List(NoFncs_AAPathSensitive))
-      val newPost: Seq[Expr] = approx.paths.foldLeft(Seq[Expr]())(
+      findApproximation(c, inputs, List(NoFncs_AAPathSensitive)) match {
+        case Some(approx) => val newPost: Seq[Expr] = approx.paths.foldLeft(Seq[Expr]())(
             (s, p) => s :+ And(p.pathCondition, constraintFromXFloats(Map(ResultVariable() -> p.values(ResultVariable())))))
-      Or(newPost)
-
+          Or(newPost)
+        case None => True
+      }
+      
     case (PathSensitive, true) =>
-      val approx = findApproximation(c, inputs, List(PostInlining_AAPathSensitive, FullInlining_AAPathSensitive))
-      val newPost: Seq[Expr] = approx.paths.foldLeft(Seq[Expr]())(
+      findApproximation(c, inputs, List(PostInlining_AAPathSensitive, FullInlining_AAPathSensitive)) match {
+        case Some(approx) => val newPost: Seq[Expr] = approx.paths.foldLeft(Seq[Expr]())(
             (s, p) => s :+ And(p.pathCondition, constraintFromXFloats(Map(ResultVariable() -> p.values(ResultVariable())))))
-      Or(newPost)
-
+          Or(newPost)
+        case None => True
+      }
+      
     // TODO: this may have to be different if we have to use the function for verification
     case (NoGen, _) => True
   }
 
-  private def findApproximation(c: Constraint, inputs: Map[Variable, Record], tpes: List[ApproximationType]): ConstraintApproximation = {
+  private def findApproximation(c: Constraint, inputs: Map[Variable, Record], tpes: List[ApproximationType]): Option[ConstraintApproximation] = {
     c.approximations.find(a => tpes.contains(a.tpe)) match {
-      case Some(app) => app
+      case Some(app) => Some(app)
       case None => getNextApproximation(tpes.head, c, inputs)
     }
   }
