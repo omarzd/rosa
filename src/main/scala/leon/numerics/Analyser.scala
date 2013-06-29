@@ -10,10 +10,13 @@ import purescala.Definitions._
 import purescala.Common._
 import Utils._
 import ArithmeticOps._
+import xlang.Trees._
 
 class Analyser(reporter: Reporter) {
 
   val verbose = false
+  val assertionRemover = new AssertionRemover
+
 
   def analyzeThis(funDef: FunDef): VerificationCondition = {
     if (verbose) reporter.info("")
@@ -59,6 +62,30 @@ class Analyser(reporter: Reporter) {
         vc.body.get
     }
 
+    if (containsAssertion(bodyProcessed)) {
+      val noiseRemover = new NoiseRemover
+      val paths = collectPaths(bodyProcessed)
+      for (path <- paths) {
+        var i = 0
+        while (i != -1) {
+          val j = path.expression.indexWhere(e => containsAssertion(e), i)
+          if (j != -1) {
+            i = j + 1
+            val pathToAssert = path.expression.take(j)
+            path.expression(j) match {
+              case Assertion(expr) =>
+                vc.allConstraints = vc.allConstraints :+ Constraint(
+                      And(vc.precondition.get, path.condition), And(pathToAssert), expr, "assertion")
+              case x =>
+                reporter.warning("This was supposed to be an assertion: " + x)
+            }
+          } else { i = -1}
+        }
+      }
+    }
+
+    vc.allConstraints = vc.allConstraints.map(c => Constraint(c.pre, assertionRemover.transform(c.body), c.post, c.description))
+
     if (containsFunctionCalls(bodyProcessed)) {
       val noiseRemover = new NoiseRemover
       val paths = collectPaths(bodyProcessed)
@@ -83,11 +110,12 @@ class Analyser(reporter: Reporter) {
           } else { i = -1}
         }
       }
-
     }
+
+
     //println("all fncCalls: " + vc.allFncCalls)
-    //println("All constraints generated: ")
-    //println(vc.allConstraints.mkString("\n -> ") )
+    if (verbose) reporter.info("All constraints generated: ")
+    if (verbose) reporter.info(vc.allConstraints.mkString("\n -> ") )
 
     vc.funcArgs = vc.funDef.args.map(v => Variable(v.id).setType(RealType))
     vc.localVars = allLetDefinitions(funDef.body.get).map(letDef => Variable(letDef._1).setType(RealType))
@@ -102,6 +130,7 @@ class Analyser(reporter: Reporter) {
     case Let(binder, value, body) => Let(binder, value, addResult(body))
     case UMinus(_) | Plus(_, _) | Minus(_, _) | Times(_, _) | Division(_, _) | Sqrt(_) | FunctionInvocation(_, _) | Variable(_) =>
       Equals(ResultVariable(), expr)
+    case Block(exprs, last) => Block(exprs, addResult(last))
     case _ => expr
   }
 
@@ -123,12 +152,37 @@ class Analyser(reporter: Reporter) {
     case Let(binder, value, body) =>
       And(Equals(Variable(binder), convertLetsToEquals(value)), convertLetsToEquals(body))
 
+    case Block(exprs, last) =>
+      And(exprs :+ last)
+
     case _ => expr
 
   }
 
 
+  def containsAssertion(expr : Expr) : Boolean = {
+    def convert(t : Expr) : Boolean = t match {
+      case f : Assertion => true
+      case _ => false
+    }
+    def combine(c1 : Boolean, c2 : Boolean) : Boolean = c1 || c2
+    def compute(t : Expr, c : Boolean) = t match {
+      case f : Assertion => true
+      case _ => c
+    }
+    treeCatamorphism(convert, combine, compute, expr)
+  }
 
-  
+  class AssertionRemover extends TransformerWithPC {
+    type C = Seq[Expr]
+    val initC = Nil
 
+    def register(e: Expr, path: C) = path :+ e
+
+    override def rec(e: Expr, path: C) = e match {
+      case Assertion(expr) => True
+      case _ =>
+        super.rec(e, path)
+    }
+  }
 }

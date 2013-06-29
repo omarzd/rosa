@@ -93,7 +93,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
 
     //val toCheck = Implies(And(precondition, body), postcondition)
     var toCheck = And(And(precondition, body), Not(postcondition)) //has to be unsat
-    println("toCheck: " + toCheck)
+    println("toCheck: " + filterDeltas(toCheck))
 
     /*val eps2 = Variable(FreshIdentifier("#eps2")).setType(RealType)
     val boundsConverter = new BoundsConverter(eps2, eps)
@@ -109,8 +109,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
       (None, None)
 
     println("first try: " + firstTry._1)
-    println(firstTry._2)
-
+    
     firstTry match {
       case (UNSAT, _) => (Some(VALID), None)
       case _ => // try again for each part separately

@@ -931,6 +931,7 @@ trait CodeExtraction extends Extractors {
             val rTree = rec(e)
             assert(rTree.getType == RealType)
             Actual(rTree).setType(RealType)
+          case ExAssertion(e) => Assertion(rec(e)).setType(BooleanType)
           case ExIn(id, t1, t2) =>
             val v = rec(id)
             And(LessThan(rec(t1), v), LessThan(v, rec(t2)))

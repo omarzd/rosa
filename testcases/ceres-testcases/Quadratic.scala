@@ -56,7 +56,7 @@ object Quadratic {
     val c1 = classicRoot1(a, b, c)
     val s1 = smartRoot1(a, b, c)
     s1 <= c1 + 0.001
-  }
+  } holds
 
   def tightInvariant2(a: Real, b: Real, c: Real): Boolean = {
     require(a.in(2.5, 3.5) && b.in(54.0, 57.0) && c.in(0.5, 1.5))
@@ -64,7 +64,7 @@ object Quadratic {
     val c2 = classicRoot2(a, b, c)
     val s2 = smartRoot2(a, b, c)
     s2 <= c2 + 0.001
-  }
+  } holds
 
   /* ---------------------
         More general bounds.

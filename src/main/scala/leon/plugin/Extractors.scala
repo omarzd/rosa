@@ -606,8 +606,14 @@ trait Extractors {
     object ExSqrt {
       def unapply(tree: Apply): Option[Tree] = tree match {
         case Apply(select, List(arg)) if (select.toString == "leon.Real.sqrt") => Some(arg)
-        case _ =>
-          None
+        case _ => None
+      }
+    }
+
+    object ExAssertion {
+      def unapply(tree: Apply): Option[Tree] = tree match {
+        case Apply(select, List(arg)) if (select.toString == "scala.this.Predef.assert") => Some(arg)
+        case _ => None
       }
     }
 

@@ -8,7 +8,6 @@ import purescala.TypeTrees._
 import purescala.TreeOps._
 import purescala.Definitions._
 import purescala.Common._
-
 import affine.XFloat
 
 

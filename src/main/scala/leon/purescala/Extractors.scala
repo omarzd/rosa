@@ -19,6 +19,7 @@ object Extractors {
       case Roundoff(t) => Some((t, Roundoff))
       case Actual(t) => Some((t, Actual))
       case Sqrt(t) => Some((t, Sqrt))
+      case Assertion(t) => Some((t, Assertion))
       case SetCardinality(t) => Some((t,SetCardinality))
       case MultisetCardinality(t) => Some((t,MultisetCardinality))
       case MultisetToSet(t) => Some((t,MultisetToSet))

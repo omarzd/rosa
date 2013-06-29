@@ -529,6 +529,10 @@ object Trees {
     val fixedType = RealType
   }
 
+  case class Assertion(expr: Expr) extends Expr with FixedType {
+    val fixedType = BooleanType
+  }
+
   /* Set expressions */
   case class FiniteSet(elements: Seq[Expr]) extends Expr {
     val tpe = if (elements.isEmpty) None else leastUpperBound(elements.map(_.getType))
