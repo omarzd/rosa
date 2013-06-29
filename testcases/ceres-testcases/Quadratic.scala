@@ -120,6 +120,7 @@ object Quadratic {
 
     val c1 = classicRoot1General(a, b, c)
     val s1 = smartRoot1General(a, b, c)
+    //s1 == c1 + 0.001
     s1 <= c1 + 0.001
   } holds
 
@@ -129,6 +130,7 @@ object Quadratic {
 
     val c2 = classicRoot2General(a, b, c)
     val s2 = smartRoot2General(a, b, c)
+    //s2 == c2 + 0.001
     s2 <= c2 + 0.001
   } holds
   

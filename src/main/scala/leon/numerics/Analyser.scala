@@ -17,7 +17,7 @@ class Analyser(reporter: Reporter) {
 
   def analyzeThis(funDef: FunDef): VerificationCondition = {
     if (verbose) reporter.info("")
-    //if (verbose) reporter.info("-----> Analysing function " + funDef.id.name + "...")
+    if (verbose) reporter.info("-----> Analysing function " + funDef.id.name + "...")
     if (verbose) println("pre: " + funDef.precondition)
     if (verbose) println("\nbody: " + funDef.body)
     if (verbose) println("\npost: " + funDef.postcondition)
@@ -36,8 +36,6 @@ class Analyser(reporter: Reporter) {
     }
 
     vc.allFncCalls ++= functionCallsOf(funDef.body.get).map(invc => invc.funDef.id.toString)
-    println("all fnc calls: " + vc.allFncCalls)
-    
     vc.isInvariant = funDef.returnType == BooleanType
 
     var bodyProcessed = funDef.postcondition match {
@@ -112,8 +110,8 @@ class Analyser(reporter: Reporter) {
   private def getInvariantCondition(expr: Expr): List[Expr] = expr match {
     case IfExpr(cond, then, elze) => getInvariantCondition(then) ++ getInvariantCondition(elze)
     case Let(binder, value, body) => getInvariantCondition(body)
-    case LessEquals(_, _) | LessThan(_, _) | GreaterThan(_, _) | GreaterEquals(_, _) | MorePrecise(_, _) =>
-      List(expr)
+    case LessEquals(_, _) | LessThan(_, _) | GreaterThan(_, _) | GreaterEquals(_, _) | MorePrecise(_, _) => List(expr)
+    case Equals(_, _) => List(expr)
     case _ =>
       reporter.error("Expected invariant, but found: " + expr.getClass)
       List(BooleanLiteral(false))
