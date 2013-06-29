@@ -26,7 +26,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
   precision: Precision, specGenType: SpecGenType) {
   val verbose = false
   val solver = new NumericSolver(ctx, program)
-  val postInliner = new PostconditionInliner(reporter)
+  val postInliner = new PostconditionInliner(reporter, vcMap)
   val fullInliner = new FullInliner(reporter, vcMap)
 
   val printStats = true

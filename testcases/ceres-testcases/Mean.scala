@@ -17,7 +17,7 @@ object Mean {
   */
 
 
-  def specIsAlwaysLess(y1: Real, y2: Real, y3: Real, y4: Real, y5: Real, y6: Real): Boolean = {
+  def aspecIsAlwaysLess(y1: Real, y2: Real, y3: Real, y4: Real, y5: Real, y6: Real): Boolean = {
     require(y1.in(-1200, 1200) && y2.in(-1200, 1200) && y3.in(-1200, 1200) &&
      y4.in(-1200, 1200) && y5.in(-1200, 1200) && y6.in(-1200, 1200) && roundoff(y1, y2, y3, y4, y5) && roundoff(y6))
 

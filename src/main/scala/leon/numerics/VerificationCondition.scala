@@ -15,7 +15,7 @@ import Utils._
 // It's one for each method, but may store several conditions to be proven.
 class VerificationCondition(val funDef: FunDef) {
 
-
+  val id = funDef.id.toString
   var inputs: Map[Variable, Record] = Map.empty
   var precondition: Option[Expr] = None
   var body: Option[Expr] = None
@@ -23,7 +23,7 @@ class VerificationCondition(val funDef: FunDef) {
   var funcArgs: Seq[Variable] = Seq.empty
   var localVars: Seq[Variable] = Seq.empty
   def allVariables: Seq[Variable] = funcArgs ++ localVars
-
+  var allFncCalls = Set[String]()
 
   // (Translated) Constraints
   var preConstraint: Option[Expr] = None
@@ -60,4 +60,6 @@ class VerificationCondition(val funDef: FunDef) {
   /* Some stats */
   var analysisTime: Option[Long] = None
   var verificationTime:Option[Long] = None
+
+  override def toString: String = "vc(" + id+")"
 }

@@ -29,6 +29,7 @@ object Utils {
     collector.recordMap
   }
 
+
   class VariableCollector extends TransformerWithPC {
     type C = Seq[Expr]
     val initC = Nil
@@ -89,6 +90,7 @@ object Utils {
       case GreaterThan(x @ Variable(name), IntLiteral(lwrBnd)) =>
         recordMap = recordMap + (x -> recordMap.getOrElse(x, emptyRecord).updateLo(Rational(lwrBnd))); e
 
+      
       case Noise(x @ Variable(id), RationalLiteral(value)) =>
         recordMap = recordMap + (x -> recordMap.getOrElse(x, emptyRecord).updateNoise(value)); e
 

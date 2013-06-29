@@ -23,7 +23,6 @@ class Analyser(reporter: Reporter) {
     if (verbose) println("\nbody: " + funDef.body)
     if (verbose) println("\npost: " + funDef.postcondition)
 
-
     val vc = new VerificationCondition(funDef)
     funDef.precondition match {
       case Some(p) =>
@@ -32,12 +31,15 @@ class Analyser(reporter: Reporter) {
         vc.inputs = collector.recordMap
         if (verbose) reporter.info("inputs: " + vc.inputs)
         vc.precondition = Some(p)
+        vc.allFncCalls ++= functionCallsOf(p).map(invc => invc.funDef.id.toString)
       case None =>
         vc.precondition = Some(BooleanLiteral(true))
     }
 
-    val bodyPreprocessed = funDef.body.get //collectPowers(funDef.body.get)
-
+    val bodyPreprocessed = funDef.body.get
+    // TODO: what happens when we have sqrt?
+    vc.allFncCalls ++= functionCallsOf(funDef.body.get).map(invc => invc.funDef.id.toString)
+    
     vc.isInvariant = funDef.returnType == BooleanType
 
     funDef.postcondition match {
@@ -51,6 +53,7 @@ class Analyser(reporter: Reporter) {
         vc.body = Some(convertLetsToEquals(addResult(bodyPreprocessed)))
         val specC = Constraint(vc.precondition.get, vc.body.get, post, "wholeBody")
         vc.allConstraints = List(specC)
+        vc.allFncCalls ++= functionCallsOf(post).map(invc => invc.funDef.id.toString)
 
       // Auxiliary function, nothing to prove
       case None =>
@@ -58,12 +61,10 @@ class Analyser(reporter: Reporter) {
         vc.body = Some(convertLetsToEquals(addResult(bodyPreprocessed)))
     }
 
-
-
+    // TODO: for invariant this has to be done also for the postcondition
     if (containsFunctionCalls(vc.body.get)) {
       val noiseRemover = new NoiseRemover
       val paths = collectPaths(vc.body.get)
-
       for (path <- paths) {
         var i = 0
         while (i != -1) {
@@ -88,6 +89,7 @@ class Analyser(reporter: Reporter) {
       }
 
     }
+    //println("all fncCalls: " + vc.allFncCalls)
     //println("All constraints generated: ")
     //println(vc.allConstraints.mkString("\n -> ") )
 

@@ -104,13 +104,11 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
         else if (!vc2.allFncCalls.contains(vc1.id)) false
         else true//mutually recursive
       )
-    //println("vcs: " + vcs)
-    //println("sorted: " + sortedVCs)
-    //for(vc <- vcs) prover.check(vc)
-
-
+    println("vcs: " + vcs)
+    println("sorted: " + sortedVCs)
+    
     val prover = new Prover(reporter, ctx, program, vcMap, precision, specgenType)
-    for(vc <- vcs) prover.check(sortedVCs)
+    for(vc <- sortedVCs) prover.check(vc)
 
     if (simulation) {
       val simulator = new Simulator(reporter)
