@@ -37,6 +37,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
   def check(vc: VerificationCondition) = {
     reporter.info("")
     reporter.info("----------> checking VC of " + vc.funDef.id.name)
+    println("is invariant? " + vc.isInvariant)
 
     val start = System.currentTimeMillis
     for (c <- vc.allConstraints) {
@@ -57,9 +58,12 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
       }
     }
 
+
+
     if (!vc.isInvariant) {
       val mainCnstr = if(vc.allConstraints.size > 0) vc.allConstraints.head
         else Constraint(vc.precondition.get, vc.body.get, BooleanLiteral(true), "wholebody")
+      println("main constraint: " + mainCnstr)
       vc.generatedPost = Some(getPost(mainCnstr, vc.inputs))
       reporter.info("Generated post: " + vc.generatedPost)
     }
@@ -405,6 +409,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
             (s, p) => s :+ And(p.pathCondition, constraintFromXFloats(Map(ResultVariable() -> p.values(ResultVariable())))))
           Or(newPost)
         case None => True
+
       }
       
     // TODO: this may have to be different if we have to use the function for verification

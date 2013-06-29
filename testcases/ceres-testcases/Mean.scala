@@ -2,7 +2,6 @@
 
 import leon.Real
 import Real._
-
 import leon.Utils._
 
 /*

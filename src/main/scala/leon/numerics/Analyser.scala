@@ -38,6 +38,8 @@ class Analyser(reporter: Reporter) {
 
     val bodyPreprocessed = funDef.body.get //collectPowers(funDef.body.get)
 
+    vc.isInvariant = funDef.returnType == BooleanType
+
     funDef.postcondition match {
       //invariant
       case Some(ResultVariable()) =>
@@ -45,7 +47,6 @@ class Analyser(reporter: Reporter) {
         val bodyWOLets = convertLetsToEquals(bodyPreprocessed)
         vc.body = Some(replace(postConditions.map(p => (p, BooleanLiteral(true))).toMap, bodyWOLets))
         vc.allConstraints = List(Constraint(vc.precondition.get, vc.body.get, Or(postConditions), "wholebody"))
-        vc.isInvariant = true
       case Some(post) =>
         vc.body = Some(convertLetsToEquals(addResult(bodyPreprocessed)))
         val specC = Constraint(vc.precondition.get, vc.body.get, post, "wholeBody")
@@ -53,6 +54,7 @@ class Analyser(reporter: Reporter) {
 
       // Auxiliary function, nothing to prove
       case None =>
+        if (vc.isInvariant) reporter.warning("Forgotten holds on invariant " + funDef.id + "?")
         vc.body = Some(convertLetsToEquals(addResult(bodyPreprocessed)))
     }
 
