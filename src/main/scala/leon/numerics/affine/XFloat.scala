@@ -11,6 +11,7 @@ import XRationalForm._
 import affine.Utils._
 import Precision._
 import numerics.Utils._
+import VariableShop._
 
 import collection.mutable.Queue
 import java.math.{BigInteger, BigDecimal}
@@ -304,7 +305,7 @@ class XFloat(val tree: Expr, val approxRange: XRationalForm, val approxInterval:
     val errorMultiplier = Rational(1l, 2l) / sqrtDown(a)
 
     //val newTree = Sqrt(this.tree)
-    val (sqrtVar, n) = getNewSqrtVariable
+    val (sqrtVar, n) = getNewSqrtVariablePair
     val newTree = sqrtVar
     val newCondition = And(Equals(Times(sqrtVar, sqrtVar), this.tree), LessEquals(RationalLiteral(zero), sqrtVar))
     val newConfig = config.addCondition(newCondition)

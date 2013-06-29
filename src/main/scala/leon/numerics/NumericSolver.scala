@@ -26,6 +26,19 @@ class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3
   var printWarnings = false
   var diagnose = true
   var countTimeouts = 0
+  var countTightRanges = 0
+  var countHitPrecisionThreshold = 0
+  var countHitIterationThreshold = 0
+
+  def clearCounts = {
+    countTimeouts = 0
+    countTightRanges = 0
+    countHitPrecisionThreshold = 0
+    countHitIterationThreshold = 0
+  }
+
+  def getCounts: String = "timeouts: %d, tight: %d, hit precision: %d, hit iteration: %d".format(
+    countTimeouts, countTightRanges, countHitPrecisionThreshold, countHitIterationThreshold)
 
   var precision = Rational.rationalFromReal(0.0001)
   val maxIterationsBinary = 20
@@ -114,14 +127,11 @@ class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3
 
 
   def tightenRange(tree: Expr, precondition: Expr, initialBound: RationalInterval): RationalInterval = tree match {
-    // Nothing to do for constants
     case IntLiteral(v) => initialBound
     case RationalLiteral(v) => initialBound
-
-    // Also nothing to do for variables
     case Variable(id) => initialBound
-
     case _ =>
+      assert(solver.getNumScopes == 0)
       solver.push
       assertCnstr(precondition)
 
@@ -138,17 +148,19 @@ class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3
       }
       // Check if bound is already tight, if so don't bother running Z3 search
       val newLowerBound =
-        if (lowerBoundIsTight(exprInZ3, a)) a
-        else getLowerBound(a, b, exprInZ3, 0)
-      //println("newLowerBound: " + newLowerBound)
+        if (lowerBoundIsTight(exprInZ3, a)) {
+          countTightRanges += 1
+          a
+        } else getLowerBound(a, b, exprInZ3, 0)
 
-      if (verbose)
-        println("\n============Looking for upperbound")
+      if (verbose) println("\n============Looking for upperbound")
 
       val newUpperBound =
-        if (upperBoundIsTight(exprInZ3, b)) b
+        if (upperBoundIsTight(exprInZ3, b)) {
+          countTightRanges += 1
+          b
+        }
         else getUpperBound(a, b, exprInZ3, 0)
-      //println("newUpperBound: " + newUpperBound)
 
       printBoundsResult(checkBounds(exprInZ3, newLowerBound, newUpperBound), "final")
 
@@ -164,69 +176,54 @@ class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3
   }
 
 
-  // TODO: Invariant: the lower bound is always sound, and the upper bound not
   private def getLowerBound(a: Rational, b: Rational, exprInZ3: Z3AST, count: Int): Rational = {
     // Enclosure of bound is precise enough
-    if (b-a < precision || count > maxIterationsBinary) {
+    if (b-a < precision) {
+      countHitPrecisionThreshold += 1
       return a
-    }
-    else {
-      if (verbose) {
-        println(a + "      -    " +b)
-        println("a: " + a.toFractionString)
-        println("b: " + b.toFractionString)
-      }
+    } else if (count > maxIterationsBinary) {
+      countHitIterationThreshold += 1
+      return a
+    } else {
       val mid = a + (b - a) / Rational(2l)
-      if (verbose) {
-        println("mid: " + mid)
-        println("mid: " + mid.toFractionString)
-      }
       val res = checkLowerBound(exprInZ3, mid)
 
-      if (verbose)
-        println("checked lwr bound: " + mid + ", with result: " + res)
+      if (verbose) println("checked lwr bound: " + mid + ", with result: " + res)
 
       res._1 match {
         case SAT => getLowerBound(a, mid, exprInZ3, count + 1)
         case UNSAT => getLowerBound(mid, b, exprInZ3, count + 1)
         case Unknown => // Return safe answer
-          //reporter.warning("Stopping (lower bnd) at iteration " + count)
           return a
       }
     }
   }
 
-  //TODO: Invariant the upper bound is always sound, the lower bnd not
   private def getUpperBound(a: Rational, b: Rational, exprInZ3: Z3AST, count: Int): Rational = {
-
     // Enclosure of bound is precise enough
-    if (b-a < precision || count > maxIterationsBinary) {
+    if (b-a < precision) {
+      countHitPrecisionThreshold += 1
       return b
-    }
-    else {
+    } else if (count > maxIterationsBinary) {
+      countHitIterationThreshold += 1
+      return b
+    } else {
       val mid = a + (b - a) / Rational(2l)
       val res = checkUpperBound(exprInZ3, mid)
 
-      if (verbose) {
-        println("checked upp bound: " + mid + ", with result: " + res)
-      }
+      if (verbose) println("checked upp bound: " + mid + ", with result: " + res)
 
       res._1 match {
         case SAT => getUpperBound(mid, b, exprInZ3, count + 1)
         case UNSAT => getUpperBound(a, mid, exprInZ3, count + 1)
         case Unknown => // Return safe answer
-          //reporter.warning("Stopping (upper bnd) at iteration " + count)
           return b
       }
     }
   }
 
-  // Checking constraints of bounds, the variables have already been added
-  // to the solver.
   private def checkConstraint: Sat = {
-    val resLower = solver.check
-
-    resLower match {
+    solver.check match {
       case Some(true) =>
         if (verbose) println("--> bound: SAT")
         SAT
@@ -235,14 +232,13 @@ class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3
         UNSAT
       case None =>
         if (printWarnings) println("!!! WARNING: Z3 SOLVER FAILED")
-        countTimeouts = countTimeouts + 1
+        countTimeouts += 1
         Unknown
     }
   }
 
   private def checkLowerBound(exprInZ3: Z3AST, bound: Rational): (Sat, String) = {
     var diagnoseString = ""
-
     solver.push
     solver.assertCnstr(z3.mkLT(exprInZ3, z3.mkNumeral(getNumeralString(bound), realSort)))
 
@@ -256,7 +252,6 @@ class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3
 
   private def checkUpperBound(exprInZ3: Z3AST, bound: Rational): (Sat, String) = {
     var diagnoseString = ""
-
     solver.push
     solver.assertCnstr(z3.mkGT(exprInZ3, z3.mkNumeral(getNumeralString(bound), realSort)))
 
@@ -272,9 +267,7 @@ class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3
   private def lowerBoundIsTight(exprInZ3: Z3AST, bound: Rational): Boolean = {
     solver.push
     solver.assertCnstr(z3.mkLT(exprInZ3, z3.mkNumeral(getNumeralString(bound + precision), realSort)))
-
     if (verbose) println("checking if lower bound is tight: " + solver.getAssertions.toSeq.mkString(",\n"))
-
     val res = checkConstraint
     solver.pop()
     res match {
@@ -286,19 +279,14 @@ class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3
   private def upperBoundIsTight(exprInZ3: Z3AST, bound: Rational): Boolean = {
     solver.push
     solver.assertCnstr(z3.mkGT(exprInZ3, z3.mkNumeral(getNumeralString(bound - precision), realSort)))
-
     if (verbose) println("checking: " + solver.getAssertions.toSeq.mkString(",\n"))
     val res = checkConstraint
-
     solver.pop()
     res match {
       case SAT => true
       case _ => false
     }
   }
-
-
-
 
   private def getNumeralString(r: Rational): String = {
     r.n.toString + "/" + r.d.toString

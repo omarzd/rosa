@@ -12,6 +12,7 @@ import purescala.Common._
 
 import RoundoffType._
 import Utils._
+import VariableShop._
 
 class PostconditionInliner(reporter: Reporter) extends TransformerWithPC {
   type C = Seq[Expr]
@@ -20,7 +21,6 @@ class PostconditionInliner(reporter: Reporter) extends TransformerWithPC {
   var constraints = Seq[Expr]()
   var vars = Set[Variable]()
 
-  // TODO: do we need this?
   def register(e: Expr, path: C) = path :+ e
 
   override def rec(e: Expr, path: C) = e match {
@@ -44,8 +44,8 @@ class PostconditionInliner(reporter: Reporter) extends TransformerWithPC {
     val (inlinedPre, cnstrPre, varsPre) = inlineFncPost(pre)
     val (inlinedPost, cnstrPost, varsPost) = inlineFncPost(post)
     val (inlinedBody, cnstrBody, varsBody) = inlineFncPost(body)
-
-    (And(inlinedPre, And(cnstrPre ++ cnstrBody)), inlinedBody, And(inlinedPost, And(cnstrPost)), varsPre ++ varsPost ++ varsBody)
+    (And(inlinedPre, And(cnstrPre ++ cnstrBody)), inlinedBody, And(inlinedPost, And(cnstrPost)),
+      varsPre ++ varsPost ++ varsBody)
   }
 
   //@return (expr with inlined post, contraints on fresh variables, fresh variables used)

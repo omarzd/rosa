@@ -15,53 +15,6 @@ import affine.XFloat
 object Utils {
   val True = BooleanLiteral(true)
 
-  private var errCounter = 0
-  private var deltaCounter = 0
-  private var sqrtCounter = 0
-  private var fncCounter = 0
-  private var resErrorCounter = 0
-
-  def getNewErrorVar: Variable = {
-    errCounter = errCounter + 1
-    Variable(FreshIdentifier("#err_" + errCounter)).setType(RealType)
-  }
-  def getNewDelta: Variable = {
-    deltaCounter = deltaCounter + 1
-    Variable(FreshIdentifier("#delta_" + deltaCounter)).setType(RealType)
-  }
-  def getNewSqrtVariable: (Variable, Variable) = {
-    sqrtCounter = sqrtCounter + 1
-    (Variable(FreshIdentifier("#sqrt" + sqrtCounter)).setType(RealType),
-      Variable(FreshIdentifier("#sqrt" + sqrtCounter + "_0")).setType(RealType))
-  }
-
-  def getNewFncVariable(id: String): Variable = {
-    fncCounter = fncCounter + 1
-    Variable(FreshIdentifier("#" + id + "_call_" + fncCounter)).setType(RealType)
-  }
-
-  def getNewResErrorVariable: Variable = {
-    resErrorCounter = resErrorCounter + 1
-    Variable(FreshIdentifier("#resErr" + resErrorCounter)).setType(RealType)
-  }
-
-  def getNamedError(v: Expr): Variable = {
-    Variable(FreshIdentifier("#err_(" + v.toString + ")")).setType(RealType)
-  }
-
-  def getRndoff(expr: Expr): (Expr, Variable) = {
-    val delta = getNewDelta
-    (Times(expr, delta), delta)
-  }
-
-  def getFreshRndoffMultiplier: (Expr, Variable) = {
-    val delta = getNewDelta
-    (Plus(new RationalLiteral(1), delta) , delta)
-  }
-
-
-
-
   def formatOption[T](res: Option[T]): String = res match {
     case Some(xf) => xf.toString
     case None => " -- "
@@ -162,15 +115,11 @@ object Utils {
 
       for (a <- args.tail) {
         var newPaths: Set[Path] = Set.empty
-
         val nextPaths = collectPaths(a)
 
-        // TODO: in one loop?
-        for (np <- nextPaths) {
-          for (cp <- currentPaths) {
-            newPaths = newPaths + cp.addPath(np)
-          }
-        }
+        for (np <- nextPaths; cp <- currentPaths)
+          newPaths = newPaths + cp.addPath(np)
+
         currentPaths = newPaths
       }
       currentPaths

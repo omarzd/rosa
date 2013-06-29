@@ -13,6 +13,7 @@ import affine.{XFloat, XFloatConfig}
 import affine.XFloat._
 
 import Utils._
+import VariableShop._
 
 import Sat._
 import Valid._
@@ -27,6 +28,8 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
   val solver = new NumericSolver(ctx, program)
   val postInliner = new PostconditionInliner(reporter)
   val fullInliner = new FullInliner(reporter, vcMap)
+
+  val printStats = true
 
   val unitRoundoff = getUnitRoundoff(precision)
   val unitRoundoffDefault = getUnitRoundoff(Float64)
@@ -72,9 +75,9 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
 
     var (idealPart, actualPart) = (Seq[Expr](), Seq[Expr]())
     for(path <- ca.paths) {
-      val (aI, nI) = trans.transformBlock(path.idealBody)
+      val aI = trans.transformIdealBlock(path.idealBody)
       idealPart = idealPart :+ And(And(path.pathCondition, trans.transformCondition(path.idealCnst)), aI)
-      val (aN, nN) = trans.transformBlock(path.actualBody)
+      val nN = trans.transformNoisyBlock(path.actualBody)
       actualPart = actualPart :+ And(And(trans.getNoisyCondition(path.pathCondition), trans.transformCondition(path.actualCnst)), nN)
     }
 
@@ -288,9 +291,9 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
       // The condition given to the solver is the real(ideal)-valued one, since we use Z3 for the real part only.
       val config = XFloatConfig(reporter, solver, pathCondition, precision, unitRoundoff)
       val (variables, indices) = variables2xfloats(inputs, config)
-      solver.countTimeouts = 0
+      solver.clearCounts
       path.values = inXFloats(path.expression, variables, config) -- inputs.keys
-      reporter.info("Timeouts: " + solver.countTimeouts)
+      if (printStats) reporter.info("STAAATS: " + solver.getCounts)
       //println("path values: " + path.values)
       path.indices= indices
 

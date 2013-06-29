@@ -12,6 +12,7 @@ import purescala.Common._
 
 import RoundoffType._
 import Utils._
+import VariableShop._
 
 class FullInliner(reporter: Reporter, vcMap: Map[FunDef, VerificationCondition]) extends TransformerWithPC {
   type C = Seq[Expr]

@@ -12,6 +12,7 @@ import purescala.Common._
 
 import RoundoffType._
 import Utils._
+import VariableShop._
 
 class NumericConstraintTransformer(buddy: Map[Expr, Expr], ress: Variable, eps: Variable,
   roundoffType: RoundoffType, reporter: Reporter) {
@@ -36,6 +37,20 @@ class NumericConstraintTransformer(buddy: Map[Expr, Expr], ress: Variable, eps: 
       (bodyCReal, And(Seq(bodyCNoisy) ++ extraConstraints))
     }
 
+    def transformIdealBlock(body: Expr): Expr = {
+      init
+      val newBody = transformIdealBody(body)
+      printErrors
+      And(Seq(newBody) ++ extraConstraints)
+    }
+
+    def transformNoisyBlock(body: Expr): Expr = {
+      init
+      val newBody = transformNoisyBody(body)
+      printErrors
+      And(Seq(newBody) ++ extraConstraints)
+    }
+
     def transformCondition(cond: Expr): Expr = {
       init
       val condC = cond match {
@@ -49,7 +64,6 @@ class NumericConstraintTransformer(buddy: Map[Expr, Expr], ress: Variable, eps: 
     def getNoisyCondition(e: Expr): Expr = {
       replace(buddy, e)
     }
-
 
     def transformPrePost(e: Expr): Expr = e match {
       case Noise(v @ Variable(id), r @ RationalLiteral(value)) =>
@@ -108,7 +122,139 @@ class NumericConstraintTransformer(buddy: Map[Expr, Expr], ress: Variable, eps: 
       case _ => e
     }
 
+  def transformIdealBody(e: Expr): Expr = e match {
+    case Equals(v @ Variable(id), valueExpr) =>
+      val real = transformIdealBody(valueExpr)
+      Equals(v, real)
 
+    case Equals(ResultVariable(), valueExpr) =>
+      val real = transformIdealBody(valueExpr)
+      Equals(ress, real)
+
+    case IfExpr(cond, then, elze) =>
+      val thenR = transformIdealBody(then)
+      val elseR = transformIdealBody(elze)
+      val realC = transformIdealBody(cond)
+      IfExpr(realC, thenR, elseR)
+
+    case And(args) =>
+      //var esReal: Seq[Expr] = Seq.empty
+
+      val esReal = args.foldLeft(Seq[Expr]())( (seq, arg) => seq :+ transformIdealBody(arg) )
+      /*for (arg <- args) {
+        val eReal = transformIdealBody(arg)
+        esReal = esReal :+ eReal
+      }*/
+      And(esReal)
+
+    case Plus(x, y) => Plus(transformIdealBody(x), transformIdealBody(y))
+    case Minus(x, y) => Minus(transformIdealBody(x), transformIdealBody(y))
+    case Times(x, y) => Times(transformIdealBody(x), transformIdealBody(y))
+    case Division(x, y) => Division(transformIdealBody(x), transformIdealBody(y))
+    case UMinus(x) => UMinus(transformIdealBody(x))
+
+    case Sqrt(x) =>
+      val r = getNewSqrtVariable
+      val xR = transformIdealBody(x)
+      extraConstraints ++= Seq(Equals(Times(r, r), xR), LessEquals(RationalLiteral(zero), r))
+      r
+
+    case LessEquals(x, y) => LessEquals(transformIdealBody(x), transformIdealBody(y))
+    case LessThan(x, y) => LessThan(transformIdealBody(x), transformIdealBody(y))
+    case GreaterEquals(x, y) => GreaterEquals(transformIdealBody(x), transformIdealBody(y))
+    case GreaterThan(x, y) => GreaterThan(transformIdealBody(x), transformIdealBody(y))
+    case v: Variable => v
+    case r: RationalLiteral => r
+    case fnc @ FunctionInvocation(funDef, args) => fnc
+    case BooleanLiteral(true) => BooleanLiteral(true)
+    case _ =>
+      errors = errors :+ ("Unknown body! " + e);
+      Error("unknown body: " + e).setType(BooleanType)
+  }
+
+  def transformNoisyBody(e: Expr): Expr = e match {
+    case Equals(v @ Variable(id), valueExpr) =>
+      val noisy = transformNoisyBody(valueExpr)
+      Equals(buddy(v), noisy)
+
+    case Equals(ResultVariable(), valueExpr) =>
+      val noisy = transformNoisyBody(valueExpr)
+      Equals(buddy(ress), noisy)
+
+    case IfExpr(cond, then, elze) =>
+      val thenN = transformNoisyBody(then)
+      val elseN = transformNoisyBody(elze)
+      val noisyC = transformNoisyBody(cond)
+      IfExpr(noisyC, thenN, elseN)
+
+    case And(args) =>
+      val esReal = args.foldLeft(Seq[Expr]())( (seq, arg) => seq :+ transformNoisyBody(arg) )
+      /*for (arg <- args) {
+        val eReal = transformIdealBody(arg)
+        esReal = esReal :+ eReal
+      }*/
+      And(esReal)
+      /*var esReal: Seq[Expr] = Seq.empty
+      var esNoisy: Seq[Expr] = Seq.empty
+
+      for (arg <- args) {
+        val (eReal, eNoisy) = transformNoisyBody(arg)
+        esReal = esReal :+ eReal
+        esNoisy = esNoisy :+ eNoisy
+      }
+      (And(esReal), And(esNoisy))*/
+
+    case Plus(x, y) =>
+      val (mult, dlt) = getFreshRndoffMultiplier
+      addExtra(constrainDelta(dlt))
+      Times(Plus(transformNoisyBody(x), transformNoisyBody(y)), mult)
+
+    case Minus(x, y) =>
+      val (mult, dlt) = getFreshRndoffMultiplier
+      addExtra(constrainDelta(dlt))
+      Times(Minus(transformNoisyBody(x), transformNoisyBody(y)), mult)
+
+    case Times(x, y) =>
+      val (mult, dlt) = getFreshRndoffMultiplier
+      addExtra(constrainDelta(dlt))
+      Times(Times(transformNoisyBody(x), transformNoisyBody(y)), mult)
+
+    case Division(x, y) =>
+      val (mult, dlt) = getFreshRndoffMultiplier
+      addExtra(constrainDelta(dlt))
+      Times(Division(transformNoisyBody(x), transformNoisyBody(y)), mult)
+
+    case UMinus(x) => UMinus(transformNoisyBody(x))
+
+    case Sqrt(x) =>
+      val n = getNewSqrtVariable
+      val (mult, dlt) = getFreshRndoffMultiplier
+      addExtra(constrainDelta(dlt))
+      val xN = transformNoisyBody(x)
+      extraConstraints ++= Seq(Equals(Times(n, n), xN), LessEquals(RationalLiteral(zero), n))
+      Times(n, mult)
+
+    case LessEquals(x, y) => LessEquals(transformNoisyBody(x), transformNoisyBody(y))
+    case LessThan(x, y) => LessThan(transformNoisyBody(x), transformNoisyBody(y))
+    case GreaterEquals(x, y) => GreaterEquals(transformNoisyBody(x), transformNoisyBody(y))
+    case GreaterThan(x, y) => GreaterThan(transformNoisyBody(x), transformNoisyBody(y))
+    case v: Variable => buddy(v)
+
+    case r @ RationalLiteral(v) =>
+      if (isExact(v)) r
+      else {
+        val (mult, dlt) = getFreshRndoffMultiplier
+        addExtra(constrainDelta(dlt))
+        Times(r, mult)
+      }
+    case fnc @ FunctionInvocation(funDef, args) =>
+      FunctionInvocation(funDef, args.map(a => buddy(a)))
+
+    case BooleanLiteral(true) => BooleanLiteral(true)
+    case _ =>
+      errors = errors :+ ("Unknown body! " + e);
+      Error("unknown body: " + e).setType(BooleanType)
+  }
 
   def transformBody(e: Expr): (Expr, Expr) = e match {
 
@@ -170,7 +316,7 @@ class NumericConstraintTransformer(buddy: Map[Expr, Expr], ress: Variable, eps: 
       (UMinus(xR), UMinus(xN))
 
     case Sqrt(x) =>
-      val (r, n) = getNewSqrtVariable
+      val (r, n) = getNewSqrtVariablePair
       val (mult, dlt) = getFreshRndoffMultiplier
       addExtra(constrainDelta(dlt))
       val (xR, xN) = transformBody(x)
@@ -215,6 +361,7 @@ class NumericConstraintTransformer(buddy: Map[Expr, Expr], ress: Variable, eps: 
       errors = errors :+ ("Unknown body! " + e);
       (Error("unknown body: " + e).setType(BooleanType), Error("unknown body: " + e).setType(BooleanType))
   }
+
 
   private def constrainDelta(delta: Variable): Expr = {
     And(Seq(LessEquals(UMinus(eps), delta),
