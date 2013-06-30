@@ -12,6 +12,20 @@ import SpecGenType._
 class CodeGeneration(reporter: Reporter, precision: Precision) {
   val specTransformer = new SpecTransformer
 
+
+  val noiseDefSingle = new FunDef(FreshIdentifier("noise"), BooleanType, Seq(VarDecl(FreshIdentifier("x"), Float32Type)))
+  noiseDefSingle.body = Some(BooleanLiteral(true))
+
+  val noiseDefDouble = new FunDef(FreshIdentifier("noise"), BooleanType, Seq(VarDecl(FreshIdentifier("x"), Float64Type)))
+  noiseDefDouble.body = Some(BooleanLiteral(true))
+
+  val noiseDefDDouble = new FunDef(FreshIdentifier("noise"), BooleanType, Seq(VarDecl(FreshIdentifier("x"), FloatDDType)))
+  noiseDefDDouble.body = Some(BooleanLiteral(true))
+
+  val noiseDefQDouble = new FunDef(FreshIdentifier("noise"), BooleanType, Seq(VarDecl(FreshIdentifier("x"), FloatQDType)))
+  noiseDefQDouble.body = Some(BooleanLiteral(true))
+
+
   def specToCode(programId: Identifier, objectId: Identifier, vcs: Seq[VerificationCondition], specGenType: SpecGenType): Program = {
 
     var defs: Seq[Definition] = Seq.empty
@@ -26,7 +40,6 @@ class CodeGeneration(reporter: Reporter, precision: Precision) {
       val funDef = new FunDef(id, returnType, args)
       funDef.body = body
 
-      // TODO: noise(x) does not really exist in Doubles!
       f.precondition match {
         case Some(p) => funDef.precondition = Some(specTransformer.transform(f.precondition.get))
         case None => ;
@@ -40,6 +53,13 @@ class CodeGeneration(reporter: Reporter, precision: Precision) {
       defs = defs :+ funDef
     }
     val invariants: Seq[Expr] = Seq.empty
+
+    precision match {
+      case Float32 => defs = defs :+ noiseDefSingle
+      case Float64 => defs = defs :+ noiseDefDouble
+      case DoubleDouble => defs = defs :+ noiseDefDDouble
+      case QuadDouble => defs = defs :+ noiseDefQDouble
+    }
 
     val newProgram = Program(programId, ObjectDef(objectId, defs, invariants))
     newProgram
@@ -64,7 +84,6 @@ class CodeGeneration(reporter: Reporter, precision: Precision) {
     def register(e: Expr, path: C) = path :+ e
 
     override def rec(e: Expr, path: C) = e match {
-      //case Noise(_, _) => BooleanLiteral(true)
       case Roundoff(expr) => BooleanLiteral(true)
       case _ =>
         super.rec(e, path)
