@@ -39,14 +39,12 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
     var allVCs: Seq[VerificationCondition] = Seq.empty
     val analyser = new Analyser(reporter)
     for(funDef <- functions if (funDef.body.isDefined)) {
-      // TODO: why does the function body have to be defined?! We could also have functions that only function as API (e.g. closed source).
       allVCs = allVCs :+ analyser.analyzeThis(funDef)
     }
     allVCs
   }
 
 
-  // TODO: add the correct runtime checks
   def generateCode(reporter: Reporter, program: Program, vcs: Seq[VerificationCondition]) = {
     val codeGen = new CodeGeneration(reporter, precision)
     val newProgram = codeGen.specToCode(program.id, program.mainObject.id, vcs, specgenType)
@@ -103,7 +101,6 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
 
     val vcs = generateVCs(reporter, sortedFncs)
     if (reporter.errorCount > 0) throw LeonFatalError()
-    val vcMap: Map[FunDef, VerificationCondition] = vcs.map { t => (t.funDef, t) }.toMap
     val sortedVCs = vcs.sortWith(
       (vc1, vc2) =>
         if (vc1.allFncCalls.size == 0) true
@@ -118,8 +115,14 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
     while (!currentVCs.forall(vc => vc.proven) && !precisionsToTry.isEmpty) {
       precision = precisionsToTry.head
       reporter.info("Verification with precision: " + precision)
-      val prover = new Prover(reporter, ctx, program, vcMap, precision, specgenType)
-      currentVCs = sortedVCs.map( vc => prover.check(vc) )
+      var vcMap: Map[FunDef, VerificationCondition] = Map.empty //vcs.map { t => (t.funDef, t) }.toMap
+      val prover = new Prover(reporter, ctx, program, precision, specgenType)
+      for (vc <- sortedVCs) {
+        val checkedVC = prover.check(vc, vcMap)
+        vcMap = vcMap + (checkedVC.funDef -> checkedVC)
+      }
+      //currentVCs = sortedVCs.map( vc => prover.check(vc) )
+      currentVCs = vcMap.values.toSeq
       precisionsToTry = precisionsToTry.tail
       println("allProven: " + currentVCs.forall(vc => vc.proven))
     }

@@ -10,7 +10,6 @@ import Deviation._
 object Utils {
 
   // Until we get this sorted in Rational
-  // TODO: check this
   def sqrtUp(x: Rational): Rational = Rational(DirectedRounding.sqrtUp(Rational.scaleToIntsUp(x).doubleValue))
   def sqrtDown(x: Rational): Rational = Rational(DirectedRounding.sqrtDown(Rational.scaleToIntsDown(x).doubleValue))
 

@@ -23,7 +23,7 @@ package object numerics {
   }
 
   // Tests whether this rational can be represented without roundoff errors
-  // TODO: Since we don't know which precision we may test, returns, for now, true only for integers
+  // Since we don't know which precision we may test, returns, for now, true only for integers
   def isExact(r: Rational): Boolean = {
     r.isWhole
   }

@@ -22,12 +22,11 @@ import Precision._
 import SpecGenType._
 
 
-class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[FunDef, VerificationCondition],
-  precision: Precision, specGenType: SpecGenType) {
+class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: Precision, specGenType: SpecGenType) {
   val verbose = false
   val solver = new NumericSolver(ctx, program)
-  val postInliner = new PostconditionInliner(reporter, vcMap)
-  val fullInliner = new FullInliner(reporter, vcMap)
+  var postInliner = new PostconditionInliner(reporter, Map.empty) // dummy
+  var fullInliner = new FullInliner(reporter, Map.empty) //dummy
   val resultCollector = new ResultCollector
 
   val printStats = true
@@ -35,10 +34,13 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
   val unitRoundoff = getUnitRoundoff(precision)
   val unitRoundoffDefault = getUnitRoundoff(Float64)
 
-  def check(inputVC: VerificationCondition): VerificationCondition = {
+  def check(inputVC: VerificationCondition, vcMap: Map[FunDef, VerificationCondition]): VerificationCondition = {
     reporter.info("")
     reporter.info("----------> checking VC of " + inputVC.funDef.id.name)
     val vc: VerificationCondition = inputVC.copy(allConstraints = inputVC.allConstraints.map(c => c.copy()))
+
+    postInliner = new PostconditionInliner(reporter, vcMap)
+    fullInliner = new FullInliner(reporter, vcMap)
 
     val start = System.currentTimeMillis
     for (c <- vc.allConstraints) {
@@ -287,7 +289,6 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
       }
       Some(ConstraintApproximation(newPre, apaths, newPost, vars, tpe))
 
-      // TODO: automatic approximation of functions called without postcondition
       // TODO: If neither work, do partial approx.
   }
 
@@ -449,7 +450,6 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
 
       }
 
-    // TODO: this may have to be different if we have to use the function for verification
     case (NoGen, _) => True
   }
 

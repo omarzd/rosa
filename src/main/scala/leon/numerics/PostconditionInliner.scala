@@ -30,20 +30,21 @@ class PostconditionInliner(reporter: Reporter, vcMap: Map[FunDef, VerificationCo
     case FunctionInvocation(funDef, args) =>
       val fresh = getNewFncVariable(funDef.id.name)
       vars = vars + fresh
-      funDef.postcondition match {
-        case Some(post) if (postComplete.check(post)) =>
-          constraints = constraints :+ replace(Map(ResultVariable() -> fresh), post)
-        case _ =>
-          // TODO: should this be default? If so, we have to fix postGeneration to be the tightest possible first
-          vcMap(funDef).generatedPost match {
-            case Some(post) =>
-              assert(postComplete.check(post))
-              constraints = constraints :+ replace(Map(ResultVariable() -> fresh), post)
 
-            case None =>
+      // The generated post is the most precise of computed and given
+      vcMap(funDef).generatedPost match {
+        case Some(post) =>
+          assert(postComplete.check(post))
+          constraints = constraints :+ replace(Map(ResultVariable() -> fresh), post)
+
+        case None =>
+          funDef.postcondition match {
+            case Some(post) if (postComplete.check(post)) =>
+              constraints = constraints :+ replace(Map(ResultVariable() -> fresh), post)
+            case _ =>
               missingPost = true
               reporter.warning("inlining postcondition, but none found or is incomplete for " + e)
-          }          
+          }
       }
       fresh
 
@@ -68,7 +69,7 @@ class PostconditionInliner(reporter: Reporter, vcMap: Map[FunDef, VerificationCo
     (inlinedExpr, constraints, vars)
   }
 
- 
+
    // It is complete, if the result is bounded below and above and the noise is specified.
   /*private def isCompleteSpec(post: Expr): Boolean = {
     post match {
@@ -79,7 +80,7 @@ class PostconditionInliner(reporter: Reporter, vcMap: Map[FunDef, VerificationCo
         val noise = contains(and, (
           a => a match {
             case Noise(ResultVariable(), _) => true
-            case _ => 
+            case _ =>
               println("other: " + a)
               false
           }))
@@ -93,11 +94,11 @@ class PostconditionInliner(reporter: Reporter, vcMap: Map[FunDef, VerificationCo
   }*/
 }
 
-// Overkill? 
+// Overkill?
   class CompleteSpecChecker extends TransformerWithPC {
     type C = Seq[Expr]
     val initC = Nil
-    
+
     var lwrBound = false
     var upBound = false
     var noise = false

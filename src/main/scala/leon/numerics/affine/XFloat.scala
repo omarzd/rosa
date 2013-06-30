@@ -151,7 +151,6 @@ case class XFloatConfig(reporter: Reporter, solver: NumericSolver, precondition:
   @param config solver, precondition, which precision to choose
  */
  // TODO: would this also work with an interval for approxRange? (MUCH faster)
- // TODO: save the computed tight bounds!
 class XFloat(val tree: Expr, val approxRange: XRationalForm, val approxInterval: RationalInterval,
  val error: XRationalForm, val config: XFloatConfig) {
 
@@ -310,7 +309,6 @@ class XFloat(val tree: Expr, val approxRange: XRationalForm, val approxInterval:
     // if this.isExact
 
     val int = this.interval
-    // TODO: method on RationalInterval
     val a = min(abs(int.xlo), abs(int.xhi))
     val errorMultiplier = Rational(1l, 2l) / sqrtDown(a)
 
@@ -363,8 +361,6 @@ class XFloat(val tree: Expr, val approxRange: XRationalForm, val approxInterval:
   private def getTightInterval(tree: Expr, approx: RationalInterval, condition: Expr): RationalInterval = {
     //println("\n tightening: " + tree)
     //println("with pre: " + condition)
-    // TODO: this is probably hugely inefficient to do it this way
-    // TODO: we could also preprocess the sqrt tree here, but may be more expensive
     val preprocessedTree = ArithmeticOps.collectPowers(tree)
     //println("using: " + preprocessedTree)
     //println("initial approx: " + approx)
