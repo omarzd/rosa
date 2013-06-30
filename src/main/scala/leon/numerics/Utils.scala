@@ -89,7 +89,7 @@ object Utils {
       case GreaterThan(x @ Variable(name), IntLiteral(lwrBnd)) =>
         recordMap = recordMap + (x -> recordMap.getOrElse(x, emptyRecord).updateLo(Rational(lwrBnd))); e
 
-      
+
       case Noise(x @ Variable(id), RationalLiteral(value)) =>
         recordMap = recordMap + (x -> recordMap.getOrElse(x, emptyRecord).updateNoise(value)); e
 
@@ -101,6 +101,47 @@ object Utils {
 
       case _ =>
         super.rec(e, path)
+    }
+
+  }
+
+  class ResultCollector extends TransformerWithPC {
+    type C = Seq[Expr]
+    val initC = Nil
+    var lwrBound: Option[Rational] = None
+    var upBound: Option[Rational] = None
+    var error: Option[Rational] = None
+
+    def register(e: Expr, path: C) = path :+ e
+
+    override def rec(e: Expr, path: C) = e match {
+      case LessEquals(RationalLiteral(lwrBnd), ResultVariable()) => lwrBound = Some(lwrBnd); e
+      case LessEquals(ResultVariable(), RationalLiteral(uprBnd)) => upBound = Some(uprBnd); e
+      case LessEquals(IntLiteral(lwrBnd), ResultVariable()) => lwrBound = Some(Rational(lwrBnd)); e
+      case LessEquals(ResultVariable(), IntLiteral(uprBnd)) => upBound = Some(Rational(uprBnd)); e
+      case LessThan(RationalLiteral(lwrBnd), ResultVariable()) => lwrBound = Some(lwrBnd); e
+      case LessThan(ResultVariable(), RationalLiteral(uprBnd)) =>  upBound = Some(uprBnd); e
+      case LessThan(IntLiteral(lwrBnd), ResultVariable()) => lwrBound = Some(Rational(lwrBnd)); e
+      case LessThan(ResultVariable(), IntLiteral(uprBnd)) => upBound = Some(Rational(uprBnd)); e
+      case GreaterEquals(RationalLiteral(uprBnd), ResultVariable()) =>  upBound = Some(uprBnd); e
+      case GreaterEquals(ResultVariable(), RationalLiteral(lwrBnd)) => lwrBound = Some(lwrBnd); e
+      case GreaterEquals(IntLiteral(uprBnd), ResultVariable()) => upBound = Some(Rational(uprBnd)); e
+      case GreaterEquals(ResultVariable(), IntLiteral(lwrBnd)) => lwrBound = Some(Rational(lwrBnd)); e
+      case GreaterThan(RationalLiteral(uprBnd), ResultVariable()) =>  upBound = Some(uprBnd); e
+      case GreaterThan(ResultVariable(), RationalLiteral(lwrBnd)) => lwrBound = Some(lwrBnd); e
+      case GreaterThan(IntLiteral(uprBnd), ResultVariable()) => upBound = Some(Rational(uprBnd)); e
+      case GreaterThan(ResultVariable(), IntLiteral(lwrBnd)) => lwrBound = Some(Rational(lwrBnd)); e
+
+      case Noise(ResultVariable(), RationalLiteral(value)) => error = Some(value); e
+      case Noise(ResultVariable(), IntLiteral(value)) => error = Some(Rational(value)); e
+
+      case _ =>
+        super.rec(e, path)
+    }
+
+    def getResult(e: Expr): (Option[Rational], Option[Rational], Option[Rational]) = {
+      rec(e, initC)
+      (lwrBound, upBound, error)
     }
 
   }

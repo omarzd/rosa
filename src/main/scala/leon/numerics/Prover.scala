@@ -28,16 +28,18 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
   val solver = new NumericSolver(ctx, program)
   val postInliner = new PostconditionInliner(reporter, vcMap)
   val fullInliner = new FullInliner(reporter, vcMap)
+  val resultCollector = new ResultCollector
 
   val printStats = true
 
   val unitRoundoff = getUnitRoundoff(precision)
   val unitRoundoffDefault = getUnitRoundoff(Float64)
 
-  def check(vc: VerificationCondition) = {
+  def check(inputVC: VerificationCondition): VerificationCondition = {
     reporter.info("")
-    reporter.info("----------> checking VC of " + vc.funDef.id.name)
-    
+    reporter.info("----------> checking VC of " + inputVC.funDef.id.name)
+    val vc: VerificationCondition = inputVC.copy(allConstraints = inputVC.allConstraints.map(c => c.copy()))
+
     val start = System.currentTimeMillis
     for (c <- vc.allConstraints) {
       reporter.info("----------> checking constraint: " + c.description)
@@ -53,18 +55,20 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
             reporter.info("RESULT: " + c.status)
           case None =>
             reporter.info("Skipping")
-        }        
+        }
       }
     }
 
     if (!vc.isInvariant) {
       val mainCnstr = if(vc.allConstraints.size > 0) vc.allConstraints.head
-        else Constraint(vc.precondition.get, vc.body.get, BooleanLiteral(true), "wholebody")
+        else Constraint(vc.precondition, vc.body, True, "wholebody")
       vc.generatedPost = Some(getPost(mainCnstr, vc.inputs))
+
       reporter.info("Generated post: " + vc.generatedPost)
     }
     val totalTime = (System.currentTimeMillis - start)
     vc.verificationTime = Some(totalTime)
+    vc
   }
 
 
@@ -109,7 +113,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
       (None, None)
 
     println("first try: " + firstTry._1)
-    
+
     firstTry match {
       case (UNSAT, _) => (Some(VALID), None)
       case _ => // try again for each part separately
@@ -145,7 +149,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
         if (!silent) reporter.warning("Not sane! " + sanityCondition)
         false
       case _ =>
-        reporter.warning("Sanity check failed! ")// + sanityCondition)
+        reporter.info("Sanity check failed! ")// + sanityCondition)
         false
     }
   }
@@ -225,7 +229,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
           Some(ConstraintApproximation(newPre, collectPaths(newBody).map(p => getAPath(p)), newPost, vars, tpe))
         case None => None
       }
-      
+
     case FullInlining_None =>
       val (newPre, newBody, newPost, vars) = fullInliner.inlineFunctions(c.pre, c.body, c.post)
       val paths = collectPaths(newBody).map(p => getAPath(p))
@@ -254,8 +258,8 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
 
         case None => None
       }
-      
-      
+
+
     case PostInlining_AAPathSensitive =>
       postInliner.inlinePostcondition(c.pre, c.body, c.post) match {
         case Some((newPre, newBody, newPost, vars)) =>
@@ -268,7 +272,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
 
         case None => None
       }
-      
+
     case FullInlining_AA =>
       val (newPre, newBody, newPost, vars) = fullInliner.inlineFunctions(c.pre, c.body, c.post)
       val (newConstraint, apaths, values) = computeApproxForRes(collectPaths(newBody), newPre, getVariableRecords(newPre))
@@ -294,7 +298,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
     // TODO: this simplification only holds if we want to prove a normal fnc postcondition
     //val (interval, error) = mergeRealPathResults(paths)(ResultVariable())
     //val newConstraint = Noise(ResultVariable(), RationalLiteral(error))
-    
+
     val approxValues = mergeRealPathResults(paths)
     val newConstraint = constraintFromResults(approxValues)
     val apaths = paths.collect { case p: Path if (p.feasible) => getAPathRealOnly(p) }
@@ -384,19 +388,50 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
   /* *************************
     Specification Generation.
   **************************** */
+  private def getMostPrecise(provenPost: Expr, values: Map[Expr, (RationalInterval, Rational)]): Expr = {
+    import Rational.{min, max}
+    val (compInt, compErr) = values(ResultVariable())
+
+    val (lwrBnd, upBnd, error) = resultCollector.getResult(provenPost) match {
+      case (Some(l), Some(u), Some(err)) =>
+        (max(l, compInt.xlo), min(u, compInt.xhi), min(err, compErr))
+
+      case (Some(l), Some(u), None) =>
+        (max(l, compInt.xlo), min(u, compInt.xhi), compErr)
+      case (Some(l), None, Some(err)) =>
+        (max(l, compInt.xlo), compInt.xhi, min(err, compErr))
+      case (None, Some(u), Some(err)) =>
+        (compInt.xlo, min(u, compInt.xhi), min(err, compErr))
+
+      case (Some(l), None, None) =>
+        (max(l, compInt.xlo), compInt.xhi, compErr)
+      case (None, Some(u), None) =>
+        (compInt.xlo, min(u, compInt.xhi), compErr)
+      case (None, None, Some(err)) =>
+        (compInt.xlo, compInt.xhi, min(err, compErr))
+      case _=> (compInt.xlo, compInt.xhi, compErr)
+    }
+    constraintFromResults(Map(ResultVariable() -> (RationalInterval(lwrBnd, upBnd), error)))
+  }
+
+
   private def getPost(c: Constraint, inputs: Map[Variable, Record]): Expr = (specGenType, c.hasFunctionCalls) match {
     case (Simple, false) =>
-      findApproximation(c, inputs, List(NoFncs_AA)) match {
-        case Some(approx) => constraintFromResults(Map(ResultVariable() -> approx.values(ResultVariable())))
-        case None => True
+      (findApproximation(c, inputs, List(NoFncs_AA)), c.status) match {
+        case (Some(approx), Some(VALID)) => getMostPrecise(c.post, approx.values)
+        case (Some(approx), _) => constraintFromResults(Map(ResultVariable() -> approx.values(ResultVariable())))
+        case (None, Some(VALID)) => c.post
+        case (None, _) => True
       }
-      
+
     case (Simple, true) =>
-      findApproximation(c, inputs, List(PostInlining_AA, FullInlining_AA)) match {
-        case Some(approx) => constraintFromResults(Map(ResultVariable() -> approx.values(ResultVariable())))
-        case None => True
+      (findApproximation(c, inputs, List(PostInlining_AA, FullInlining_AA)), c.status) match {
+        case (Some(approx), Some(VALID)) => getMostPrecise(c.post, approx.values)
+        case (Some(approx), _) => constraintFromResults(Map(ResultVariable() -> approx.values(ResultVariable())))
+        case (None, Some(VALID)) => c.post
+        case (None, _) => True
       }
-      
+
     case (PathSensitive, false) =>
       findApproximation(c, inputs, List(NoFncs_AAPathSensitive)) match {
         case Some(approx) => val newPost: Seq[Expr] = approx.paths.foldLeft(Seq[Expr]())(
@@ -404,7 +439,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
           Or(newPost)
         case None => True
       }
-      
+
     case (PathSensitive, true) =>
       findApproximation(c, inputs, List(PostInlining_AAPathSensitive, FullInlining_AAPathSensitive)) match {
         case Some(approx) => val newPost: Seq[Expr] = approx.paths.foldLeft(Seq[Expr]())(
@@ -413,7 +448,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, vcMap: Map[
         case None => True
 
       }
-      
+
     // TODO: this may have to be different if we have to use the function for verification
     case (NoGen, _) => True
   }

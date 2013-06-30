@@ -364,6 +364,8 @@ object ScalaPrinter {
     case Int32Type => sb.append("Int")
     case Float64Type => sb.append("Double")
     case Float32Type => sb.append("Float")
+    case FloatDDType => sb.append("DoubleDouble")
+    case FloatQDType => sb.append("QuadDouble")
     case BooleanType => sb.append("Boolean")
     case ArrayType(bt) =>
       sb.append("Array[")

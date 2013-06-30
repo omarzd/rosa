@@ -10,12 +10,16 @@ package object numerics {
     type Precision = Value
     val Float64 = Value("Float64")
     val Float32 = Value("Float32")
+    val DoubleDouble = Value("DoubleDouble")
+    val QuadDouble = Value("QuadDouble")
   }
   import Precision._
 
   def getUnitRoundoff(precision: Precision): Rational = precision match {
     case Float32 => Rational(new BigInt(new BigInteger("1")), new BigInt(new BigInteger("2")).pow(23))
     case Float64 => Rational(new BigInt(new BigInteger("1")), new BigInt(new BigInteger("2")).pow(53))
+    case DoubleDouble => Rational(new BigInt(new BigInteger("1")), new BigInt(new BigInteger("2")).pow(105))
+    case QuadDouble => Rational(new BigInt(new BigInteger("1")), new BigInt(new BigInteger("2")).pow(211))
   }
 
   // Tests whether this rational can be represented without roundoff errors

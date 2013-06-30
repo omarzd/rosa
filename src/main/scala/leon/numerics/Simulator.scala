@@ -19,7 +19,7 @@ class Simulator(reporter: Reporter) {
     reporter.info("-----> Simulating function " + vc.funDef.id.name + "...")
     val funDef = vc.funDef
 
-    val body = vc.body.get
+    val body = vc.body
 
     val inputs: Map[Variable, (RationalInterval, Rational)] = inputs2intervals(vc.inputs)
 

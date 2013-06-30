@@ -12,7 +12,6 @@ import SpecGenType._
 class CodeGeneration(reporter: Reporter, precision: Precision) {
   val specTransformer = new SpecTransformer
 
-  // Produces something that does not typecheck. But printed it should be fine.
   def specToCode(programId: Identifier, objectId: Identifier, vcs: Seq[VerificationCondition], specGenType: SpecGenType): Program = {
 
     var defs: Seq[Definition] = Seq.empty
@@ -37,10 +36,6 @@ class CodeGeneration(reporter: Reporter, precision: Precision) {
         funDef.postcondition = vc.generatedPost
       } else {
         funDef.postcondition = f.postcondition
-        /*f.postcondition match {
-          case Some(p) => funDef.postcondition = Some(specTransformer.transform(f.postcondition.get))
-          case None => ;
-        }*/
       }
       defs = defs :+ funDef
     }
@@ -51,10 +46,11 @@ class CodeGeneration(reporter: Reporter, precision: Precision) {
 
   }
 
-  // TODO: this should be parametric in which float we tested
   def getNonRealType(tpe: TypeTree): TypeTree = (tpe, precision) match {
     case (RealType, Float64) => Float64Type
     case (RealType, Float32) => Float32Type
+    case (RealType, DoubleDouble) => FloatDDType
+    case (RealType, QuadDouble) => FloatQDType
     case _ => tpe
   }
 

@@ -20,15 +20,15 @@ object CertificationReport {
   def infoLineCnstr(c: Constraint): String = (c.status, c.model) match {
     case (Some(INVALID), Some(m)) =>
       "║      %-10s %-10s %10s        %-36s ║\n".format(
-        c.numVariables,
-        c.size,
+        "", //c.numVariables,
+        "", //c.size,
         "INVALID", c.description
       ) +
       c.model.get.toSeq.map( x => "║ %-30s %-15s %-34s ║".format("", x._1, x._2)).mkString("\n")
     case (Some(x), _) =>
       "║      %-10s %-10s %10s        %-36s ║".format(
-        c.numVariables,
-        c.size,
+        "", //c.numVariables,
+        "", //c.size,
         x.toString, c.description
       )
     case (None, _) => "║ %-30s %s %-30s ║".format("", " -- ", "")

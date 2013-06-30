@@ -25,41 +25,42 @@ class Analyser(reporter: Reporter) {
     if (verbose) println("\nbody: " + funDef.body)
     if (verbose) println("\npost: " + funDef.postcondition)
 
-    val vc = new VerificationCondition(funDef)
-    funDef.precondition match {
+    var allFncCalls = Set[String]()
+    var constraints = List[Constraint]()
+
+    //val vc = new VerificationCondition(funDef)
+    val (inputVariables, vcPrecondition) = funDef.precondition match {
       case Some(p) =>
-        vc.inputs = getVariableRecords(p)
-        if (verbose) reporter.info("inputs: " + vc.inputs)
-        val impliedRndoff = vc.inputs.collect { case (k, Record(_, _, None, None)) =>  Roundoff(k) }
-        vc.precondition = Some(And(p, And(impliedRndoff.toSeq)))
-        vc.allFncCalls ++= functionCallsOf(p).map(invc => invc.funDef.id.toString)
+        val inputs = getVariableRecords(p)
+        if (verbose) reporter.info("inputs: " + inputs)
+        val impliedRndoff = inputs.collect { case (k, Record(_, _, None, None)) =>  Roundoff(k) }
+        allFncCalls ++= functionCallsOf(p).map(invc => invc.funDef.id.toString)
+        (inputs, And(p, And(impliedRndoff.toSeq)))
       case None =>
-        vc.precondition = Some(BooleanLiteral(true))
+        (Map[Variable, Record](), True)
     }
 
-    vc.allFncCalls ++= functionCallsOf(funDef.body.get).map(invc => invc.funDef.id.toString)
-    vc.isInvariant = funDef.returnType == BooleanType
+    allFncCalls ++= functionCallsOf(funDef.body.get).map(invc => invc.funDef.id.toString)
 
-    var bodyProcessed = funDef.postcondition match {
+    var (bodyProcessed, vcBody) = funDef.postcondition match {
       //invariant
       case Some(ResultVariable()) =>
         val postConditions = getInvariantCondition(funDef.body.get)
         val bodyWOLets = convertLetsToEquals(funDef.body.get)
-        vc.body = Some(replace(postConditions.map(p => (p, BooleanLiteral(true))).toMap, bodyWOLets))
-        vc.allConstraints = List(Constraint(vc.precondition.get, vc.body.get, Or(postConditions), "wholebody"))
-        bodyWOLets
+        val body = replace(postConditions.map(p => (p, True)).toMap, bodyWOLets)
+        constraints = constraints :+ Constraint(vcPrecondition, body, Or(postConditions), "wholebody")
+        (bodyWOLets, body)
       // 'Normal' function R^n -> R
       case Some(post) =>
-        vc.body = Some(convertLetsToEquals(addResult(funDef.body.get)))
-        val specC = Constraint(vc.precondition.get, vc.body.get, post, "wholeBody")
-        vc.allConstraints = List(specC)
-        vc.allFncCalls ++= functionCallsOf(post).map(invc => invc.funDef.id.toString)
-        vc.body.get
+        val body = convertLetsToEquals(addResult(funDef.body.get))
+        constraints = constraints :+ Constraint(vcPrecondition, body, post, "wholeBody")
+        allFncCalls ++= functionCallsOf(post).map(invc => invc.funDef.id.toString)
+        (body, body)
       // Auxiliary function, nothing to prove
       case None =>
-        if (vc.isInvariant) reporter.warning("Forgotten holds on invariant " + funDef.id + "?")
-        vc.body = Some(convertLetsToEquals(addResult(funDef.body.get)))
-        vc.body.get
+        if (funDef.returnType == BooleanType) reporter.warning("Forgotten holds on invariant " + funDef.id + "?")
+        val body = convertLetsToEquals(addResult(funDef.body.get))
+        (body, body)
     }
 
     if (containsAssertion(bodyProcessed)) {
@@ -74,8 +75,8 @@ class Analyser(reporter: Reporter) {
             val pathToAssert = path.expression.take(j)
             path.expression(j) match {
               case Assertion(expr) =>
-                vc.allConstraints = vc.allConstraints :+ Constraint(
-                      And(vc.precondition.get, path.condition), And(pathToAssert), expr, "assertion")
+                constraints = constraints :+ Constraint(
+                      And(vcPrecondition, path.condition), And(pathToAssert), expr, "assertion")
               case x =>
                 reporter.warning("This was supposed to be an assertion: " + x)
             }
@@ -84,7 +85,7 @@ class Analyser(reporter: Reporter) {
       }
     }
 
-    vc.allConstraints = vc.allConstraints.map(c => Constraint(c.pre, assertionRemover.transform(c.body), c.post, c.description))
+    constraints = constraints.map(c => Constraint(c.pre, assertionRemover.transform(c.body), c.post, c.description))
 
     if (containsFunctionCalls(bodyProcessed)) {
       val noiseRemover = new NoiseRemover
@@ -102,8 +103,8 @@ class Analyser(reporter: Reporter) {
                 case Some(p) =>
                   val args: Map[Expr, Expr] = fncCall.funDef.args.map(decl => decl.toVariable).zip(fncCall.args).toMap
                   val postcondition = replace(args, noiseRemover.transform(p))
-                  vc.allConstraints = vc.allConstraints :+ Constraint(
-                      And(vc.precondition.get, path.condition), And(pathToFncCall), postcondition, "pre of call " + fncCall.toString)
+                  constraints = constraints :+ Constraint(
+                      And(vcPrecondition, path.condition), And(pathToFncCall), postcondition, "pre of call " + fncCall.toString)
                 case None => ;
               }
             }
@@ -115,12 +116,12 @@ class Analyser(reporter: Reporter) {
 
     //println("all fncCalls: " + vc.allFncCalls)
     if (verbose) reporter.info("All constraints generated: ")
-    if (verbose) reporter.info(vc.allConstraints.mkString("\n -> ") )
+    if (verbose) reporter.info(constraints.mkString("\n -> ") )
 
-    vc.funcArgs = vc.funDef.args.map(v => Variable(v.id).setType(RealType))
-    vc.localVars = allLetDefinitions(funDef.body.get).map(letDef => Variable(letDef._1).setType(RealType))
+    //vc.funcArgs = vc.funDef.args.map(v => Variable(v.id).setType(RealType))
+    //vc.localVars = allLetDefinitions(funDef.body.get).map(letDef => Variable(letDef._1).setType(RealType))
 
-    vc
+    VerificationCondition(funDef, inputVariables, vcPrecondition, vcBody, allFncCalls, constraints)
   }
 
   // Has to run before we removed the lets!

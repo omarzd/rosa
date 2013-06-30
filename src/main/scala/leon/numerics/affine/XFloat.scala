@@ -126,7 +126,7 @@ object XFloat {
   val verbose = false
   // TODO: alright, this is not exact
   val MaxDouble = Rational(Double.MaxValue)
-  val MaxFloat = Rational(Double.MaxValue)
+  val MaxFloat = Rational(Float.MaxValue)
 
 }
 
@@ -178,6 +178,16 @@ class XFloat(val tree: Expr, val approxRange: XRationalForm, val approxInterval:
         config.reporter.warning("Potential overflow detected for: %s,\nwith precondition %s".format(tree, config.precondition))
       }
     case Float64 =>
+      if (interval.xlo < -MaxDouble || MaxDouble < interval.xhi) {
+        config.reporter.warning("Potential overflow detected for: %s,\nwith precondition %s".format(tree, config.precondition))
+        config.reporter.info(interval)
+      }
+    case DoubleDouble => // same range as Double
+      if (interval.xlo < -MaxDouble || MaxDouble < interval.xhi) {
+        config.reporter.warning("Potential overflow detected for: %s,\nwith precondition %s".format(tree, config.precondition))
+        config.reporter.info(interval)
+      }
+    case QuadDouble => // same range as Double
       if (interval.xlo < -MaxDouble || MaxDouble < interval.xhi) {
         config.reporter.warning("Potential overflow detected for: %s,\nwith precondition %s".format(tree, config.precondition))
         config.reporter.info(interval)

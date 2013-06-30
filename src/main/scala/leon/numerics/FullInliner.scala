@@ -29,7 +29,7 @@ class FullInliner(reporter: Reporter, vcMap: Map[FunDef, VerificationCondition])
       vars = vars + fresh
 
       val vc = vcMap(funDef)
-      val fncBody = vc.body.get
+      val fncBody = vc.body
       vars = vars ++ vc.localVars
 
       val arguments: Map[Expr, Expr] = funDef.args.map(decl => decl.toVariable).zip(args).toMap

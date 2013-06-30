@@ -58,7 +58,7 @@ object TypeTrees {
       this
     }
   }
-    
+
 
   sealed abstract class TypeTree extends Serializable {
     override def toString: String = PrettyPrinter(this)
@@ -171,6 +171,8 @@ object TypeTrees {
   case object RealType extends TypeTree
   case object Float64Type extends TypeTree
   case object Float32Type extends TypeTree
+  case object FloatDDType extends TypeTree
+  case object FloatQDType extends TypeTree
   case object UnitType extends TypeTree
 
   class TupleType private (val bases: Seq[TypeTree]) extends TypeTree {

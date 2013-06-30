@@ -24,12 +24,14 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
   var simulation = false
   var specgenType: SpecGenType = Simple
   var precision: Precision = Float64
+  // default: try 'em all
+  var precisionsToTry: List[Precision] = List(Float32, Float64, DoubleDouble, QuadDouble)
 
   override val definedOptions: Set[LeonOptionDef] = Set(
     LeonValueOptionDef("functions", "--functions=f1:f2", "Limit verification to f1, f2,..."),
     LeonFlagOptionDef("simulation", "--simulation", "Run a simulation instead of verification"),
     LeonValueOptionDef("specgen", "--specgen=simple", "What kind of specs to generate: none, simple, pathsensitive"),
-    LeonValueOptionDef("precision", "--precision=double", "Which precision to assume of the underlying floating-point arithmetic: single, double.")
+    LeonValueOptionDef("precision", "--precision=single:double", "Which precision to assume of the underlying floating-point arithmetic: single, double, doubledouble, quaddouble.")
   )
 
 
@@ -46,7 +48,7 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
 
   // TODO: add the correct runtime checks
   def generateCode(reporter: Reporter, program: Program, vcs: Seq[VerificationCondition]) = {
-    val codeGen = new CodeGeneration(reporter, Float64)
+    val codeGen = new CodeGeneration(reporter, precision)
     val newProgram = codeGen.specToCode(program.id, program.mainObject.id, vcs, specgenType)
     val newProgramAsString = ScalaPrinter(newProgram)
     reporter.info("Generated program with %d lines.".format(newProgramAsString.lines.length))
@@ -66,11 +68,15 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
     for (opt <- ctx.options) opt match {
       case LeonValueOption("functions", ListValue(fs)) => functionsToAnalyse = Set() ++ fs
       case LeonFlagOption("simulation") => simulation = true
-      case LeonValueOption("precision", ListValue(p)) => p.head match {
-        case "double" => precision = Float64
-        case "single" => precision = Float32
-        case _=> reporter.warning("Ignoring unknown precision: " + p)
-      }
+      case LeonValueOption("precision", ListValue(ps)) => precisionsToTry = ps.toList.map(p => p match {
+        case "single" => Float32
+        case "double" => Float64
+        case "doubledouble" => DoubleDouble
+        case "quaddouble" => QuadDouble
+        case _=>
+          reporter.warning("Unknown precision: " + p)
+          Float64
+      })
 
       case LeonValueOption("specgen", ListValue(s)) => s.head match {
         case "simple" => specgenType = Simple
@@ -80,6 +86,8 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
       }
       case _ =>
     }
+
+    println("precisionsToTry: " + precisionsToTry)
 
     val sortedFncs =
       if(functionsToAnalyse.isEmpty)
@@ -104,19 +112,25 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
         else if (!vc2.allFncCalls.contains(vc1.id)) false
         else true//mutually recursive
       )
-    println("vcs: " + vcs)
-    println("sorted: " + sortedVCs)
-    
-    val prover = new Prover(reporter, ctx, program, vcMap, precision, specgenType)
-    for(vc <- sortedVCs) prover.check(vc)
+    //println("vcs: " + vcs)
+    //println("sorted: " + sortedVCs)
+    var currentVCs = sortedVCs
+    while (!currentVCs.forall(vc => vc.proven) && !precisionsToTry.isEmpty) {
+      precision = precisionsToTry.head
+      reporter.info("Verification with precision: " + precision)
+      val prover = new Prover(reporter, ctx, program, vcMap, precision, specgenType)
+      currentVCs = sortedVCs.map( vc => prover.check(vc) )
+      precisionsToTry = precisionsToTry.tail
+      println("allProven: " + currentVCs.forall(vc => vc.proven))
+    }
 
     if (simulation) {
       val simulator = new Simulator(reporter)
       for(vc <- vcs) simulator.simulateThis(vc, precision)
     }
 
-    generateCode(reporter, program, vcs)
-    new CertificationReport(vcs)
+    generateCode(reporter, program, currentVCs)
+    new CertificationReport(currentVCs)
   }
 
 }
