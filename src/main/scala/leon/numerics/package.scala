@@ -48,6 +48,8 @@ package object numerics {
     val FullInlining_AA = Value("FullInlining_AA")
     val PostInlining_AAPathSensitive = Value("PostInlining_AAPathSensitive")
     val FullInlining_AAPathSensitive = Value("FullInlining_AAPathSensitive")
+
+    val NoFncs_PartialAA = Value("NoFncs_PartialAA")
   }
 
   object RoundoffType extends Enumeration {

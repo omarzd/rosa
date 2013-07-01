@@ -27,7 +27,7 @@ case class ConstraintApproximation(pre: Expr, paths: Set[APath], post: Expr, var
   values: Map[Expr, (RationalInterval, Rational)] = Map.empty) {
 
   //override def toString: String = "APP(%s && %s) ==> %s".format(pre.toString, paths.toString, post.toString)
-  override def toString: String = tpe.toString
+  //override def toString: String = tpe.toString
 }
 
 // An original (unapproximated constraint) derived from somewhere in the program.
@@ -54,10 +54,11 @@ case class Constraint(pre: Expr, body: Expr, post: Expr, description: String) {
     if (hasFunctionCalls) {
       //Seq(Uninterpreted_None) ++
       //Seq(PostInlining_None, PostInlining_AA, PostInlining_AAPathSensitive, FullInlining_None, FullInlining_AA, FullInlining_AAPathSensitive)
-      Seq(FullInlining_AA)
+      Seq(PostInlining_None, FullInlining_None, FullInlining_AA)
     } else {
-      Seq(Uninterpreted_None) ++
-      Seq(NoFncs_AA, NoFncs_AAPathSensitive)
+      //Seq(Uninterpreted_None) ++
+      //Seq(NoFncs_AA, NoFncs_AAPathSensitive)
+      Seq(NoFncs_PartialAA)
     }
 
   def hasNextApproximation = !approxStrategy.isEmpty

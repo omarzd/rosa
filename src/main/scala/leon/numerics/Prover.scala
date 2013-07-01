@@ -52,6 +52,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
         reporter.info("Computing approximation: " + next)
         getNextApproximation(next, c, vc.inputs) match {
           case Some(approx) =>
+            println("Approx: " + approx)
             c.approximations = Seq(approx) ++ c.approximations
             c.overrideStatus(checkWithZ3(approx, vc.allVariables))
             reporter.info("RESULT: " + c.status)
@@ -109,7 +110,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
     //toCheck = toCheck2*/
 
     // At this point the sanity check has to pass, i.e. all infeasible paths have been ruled out.
-    val firstTry = if (reporter.errorCount == 0 && sanityCheck(precondition, false, body))
+    val firstTry = if (reporter.errorCount == 0)// && sanityCheck(precondition, false, body))
       solver.checkSat(toCheck)
     else
       (None, None)
@@ -277,14 +278,6 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
 
     case FullInlining_AA =>
       val (newPre, newBody, newPost, vars) = fullInliner.inlineFunctions(c.pre, c.body, c.post)
-      println("pre: " + c.pre)
-      println("body: " + c.body)
-      println("post: " + c.post)
-
-      println("newpre: " + newPre)
-      println("newbody: " + newBody)
-      println("newpost: " + newPost)
-
       val (newConstraint, apaths, values) = computeApproxForRes(collectPaths(newBody), newPre, getVariableRecords(newPre))
       Some(ConstraintApproximation(And(newPre, newConstraint), apaths, newPost, vars, tpe, values))
 
@@ -296,6 +289,38 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
         case p: Path if (p.feasible) => getAPath(p).updateNoisy(True, constraintFromXFloats(p.values))
       }
       Some(ConstraintApproximation(newPre, apaths, newPost, vars, tpe))
+
+    case NoFncs_PartialAA =>
+      val paths = c.paths
+      if (!c.pathsApproximated) for (p <- paths) computeApproximation(p, c.pre, inputs)
+
+      val apaths = paths.collect {
+        case path: Path if (path.feasible) =>
+          val approx = path.expression.init.map(eq => eq match {
+            case Equals(v, expr) => Noise(v, RationalLiteral(path.values(v).maxError))
+            case _ => False
+            })
+
+          APath(path.condition,
+             path.expression.last, And(path.expression.init),
+             path.expression.last, And(approx), path.values)
+
+          /*  //Approximates only the first constraint
+          val firstExprConstraint = path.expression.head match {
+            case Equals(v @ Variable(id), expr) =>
+              //constraintFromXFloats(Map(v -> path.values(v)))
+              Noise(v, RationalLiteral(path.values(v).maxError))
+            case _ =>
+              reporter.error("UUUPS"); False
+          }
+
+          APath(path.condition,
+             And(path.expression.tail), path.expression.head,
+             And(path.expression.tail), firstExprConstraint, path.values)
+          */
+      }
+      Some(ConstraintApproximation(c.pre, apaths, c.post, Set.empty, tpe))
+
 
       // TODO: If neither work, do partial approx.
   }
@@ -327,15 +352,15 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
 
 
   private def computeApproximation(path: Path, precondition: Expr, inputs: Map[Variable, Record]) = {
-    println("approximating path : " + path.condition)
-    println("with body: " + path.expression)
+    //println("approximating path : " + path.condition)
+    //println("with body: " + path.expression)
     val pathCondition = And(path.condition, filterPreconditionForBoundsIteration(precondition))
     if (sanityCheck(pathCondition)) {
       // The condition given to the solver is the real(ideal)-valued one, since we use Z3 for the real part only.
       val config = XFloatConfig(reporter, solver, pathCondition, precision, unitRoundoff)
       val (variables, indices) = variables2xfloats(inputs, config)
       solver.clearCounts
-      path.values = inXFloats(path.expression, variables, config) -- inputs.keys
+      path.values = inXFloats(reporter, path.expression, variables, config) -- inputs.keys
       if (printStats) reporter.info("STAAATS: " + solver.getCounts)
       path.indices= indices
 
@@ -356,42 +381,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
     APath(path.condition, And(path.expression), True, True, True, path.values)
 
 
-  // Returns a map from all variables to their final value, including local vars
-  private def inXFloats(exprs: List[Expr], vars: Map[Expr, XFloat], config: XFloatConfig): Map[Expr, XFloat] = {
-    var currentVars: Map[Expr, XFloat] = vars
 
-    for (expr <- exprs) expr match {
-      case Equals(variable, value) =>
-        try {
-          val computedValue = eval(value, currentVars, config)
-          currentVars = currentVars + (variable -> computedValue)
-        } catch {
-          case UnsupportedFragmentException(msg) => reporter.error(msg)
-        }
-
-      case BooleanLiteral(true) => ;
-      case _ =>
-        reporter.error("AA cannot handle: " + expr)
-    }
-
-    currentVars
-  }
-
-  // Evaluates an arithmetic expression
-  private def eval(expr: Expr, vars: Map[Expr, XFloat], config: XFloatConfig): XFloat = expr match {
-    case v @ Variable(id) => vars(v)
-    case RationalLiteral(v) => XFloat(v, config)
-    case IntLiteral(v) => XFloat(v, config)
-    case UMinus(rhs) => - eval(rhs, vars, config)
-    case Plus(lhs, rhs) => eval(lhs, vars, config) + eval(rhs, vars, config)
-    case Minus(lhs, rhs) => eval(lhs, vars, config) - eval(rhs, vars, config)
-    case Times(lhs, rhs) => eval(lhs, vars, config) * eval(rhs, vars, config)
-    case Division(lhs, rhs) => eval(lhs, vars, config) / eval(rhs, vars, config)
-    case Sqrt(t) => eval(t, vars, config).squareRoot
-    case _ =>
-      throw UnsupportedFragmentException("AA cannot handle: " + expr)
-      null
-  }
 
 
   /* *************************
