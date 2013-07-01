@@ -14,7 +14,7 @@ import xlang.Trees._
 
 class Analyser(reporter: Reporter) {
 
-  val verbose = true
+  val verbose = false
   val assertionRemover = new AssertionRemover
 
 

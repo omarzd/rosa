@@ -24,6 +24,15 @@ class FullInliner(reporter: Reporter, vcMap: Map[FunDef, VerificationCondition])
   def register(e: Expr, path: C) = path :+ e
 
   override def rec(e: Expr, path: C) = e match {
+    case Equals(l, r) =>
+      constraints = Seq[Expr]()
+      val rhs = rec(r, path)
+
+      val newExpr = if (constraints.isEmpty) Equals(l, r)
+        else And(constraints :+ Equals(l, rhs))
+      constraints = Seq[Expr]()
+      newExpr
+
     case FunctionInvocation(funDef, args) =>
       val fresh = getNewFncVariable(funDef.id.name)
       vars = vars + fresh
@@ -33,7 +42,6 @@ class FullInliner(reporter: Reporter, vcMap: Map[FunDef, VerificationCondition])
       vars = vars ++ vc.localVars
 
       val arguments: Map[Expr, Expr] = funDef.args.map(decl => decl.toVariable).zip(args).toMap
-
       val newBody = replace(arguments + (ResultVariable() -> fresh), fncBody)
 
       val constraint = newBody
@@ -44,23 +52,20 @@ class FullInliner(reporter: Reporter, vcMap: Map[FunDef, VerificationCondition])
   }
 
   def inlineFunctions(pre: Expr, body: Expr, post: Expr): (Expr, Expr, Expr, Set[Variable]) = {
-    val (inlinedPre, cnstrPre, varsPre) = inlineFncCalls(pre)
-    val (inlinedPost, cnstrPost, varsPost) = inlineFncCalls(post)
-    val (inlinedBody, cnstrBody, varsBody) = inlineFncCalls(body)
-
-    // the new constraints have to be inlined just before their first use
-
-    //cntrs are the function bodies
-    (And(And(cnstrPre), inlinedPre), And(And(cnstrBody), And(inlinedBody, And(cnstrPost))), inlinedPost, varsPre ++ varsPost ++ varsBody)
-  }
-
-  //@return (expr with inlined post, contraints on fresh variables, fresh variables used)
-  def inlineFncCalls(expr: Expr): (Expr, Seq[Expr], Set[Variable]) = {
     constraints = Seq[Expr]()
     vars = Set[Variable]()
-    val inlinedExpr = this.transform(expr)
-    (inlinedExpr, constraints, vars)
-  }
+    val newPre = rec(pre, initC)
+    val cnstrPre = constraints
 
+    constraints = Seq[Expr]()
+    val newBody = rec(body, initC)
+    val cnstrBody = constraints
+
+    constraints = Seq[Expr]()
+    val newPost = rec(post, initC)
+    val cnstrPost = constraints
+
+    (And(And(cnstrPre), newPre), And(And(cnstrBody), And(newBody, And(cnstrPost))), newPost, vars)
+  }
 
 }

@@ -277,6 +277,14 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
 
     case FullInlining_AA =>
       val (newPre, newBody, newPost, vars) = fullInliner.inlineFunctions(c.pre, c.body, c.post)
+      println("pre: " + c.pre)
+      println("body: " + c.body)
+      println("post: " + c.post)
+
+      println("newpre: " + newPre)
+      println("newbody: " + newBody)
+      println("newpost: " + newPost)
+
       val (newConstraint, apaths, values) = computeApproxForRes(collectPaths(newBody), newPre, getVariableRecords(newPre))
       Some(ConstraintApproximation(And(newPre, newConstraint), apaths, newPost, vars, tpe, values))
 
