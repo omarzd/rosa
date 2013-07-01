@@ -121,7 +121,7 @@ class Analyser(reporter: Reporter) {
     //vc.localVars = allLetDefinitions(funDef.body.get).map(letDef => Variable(letDef._1).setType(RealType))
 
     val vc = VerificationCondition(funDef, inputVariables, vcPrecondition, vcBody, allFncCalls, constraints)
-    println("vc: " + vc)
+    //println("vc: " + vc)
     vc
   }
 

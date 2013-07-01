@@ -110,8 +110,10 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
         else true//mutually recursive
       )
     //println("vcs: " + vcs)
-    //println("sorted: " + sortedVCs)
+    println("sorted: " + sortedVCs)
+
     var currentVCs = sortedVCs
+    println(currentVCs.forall(vc => vc.proven))
     while (!currentVCs.forall(vc => vc.proven) && !precisionsToTry.isEmpty) {
       precision = precisionsToTry.head
       reporter.info("Verification with precision: " + precision)

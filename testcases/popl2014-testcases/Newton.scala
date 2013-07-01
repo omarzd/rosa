@@ -4,6 +4,9 @@ import Real._
 
 object Newton {
 
+  //For 2 iterations: 1-5 are valid, 6-8 are not
+  //For 1 iteration: 1-3 are valid, 4-8 are not
+
   def f(x: Real): Real = {
     x - (x*x*x)/6.0 + (x*x*x*x*x)/120.0 + (x*x*x*x*x*x*x)/5040.0
   }
@@ -12,7 +15,7 @@ object Newton {
     1 - (x*x)/2.0 + (x*x*x*x)/24.0 + (x*x*x*x*x*x)/720.0
   }
 
-
+  // valid
   def newton1(in: Real): Real = {
     require(in > -0.2 && in < 0.2)
     val x1 = in - f(in)/fp(in)
@@ -21,6 +24,7 @@ object Newton {
     x3
   } ensuring(res => ~res < 0.1)
 
+  // valid
   def newton2(in: Real): Real = {
     require(in > -0.4 && in < 0.4)
     val x1 = in - f(in)/fp(in)
@@ -29,6 +33,7 @@ object Newton {
     x3
   } ensuring(res => ~res < 0.1)
 
+  // valid
   def newton3(in: Real): Real = {
     require(in > -0.6 && in < 0.6)
     val x1 = in - f(in)/fp(in)
@@ -37,6 +42,7 @@ object Newton {
     x3
   } ensuring(res => ~res < 0.1)
 
+  // valid
   def newton4(in: Real): Real = {
     require(in > -0.8 && in < 0.8)
     val x1 = in - f(in)/fp(in)
@@ -45,6 +51,7 @@ object Newton {
     x3
   } ensuring(res => ~res < 0.1)
 
+  // valid
   def newton5(in: Real): Real = {
     require(in > -1.0 && in < 1.0)
     val x1 = in - f(in)/fp(in)
@@ -53,6 +60,7 @@ object Newton {
     x3
   } ensuring(res => ~res < 0.1)
 
+  // not valid
   def newton6(in: Real): Real = {
     require(in > -1.2 && in < 1.2)
     val x1 = in - f(in)/fp(in)
@@ -61,6 +69,7 @@ object Newton {
     x3
   } ensuring(res => ~res < 0.1)
 
+  // not valid
   def newton7(in: Real): Real = {
     require(in > -1.4 && in < 1.4)
     val x1 = in - f(in)/fp(in)
@@ -69,6 +78,7 @@ object Newton {
     x3
   } ensuring(res => ~res < 0.1)
 
+  // not valid
   def newton8(in: Real): Real = {
     require(in > -2.0 && in < 2.0)
     val x1 = in - f(in)/fp(in)
@@ -76,6 +86,8 @@ object Newton {
     val x3 = x2 - f(x2)/fp(x2)
     x3
   } ensuring(res => ~res < 0.1)
+
+
 }
 
 

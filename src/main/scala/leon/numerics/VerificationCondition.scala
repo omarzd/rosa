@@ -23,7 +23,10 @@ case class VerificationCondition(funDef: FunDef, inputs: Map[Variable, Record], 
   val localVars: Seq[Variable] = allLetDefinitions(funDef.body.get).map(letDef => Variable(letDef._1).setType(RealType))
   val allVariables: Seq[Variable] = fncArgs ++ localVars
 
-  def proven: Boolean = allConstraints.forall(c => !c.status.isEmpty && c.status.get == VALID)
+  def proven: Boolean =
+    // Only generate spec for all
+    if (allConstraints.isEmpty) !generatedPost.isEmpty
+    else allConstraints.forall(c => !c.status.isEmpty && c.status.get == VALID)
 
   /* Generated specification. */
   var generatedPost: Option[Expr] = None
@@ -41,5 +44,5 @@ case class VerificationCondition(funDef: FunDef, inputs: Map[Variable, Record], 
   var analysisTime: Option[Long] = None
   var verificationTime:Option[Long] = None
 
-  //override def toString: String = "vc(" + id+")"
+  override def toString: String = "vc(" + id+")"
 }
