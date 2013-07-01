@@ -14,7 +14,7 @@ import xlang.Trees._
 
 class Analyser(reporter: Reporter) {
 
-  val verbose = false
+  val verbose = true
   val assertionRemover = new AssertionRemover
 
 
@@ -28,7 +28,6 @@ class Analyser(reporter: Reporter) {
     var allFncCalls = Set[String]()
     var constraints = List[Constraint]()
 
-    //val vc = new VerificationCondition(funDef)
     val (inputVariables, vcPrecondition) = funDef.precondition match {
       case Some(p) =>
         val inputs = getVariableRecords(p)
@@ -121,7 +120,9 @@ class Analyser(reporter: Reporter) {
     //vc.funcArgs = vc.funDef.args.map(v => Variable(v.id).setType(RealType))
     //vc.localVars = allLetDefinitions(funDef.body.get).map(letDef => Variable(letDef._1).setType(RealType))
 
-    VerificationCondition(funDef, inputVariables, vcPrecondition, vcBody, allFncCalls, constraints)
+    val vc = VerificationCondition(funDef, inputVariables, vcPrecondition, vcBody, allFncCalls, constraints)
+    println("vc: " + vc)
+    vc
   }
 
   // Has to run before we removed the lets!

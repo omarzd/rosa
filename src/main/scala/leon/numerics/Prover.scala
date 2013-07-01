@@ -61,7 +61,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
       }
     }
 
-    if (!vc.isInvariant) {
+    if (!(vc.isInvariant || vc.nothingToCompute)) {
       val mainCnstr = if(vc.allConstraints.size > 0) vc.allConstraints.head
         else Constraint(vc.precondition, vc.body, True, "wholebody")
       vc.generatedPost = Some(getPost(mainCnstr, vc.inputs))
@@ -122,7 +122,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
         if (ca.paths.size > 1) {
           val paths = idealPart.zip(actualPart)
           for ((i, a) <- paths) {
-            println("checking path: " + And(i, a))
+            println("checking path: " + filterDeltas(And(i, a)))
             val (sat, model) = solver.checkSat(And(Seq(precondition, i, a, resultError, machineEpsilon, Not(postcondition))))
             println("with result: " + sat)
             // TODO: print the models that are actually useful, once we figure out which ones those are
@@ -426,7 +426,8 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
       }
 
     case (Simple, true) =>
-      (findApproximation(c, inputs, List(PostInlining_AA, FullInlining_AA)), c.status) match {
+      //(findApproximation(c, inputs, List(PostInlining_AA, FullInlining_AA)), c.status) match {
+        (findApproximation(c, inputs, List(FullInlining_AA)), c.status) match {
         case (Some(approx), Some(VALID)) => getMostPrecise(c.post, approx.values)
         case (Some(approx), _) => constraintFromResults(Map(ResultVariable() -> approx.values(ResultVariable())))
         case (None, Some(VALID)) => c.post
