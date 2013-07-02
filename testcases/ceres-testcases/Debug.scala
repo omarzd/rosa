@@ -8,70 +8,32 @@ import Real._
 
 object Debug {
 
-  /*
-  def dopplerOriginalOriginal(u: Real, v: Real, T: Real): Real = {
-    require(-100 <= u && u <= 100 && 20 <= v && v <= 20000 &&
-     -30 <= T && T <= 50 && noise(u, 1e-7) && noise(v, 1e-9) && noise(T, 1e-6))
+  def newton1(in: Real): Real = {
+    require(in > -1.2 && in < 1.2)
 
-    (- (331.4 + 0.6 * T) *v) / ((331.4 + 0.6*T + u)*(331.4 + 0.6*T + u))
+    val x1 = in - (in - (in*in*in)/6.0 + (in*in*in*in*in)/120.0 + (in*in*in*in*in*in*in)/5040.0)/(1 - (in*in)/2.0 + (in*in*in*in)/24.0 + (in*in*in*in*in*in)/720.0)
+    val x2 = x1 - (x1 - (x1*x1*x1)/6.0 + (x1*x1*x1*x1*x1)/120.0 + (x1*x1*x1*x1*x1*x1*x1)/5040.0)/(1 - (x1*x1)/2.0 + (x1*x1*x1*x1)/24.0 + (x1*x1*x1*x1*x1*x1)/720.0)
+    //val x3 = x2 - (x2 - (x2*x2*x2)/6.0 + (x2*x2*x2*x2*x2)/120.0 + (x2*x2*x2*x2*x2*x2*x2)/5040.0)/(1 - (x2*x2)/2.0 + (x2*x2*x2*x2)/24.0 + (x2*x2*x2*x2*x2*x2)/720.0)
+    x2
+  } ensuring(res => res < 0.1)
 
-  } ensuring (res => -138.0 <= res && res <= -0.03 && noise(res, 1e-4))
-  */
-
-
-  /*def dopplerOriginal(u: Real, v: Real, T: Real): Real = {
-    require(-100 < u && u < 100 && 20 < v && v < 20000 &&
-     -30 < T && T < 50 && noise(u, 1e-7) && noise(v, 1e-9) && noise(T, 1e-6))
-
-    val x = 331.4 + 0.6 * T
-    val x2 = (x + u) * (x + u)
-    (- x * v) / x2
-
-  } ensuring (res => -200.0 < res && res < 0)// && noise(res, 1e-4))
-  */
-
-  def doppler(u: Real, v: Real, T: Real): Real = {
-    require(-100 <= u && u <= 100 && 20 <= v && v <= 20000 &&
-     -30 <= T && T <= 50 && noise(u, 1e-7) && noise(v, 1e-9) && noise(T, 1e-6))
-
-    val x = mult(T)
-    val x2 = x + u
-    (- x * v) / (x2 * x2)
-
-  } ensuring (res => -138.0 <= res && res <= -0.03 && noise(res, 1e-4))
-
-
-  def mult(T: Real): Real = {
-    require(-30 <= T && T <= 50 && noise(T, 1e-6))
-    331.4 + 0.6 * T
+  /*def f(x: Real): Real = {
+    x - (x*x*x)/6.0 + (x*x*x*x*x)/120.0 + (x*x*x*x*x*x*x)/5040.0
   }
 
-
-
-  /*def bspline3(u: Real): Real = {
-    require(0 <= u && u <= 1)
-    -u*u*u / 6.0
-  } ensuring (res => -0.17 <= res && res <= 0.05 && noise(res, 1e-15))
-  */
-
-
-  /*def rigidBody1Original(x1: Real, x2: Real, x3: Real): Real = {
-    require(x1 <= 15 && x1 >= -15 && x2 <= 15 && x2 >= -15 &&
-            x3 <= 15 && x3 >= -15)
-    -x1*x2 - 2*x2*x3 - x1 - x3
-  } ensuring (res => -800 <= res && res <= 750.0 && noise(res, 1e-10))
-
-
-  def rigidBody1(x1: Real, x2: Real, x3: Real): Real = {
-    require(x1 <= 15 && x1 >= -15 && x2 <= 15 && x2 >= -15 &&
-            x3 <= 15 && x3 >= -15)
-    -mult(x1, x2) - 2*mult(x2, x3) - x1 - x3
-  } ensuring (res => -800 <= res && res <= 750.0 && noise(res, 4e-13))
-
-  def mult(x1: Real, x2: Real): Real = {
-    require(x1 <= 15 && x1 >= -15 && x2 <= 15 && x2 >= -15 )
-    x1*x2
+  def fp(x: Real): Real = {
+    1 - (x*x)/2.0 + (x*x*x*x)/24.0 + (x*x*x*x*x*x)/720.0
   }
+
+  // valid
+  def newton1(in: Real): Real = {
+    require(in > -0.2 && in < 0.2)
+    val x1 = in - f(in)/fp(in)
+    val x2 = x1 - f(x1)/fp(x1)
+    //val x3 = x2 - f(x2)/fp(x2)
+    x2
+  } ensuring(res => ~res < 0.1)
   */
+
 
 }

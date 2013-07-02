@@ -86,7 +86,7 @@ object XFloat {
     @param uncertain max uncertainty
     @param withRoundoff if true an additional roundoff error will be added automatically, additionally to noise
   **/
-  def xFloatWithUncertain(v: Variable, range: RationalInterval, config: XFloatConfig,
+  def xFloatWithUncertain(v: Expr, range: RationalInterval, config: XFloatConfig,
     uncertain: Rational, withRoundoff: Boolean): (XFloat, Int) = {
     assert(uncertain >= Rational.zero)
 

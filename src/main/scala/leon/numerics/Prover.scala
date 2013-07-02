@@ -26,6 +26,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
   var postInliner = new PostconditionInliner(reporter, Map.empty) // dummy
   var fullInliner = new FullInliner(reporter, Map.empty) //dummy
   val resultCollector = new ResultCollector
+  var xevaluator = new XEvaluator(reporter, solver, precision, Map.empty) //dummy
 
   val printStats = true
 
@@ -39,6 +40,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
 
     postInliner = new PostconditionInliner(reporter, vcMap)
     fullInliner = new FullInliner(reporter, vcMap)
+    xevaluator = new XEvaluator(reporter, solver, precision, vcMap)
 
     val start = System.currentTimeMillis
     for (c <- vc.allConstraints) {
@@ -60,13 +62,15 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
       }
     }
 
-    if (!(vc.isInvariant || vc.nothingToCompute)) {
-      val mainCnstr = if(vc.allConstraints.size > 0) vc.allConstraints.head
-        else Constraint(vc.precondition, vc.body, True, "wholebody")
-      vc.generatedPost = Some(getPost(mainCnstr, vc.inputs))
+    try {
+      if (!(vc.isInvariant || vc.nothingToCompute)) {
+        val mainCnstr = if(vc.allConstraints.size > 0) vc.allConstraints.head
+          else Constraint(vc.precondition, vc.body, True, "wholebody")
+        vc.generatedPost = Some(getPost(mainCnstr, vc.inputs))
 
-      reporter.info("Generated post: " + vc.generatedPost)
-    }
+        reporter.info("Generated post: " + vc.generatedPost)
+      }
+    } catch {case _=> ;}
     val totalTime = (System.currentTimeMillis - start)
     vc.verificationTime = Some(totalTime)
     vc
@@ -94,11 +98,11 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
     val resultError = Equals(getNewResErrorVariable, Minus(resVar, buddies(resVar))) // let z3 give us error explicitly
     val machineEpsilon = Equals(eps, RationalLiteral(unitRoundoff))
     val body = And(And(Or(idealPart), Or(actualPart)), And(resultError, machineEpsilon))
-
-
+    
     //val toCheck = Implies(And(precondition, body), postcondition)
-    var toCheck = And(And(precondition, body), Not(postcondition)) //has to be unsat
-    //println("toCheck: " + filterDeltas(toCheck))
+    //TODO: collect powers etc.
+    var toCheck = ArithmeticOps.collectPowers(And(And(precondition, body), Not(postcondition))) //has to be unsat
+    println("toCheck: " + filterDeltas(toCheck))
 
     /*val eps2 = Variable(FreshIdentifier("#eps2")).setType(RealType)
     val boundsConverter = new BoundsConverter(eps2, eps)
@@ -282,6 +286,41 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
       } catch { case _ => ;}
       None
       
+      /*try {
+        // TODO: inline pre and post
+        // TODO: this overwrites the path.values/indices that may have been computed before
+        val paths = c.paths
+        for (path <- paths) {
+          val pathCondition = And(path.condition, filterPreconditionForBoundsIteration(c.pre))
+          val (xfloats, indices) = xevaluator.evaluateWithFncCalls(path.expression, pathCondition, inputs)
+          path.values = xfloats
+          path.indices = indices
+        }
+        //val approxValues = mergeRealPathResults(paths)
+        //val newConstraint = constraintFromResults(approxValues)
+        val apaths = paths.collect { 
+          case path: Path if (path.feasible) =>
+            val resNoise = Noise(ResultVariable(), RationalLiteral(path.values(ResultVariable()).maxError))
+
+            //ideal part, needs fncs inlined
+            println("path cond: " + path.condition)
+            println("body: " + path.expression)
+            val (newPre, newBody, newPost, vars) = fullInliner.inlineFunctions(path.condition, And(path.expression), True)
+
+            println("newPre: " + newPre)
+            println("newBody: " + newBody)
+            println("newPost: " + newPost)
+            APath(newPre,
+             True, newBody,
+             True, resNoise, path.values)
+          }
+
+        return Some(ConstraintApproximation(c.pre, apaths, c.post, Set.empty, tpe))   
+
+      } catch { case _=> ;}
+      None*/
+      
+      
 
     case FullInlining_AAPathSensitive =>
       val (newPre, newBody, newPost, vars) = fullInliner.inlineFunctions(c.pre, c.body, c.post)
@@ -359,12 +398,16 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
     val pathCondition = And(path.condition, filterPreconditionForBoundsIteration(precondition))
     if (sanityCheck(pathCondition)) {
       // The condition given to the solver is the real(ideal)-valued one, since we use Z3 for the real part only.
-      val config = XFloatConfig(reporter, solver, pathCondition, precision, unitRoundoff)
+      val (values, indices) = xevaluator.evaluate(path.expression, pathCondition, inputs)
+      path.values = values
+      path.indices = indices
+      /*val config = XFloatConfig(reporter, solver, pathCondition, precision, unitRoundoff)
       val (variables, indices) = variables2xfloats(inputs, config)
       solver.clearCounts
       path.values = inXFloats(reporter, path.expression, variables, config) -- inputs.keys
       if (printStats) reporter.info("STAAATS: " + solver.getCounts)
-      path.indices= indices
+      path.indices= indices*/
+
 
     } else {
       reporter.warning("skipping path " + path.condition)

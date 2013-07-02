@@ -52,12 +52,14 @@ case class Constraint(pre: Expr, body: Expr, post: Expr, description: String) {
     if (hasFunctionCalls) {
       //Seq(Uninterpreted_None) ++
       //Seq(PostInlining_None, PostInlining_AA, PostInlining_AAPathSensitive, FullInlining_None, FullInlining_AA, FullInlining_AAPathSensitive)
-      Seq(PostInlining_None, FullInlining_None, FullInlining_AA)
+      //Seq(PostInlining_None, FullInlining_None, FullInlining_AA)
+      Seq(FullInlining_None)
     } else {
-      //Seq(Uninterpreted_None) ++
+      Seq(Uninterpreted_None) ++
       //Seq(NoFncs_AA, NoFncs_AAPathSensitive)
       //Seq(NoFncs_PartialAA)
-      Seq(NoFncs_AA)
+      //Seq(NoFncs_AA)
+      Seq()
     }
 
   def hasNextApproximation = !approxStrategy.isEmpty

@@ -107,11 +107,13 @@ class NumericConstraintTransformer(buddy: Map[Expr, Expr], ress: Variable, eps: 
       val xR = transformPrePost(x)
       extraConstraints ++= Seq(Equals(Times(r, r), xR), LessEquals(RationalLiteral(zero), r))
       r
+    case Equals(l, r) => Equals(transformPrePost(l), transformPrePost(r))
 
     case a @ Actual(v @ Variable(id)) => buddy(v)
     case Actual(ResultVariable()) => buddy(ress)
 
     case Actual(x) => reporter.error("Actual only allowed on variables, but not on: " + x.getClass); e
+    case ResultVariable() => ress
     case _ => e
   }
   

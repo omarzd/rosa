@@ -147,7 +147,7 @@ object Utils {
   }
 
    // Returns a map from all variables to their final value, including local vars
-  def inXFloats(reporter: Reporter, exprs: List[Expr], vars: Map[Expr, XFloat], config: XFloatConfig): Map[Expr, XFloat] = {
+  /*def inXFloats(reporter: Reporter, exprs: List[Expr], vars: Map[Expr, XFloat], config: XFloatConfig): Map[Expr, XFloat] = {
     var currentVars: Map[Expr, XFloat] = vars
 
     for (expr <- exprs) expr match {
@@ -181,7 +181,7 @@ object Utils {
     case _ =>
       throw UnsupportedFragmentException("AA cannot handle: " + expr)
       null
-  }
+  }*/
 
   def collectPaths(expr: Expr): Set[Path] = expr match {
     case IfExpr(cond, then, elze) =>
@@ -280,6 +280,7 @@ object Utils {
                                   Noise(kv._1, RationalLiteral(kv._2._2)))))
   }*/
 
+  
 
   def constraintFromResults(results: Map[Expr, (RationalInterval, Rational)]): Expr = {
     And(results.foldLeft(Seq[Expr]())(
