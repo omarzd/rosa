@@ -24,6 +24,9 @@ case class APath(pathCondition: Expr, idealBody: Expr, idealCnst: Expr, actualBo
 case class ConstraintApproximation(pre: Expr, paths: Set[APath], post: Expr, vars: Set[Variable], tpe: ApproximationType,
   values: Map[Expr, (RationalInterval, Rational)] = Map.empty) {
 
+  var addInitialVariableConnection = true
+  var needEps = true
+
   //override def toString: String = "APP(%s && %s) ==> %s".format(pre.toString, paths.toString, post.toString)
   //override def toString: String = tpe.toString
 }
@@ -55,11 +58,10 @@ case class Constraint(pre: Expr, body: Expr, post: Expr, description: String) {
       //Seq(PostInlining_None, FullInlining_None, FullInlining_AA)
       Seq(FullInlining_None)
     } else {
-      Seq(Uninterpreted_None) ++
+      //Seq(Uninterpreted_None) ++
       //Seq(NoFncs_AA, NoFncs_AAPathSensitive)
       //Seq(NoFncs_PartialAA)
-      //Seq(NoFncs_AA)
-      Seq()
+      Seq(NoFncs_AA)
     }
 
   def hasNextApproximation = !approxStrategy.isEmpty
@@ -77,7 +79,8 @@ case class Constraint(pre: Expr, body: Expr, post: Expr, description: String) {
 
   // whether we already ran the AA approximation
   def approximationForSpec: Option[ConstraintApproximation] = {
-    approximations.find(a => a.tpe == PostInlining_AA)
+    //approximations.find(a => a.tpe == PostInlining_AA)
+    None
   }
 
   def overrideStatus(s: (Option[Valid], Option[Map[Identifier, Expr]])) = {

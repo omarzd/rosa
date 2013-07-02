@@ -41,6 +41,15 @@ package object numerics {
   object ApproximationType extends Enumeration {
     type ApproximationType = Value
     val Uninterpreted_None = Value("Uninterpreted_None")
+    val PostInlining_None = Value("PostInlining_None")
+    val FullInlining_None = Value("FullInlining_None")
+    val NoFncs_AA = Value("NoFncs_AA")
+    val FullInlining_AA = Value("FullInlining_AA")
+  }
+
+  /*object ApproximationType extends Enumeration {
+    type ApproximationType = Value
+    val Uninterpreted_None = Value("Uninterpreted_None")
     val NoFncs_AA = Value("NoFncs_AA")
     val NoFncs_AAPathSensitive = Value("NoFncs_AAPathSensitive")
     val PostInlining_None = Value("PostInlining_None")
@@ -51,7 +60,7 @@ package object numerics {
     val FullInlining_AAPathSensitive = Value("FullInlining_AAPathSensitive")
 
     val NoFncs_PartialAA = Value("NoFncs_PartialAA")
-  }
+  }*/
 
   object RoundoffType extends Enumeration {
     type RoundoffType = Value

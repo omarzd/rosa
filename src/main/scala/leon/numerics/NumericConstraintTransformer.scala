@@ -20,6 +20,18 @@ class NumericConstraintTransformer(buddy: Map[Expr, Expr], ress: Variable, eps: 
   var errors: Seq[String] = Seq.empty
   var extraConstraints: Seq[Expr] = Seq.empty
 
+  var errorVars: Map[Expr, Expr] = Map.empty
+
+  def getErrorVar(e: Expr): Expr = {
+    errorVars.get(e) match {
+      case Some(errorVar) => errorVar
+      case None =>
+        val freshErrorVar = getNewErrorVar
+        errorVars = errorVars + (e -> freshErrorVar)
+        freshErrorVar
+    }
+  }
+
   def addExtra(e: Expr) = extraConstraints = extraConstraints :+ e
 
   def init = {
@@ -69,6 +81,23 @@ class NumericConstraintTransformer(buddy: Map[Expr, Expr], ress: Variable, eps: 
     case Noise(v @ Variable(id), r @ RationalLiteral(value)) =>
       if (value < Rational.zero) { errors = errors :+ "Noise must be positive."; Error("negative noise " + value).setType(BooleanType)
       } else {
+        val freshErrorVar = getErrorVar(v)
+        And(Seq(Equals(buddy(v), Plus(v, freshErrorVar)),
+          LessEquals(RationalLiteral(-value), freshErrorVar), 
+          LessEquals(freshErrorVar, RationalLiteral(value))))
+      }
+    case Noise(ResultVariable(), r @ RationalLiteral(value)) =>
+      if (value < Rational.zero) { errors = errors :+ "Noise must be positive."; Error("negative noise " + value).setType(BooleanType)
+      } else {
+        val freshErrorVar = getErrorVar(ress)
+        And(Seq(Equals(buddy(ress), Plus(ress, freshErrorVar)),
+          LessEquals(RationalLiteral(-value), freshErrorVar), 
+          LessEquals(freshErrorVar, RationalLiteral(value))))
+      }
+
+    /*case Noise(v @ Variable(id), r @ RationalLiteral(value)) =>
+      if (value < Rational.zero) { errors = errors :+ "Noise must be positive."; Error("negative noise " + value).setType(BooleanType)
+      } else {
         And(LessEquals(RationalLiteral(-value), Minus(v, buddy(v))), LessEquals(Minus(v, buddy(v)), r))
       }
     case Noise(ResultVariable(), r @ RationalLiteral(value)) =>
@@ -76,7 +105,7 @@ class NumericConstraintTransformer(buddy: Map[Expr, Expr], ress: Variable, eps: 
       } else {
         And(LessEquals(RationalLiteral(-value), Minus(ress, buddy(ress))), LessEquals(Minus(ress, buddy(ress)), r))
       }
-
+    */
     case Roundoff(v @ Variable(id)) =>
       val delta = getNewDelta
       extraConstraints = extraConstraints :+ constrainDelta(delta)

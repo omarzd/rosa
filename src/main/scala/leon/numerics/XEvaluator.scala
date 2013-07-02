@@ -96,11 +96,7 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
       null
   }
 
-  private def compactXFloat(xfloat: XFloat, newTree: Expr): XFloat = {
-    val newConfig = xfloat.config.addCondition(rangeConstraint(newTree, xfloat.realInterval))
-    val (newXFloat, index) = xFloatWithUncertain(newTree, xfloat.realInterval, newConfig, xfloat.maxError, false)
-    newXFloat
-  }
+
 
   private def rangeConstraint(v: Expr, i: RationalInterval): Expr = {
     And(LessEquals(RationalLiteral(i.xlo), v), LessEquals(v, RationalLiteral(i.xhi)))
@@ -151,5 +147,11 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
     case _ =>
       throw UnsupportedFragmentException("AA cannot handle: " + expr)
       null
+  }
+
+  private def compactXFloat(xfloat: XFloat, newTree: Expr): XFloat = {
+    val newConfig = xfloat.config.addCondition(rangeConstraint(newTree, xfloat.realInterval))
+    val (newXFloat, index) = xFloatWithUncertain(newTree, xfloat.realInterval, newConfig, xfloat.maxError, false)
+    newXFloat
   }
 }
