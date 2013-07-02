@@ -12,7 +12,7 @@ import Precision._
 
 class Simulator(reporter: Reporter) {
 
-  val simSize = 1000000//00
+  val simSize = 10000000//00
   reporter.info("Simulation size: " + simSize + "\n")
 
   def simulateThis(vc: VerificationCondition, precision: Precision) = {
@@ -34,10 +34,11 @@ class Simulator(reporter: Reporter) {
 
     vc.simulationRange = Some(resInterval)
     vc.rndoff = Some(maxRoundoff)
-    vc.intervalRange = Some(evaluateInterval(body, intInputs))
-    vc.affineRange = Some(evaluateXRationalForm(body, xratInputs).interval)
-    reporter.info("Interval range: " + vc.intervalRange.get)
-    reporter.info("Affine range:   " + vc.affineRange.get)
+    //vc.intervalRange = Some(evaluateInterval(body, intInputs))
+    //vc.affineRange = Some(evaluateXRationalForm(body, xratInputs).interval)
+    //reporter.info("Interval range: " + vc.intervalRange.get)
+    //reporter.info("Affine range:   " + vc.affineRange.get)
+    reporter.info("Simulated interval: " + vc.simulationRange)
     reporter.info("Max error: " + vc.rndoff.get)
   }
 
@@ -60,9 +61,14 @@ class Simulator(reporter: Reporter) {
         assert(Rational.abs(ideal - actual) <= n)
         randomInputs += ((k, (actual.toDouble, ideal)))
       }
-      val (resDouble, resRat) = evaluate(body, randomInputs)
-      maxRoundoff = math.max(maxRoundoff, math.abs(resDouble - resRat.toDouble))
-      resInterval = extendInterval(resInterval, resDouble)
+      try {
+        val (resDouble, resRat) = evaluate(body, randomInputs)
+        maxRoundoff = math.max(maxRoundoff, math.abs(resDouble - resRat.toDouble))
+        resInterval = extendInterval(resInterval, resDouble)
+      } catch {
+        case e: Exception =>;
+        case _ => ;
+      }
       counter += 1
     }
     (maxRoundoff, resInterval)
@@ -87,9 +93,14 @@ class Simulator(reporter: Reporter) {
         assert(Rational.abs(ideal - actual) <= n)
         randomInputs += ((k, (actual.toFloat, ideal)))
       }
-      val (resDouble, resRat) = evaluateSingle(body, randomInputs)
-      maxRoundoff = math.max(maxRoundoff, math.abs(resDouble - resRat.toDouble))
-      resInterval = extendInterval(resInterval, resDouble)
+      try {
+        val (resDouble, resRat) = evaluateSingle(body, randomInputs)
+        maxRoundoff = math.max(maxRoundoff, math.abs(resDouble - resRat.toDouble))
+        resInterval = extendInterval(resInterval, resDouble)
+      } catch {
+        case e: Exception =>;
+        case _ => ;
+      }
       counter += 1
     }
     (maxRoundoff, resInterval)

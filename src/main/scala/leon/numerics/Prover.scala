@@ -52,7 +52,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
         reporter.info("Computing approximation: " + next)
         getNextApproximation(next, c, vc.inputs) match {
           case Some(approx) =>
-            println("Approx: " + approx)
+            //println("Approx: " + approx)
             c.approximations = Seq(approx) ++ c.approximations
             c.overrideStatus(checkWithZ3(approx, vc.allVariables))
             reporter.info("RESULT: " + c.status)
@@ -100,7 +100,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
 
     //val toCheck = Implies(And(precondition, body), postcondition)
     var toCheck = And(And(precondition, body), Not(postcondition)) //has to be unsat
-    println("toCheck: " + filterDeltas(toCheck))
+    //println("toCheck: " + filterDeltas(toCheck))
 
     /*val eps2 = Variable(FreshIdentifier("#eps2")).setType(RealType)
     val boundsConverter = new BoundsConverter(eps2, eps)
@@ -416,7 +416,8 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
 
   private def getPost(c: Constraint, inputs: Map[Variable, Record]): Expr = (specGenType, c.hasFunctionCalls) match {
     case (Simple, false) =>
-      (findApproximation(c, inputs, List(NoFncs_AA)), c.status) match {
+      //(findApproximation(c, inputs, List(NoFncs_AA)), c.status) match {
+      (findApproximation(c, inputs, List(NoFncs_AA)), None: Option[Valid]) match {  
         case (Some(approx), Some(VALID)) => getMostPrecise(c.post, approx.values)
         case (Some(approx), _) => constraintFromResults(Map(ResultVariable() -> approx.values(ResultVariable())))
         case (None, Some(VALID)) => c.post
