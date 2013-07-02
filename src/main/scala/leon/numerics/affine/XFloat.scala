@@ -252,6 +252,7 @@ case class XFloatConfig(reporter: Reporter, solver: NumericSolver, precondition:
     if (y.interval.xlo < Rational.zero && y.interval.xhi > Rational.zero) {
       config.reporter.warning("Potential division by zero detected for: %s/%s,\nwith precondition %s".format(
         this.tree, y.tree, config.precondition))
+      config.reporter.warning("y.interval: " + y.interval)
     }
 
     //if (y.isExact) {

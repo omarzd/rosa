@@ -275,9 +275,13 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
       }
 
     case FullInlining_AA =>
-      val (newPre, newBody, newPost, vars) = fullInliner.inlineFunctions(c.pre, c.body, c.post)
-      val (newConstraint, apaths, values) = computeApproxForRes(collectPaths(newBody), newPre, getVariableRecords(newPre))
-      Some(ConstraintApproximation(And(newPre, newConstraint), apaths, newPost, vars, tpe, values))
+      try {
+        val (newPre, newBody, newPost, vars) = fullInliner.inlineFunctions(c.pre, c.body, c.post)
+        val (newConstraint, apaths, values) = computeApproxForRes(collectPaths(newBody), newPre, getVariableRecords(newPre))
+        return Some(ConstraintApproximation(And(newPre, newConstraint), apaths, newPost, vars, tpe, values))
+      } catch { case _ => ;}
+      None
+      
 
     case FullInlining_AAPathSensitive =>
       val (newPre, newBody, newPost, vars) = fullInliner.inlineFunctions(c.pre, c.body, c.post)
