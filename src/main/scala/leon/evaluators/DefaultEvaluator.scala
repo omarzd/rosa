@@ -11,7 +11,7 @@ import purescala.TypeTrees._
 
 import xlang.Trees._
 
-import ceres.common.Rational
+import numerics.affine.Rational
 
 class DefaultEvaluator(ctx : LeonContext, prog : Program) extends Evaluator(ctx, prog) {
   val name = "evaluator"

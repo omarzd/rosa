@@ -11,7 +11,7 @@ import xlang.Trees._
 import purescala.TreeOps._
 import purescala.TypeTrees._
 
-import ceres.common.Rational
+import numerics.affine.Rational
 import Rational._
 
 import scala.collection.mutable.{Map => MutableMap}

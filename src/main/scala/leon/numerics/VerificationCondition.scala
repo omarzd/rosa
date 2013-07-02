@@ -1,7 +1,7 @@
 package leon
 package numerics
 
-import ceres.common._
+import ceres.common.Interval
 import ceres.smartfloat._
 
 import purescala.Common._
@@ -12,6 +12,7 @@ import purescala.TypeTrees._
 import Valid._
 import Utils._
 
+import affine._
 
 // It's one for each method, but may store several conditions to be proven.
 // The first constraint is the one corresponding to the whole function.

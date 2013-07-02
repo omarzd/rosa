@@ -4,8 +4,6 @@ package affine
 
 import purescala.Trees._
 
-import ceres.common.{Rational, RationalInterval}
-import affine._
 import Rational._
 import XRationalForm._
 import affine.Utils._

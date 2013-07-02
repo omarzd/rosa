@@ -2,7 +2,7 @@ package leon
 package numerics.affine
 
 import purescala.Trees._
-import ceres.common.{Rational, RationalInterval, Interval}
+import ceres.common.{Interval}
 import Rational._
 import XRationalForm._
 import collection.mutable.Queue

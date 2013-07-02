@@ -5,7 +5,7 @@ import purescala.Trees._
 import purescala.Definitions._
 import Utils.VariableCollector
 
-import ceres.common._
+import ceres.common.{Interval, EmptyInterval, NormalInterval}
 import affine._
 
 import Precision._

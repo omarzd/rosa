@@ -1,7 +1,7 @@
 package leon
 package numerics
 
-import ceres.common.Rational
+import affine.Rational
 import Utils.formatOption
 
 case class Record(lo: Option[Rational], up: Option[Rational], noise: Option[Rational], rndoff: Option[Boolean]) {

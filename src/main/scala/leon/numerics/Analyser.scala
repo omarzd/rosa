@@ -1,8 +1,6 @@
 package leon
 package numerics
 
-import ceres.common._
-
 import purescala.Trees._
 import purescala.TypeTrees._
 import purescala.TreeOps._
@@ -11,6 +9,8 @@ import purescala.Common._
 import Utils._
 import ArithmeticOps._
 import xlang.Trees._
+
+import affine._
 
 class Analyser(reporter: Reporter) {
 

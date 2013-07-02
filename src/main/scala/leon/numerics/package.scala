@@ -1,6 +1,7 @@
 package leon
 
-import ceres.common.{Rational, DirectedRounding}
+import ceres.common.{DirectedRounding}
+import numerics.affine.Rational
 import java.math.{BigInteger}
 
 

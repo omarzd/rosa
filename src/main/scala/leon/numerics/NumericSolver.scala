@@ -12,7 +12,7 @@ import solvers._
 import Sat._
 import Valid._
 
-import ceres.common.{Rational, RationalInterval}
+import affine._
 import Rational._
 
 import scala.collection.immutable.HashMap
@@ -40,7 +40,7 @@ class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3
   def getCounts: String = "timeouts: %d, tight: %d, hit precision: %d, hit iteration: %d".format(
     countTimeouts, countTightRanges, countHitPrecisionThreshold, countHitIterationThreshold)
 
-  var precision = Rational.rationalFromReal(0.0001) //0.0001
+  var precision = Rational.rationalFromReal(0.000001) //0.0001
   val maxIterationsBinary = 20
 
   override protected[leon] val z3cfg = new Z3Config(

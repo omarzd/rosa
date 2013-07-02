@@ -1,7 +1,7 @@
 package leon
 package numerics
 
-import ceres.common._
+import affine._
 
 import purescala.Trees._
 import purescala.TypeTrees._

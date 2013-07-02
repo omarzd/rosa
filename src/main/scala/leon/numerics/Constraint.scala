@@ -1,8 +1,6 @@
 package leon
 package numerics
 
-import ceres.common.{Rational, RationalInterval}
-
 import purescala.Common._
 import purescala.Definitions._
 import purescala.Trees._
@@ -12,7 +10,7 @@ import Valid._
 import Utils._
 import ApproximationType._
 
-import affine.XFloat
+import affine._
 
 // ApproximationPath
 case class APath(pathCondition: Expr, idealBody: Expr, idealCnst: Expr, actualBody: Expr, actualCnst: Expr,

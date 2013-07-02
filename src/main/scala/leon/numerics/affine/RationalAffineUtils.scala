@@ -1,6 +1,6 @@
 package leon.numerics.affine
 
-import ceres.common._
+import ceres.common.{DirectedRounding}
 import Rational._
 
 import collection.mutable.Queue

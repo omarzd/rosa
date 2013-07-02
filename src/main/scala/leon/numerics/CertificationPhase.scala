@@ -135,7 +135,7 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
     }
 
     generateCode(reporter, program, currentVCs)
-    new CertificationReport(currentVCs)
+    new CertificationReport(currentVCs.sortWith((f1, f2) => f1.id < f2.id))
   }
 
 }
