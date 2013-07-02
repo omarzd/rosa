@@ -9,7 +9,7 @@ import Real._
 object Fixedpoint {
 
   def rigidBody1(x1: Real, x2: Real, x3: Real): Real = {
-    require(x1.in(15, -15) && x2.in(-15, -15) && x3.in(-15, -15) &&
+    require(x1.in(-15, 15) && x2.in(-15, 15) && x3.in(-15, 15) &&
             noise(x1, 1e-8) && noise(x2, 1e-8) && noise(x3, 1e-8))
 
     -x1*x2 - 2*x2*x3 - x1 - x3
@@ -17,7 +17,7 @@ object Fixedpoint {
   }
 
   def rigidBody1_1(x1: Real, x2: Real, x3: Real): Real = {
-    require(x1.in(15, -15) && x2.in(-15, -15) && x3.in(-15, -15) &&
+    require(x1.in(-15, 15) && x2.in(-15, 15) && x3.in(-15, 15) &&
             noise(x1, 1e-5) && noise(x2, 1e-7) && noise(x3, 1e-6))
 
     -x1*x2 - 2*x2*x3 - x1 - x3
@@ -25,7 +25,7 @@ object Fixedpoint {
   }
 
   def rigidBody2(x1: Real, x2: Real, x3: Real): Real = {
-    require(x1.in(15, -15) && x2.in(-15, 15) && x3.in(-15, 15) &&
+    require(x1.in(-15, 15) && x2.in(-15, 15) && x3.in(-15, 15) &&
             noise(x1, 1e-8) && noise(x2, 1e-8) && noise(x3, 1e-8))
 
     2*x1*x2*x3 + 3*x3*x3 - x2*x1*x2*x3 + 3*x3*x3 - x2
@@ -33,7 +33,7 @@ object Fixedpoint {
   }
 
   def rigidBody2_1(x1: Real, x2: Real, x3: Real): Real = {
-    require(x1.in(15, -15) && x2.in(-15, 15) && x3.in(-15, 15) &&
+    require(x1.in(-15, 15) && x2.in(-15, 15) && x3.in(-15, 15) &&
             noise(x1, 1e-5) && noise(x2, 1e-7) && noise(x3, 1e-6))
 
     2*x1*x2*x3 + 3*x3*x3 - x2*x1*x2*x3 + 3*x3*x3 - x2

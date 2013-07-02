@@ -12,7 +12,7 @@ import Precision._
 
 class Simulator(reporter: Reporter) {
 
-  val simSize = 100//0000//00
+  val simSize = 1000000//00
   reporter.info("Simulation size: " + simSize + "\n")
 
   def simulateThis(vc: VerificationCondition, precision: Precision) = {
@@ -36,6 +36,9 @@ class Simulator(reporter: Reporter) {
     vc.rndoff = Some(maxRoundoff)
     vc.intervalRange = Some(evaluateInterval(body, intInputs))
     vc.affineRange = Some(evaluateXRationalForm(body, xratInputs).interval)
+    reporter.info("Interval range: " + vc.intervalRange.get)
+    reporter.info("Affine range:   " + vc.affineRange.get)
+    reporter.info("Max error: " + vc.rndoff.get)
   }
 
   private def runDoubleSimulation(inputs: Map[Variable, (RationalInterval, Rational)], body: Expr): (Double, Interval) = {
