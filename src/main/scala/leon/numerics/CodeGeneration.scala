@@ -7,26 +7,25 @@ import purescala.Trees._
 import purescala.TreeOps._
 import purescala.TypeTrees._
 import Precision._
-import SpecGenType._
 
 class CodeGeneration(reporter: Reporter, precision: Precision) {
   val specTransformer = new SpecTransformer
 
 
-  val noiseDefSingle = new FunDef(FreshIdentifier("noise"), BooleanType, Seq(VarDecl(FreshIdentifier("x"), Float32Type)))
+  val noiseDefSingle = new FunDef(FreshIdentifier("noise"), BooleanType, Seq(VarDecl(FreshIdentifier("x"), Float32Type), VarDecl(FreshIdentifier("errBound"), Float32Type)))
   noiseDefSingle.body = Some(BooleanLiteral(true))
 
-  val noiseDefDouble = new FunDef(FreshIdentifier("noise"), BooleanType, Seq(VarDecl(FreshIdentifier("x"), Float64Type)))
+  val noiseDefDouble = new FunDef(FreshIdentifier("noise"), BooleanType, Seq(VarDecl(FreshIdentifier("x"), Float64Type), VarDecl(FreshIdentifier("errBound"), Float64Type)))
   noiseDefDouble.body = Some(BooleanLiteral(true))
 
-  val noiseDefDDouble = new FunDef(FreshIdentifier("noise"), BooleanType, Seq(VarDecl(FreshIdentifier("x"), FloatDDType)))
+  val noiseDefDDouble = new FunDef(FreshIdentifier("noise"), BooleanType, Seq(VarDecl(FreshIdentifier("x"), FloatDDType), VarDecl(FreshIdentifier("errBound"), FloatDDType)))
   noiseDefDDouble.body = Some(BooleanLiteral(true))
 
-  val noiseDefQDouble = new FunDef(FreshIdentifier("noise"), BooleanType, Seq(VarDecl(FreshIdentifier("x"), FloatQDType)))
+  val noiseDefQDouble = new FunDef(FreshIdentifier("noise"), BooleanType, Seq(VarDecl(FreshIdentifier("x"), FloatQDType), VarDecl(FreshIdentifier("errBound"), FloatQDType)))
   noiseDefQDouble.body = Some(BooleanLiteral(true))
 
 
-  def specToCode(programId: Identifier, objectId: Identifier, vcs: Seq[VerificationCondition], specGenType: SpecGenType): Program = {
+  def specToCode(programId: Identifier, objectId: Identifier, vcs: Seq[VerificationCondition], specgen: Boolean): Program = {
 
     var defs: Seq[Definition] = Seq.empty
 
@@ -45,7 +44,7 @@ class CodeGeneration(reporter: Reporter, precision: Precision) {
         case None => ;
       }
 
-      if (specGenType != None) {
+      if (specgen) {
         funDef.postcondition = vc.generatedPost
       } else {
         funDef.postcondition = f.postcondition

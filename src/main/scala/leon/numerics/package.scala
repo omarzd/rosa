@@ -31,13 +31,6 @@ package object numerics {
 
   case class UnsupportedFragmentException(msg: String) extends Exception(msg)
 
-  object SpecGenType extends Enumeration {
-    type SpecGenType = Value
-    val NoGen = Value("NoGen")
-    val Simple = Value("Simple")
-    val PathSensitive = Value("PathSensitive")
-  }
-
   object ApproximationType extends Enumeration {
     type ApproximationType = Value
     val Uninterpreted_None = Value("Uninterpreted_None")

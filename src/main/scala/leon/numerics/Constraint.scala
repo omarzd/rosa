@@ -14,8 +14,8 @@ import affine._
 
 // ApproximationPath
 case class APath(pathCondition: Expr, idealBody: Expr, idealCnst: Expr, actualBody: Expr, actualCnst: Expr,
-  values: Map[Expr, XFloat] = Map.empty) {
-  def updateNoisy(newBody: Expr, newCnst: Expr): APath = APath(pathCondition, idealBody, idealCnst, newBody, newCnst, values)
+  xfloats: Map[Expr, XFloat] = Map.empty) {
+  def updateNoisy(newBody: Expr, newCnst: Expr): APath = APath(pathCondition, idealBody, idealCnst, newBody, newCnst, xfloats)
 
 }
 
@@ -23,6 +23,10 @@ case class APath(pathCondition: Expr, idealBody: Expr, idealCnst: Expr, actualBo
 // vars: additional free variables created
 case class ConstraintApproximation(pre: Expr, paths: Set[APath], post: Expr, vars: Set[Variable], tpe: ApproximationType,
   values: Map[Expr, (RationalInterval, Rational)] = Map.empty) {
+
+  def actualXfloats: Map[Expr, (RationalInterval, Rational)] = {
+    mergeActualAPathResults(paths)
+  }
 
   var addInitialVariableConnection = true
   var needEps = true
@@ -57,7 +61,7 @@ case class Constraint(pre: Expr, body: Expr, post: Expr, description: String) {
       //Seq(Uninterpreted_None) ++
       //Seq(PostInlining_None, PostInlining_AA, PostInlining_AAPathSensitive, FullInlining_None, FullInlining_AA, FullInlining_AAPathSensitive)
       //Seq(PostInlining_None, FullInlining_None, FullInlining_AA)
-      Seq(FullInlining_AA)
+      Seq(FullInlining_AA, FullInlining_AACompactOnFnc)
     } else {
       //Seq(Uninterpreted_None) ++
       //Seq(NoFncs_AA, NoFncs_AAPathSensitive)

@@ -244,6 +244,35 @@ object Utils {
     resMap
   }
 
+  def mergeActualAPathResults(paths: Set[APath]): Map[Expr, (RationalInterval, Rational)] = {
+    import Rational._
+
+    var collection: Map[Expr, List[XFloat]] = Map.empty
+    for (path <- paths) {
+      for ((k, v) <- path.xfloats) {
+        collection = collection + ((k, List(v) ++ collection.getOrElse(k, List())))
+      }
+    }
+
+    // Two options:
+    // interval -> ranges of ACTUAL variables  (but in this case, the key is the buddy variable!)
+    // realInterval -> ranges of IDEAL variables
+    var resMap: Map[Expr, (RationalInterval, Rational)] = Map.empty
+    for ((k, list) <- collection) {
+      var lo = list.head.interval.xlo
+      var hi = list.head.interval.xhi
+      var err = list.head.maxError
+
+      for (xf <- list.tail) {
+        lo = min(lo, xf.interval.xlo)
+        hi = max(hi, xf.interval.xhi)
+        err = max(err, xf.maxError)
+      }
+      resMap = resMap + ((k, (RationalInterval(lo, hi), err)))
+    }
+    resMap
+  }
+
   def mergeActualPathResults(paths: Set[Path]): Map[Expr, (RationalInterval, Rational)] = {
     import Rational._
 

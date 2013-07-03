@@ -11,7 +11,6 @@ import purescala.Trees._
 import purescala.TreeOps._
 import purescala.TypeTrees._
 import Precision._
-import SpecGenType._
 import purescala.ScalaPrinter
 
 import Utils._
@@ -22,15 +21,16 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
   val name = "Certification"
   val description = "Floating-point certification"
   var simulation = false
-  var specgenType: SpecGenType = Simple
+  var specgen: Boolean = true
   var precision: Precision = Float64
   // default: try 'em all
   var precisionsToTry: List[Precision] = List(Float32, Float64, DoubleDouble, QuadDouble)
 
+  // TODO: flag to switch off Z3 only versions, if Z3 hangs
   override val definedOptions: Set[LeonOptionDef] = Set(
     LeonValueOptionDef("functions", "--functions=f1:f2", "Limit verification to f1, f2,..."),
     LeonFlagOptionDef("simulation", "--simulation", "Run a simulation instead of verification"),
-    LeonValueOptionDef("specgen", "--specgen=simple", "What kind of specs to generate: none, simple, pathsensitive"),
+    LeonFlagOptionDef("nospecgen", "--nospecgen", "Don't generate specs."),
     LeonValueOptionDef("precision", "--precision=single:double", "Which precision to assume of the underlying floating-point arithmetic: single, double, doubledouble, quaddouble.")
   )
 
@@ -47,7 +47,7 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
 
   def generateCode(reporter: Reporter, program: Program, vcs: Seq[VerificationCondition]) = {
     val codeGen = new CodeGeneration(reporter, precision)
-    val newProgram = codeGen.specToCode(program.id, program.mainObject.id, vcs, specgenType)
+    val newProgram = codeGen.specToCode(program.id, program.mainObject.id, vcs, specgen)
     val newProgramAsString = ScalaPrinter(newProgram)
     reporter.info("Generated program with %d lines.".format(newProgramAsString.lines.length))
     //reporter.info(newProgramAsString)
@@ -76,12 +76,7 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
           Float64
       })
 
-      case LeonValueOption("specgen", ListValue(s)) => s.head match {
-        case "simple" => specgenType = Simple
-        case "pathsensitive" => specgenType = PathSensitive
-        case "none" => specgenType = NoGen
-        case _=> reporter.warning("Ignoring unknown specgen type: " + s)
-      }
+      case LeonFlagOption("nospecgen") => specgen = false
       case _ =>
     }
 
@@ -118,7 +113,7 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
       precision = precisionsToTry.head
       reporter.info("Verification with precision: " + precision)
       var vcMap: Map[FunDef, VerificationCondition] = Map.empty //vcs.map { t => (t.funDef, t) }.toMap
-      val prover = new Prover(reporter, ctx, program, precision, specgenType)
+      val prover = new Prover(reporter, ctx, program, precision, specgen)
       for (vc <- sortedVCs) {
         val checkedVC = prover.check(vc, vcMap)
         vcMap = vcMap + (checkedVC.funDef -> checkedVC)
@@ -134,8 +129,9 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
       for(vc <- vcs) simulator.simulateThis(vc, precision)
     }
 
-    generateCode(reporter, program, currentVCs)
-    new CertificationReport(currentVCs.sortWith((f1, f2) => f1.id < f2.id))
+    val sortedForCodeGen = currentVCs.sortWith((f1, f2) => f1.id < f2.id)
+    generateCode(reporter, program, sortedForCodeGen)
+    new CertificationReport(sortedForCodeGen)
   }
 
 }
