@@ -11,7 +11,7 @@ object Physics {
 
     (r*x) / (1 + (x/K))
 
-  } ensuring (res => res <= 0.0)
+  }// ensuring (res => res <= 0.0)
 
   def predatorPrey(r: Real, K: Real, x: Real): Real = {
     require(r >= 4.0 && r <= 4.0 && K >= 1.11 && K <= 1.11 && x.in(0.1, 0.3) &&
@@ -19,7 +19,7 @@ object Physics {
 
     (r*x*x) / (1 + (x/K)*(x/K))
 
-  }  ensuring (res => res <= 0.0)
+  }//  ensuring (res => res <= 0.0)
 
 
   def carbonGas(T: Real, a: Real, b: Real, N: Real, p: Real, V: Real): Real = {
@@ -31,7 +31,7 @@ object Physics {
     val k = 1.3806503e-23
     (p + a * (N / V) * (N / V)) * (V - N * b) - k * N * T
 
-  }  ensuring (res => res <= 0.0)
+  }//  ensuring (res => res <= 0.0)
 
 
 }

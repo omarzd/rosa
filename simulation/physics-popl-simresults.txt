@@ -1,45 +1,45 @@
-[[34m Info  [0m] Running Certification phase
+Running Certification phase
 precisionsToTry: List(Float64)
 sorted: List(vc(verhulst), vc(predatorPrey), vc(carbonGas))
 false
-[[34m Info  [0m] Verification with precision: Float64
-[[34m Info  [0m] 
-[[34m Info  [0m] ----------> checking VC of verhulst
-[[34m Info  [0m] ----------> checking constraint: wholeBody
-[[34m Info  [0m] Computing approximation: NoFncs_AA
-[[34m Info  [0m] STAAATS: timeouts: 4, tight: 16, hit precision: 0, hit iteration: 0
+Verification with precision: Float64
+
+----------> checking VC of verhulst
+----------> checking constraint: wholeBody
+Computing approximation: NoFncs_AA
+STAAATS: timeouts: 4, tight: 16, hit precision: 0, hit iteration: 0
 first try: SAT
-[[34m Info  [0m] RESULT: Some(Not sure)
-[[34m Info  [0m] Generated post: Some(((0.3148936170212766 ≤ #res) ∧ (#res ≤ 1.1008264462809918) ∧ noise(#res,2.905351780994059E-4)))
-[[34m Info  [0m] 
-[[34m Info  [0m] ----------> checking VC of predatorPrey
-[[34m Info  [0m] ----------> checking constraint: wholeBody
-[[34m Info  [0m] Computing approximation: NoFncs_AA
-[[34m Info  [0m] STAAATS: timeouts: 0, tight: 32, hit precision: 2, hit iteration: 0
+RESULT: Some(Not sure)
+Generated post: Some(((0.3148936170212766 ≤ #res) ∧ (#res ≤ 1.1008264462809918) ∧ noise(#res,2.905351780994059E-4)))
+
+----------> checking VC of predatorPrey
+----------> checking constraint: wholeBody
+Computing approximation: NoFncs_AA
+STAAATS: timeouts: 0, tight: 32, hit precision: 2, hit iteration: 0
 first try: SAT
-[[34m Info  [0m] RESULT: Some(Not sure)
-[[34m Info  [0m] Generated post: Some(((0.039677476347984325 ≤ #res) ∧ (#res ≤ 0.33549365839863904) ∧ noise(#res,9.38671940579259E-5)))
-[[34m Info  [0m] 
-[[34m Info  [0m] ----------> checking VC of carbonGas
-[[34m Info  [0m] ----------> checking constraint: wholeBody
-[[34m Info  [0m] Computing approximation: NoFncs_AA
-[[34m Info  [0m] STAAATS: timeouts: 0, tight: 40, hit precision: 0, hit iteration: 8
+RESULT: Some(Not sure)
+Generated post: Some(((0.039677476347984325 ≤ #res) ∧ (#res ≤ 0.33549365839863904) ∧ noise(#res,9.38671940579259E-5)))
+
+----------> checking VC of carbonGas
+----------> checking constraint: wholeBody
+Computing approximation: NoFncs_AA
+STAAATS: timeouts: 0, tight: 40, hit precision: 0, hit iteration: 8
 first try: SAT
-[[34m Info  [0m] RESULT: Some(Not sure)
-[[34m Info  [0m] Generated post: Some(((4303226.134641265 ≤ #res) ∧ (#res ≤ 1.6739010600914001E7) ∧ noise(#res,4933387.8370274715)))
+RESULT: Some(Not sure)
+Generated post: Some(((4303226.134641265 ≤ #res) ∧ (#res ≤ 1.6739010600914001E7) ∧ noise(#res,4933387.8370274715)))
 allProven: false
-[[34m Info  [0m] Simulation size: 10000000
-[[34m Info  [0m] -----> Simulating function carbonGas...
-[[34m Info  [0m] Simulated interval: Some([4150804.012006782,16907304.39806014])
-[[34m Info  [0m] Max error: 168874.69861486368
-[[34m Info  [0m] -----> Simulating function predatorPrey...
-[[34m Info  [0m] Simulated interval: Some([0.03966904232625915,0.3355733243616901])
-[[34m Info  [0m] Max error: 8.60004832411998E-5
-[[34m Info  [0m] -----> Simulating function verhulst...
-[[34m Info  [0m] Simulated interval: Some([0.3668564703169500,0.9449129157491766])
-[[34m Info  [0m] Max error: 2.390833018767191E-4
-[[34m Info  [0m] Generated program with 22 lines.
-[[34m Info  [0m] . ┌─────────┐
+Simulation size: 10000000
+-----> Simulating function carbonGas...
+Simulated interval: Some([4150804.012006782,16907304.39806014])
+Max error: 168874.69861486368
+-----> Simulating function predatorPrey...
+Simulated interval: Some([0.03966904232625915,0.3355733243616901])
+Max error: 8.60004832411998E-5
+-----> Simulating function verhulst...
+Simulated interval: Some([0.3668564703169500,0.9449129157491766])
+Max error: 2.390833018767191E-4
+Generated program with 22 lines.
+. ┌─────────┐
           ╔═╡ Summary ╞═══════════════════════════════════════════════════════════════════════╗
           ║ └─────────┘                                                                       ║
           ║ carbonGas                       -- ms     3040ms                                  ║

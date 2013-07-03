@@ -61,7 +61,8 @@ case class Constraint(pre: Expr, body: Expr, post: Expr, description: String) {
       //Seq(Uninterpreted_None) ++
       //Seq(PostInlining_None, PostInlining_AA, PostInlining_AAPathSensitive, FullInlining_None, FullInlining_AA, FullInlining_AAPathSensitive)
       //Seq(PostInlining_None, FullInlining_None, FullInlining_AA)
-      Seq(FullInlining_AA, FullInlining_AACompactOnFnc)
+      //Seq(FullInlining_AA, FullInlining_AACompactOnFnc)
+      Seq(FullInlining_AA)
     } else {
       //Seq(Uninterpreted_None) ++
       //Seq(NoFncs_AA, NoFncs_AAPathSensitive)

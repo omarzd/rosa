@@ -1,54 +1,8 @@
-[[34m Info  [0m] Running Certification phase
-precisionsToTry: List(Float64)
-sorted: List(vc(doppler3), vc(doppler2), vc(doppler1))
-false
-[[34m Info  [0m] Verification with precision: Float64
-[[34m Info  [0m] 
-[[34m Info  [0m] ----------> checking VC of doppler3
-[[34m Info  [0m] ----------> checking constraint: wholeBody
-[[34m Info  [0m] Computing approximation: NoFncs_AA
-[[34m Info  [0m] STAAATS: timeouts: 4, tight: 42, hit precision: 0, hit iteration: 4
-first try: SAT
-[[34m Info  [0m] RESULT: Some(Not sure)
-[[34m Info  [0m] Generated post: Some(((-83.06529627188314 ≤ #res) ∧ (#res ≤ -0.5074351957380142) ∧ noise(#res,2.4551080658755017E-4)))
-[[34m Info  [0m] 
-[[34m Info  [0m] ----------> checking VC of doppler2
-[[34m Info  [0m] ----------> checking constraint: wholeBody
-[[34m Info  [0m] Computing approximation: NoFncs_AA
-[[34m Info  [0m] STAAATS: timeouts: 4, tight: 42, hit precision: 0, hit iteration: 4
-first try: SAT
-[[34m Info  [0m] RESULT: Some(Not sure)
-[[34m Info  [0m] Generated post: Some(((-230.9905601592768 ≤ #res) ∧ (#res ≤ -0.02270351107876934) ∧ noise(#res,1.1361560869086043E-4)))
-[[34m Info  [0m] 
-[[34m Info  [0m] ----------> checking VC of doppler1
-[[34m Info  [0m] ----------> checking constraint: wholeBody
-[[34m Info  [0m] Computing approximation: NoFncs_AA
-[[34m Info  [0m] STAAATS: timeouts: 4, tight: 42, hit precision: 0, hit iteration: 4
-first try: Unknown
-[[34m Info  [0m] RESULT: Some(Not sure)
-[[34m Info  [0m] Generated post: Some(((-137.63862821824702 ≤ #res) ∧ (#res ≤ -0.033906920237177056) ∧ noise(#res,4.766248234756109E-6)))
-allProven: false
-[[34m Info  [0m] Simulation size: 10000000
-[[34m Info  [0m] -----> Simulating function doppler1...
-[[34m Info  [0m] Simulated interval: Some([-136.3452021068371,-0.03527397100080482])
-[[34m Info  [0m] Max error: 5.968723542082444E-7
-[[34m Info  [0m] -----> Simulating function doppler2...
-[[34m Info  [0m] Simulated interval: Some([-227.8404190148825,-0.02323589556169747])
-[[34m Info  [0m] Max error: 1.84007726886648E-5
-[[34m Info  [0m] -----> Simulating function doppler3...
-[[34m Info  [0m] Simulated interval: Some([-82.62341174765002,-0.5157097883491053])
-[[34m Info  [0m] Max error: 5.957337712914068E-5
-[[34m Info  [0m] Generated program with 18 lines.
-[[34m Info  [0m] . ┌─────────┐
-          ╔═╡ Summary ╞═══════════════════════════════════════════════════════════════════════╗
-          ║ └─────────┘                                                                       ║
-          ║ doppler1                        -- ms     7136ms                                  ║
-          ║                              Not sure        wholeBody                            ║
-          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
-          ║ doppler2                        -- ms     6127ms                                  ║
-          ║                              Not sure        wholeBody                            ║
-          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
-          ║ doppler3                        -- ms     6560ms                                  ║
-          ║                              Not sure        wholeBody                            ║
-          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
-          ╚═══════════════════════════════════════════════════════════════════════════════════╝
+doppler1...
+[-136.3452021068371,-0.03527397100080482]   5.968723542082444E-7
+
+doppler2...
+[-227.8404190148825,-0.02323589556169747]   1.84007726886648E-5
+
+doppler3...
+[-82.62341174765002,-0.5157097883491053]    5.957337712914068E-5

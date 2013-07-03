@@ -1,0 +1,172 @@
+Experiment 3: all transforms as in 2, prec; 0.0000001, threshold: 50, timeout: 5s
+
+[info] [ Info  ] ----------> checking VC of doppler1
+[info] [ Info  ] Now computing the postcondition.
+[info] Computing for path: Path(true,List((#res == ((-((331.4 + (0.6 * T))) * v) / (((331.4 + (0.6 * T)) + u) * ((331.4 + (0.6 * T)) + u))))))
+[info] [ Info  ] STAAATS: timeouts: 4, tight: 44, hit precision: 2, hit iteration: 0
+[info] resConstraint: noise(#res,4.766248234756102E-6)
+[info] [ Info  ] Generated post: Some(((-137.6385766021136 ≤ #res) ∧ (#res ≤ -0.03394700864904313) ∧ noise(#res,4.766248234756102E-6)))
+[info] [ Info  ] 
+[info] [ Info  ] ----------> checking VC of doppler2
+[info] [ Info  ] Now computing the postcondition.
+[info] Computing for path: Path(true,List((#res == ((-((331.4 + (0.6 * T))) * v) / (((331.4 + (0.6 * T)) + u) * ((331.4 + (0.6 * T)) + u))))))
+[info] [ Info  ] STAAATS: timeouts: 4, tight: 44, hit precision: 2, hit iteration: 0
+[info] resConstraint: noise(#res,1.1361560869086041E-4)
+[info] [ Info  ] Generated post: Some(((-230.99065883052745 ≤ #res) ∧ (#res ≤ -0.02261605525306952) ∧ noise(#res,1.1361560869086041E-4)))
+[info] [ Info  ] 
+[info] [ Info  ] ----------> checking VC of doppler3
+[info] [ Info  ] Now computing the postcondition.
+[info] Computing for path: Path(true,List((#res == ((-((331.4 + (0.6 * T))) * v) / (((331.4 + (0.6 * T)) + u) * ((331.4 + (0.6 * T)) + u))))))
+[info] [ Info  ] STAAATS: timeouts: 4, tight: 44, hit precision: 2, hit iteration: 0
+[info] resConstraint: noise(#res,2.455108065875501E-4)
+[info] [ Info  ] Generated post: Some(((-83.06553811972412 ≤ #res) ∧ (#res ≤ -0.5071968267936797) ∧ noise(#res,2.455108065875501E-4)))
+[info] allProven: true
+
+[ Info  ] ----------> checking VC of jetEngine
+[ Info  ] Now computing the postcondition.
+Computing for path: Path(true,List((t == ((((3.0 * x1) * x1) + (2.0 * x2)) - x1)), (#res == (x1 + (((((((((2.0 * x1) * (t / ((x1 * x1) + 1.0))) * ((t / ((x1 * x1) + 1.0)) - 3.0)) + ((x1 * x1) * ((4.0 * (t / ((x1 * x1) + 1.0))) - 6.0))) * ((x1 * x1) + 1.0)) + (((3.0 * x1) * x1) * (t / ((x1 * x1) + 1.0)))) + ((x1 * x1) * x1)) + x1) + (3.0 * (((((3.0 * x1) * x1) + (2.0 * x2)) - x1) / ((x1 * x1) + 1.0))))))))
+[ Info  ] STAAATS: timeouts: 21, tight: 150, hit precision: 42, hit iteration: 0
+resConstraint: (noise(t,3.3000006247249E-7) ∧ noise(#res,0.2737053192945445))
+[ Info  ] Generated post: Some(((-1780.0632880395065 ≤ #res) ∧ (#res ≤ 4819.889090022711) ∧ noise(#res,0.2737053192945445)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of jetEngine_1
+[ Info  ] Now computing the postcondition.
+Computing for path: Path(true,List((t == ((((3.0 * x1) * x1) + (2.0 * x2)) - x1)), (#res == (x1 + (((((((((2.0 * x1) * (t / ((x1 * x1) + 1.0))) * ((t / ((x1 * x1) + 1.0)) - 3.0)) + ((x1 * x1) * ((4.0 * (t / ((x1 * x1) + 1.0))) - 6.0))) * ((x1 * x1) + 1.0)) + (((3.0 * x1) * x1) * (t / ((x1 * x1) + 1.0)))) + ((x1 * x1) * x1)) + x1) + (3.0 * (((((3.0 * x1) * x1) + (2.0 * x2)) - x1) / ((x1 * x1) + 1.0))))))))
+[ Info  ] STAAATS: timeouts: 22, tight: 150, hit precision: 42, hit iteration: 0
+resConstraint: (noise(t,5.100062172519894E-9) ∧ noise(#res,0.0027637776208624598))
+[ Info  ] Generated post: Some(((-1779.7923464978364 ≤ #res) ∧ (#res ≤ 4819.618148481037) ∧ noise(#res,0.0027637776208624598)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of rigidBody1
+[ Info  ] Now computing the postcondition.
+Computing for path: Path(true,List((#res == ((((-(x1) * x2) - ((2.0 * x2) * x3)) - x1) - x3))))
+[ Info  ] STAAATS: timeouts: 0, tight: 26, hit precision: 0, hit iteration: 0
+resConstraint: noise(#res,9.200005082270577E-7)
+[ Info  ] Generated post: Some(((-705.0000009200005 ≤ #res) ∧ (#res ≤ 705.0000009200005) ∧ noise(#res,9.200005082270577E-7)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of rigidBody1_1
+[ Info  ] Now computing the postcondition.
+Computing for path: Path(true,List((#res == ((((-(x1) * x2) - ((2.0 * x2) * x3)) - x1) - x3))))
+[ Info  ] STAAATS: timeouts: 0, tight: 26, hit precision: 0, hit iteration: 0
+resConstraint: noise(#res,1.955000017079272E-4)
+[ Info  ] Generated post: Some(((-705.0001955000017 ≤ #res) ∧ (#res ≤ 705.0001955000017) ∧ noise(#res,1.955000017079272E-4)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of rigidBody2
+[ Info  ] Now computing the postcondition.
+Computing for path: Path(true,List((#res == (((((((2.0 * x1) * x2) * x3) + ((3.0 * x3) * x3)) - (((x2 * x1) * x2) * x3)) + ((3.0 * x3) * x3)) - x2))))
+[ Info  ] STAAATS: timeouts: 0, tight: 51, hit precision: 5, hit iteration: 0
+resConstraint: noise(#res,1.5031006489643083E-4)
+[ Info  ] Generated post: Some(((-56010.00015033988 ≤ #res) ∧ (#res ≤ 58740.000150310065) ∧ noise(#res,1.5031006489643083E-4)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of rigidBody2_1
+[ Info  ] Now computing the postcondition.
+Computing for path: Path(true,List((#res == (((((((2.0 * x1) * x2) * x3) + ((3.0 * x3) * x3)) - (((x2 * x1) * x2) * x3)) + ((3.0 * x3) * x3)) - x2))))
+[ Info  ] STAAATS: timeouts: 0, tight: 51, hit precision: 5, hit iteration: 0
+resConstraint: noise(#res,0.04297510315100189)
+[ Info  ] Generated post: Some(((-56010.04297513296 ≤ #res) ∧ (#res ≤ 58740.04297510315) ∧ noise(#res,0.04297510315100189)))
+allProven: true
+
+
+[ Info  ] ----------> checking VC of carbonGas
+[ Info  ] Now computing the postcondition.
+Computing for path: Path(true,List((k == 1.3806503E-23), (#res == (((p + ((a * (N / V)) * (N / V))) * (V - (N * b))) - ((k * N) * T)))))
+[ Info  ] STAAATS: timeouts: 0, tight: 46, hit precision: 2, hit iteration: 0
+resConstraint: (noise(#res,4933387.8370274715) ∧ noise(k,0.0))
+[ Info  ] Generated post: Some(((-476761.8613464629 ≤ #res) ∧ (#res ≤ 2.16723970370275E7) ∧ noise(#res,4933387.8370274715)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of predatorPrey
+[ Info  ] Now computing the postcondition.
+Computing for path: Path(true,List((#res == (((r * x) * x) / (1.0 + ((x / K) * (x / K)))))))
+[ Info  ] STAAATS: timeouts: 0, tight: 32, hit precision: 2, hit iteration: 0
+resConstraint: noise(#res,9.38671940579259E-5)
+[ Info  ] Generated post: Some(((0.03958406667605791 ≤ #res) ∧ (#res ≤ 0.33558744934056467) ∧ noise(#res,9.38671940579259E-5)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of verhulst
+[ Info  ] Now computing the postcondition.
+Computing for path: Path(true,List((#res == ((r * x) / (1.0 + (x / K))))))
+[ Info  ] STAAATS: timeouts: 4, tight: 16, hit precision: 0, hit iteration: 0
+resConstraint: noise(#res,2.905351780994059E-4)
+[ Info  ] Generated post: Some(((0.31460308184924246 ≤ #res) ∧ (#res ≤ 1.101116981459091) ∧ noise(#res,2.905351780994059E-4)))
+allProven: true
+
+
+
+[ Info  ] ----------> checking VC of turbine1
+[ Info  ] Now computing the postcondition.
+Computing for path: Path(true,List((#res == (((3.0 + (2.0 / (r * r))) - (((0.125 * (3.0 - (2.0 * v))) * (((w * w) * r) * r)) / (1.0 - v))) - 4.5))))
+[ Info  ] STAAATS: timeouts: 0, tight: 58, hit precision: 2, hit iteration: 0
+resConstraint: noise(#res,9.840170113712192E-6)
+[ Info  ] Generated post: Some(((-18.525736756432135 ≤ #res) ∧ (#res ≤ -1.9915950615345162) ∧ noise(#res,9.840170113712192E-6)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of turbine2
+[ Info  ] Now computing the postcondition.
+Computing for path: Path(true,List((#res == (((6.0 * v) - (((0.5 * v) * (((w * w) * r) * r)) / (1.0 - v))) - 2.5))))
+[ Info  ] STAAATS: timeouts: 0, tight: 38, hit precision: 4, hit iteration: 0
+resConstraint: noise(#res,1.463629213772863E-5)
+[ Info  ] Generated post: Some(((-28.55485104285444 ≤ #res) ∧ (#res ≤ 3.8222213244866254) ∧ noise(#res,1.463629213772863E-5)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of turbine3
+[ Info  ] Now computing the postcondition.
+Computing for path: Path(true,List((#res == (((3.0 - (2.0 / (r * r))) - (((0.125 * (1.0 + (2.0 * v))) * (((w * w) * r) * r)) / (1.0 - v))) - 0.5))))
+[ Info  ] STAAATS: timeouts: 0, tight: 58, hit precision: 2, hit iteration: 0
+resConstraint: noise(#res,6.875527482225581E-6)
+[ Info  ] Generated post: Some(((0.5717199633453341 ≤ #res) ∧ (#res ≤ 11.427206519963882) ∧ noise(#res,6.875527482225581E-6)))
+allProven: true
+
+
+------------------------ MISC ------------------------------
+[ Info  ] ----------> checking VC of booths
+[ Info  ] Now computing the postcondition.
+Computing for path: Path(true,List((#res == ((((x + (2.0 * y)) - 7.0) * ((x + (2.0 * y)) - 7.0)) + ((((2.0 * x) + y) - 5.0) * (((2.0 * x) + y) - 5.0))))))
+[ Info  ] STAAATS: timeouts: 0, tight: 60, hit precision: 0, hit iteration: 0
+resConstraint: noise(#res,6.625811154580117E-13)
+[ Info  ] Generated post: Some(((179.99999999999935 ≤ #res) ∧ (#res ≤ 680.0000000000007) ∧ noise(#res,6.625811154580117E-13)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of camel
+[ Info  ] Now computing the postcondition.
+Computing for path: Path(true,List((#res == ((((((2.0 * x) * x) - ((((1.05 * x) * x) * x) * x)) + ((((((x * x) * x) * x) * x) * x) / 6.0)) + (x * y)) + (y * y)))))
+[ Info  ] STAAATS: timeouts: 0, tight: 61, hit precision: 13, hit iteration: 0
+resConstraint: noise(#res,4.83224881006374E-12)
+[ Info  ] Generated post: Some(((-1.873402918617066E-8 ≤ #res) ∧ (#res ≤ 2047.916666747995) ∧ noise(#res,4.83224881006374E-12)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of goldstein
+[ Info  ] Now computing the postcondition.
+Computing for path: Path(true,List((#res == ((1.0 + ((((x + y) + 1.0) * ((x + y) + 1.0)) * (((((19.0 - (14.0 * x)) + ((3.0 * x) * x)) - (14.0 * y)) + ((6.0 * x) * y)) + ((3.0 * y) * y)))) * (30.0 + ((((2.0 * x) - (3.0 * y)) * ((2.0 * x) - (3.0 * y))) * (((((18.0 - (32.0 * x)) + ((12.0 * x) * x)) + (48.0 * y)) - ((36.0 * x) * y)) + ((27.0 * y) * y))))))))
+[ Info  ] STAAATS: timeouts: 2, tight: 159, hit precision: 11, hit iteration: 0
+resConstraint: noise(#res,1.0553524133447856E-8)
+[ Info  ] Generated post: Some(((1150.667970591024 ≤ #res) ∧ (#res ≤ 351661.6325625733) ∧ noise(#res,1.0553524133447856E-8)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of matyas
+[ Info  ] Now computing the postcondition.
+Computing for path: Path(true,List((#res == ((0.26 * ((x * x) + (y * y))) - ((0.48 * x) * y)))))
+[ Info  ] STAAATS: timeouts: 0, tight: 28, hit precision: 0, hit iteration: 0
+resConstraint: noise(#res,2.2781776629788657E-14)
+[ Info  ] Generated post: Some(((9.159999999999977 ≤ #res) ∧ (#res ≤ 36.36000000000002) ∧ noise(#res,2.2781776629788657E-14)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of motzkin
+[ Info  ] Now computing the postcondition.
+Computing for path: Path(true,List((#res == (((z * z) * z) + (((x * x) * (y * y)) * (((z * z) + (y * y)) - ((3.0 * z) * z)))))))
+[ Info  ] STAAATS: timeouts: 0, tight: 44, hit precision: 4, hit iteration: 4
+resConstraint: noise(#res,8.21402764119314E-7)
+[ Info  ] Generated post: Some(((32.76799910723639 ≤ #res) ∧ (#res ≤ 4.914637883648009E8) ∧ noise(#res,8.21402764119314E-7)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of poly1
+[ Info  ] Now computing the postcondition.
+Computing for path: Path(true,List((#res == (((1.0 - ((x * x) / 2.0)) + ((((x * x) * x) * x) / 24.0)) - ((((((x * x) * x) * x) * x) * x) / 720.0)))))
+[ Info  ] STAAATS: timeouts: 0, tight: 53, hit precision: 13, hit iteration: 0
+resConstraint: noise(#res,1.1546519356221442E-14)
+[ Info  ] Generated post: Some(((-1.4255425732989029 ≤ #res) ∧ (#res ≤ 1.0000000289409217) ∧ noise(#res,1.1546519356221442E-14)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of poly2
+[ Info  ] Now computing the postcondition.
+Computing for path: Path(true,List((#res == (((1.0 + ((x * x) / 2.0)) + ((((x * x) * x) * x) / 24.0)) + ((((((x * x) * x) * x) * x) * x) / 720.0)))))
+[ Info  ] STAAATS: timeouts: 0, tight: 57, hit precision: 9, hit iteration: 0
+resConstraint: noise(#res,4.17681125372102E-15)
+[ Info  ] Generated post: Some(((0.9999999763577795 ≤ #res) ∧ (#res ≤ 5.215072735712804) ∧ noise(#res,4.17681125372102E-15)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of poly3
+[ Info  ] Now computing the postcondition.
+Computing for path: Path(true,List((#res == ((((1.0 + x) + (x * x)) + ((((2.0 * x) * x) * x) / 3.0)) + ((((x * x) * x) * x) / 2.0)))))
+[ Info  ] STAAATS: timeouts: 0, tight: 45, hit precision: 11, hit iteration: 0
+resConstraint: noise(#res,5.472396628733326E-15)
+[ Info  ] Generated post: Some(((0.6786650310228266 ≤ #res) ∧ (#res ≤ 2.98613339471663) ∧ noise(#res,5.472396628733326E-15)))
+allProven: t

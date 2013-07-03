@@ -1,33 +1,33 @@
-[[34m Info  [0m] Running Certification phase
+Running Certification phase
 precisionsToTry: List(Float64)
 sorted: List(vc(turbine3), vc(turbine2), vc(turbine1))
 false
-[[34m Info  [0m] Verification with precision: Float64
-[[34m Info  [0m] 
-[[34m Info  [0m] ----------> checking VC of turbine3
-[[34m Info  [0m] STAAATS: timeouts: 0, tight: 53, hit precision: 0, hit iteration: 7
-[[34m Info  [0m] Generated post: Some(((0.5717267584186013 ≤ #res) ∧ (#res ≤ 11.427203017965464) ∧ noise(#res,6.875527482225583E-6)))
-[[34m Info  [0m] 
-[[34m Info  [0m] ----------> checking VC of turbine2
-[[34m Info  [0m] STAAATS: timeouts: 0, tight: 30, hit precision: 0, hit iteration: 12
-[[34m Info  [0m] Generated post: Some(((-28.554849438158527 ≤ #res) ∧ (#res ≤ 3.822210098485947) ∧ noise(#res,1.4636292137728635E-5)))
-[[34m Info  [0m] 
-[[34m Info  [0m] ----------> checking VC of turbine1
-[[34m Info  [0m] STAAATS: timeouts: 0, tight: 48, hit precision: 0, hit iteration: 12
-[[34m Info  [0m] Generated post: Some(((-18.52572854595397 ≤ #res) ∧ (#res ≤ -1.9915993992485013) ∧ noise(#res,9.840170113712195E-6)))
+Verification with precision: Float64
+
+----------> checking VC of turbine3
+STAAATS: timeouts: 0, tight: 53, hit precision: 0, hit iteration: 7
+Generated post: Some(((0.5717267584186013 ≤ #res) ∧ (#res ≤ 11.427203017965464) ∧ noise(#res,6.875527482225583E-6)))
+
+----------> checking VC of turbine2
+STAAATS: timeouts: 0, tight: 30, hit precision: 0, hit iteration: 12
+Generated post: Some(((-28.554849438158527 ≤ #res) ∧ (#res ≤ 3.822210098485947) ∧ noise(#res,1.4636292137728635E-5)))
+
+----------> checking VC of turbine1
+STAAATS: timeouts: 0, tight: 48, hit precision: 0, hit iteration: 12
+Generated post: Some(((-18.52572854595397 ≤ #res) ∧ (#res ≤ -1.9915993992485013) ∧ noise(#res,9.840170113712195E-6)))
 allProven: true
-[[34m Info  [0m] Simulation size: 10000000
-[[34m Info  [0m] -----> Simulating function turbine1...
-[[34m Info  [0m] Simulated interval: Some([-18.28309740206900,-1.994613541042574])
-[[34m Info  [0m] Max error: 3.708133995417029E-7
-[[34m Info  [0m] -----> Simulating function turbine2...
-[[34m Info  [0m] Simulated interval: Some([-28.52731225360191,3.810642984635700])
-[[34m Info  [0m] Max error: 7.654527336420358E-7
-[[34m Info  [0m] -----> Simulating function turbine3...
-[[34m Info  [0m] Simulated interval: Some([0.6117063658275412,11.37982060035790])
-[[34m Info  [0m] Max error: 1.0382605186709526E-6
-[[34m Info  [0m] Generated program with 18 lines.
-[[34m Info  [0m] . ┌─────────┐
+Simulation size: 10000000
+-----> Simulating function turbine1...
+Simulated interval: Some([-18.28309740206900,-1.994613541042574])
+Max error: 3.708133995417029E-7
+-----> Simulating function turbine2...
+Simulated interval: Some([-28.52731225360191,3.810642984635700])
+Max error: 7.654527336420358E-7
+-----> Simulating function turbine3...
+Simulated interval: Some([0.6117063658275412,11.37982060035790])
+Max error: 1.0382605186709526E-6
+Generated program with 18 lines.
+. ┌─────────┐
           ╔═╡ Summary ╞═══════════════════════════════════════════════════════════════════════╗
           ║ └─────────┘                                                                       ║
           ║ turbine1                        -- ms     12515ms                                 ║

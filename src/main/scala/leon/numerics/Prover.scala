@@ -89,8 +89,9 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
     val (resVar, eps, buddies) = getVariables(parameters ++ ca.vars)
     val trans = new NumericConstraintTransformer(buddies, resVar, eps, RoundoffType.RoundoffMultiplier, reporter)
     // TODO: constraint.addInitialVariableConnection
-    val precondition =  if (ca.addInitialVariableConnection) trans.transformCondition(ca.pre)
-                        else trans.transformCondition(noiseRemover.transform(ca.pre))
+    //val precondition =  if (ca.addInitialVariableConnection) trans.transformCondition(ca.pre)
+    //                   else trans.transformCondition(noiseRemover.transform(ca.pre))
+    val precondition = trans.transformCondition(ca.pre)
     val postcondition = trans.transformCondition(ca.post)
 
     // TODO: errors on computing the path condition?
@@ -113,7 +114,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
     
           //TODO: somehow remove redundant definitions of errors? stuff like And(Or(idealPart), Or(actualPart))
           var toCheck = ArithmeticOps.totalMakeover(And(And(precondition, body), Not(postcondition))) //has to be unsat
-          println("toCheck: " + deltaRemover.transform(toCheck))
+          //println("toCheck: " + deltaRemover.transform(toCheck))
     
           if (reporter.errorCount == 0 && sanityCheck(precondition, false, body))
             solver.checkSat(toCheck)
@@ -130,12 +131,12 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
         if (ca.paths.size > 1) {
           val paths = idealPart.zip(actualPart)
           for ((i, a) <- paths) {
-            println("\n checking path: " + deltaRemover.transform(And(i, a)))
-            val toCheck = And(Seq(precondition, i, a, machineEpsilon, Not(postcondition)))
-            println("Body before: " + toCheck)
-            println("Body after: " + ArithmeticOps.totalMakeover(toCheck))
+            //println("\n checking path: " + deltaRemover.transform(And(i, a)))
+            val toCheck = ArithmeticOps.totalMakeover(And(Seq(precondition, i, a, machineEpsilon, Not(postcondition))))
+            //println("Body before: " + toCheck)
+            //println("Body after: " + ArithmeticOps.totalMakeover(toCheck))
             val (sat, model) = solver.checkSat(toCheck)
-            println("with result: " + sat)
+            //println("with result: " + sat)
             // TODO: print the models that are actually useful, once we figure out which ones those are
             if (sat != UNSAT) {
               // TODO save this somewhere so we can emit the appropriate runtime checks

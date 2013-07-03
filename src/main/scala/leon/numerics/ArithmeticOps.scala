@@ -14,9 +14,15 @@ object ArithmeticOps {
   val productCollector = new ProductCollector
   val powerTransformer = new PowerTransformer
   val factorizer = new Factorizer
+  val minusDistributor = new MinusDistributor
 
   def totalMakeover(expr: Expr): Expr = {
-    collectPowers(factorize(expr))
+    collectPowers(factorize(minusDistributor.transform(expr)))
+    //expr
+  }
+
+  def distributeMinus(expr: Expr): Expr = {
+    minusDistributor.transform(expr)
   }
 
   def factorize(expr: Expr): Expr = {
@@ -83,25 +89,38 @@ object ArithmeticOps {
 
     override def rec(e: Expr, path: C) = e match {
       case Times(f, Plus(a, b)) =>
-        val t = Plus(rec(Times(f, a), path), rec(Times(f, b), path))
-        //if(t != e) { println("\n e: " + e); println("t: " + t)}
-        t
+        Plus(rec(Times(f, a), path), rec(Times(f, b), path))
       case Times(Plus(a, b), f) =>
-        val t = Plus(rec(Times(a, f), path), rec(Times(b, f), path))
-        //if(t != e) { println("\n e: " + e); println("t: " + t)}
-        t
+        Plus(rec(Times(a, f), path), rec(Times(b, f), path))
       case Times(f, Minus(a, b)) =>
-        val t = Minus(rec(Times(f, a), path), rec(Times(f, b), path))
-        //if(t != e) { println("\n e: " + e); println("t: " + t)}
-        t
+        Minus(rec(Times(f, a), path), rec(Times(f, b), path))
       case Times(Minus(a, b), f) =>
-        val t = Minus(rec(Times(a, f), path), rec(Times(b, f), path))
-        //if(t != e) { println("\n e: " + e); println("t: " + t)}
-        t
+        Minus(rec(Times(a, f), path), rec(Times(b, f), path))
       case _ =>
         super.rec(e, path)
     }
 
   }
 
+
+  class MinusDistributor extends TransformerWithPC {
+    type C = Seq[Expr]
+    val initC = Nil
+    
+    def register(e: Expr, path: C) = path :+ e
+
+    override def rec(e: Expr, path: C) = e match {
+      case UMinus(Plus(x, y)) => Minus(rec(UMinus(x), path), rec(y, path))
+      case UMinus(Minus(x, y)) => Plus(rec(UMinus(x), path), rec(y, path))
+
+      case UMinus(Times(x, y)) => Times(rec(UMinus(x), path), rec(y, path))
+
+      case UMinus(Division(x, y)) => Division(rec(UMinus(x), path), rec(y, path))
+
+      case UMinus(UMinus(x)) => rec(x, path)
+      case _ =>
+        super.rec(e, path)
+    }
+
+  }
 }

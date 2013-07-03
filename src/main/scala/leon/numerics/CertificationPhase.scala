@@ -99,12 +99,12 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
 
     val vcs = generateVCs(reporter, sortedFncs)
     if (reporter.errorCount > 0) throw LeonFatalError()
-    val sortedVCs = vcs.sortWith(
+    val sortedVCs = vcs /*vcs.sortWith(
       (vc1, vc2) => // TODO: is this finally a stable sort?!
         !vc1.allFncCalls.contains(vc2.id)
         //if (vc1.allFncCalls.contains(vc2.id)) false
         //else vc1.id < vc2.id
-      )
+      )*/
 
 
 

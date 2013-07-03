@@ -11,7 +11,7 @@ object Doppler {
 
     (- (331.4 + 0.6 * T) *v) / ((331.4 + 0.6*T + u)*(331.4 + 0.6*T + u))
 
-  } ensuring (res => -137.0 <= res && res <= -0.35 && noise(res, 1e-4))
+  }// ensuring (res => -137.0 <= res && res <= -0.35 && noise(res, 1e-4))
 
   def doppler2(u: Real, v: Real, T: Real): Real = {
     require(u.in(-125, 125) && v.in(15, 25000) && T.in(-40, 60) &&
@@ -19,7 +19,7 @@ object Doppler {
 
     (- (331.4 + 0.6 * T) *v) / ((331.4 + 0.6*T + u)*(331.4 + 0.6*T + u))
 
-  } ensuring (res => -227.5 < res && res < -0.05 && noise(res, 1e-12))
+  }// ensuring (res => -227.5 < res && res < -0.05 && noise(res, 1e-12))
 
   def doppler3(u: Real, v: Real, T: Real): Real = {
     require(u.in(-30, 120) && v.in(320, 20300) && T.in(-50, 30) &&
@@ -27,7 +27,7 @@ object Doppler {
 
     (- (331.4 + 0.6 * T) *v) / ((331.4 + 0.6*T + u)*(331.4 + 0.6*T + u))
 
-  } ensuring (res => -82.5 <= res && res <= -0.6 && noise(res, 1e-13))
+  }// ensuring (res => -82.5 <= res && res <= -0.6 && noise(res, 1e-13))
 
 
 }
