@@ -121,6 +121,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
           else
             (None, None)
       } else {
+        println("Skipping all in.")
         (None, None)
       }
     println("first try: " + firstTry._1)
@@ -131,12 +132,11 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
         if (ca.paths.size > 1) {
           val paths = idealPart.zip(actualPart)
           for ((i, a) <- paths) {
-            //println("\n checking path: " + deltaRemover.transform(And(i, a)))
+            println("\n checking path: " )//+ deltaRemover.transform(And(i, a)))
             val toCheck = ArithmeticOps.totalMakeover(And(Seq(precondition, i, a, machineEpsilon, Not(postcondition))))
-            //println("Body before: " + toCheck)
-            //println("Body after: " + ArithmeticOps.totalMakeover(toCheck))
+            println("toCheck:" + toCheck)
             val (sat, model) = solver.checkSat(toCheck)
-            //println("with result: " + sat)
+            println("with result: " + sat)
             // TODO: print the models that are actually useful, once we figure out which ones those are
             if (sat != UNSAT) {
               // TODO save this somewhere so we can emit the appropriate runtime checks
@@ -217,7 +217,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
         //println("paths: " + paths.mkString("\n"))
         val apaths = paths.collect {
           case path: Path if (sanityCheck(And(path.condition, filteredPrecondition), false)) =>
-            println("Computing for path: " + path)
+            //println("Computing for path: " + path)
             val fullPathCondition = And(path.condition, filteredPrecondition)
             //println("fullPathCondition: " + fullPathCondition)
 
@@ -303,7 +303,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
         //println("paths: " + paths.mkString("\n"))
         val apaths = paths.collect {
           case path: Path if (sanityCheck(And(path.condition, filteredPrecondition))) =>
-            println("Computing for path: " + path)
+            println("Computing for path: " )//+ path)
             val fullPathCondition = And(path.condition, filteredPrecondition)
             //println("fullPathCondition: " + fullPathCondition)
 

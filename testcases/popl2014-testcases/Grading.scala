@@ -34,7 +34,7 @@ object Grading {
         }
       }
     result
-  } ensuring (result => 1.0 <= result && result <= 6.0)
+  } ensuring (result => 1.0 <= result && result <= 6.25)
 
 
   def badGradingNoRounding(project: Real, homeworks: Real, quiz: Real) : Real = {
@@ -53,7 +53,7 @@ object Grading {
         }
       }
     result
-  } ensuring (result => 1.0 <= result && result <= 6.0)
+  } ensuring (result => 1.0 <= result && result <= 6.25)
 
 
 
