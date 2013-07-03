@@ -4,9 +4,15 @@
 import leon.Real
 import Real._
 
-
+import leon.Utils._
 
 object Debug {
+
+  def classicRoot2(a: Real, b: Real, c: Real): Real = {
+    require(a.in(2.5, 3.5) && b.in(54.0, 57.0) && c.in(0.5, 1.5))
+    val discr = b*b - a * c * 4.0
+    (-b + sqrt(discr))/(a * 2.0)
+  } ensuring (res => noise(res, 1e-13))
 
   def smartRoot2(a: Real, b: Real, c: Real): Real = {
     require(a.in(2.5, 3.5) && b.in(54.0, 57.0) && c.in(0.5, 1.5))
@@ -21,6 +27,16 @@ object Debug {
       (-b + sqrt(discr))/(a * 2.0)
     }
   } ensuring (res => noise(res, 1e-13))
+
+  
+  def tightInvariant2(a: Real, b: Real, c: Real): Boolean = {
+    require(a.in(2.5, 3.5) && b.in(54.0, 57.0) && c.in(0.5, 1.5))
+
+    val c2 = classicRoot2(a, b, c)
+    val s2 = smartRoot2(a, b, c)
+    ~s2 <= ~c2 + 1e-15
+  } holds
+  
 
   /*def bspline3(u: Real): Real = {
     require(0 <= u && u <= 1)

@@ -63,7 +63,7 @@ object Quadratic {
 
     val c2 = classicRoot2(a, b, c)
     val s2 = smartRoot2(a, b, c)
-    s2 <= c2 + 0.001
+    ~s2 <= ~c2 + 1e-13
   } holds
 
   /* ---------------------

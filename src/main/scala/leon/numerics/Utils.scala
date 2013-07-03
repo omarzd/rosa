@@ -273,12 +273,10 @@ object Utils {
     resMap
   }
 
-  /*def noiseConstraintFromResults(results: Map[Expr, (RationalInterval, Rational)]): Expr = {
+  def noiseConstraintFromXFloats(results: Map[Expr, XFloat]): Expr = {
     And(results.foldLeft(Seq[Expr]())(
-      (seq, kv) => seq ++ Seq(LessEquals(RationalLiteral(kv._2._1.xlo), kv._1),
-                                  LessEquals(kv._1, RationalLiteral(kv._2._1.xhi)),
-                                  Noise(kv._1, RationalLiteral(kv._2._2)))))
-  }*/
+      (seq, kv) => seq :+ Noise(kv._1, RationalLiteral(kv._2.maxError))))
+  }
 
   
 
@@ -323,6 +321,23 @@ object Utils {
 
     override def rec(e: Expr, path: C) = e match {
       case Roundoff(expr) => BooleanLiteral(true)
+      case _ =>
+        super.rec(e, path)
+    }
+  }
+
+  // Convenience for readability of printouts
+  class DeltaRemover extends TransformerWithPC {
+    type C = Seq[Expr]
+    val initC = Nil
+
+    def register(e: Expr, path: C) = path :+ e
+
+    override def rec(e: Expr, path: C) = e match {
+      case LessEquals(Variable(id1), Variable(id2)) if (id1.toString.contains("#delta_") && id2.toString == "#eps") =>
+        True
+      case LessEquals(UMinus(Variable(id1)), Variable(id2)) if (id1.toString == "#eps" && id2.toString.contains("#delta_")) =>
+        True
       case _ =>
         super.rec(e, path)
     }
