@@ -255,7 +255,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
     // TODO: Z3 only for the very small cases (some heuristic here to select which ones)
 
     case NoFncs_AA => // we'll make this by default path sensitive
-      //try {
+      try {
         val paths = c.paths
         val filteredPrecondition = filterPreconditionForBoundsIteration(c.pre)
         println("paths: " + paths.mkString("\n"))
@@ -289,12 +289,12 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
         } else {
           None
         }
-      /*} catch {
+      } catch {
         case x =>
           reporter.warning("NoFncs_AA throws: " + x)
           reporter.warning(x.getStackTrace)
       }
-      None*/
+      None
 
     // So, now we have functions, two options:
     // 1) inline the function body first, and then do approximation with compacting
@@ -302,7 +302,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
 
     // This is the second option
     case FullInlining_AACompactOnFnc =>
-      //try {
+      try {
         // TODO: inline pre and post? how about invariants?
         val paths = c.paths
         val filteredPrecondition = filterPreconditionForBoundsIteration(c.pre)
@@ -334,11 +334,11 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
         } else {
           None
         }
-      //} catch { case _=> ;}
-      //None
+      } catch { case _=> ;}
+      None
 
     case FullInlining_AA =>
-      //try {
+      try {
         val (newPre, newBody, newPost, vars) = fullInliner.inlineFunctions(c.pre, c.body, c.post)
         val paths = collectPaths(newBody)
         val newInputs = getVariableRecords(newPre)
@@ -370,8 +370,8 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
         } else {
           None
         }
-      //} catch { case _ => ;}
-      //None  
+      } catch { case _ => ;}
+      None  
       
       // TODO: postinlining with AA?
   }
@@ -420,8 +420,10 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
 
     case true =>
       (findApproximation(c, inputs, List(FullInlining_AA, FullInlining_AACompactOnFnc)), c.status) match {
-        case (Some(approx), Some(VALID)) => getMostPrecise(c.post, approx.values)
-        case (Some(approx), _) => constraintFromResults(Map(ResultVariable() -> approx.values(ResultVariable())))
+        case (Some(approx), Some(VALID)) =>
+          constraintFromResults(Map(ResultVariable() -> approx.actualXfloats(ResultVariable())))
+          // TODO: getMostPrecise(c.post, approx.values)
+        case (Some(approx), _) => constraintFromResults(Map(ResultVariable() -> approx.actualXfloats(ResultVariable())))
         case (None, Some(VALID)) => c.post
         case (None, _) => True
       }

@@ -23,7 +23,7 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
 
 
   def evaluateWithFncCalls(expr: List[Expr], precondition: Expr, inputs: Map[Variable, Record]): (Map[Expr, XFloat], Map[Int, Expr]) = {
-    println("Evaluating: " + expr)
+    //println("Evaluating: " + expr)
     val config = XFloatConfig(reporter, solver, precondition, precision, unitRoundoff)
     val (variables, indices) = variables2xfloats(inputs, config)
     solver.clearCounts
@@ -70,12 +70,12 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
       val fresh = getNewFncVariable(funDef.id.name)
       val arguments: Map[Expr, Expr] = funDef.args.map(decl => decl.toVariable).zip(args).toMap
       val newBody = replace(arguments, vcMap(funDef).body)
-      println("newBody: " + newBody)
-      println("inputs: ")
-      for((k, v) <- vars) {
-        println(k + ": " +v.tree)
-        println("compacted: " + compactXFloat(v, k).tree)
-      }
+      //println("newBody: " + newBody)
+      //println("inputs: ")
+      //for((k, v) <- vars) {
+        //println(k + ": " +v.tree)
+        //println("compacted: " + compactXFloat(v, k).tree)
+      //}
       val bodyAsList = newBody match {
         case And(list) => list
         case eq: Equals => List(eq)
@@ -83,12 +83,12 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
         case _=> throw UnsupportedFragmentException("AA cannot handle: " + expr); null
       }
 
-      println("bodyList: " + bodyAsList)
+      //println("bodyList: " + bodyAsList)
       val vals = inXFloatsWithFncs(bodyAsList.toList, vars, config)
       val result = vals(ResultVariable())
-      println("result: " + result)
+      //println("result: " + result)
       val newXFloat = compactXFloat(result, fresh)
-      println("newXFloat: " + newXFloat)
+      //println("newXFloat: " + newXFloat)
       newXFloat
       
     case _ =>
@@ -124,7 +124,7 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
         } catch {
           case UnsupportedFragmentException(msg) => reporter.error(msg)
         }
-
+        println("")
       case BooleanLiteral(true) => ;
       case _ =>
         reporter.error("AA cannot handle: " + expr)
@@ -134,7 +134,8 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
   }
 
   // Evaluates an arithmetic expression
-  private def eval(expr: Expr, vars: Map[Expr, XFloat], config: XFloatConfig): XFloat = expr match {
+  private def eval(expr: Expr, vars: Map[Expr, XFloat], config: XFloatConfig): XFloat = {
+    val xfloat = expr match {
     case v @ Variable(id) => vars(v)
     case RationalLiteral(v) => XFloat(v, config)
     case IntLiteral(v) => XFloat(v, config)
@@ -147,6 +148,15 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
     case _ =>
       throw UnsupportedFragmentException("AA cannot handle: " + expr)
       null
+    }
+    print(".("+formulaSize(xfloat.tree)+") ") // marking progress
+    if (formulaSize(xfloat.tree) > 70) {
+      println("compacting")
+      val fresh = getNewXFloatVar
+      compactXFloat(xfloat, fresh)
+    } else {
+      xfloat
+    }
   }
 
   private def compactXFloat(xfloat: XFloat, newTree: Expr): XFloat = {

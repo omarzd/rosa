@@ -98,15 +98,10 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
     if (reporter.errorCount > 0) throw LeonFatalError()
     val sortedVCs = vcs.sortWith(
       (vc1, vc2) =>
-        if (vc1.allFncCalls.size == 0) true
-        else if (vc2.allFncCalls.size == 0) false
-        else if (!vc1.allFncCalls.contains(vc2.id)) true
-        else if (!vc2.allFncCalls.contains(vc1.id)) false
-        else true//mutually recursive
+        if (vc1.allFncCalls.contains(vc2.id)) false
+        else vc1.id < vc2.id
       )
-    //println("vcs: " + vcs)
-    println("sorted: " + sortedVCs)
-
+    
     var currentVCs = sortedVCs
     println(currentVCs.forall(vc => vc.proven))
     while (!currentVCs.forall(vc => vc.proven) && !precisionsToTry.isEmpty) {

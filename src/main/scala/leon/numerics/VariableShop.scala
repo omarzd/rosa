@@ -16,7 +16,12 @@ object VariableShop {
   private var sqrtCounter = 0
   private var fncCounter = 0
   private var resErrorCounter = 0
+  private var xfloatCounter = 0
 
+  def getNewXFloatVar: Variable = { // used for compacting xfloats
+    xfloatCounter = xfloatCounter + 1
+    Variable(FreshIdentifier("#xvar_" + xfloatCounter)).setType(RealType)
+  }
   def getNewErrorVar: Variable = {
     errCounter = errCounter + 1
     Variable(FreshIdentifier("#err_" + errCounter)).setType(RealType)

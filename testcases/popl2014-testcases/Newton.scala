@@ -15,8 +15,140 @@ object Newton {
     1 - (x*x)/2.0 + (x*x*x*x)/24.0 + (x*x*x*x*x*x)/720.0
   }
 
+  /*
+    1 iteration
+   */
+
   // valid
-  def newton1(in: Real): Real = {
+  def newton1_1(in: Real): Real = {
+    require(in > -0.2 && in < 0.2)
+    val x1 = in - f(in)/fp(in)
+    x1
+  } ensuring(res => ~res < 0.1)
+
+  // valid
+  def newton2_1(in: Real): Real = {
+    require(in > -0.4 && in < 0.4)
+    val x1 = in - f(in)/fp(in)
+    x1
+  } ensuring(res => ~res < 0.1)
+
+  // valid
+  def newton3_1(in: Real): Real = {
+    require(in > -0.6 && in < 0.6)
+    val x1 = in - f(in)/fp(in)
+    x1
+  } ensuring(res => ~res < 0.1)
+
+  // not valid
+  def newton4_1(in: Real): Real = {
+    require(in > -0.8 && in < 0.8)
+    val x1 = in - f(in)/fp(in)
+    x1
+  } ensuring(res => ~res < 0.1)
+
+  // not valid
+  def newton5_1(in: Real): Real = {
+    require(in > -1.0 && in < 1.0)
+    val x1 = in - f(in)/fp(in)
+    x1
+  } ensuring(res => ~res < 0.1)
+
+  // not valid
+  def newton6_1(in: Real): Real = {
+    require(in > -1.2 && in < 1.2)
+    val x1 = in - f(in)/fp(in)
+    x1
+  } ensuring(res => ~res < 0.1)
+
+  // not valid
+  def newton7_1(in: Real): Real = {
+    require(in > -1.4 && in < 1.4)
+    val x1 = in - f(in)/fp(in)
+    x1
+  } ensuring(res => ~res < 0.1)
+
+  // not valid
+  def newton8_1(in: Real): Real = {
+    require(in > -2.0 && in < 2.0)
+    val x1 = in - f(in)/fp(in)
+    x1
+  } ensuring(res => ~res < 0.1)
+
+  /*
+    2 iterations
+   */
+
+  // valid
+  def newton1_2(in: Real): Real = {
+    require(in > -0.2 && in < 0.2)
+    val x1 = in - f(in)/fp(in)
+    val x2 = x1 - f(x1)/fp(x1)
+    x2
+  } ensuring(res => ~res < 0.1)
+
+  // valid
+  def newton2_2(in: Real): Real = {
+    require(in > -0.4 && in < 0.4)
+    val x1 = in - f(in)/fp(in)
+    val x2 = x1 - f(x1)/fp(x1)
+    x2
+  } ensuring(res => ~res < 0.1)
+
+  // valid
+  def newton3_2(in: Real): Real = {
+    require(in > -0.6 && in < 0.6)
+    val x1 = in - f(in)/fp(in)
+    val x2 = x1 - f(x1)/fp(x1)
+    x2
+  } ensuring(res => ~res < 0.1)
+
+  // valid
+  def newton4_2(in: Real): Real = {
+    require(in > -0.8 && in < 0.8)
+    val x1 = in - f(in)/fp(in)
+    val x2 = x1 - f(x1)/fp(x1)
+    x2
+  } ensuring(res => ~res < 0.1)
+
+  // valid
+  def newton5_2(in: Real): Real = {
+    require(in > -1.0 && in < 1.0)
+    val x1 = in - f(in)/fp(in)
+    val x2 = x1 - f(x1)/fp(x1)
+    x2
+  } ensuring(res => ~res < 0.1)
+
+  // not valid
+  def newton6_2(in: Real): Real = {
+    require(in > -1.2 && in < 1.2)
+    val x1 = in - f(in)/fp(in)
+    val x2 = x1 - f(x1)/fp(x1)
+    x2
+  } ensuring(res => ~res < 0.1)
+
+  // not valid
+  def newton7_2(in: Real): Real = {
+    require(in > -1.4 && in < 1.4)
+    val x1 = in - f(in)/fp(in)
+    val x2 = x1 - f(x1)/fp(x1)
+    x2
+  } ensuring(res => ~res < 0.1)
+
+  // not valid
+  def newton8_2(in: Real): Real = {
+    require(in > -2.0 && in < 2.0)
+    val x1 = in - f(in)/fp(in)
+    val x2 = x1 - f(x1)/fp(x1)
+    x2
+  } ensuring(res => ~res < 0.1)
+
+  /* 
+    3 iterations
+   */
+
+  // valid
+  def newton1_3(in: Real): Real = {
     require(in > -0.2 && in < 0.2)
     val x1 = in - f(in)/fp(in)
     val x2 = x1 - f(x1)/fp(x1)
@@ -25,7 +157,7 @@ object Newton {
   } ensuring(res => ~res < 0.1)
 
   // valid
-  def newton2(in: Real): Real = {
+  def newton2_3(in: Real): Real = {
     require(in > -0.4 && in < 0.4)
     val x1 = in - f(in)/fp(in)
     val x2 = x1 - f(x1)/fp(x1)
@@ -34,7 +166,7 @@ object Newton {
   } ensuring(res => ~res < 0.1)
 
   // valid
-  def newton3(in: Real): Real = {
+  def newton3_3(in: Real): Real = {
     require(in > -0.6 && in < 0.6)
     val x1 = in - f(in)/fp(in)
     val x2 = x1 - f(x1)/fp(x1)
@@ -43,7 +175,7 @@ object Newton {
   } ensuring(res => ~res < 0.1)
 
   // valid
-  def newton4(in: Real): Real = {
+  def newton4_3(in: Real): Real = {
     require(in > -0.8 && in < 0.8)
     val x1 = in - f(in)/fp(in)
     val x2 = x1 - f(x1)/fp(x1)
@@ -52,7 +184,7 @@ object Newton {
   } ensuring(res => ~res < 0.1)
 
   // valid
-  def newton5(in: Real): Real = {
+  def newton5_3(in: Real): Real = {
     require(in > -1.0 && in < 1.0)
     val x1 = in - f(in)/fp(in)
     val x2 = x1 - f(x1)/fp(x1)
@@ -61,7 +193,7 @@ object Newton {
   } ensuring(res => ~res < 0.1)
 
   // not valid
-  def newton6(in: Real): Real = {
+  def newton6_3(in: Real): Real = {
     require(in > -1.2 && in < 1.2)
     val x1 = in - f(in)/fp(in)
     val x2 = x1 - f(x1)/fp(x1)
@@ -70,7 +202,7 @@ object Newton {
   } ensuring(res => ~res < 0.1)
 
   // not valid
-  def newton7(in: Real): Real = {
+  def newton7_3(in: Real): Real = {
     require(in > -1.4 && in < 1.4)
     val x1 = in - f(in)/fp(in)
     val x2 = x1 - f(x1)/fp(x1)
@@ -79,7 +211,7 @@ object Newton {
   } ensuring(res => ~res < 0.1)
 
   // not valid
-  def newton8(in: Real): Real = {
+  def newton8_3(in: Real): Real = {
     require(in > -2.0 && in < 2.0)
     val x1 = in - f(in)/fp(in)
     val x2 = x1 - f(x1)/fp(x1)
