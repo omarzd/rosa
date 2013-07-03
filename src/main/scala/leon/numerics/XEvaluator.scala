@@ -120,11 +120,11 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
       case Equals(variable, value) =>
         try {
           val computedValue = eval(value, currentVars, config)
+          //val compacted = compactXFloat(computedValue, Variable(FreshIdentifier("x")).setType(RealType))
           currentVars = currentVars + (variable -> computedValue)
         } catch {
           case UnsupportedFragmentException(msg) => reporter.error(msg)
         }
-        println("")
       case BooleanLiteral(true) => ;
       case _ =>
         reporter.error("AA cannot handle: " + expr)
@@ -149,14 +149,15 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
       throw UnsupportedFragmentException("AA cannot handle: " + expr)
       null
     }
-    print(".("+formulaSize(xfloat.tree)+") ") // marking progress
+    /*print(".("+formulaSize(xfloat.tree)+") ") // marking progress
     if (formulaSize(xfloat.tree) > 70) {
       println("compacting")
       val fresh = getNewXFloatVar
       compactXFloat(xfloat, fresh)
     } else {
       xfloat
-    }
+    }*/
+    xfloat
   }
 
   private def compactXFloat(xfloat: XFloat, newTree: Expr): XFloat = {

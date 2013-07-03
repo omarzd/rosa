@@ -332,11 +332,11 @@ case class XFloatConfig(reporter: Reporter, solver: NumericSolver, precondition:
   private def getTightInterval(tree: Expr, approx: RationalInterval, condition: Expr): RationalInterval = {
     //println("\n tightening: " + tree)
     //println("with pre: " + condition)
-    val preprocessedTree = ArithmeticOps.collectPowers(tree)
-    //println("using: " + preprocessedTree)
+    val massagedTree = ArithmeticOps.totalMakeover(tree)
+    //println("massaged: " + massagedTree)
     //println("initial approx: " + approx)
 
-    val res = config.solver.tightenRange(preprocessedTree, condition, approx)
+    val res = config.solver.tightenRange(massagedTree, condition, approx)
 
     //val res = approx
     //println("after tightening: " + res)

@@ -5,68 +5,7 @@ import leon.Utils._
 
 object Quadratic {
 
-  /* ---------------------
-        Tight bounds.
-  ------------------------- */
-  def classicRoot1(a: Real, b: Real, c: Real): Real = {
-    require(a.in(2.5, 3.5) && b.in(54.0, 57.0) && c.in(0.5, 1.5))
-    val discr = b*b - a * c * 4.0
-    (-b - sqrt(discr))/(a * 2.0)
-  } ensuring (res => noise(res, 1e-13))
-
-  def classicRoot2(a: Real, b: Real, c: Real): Real = {
-    require(a.in(2.5, 3.5) && b.in(54.0, 57.0) && c.in(0.5, 1.5))
-    val discr = b*b - a * c * 4.0
-    (-b + sqrt(discr))/(a * 2.0)
-  } ensuring (res => noise(res, 1e-13))
-
-  def smartRoot1(a: Real, b: Real, c: Real): Real = {
-    require(a.in(2.5, 3.5) && b.in(54.0, 57.0) && c.in(0.5, 1.5))
-
-    val discr = b*b - a * c * 4.0
-    if(b*b - a*c > 10.0) {
-      if(b > 0.0) (-b - sqrt(discr))/(a * 2.0)
-      else if(b < 0.0)  c * 2.0 /(-b + sqrt(discr))
-      else  (-b - sqrt(discr))/(a * 2.0)
-    }
-    else {
-      (-b - sqrt(discr))/(a * 2.0)
-    }
-
-  } ensuring (res => noise(res, 1e-13))
-
-
-  def smartRoot2(a: Real, b: Real, c: Real): Real = {
-    require(a.in(2.5, 3.5) && b.in(54.0, 57.0) && c.in(0.5, 1.5))
-
-    val discr = b*b - a * c * 4.0
-    if(b*b - a*c > 10.0) {
-      if(b > 0.0) c * 2.0 /(-b - sqrt(discr))
-      else if(b < 0.0)  (-b + sqrt(discr))/(a * 2.0)
-      else (-b + sqrt(discr))/(a * 2.0)
-    }
-    else {
-      (-b + sqrt(discr))/(a * 2.0)
-    }
-  } ensuring (res => noise(res, 1e-13))
-
-  def tightInvariant1(a: Real, b: Real, c: Real): Boolean = {
-    require(a.in(2.5, 3.5) && b.in(54.0, 57.0) && c.in(0.5, 1.5))
-
-    val c1 = classicRoot1(a, b, c)
-    val s1 = smartRoot1(a, b, c)
-    s1 <= c1 + 0.001
-  } holds
-
-  def tightInvariant2(a: Real, b: Real, c: Real): Boolean = {
-    require(a.in(2.5, 3.5) && b.in(54.0, 57.0) && c.in(0.5, 1.5))
-
-    val c2 = classicRoot2(a, b, c)
-    val s2 = smartRoot2(a, b, c)
-    s2 <= c2 + 0.001
-  } holds
-
-  /* ---------------------
+    /* ---------------------
         More general bounds.
   ------------------------- */
   def classicRoot1General(a: Real, b: Real, c: Real): Real = {
@@ -133,6 +72,69 @@ object Quadratic {
     //s2 == c2 + 0.001
     s2 <= c2 + 0.001
   } holds
+
+  /* ---------------------
+        Tight bounds.
+  ------------------------- */
+  /*def classicRoot1(a: Real, b: Real, c: Real): Real = {
+    require(a.in(2.5, 3.5) && b.in(54.0, 57.0) && c.in(0.5, 1.5))
+    val discr = b*b - a * c * 4.0
+    (-b - sqrt(discr))/(a * 2.0)
+  } ensuring (res => noise(res, 1e-13))
+
+  def classicRoot2(a: Real, b: Real, c: Real): Real = {
+    require(a.in(2.5, 3.5) && b.in(54.0, 57.0) && c.in(0.5, 1.5))
+    val discr = b*b - a * c * 4.0
+    (-b + sqrt(discr))/(a * 2.0)
+  } ensuring (res => noise(res, 1e-13))
+
+  def smartRoot1(a: Real, b: Real, c: Real): Real = {
+    require(a.in(2.5, 3.5) && b.in(54.0, 57.0) && c.in(0.5, 1.5))
+
+    val discr = b*b - a * c * 4.0
+    if(b*b - a*c > 10.0) {
+      if(b > 0.0) (-b - sqrt(discr))/(a * 2.0)
+      else if(b < 0.0)  c * 2.0 /(-b + sqrt(discr))
+      else  (-b - sqrt(discr))/(a * 2.0)
+    }
+    else {
+      (-b - sqrt(discr))/(a * 2.0)
+    }
+
+  } ensuring (res => noise(res, 1e-13))
+
+
+  def smartRoot2(a: Real, b: Real, c: Real): Real = {
+    require(a.in(2.5, 3.5) && b.in(54.0, 57.0) && c.in(0.5, 1.5))
+
+    val discr = b*b - a * c * 4.0
+    if(b*b - a*c > 10.0) {
+      if(b > 0.0) c * 2.0 /(-b - sqrt(discr))
+      else if(b < 0.0)  (-b + sqrt(discr))/(a * 2.0)
+      else (-b + sqrt(discr))/(a * 2.0)
+    }
+    else {
+      (-b + sqrt(discr))/(a * 2.0)
+    }
+  } ensuring (res => noise(res, 1e-13))
+
+  def tightInvariant1(a: Real, b: Real, c: Real): Boolean = {
+    require(a.in(2.5, 3.5) && b.in(54.0, 57.0) && c.in(0.5, 1.5))
+
+    val c1 = classicRoot1(a, b, c)
+    val s1 = smartRoot1(a, b, c)
+    s1 <= c1 + 0.001
+  } holds
+
+  def tightInvariant2(a: Real, b: Real, c: Real): Boolean = {
+    require(a.in(2.5, 3.5) && b.in(54.0, 57.0) && c.in(0.5, 1.5))
+
+    val c2 = classicRoot2(a, b, c)
+    val s2 = smartRoot2(a, b, c)
+    s2 <= c2 + 0.001
+  } holds
+  */
+
 
   /*def quadraticClassic(a: Real, b: Real, c: Real): (Real, Real) = {
     require(a.in(2.5, 3.5) && b.in(54.0, 57.0) && c.in(0.5, 1.5))

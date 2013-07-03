@@ -63,7 +63,6 @@ class Analyser(reporter: Reporter) {
     }
 
     if (containsAssertion(bodyProcessed)) {
-      val noiseRemover = new NoiseRemover
       val paths = collectPaths(bodyProcessed)
       for (path <- paths) {
         var i = 0
@@ -87,7 +86,7 @@ class Analyser(reporter: Reporter) {
     constraints = constraints.map(c => Constraint(c.pre, assertionRemover.transform(c.body), c.post, c.description))
 
     if (containsFunctionCalls(bodyProcessed)) {
-      val noiseRemover = new NoiseRemover
+      val roundoffRemover = new RoundoffRemover
       val paths = collectPaths(bodyProcessed)
       for (path <- paths) {
         var i = 0
@@ -101,7 +100,7 @@ class Analyser(reporter: Reporter) {
               fncCall.funDef.precondition match {
                 case Some(p) =>
                   val args: Map[Expr, Expr] = fncCall.funDef.args.map(decl => decl.toVariable).zip(fncCall.args).toMap
-                  val postcondition = replace(args, noiseRemover.transform(p))
+                  val postcondition = replace(args, roundoffRemover.transform(p))
                   constraints = constraints :+ Constraint(
                       And(vcPrecondition, path.condition), And(pathToFncCall), postcondition, "pre of call " + fncCall.toString)
                 case None => ;

@@ -5,6 +5,8 @@ import java.io._
 
 import ceres.common.Interval
 
+import z3.Z3Wrapper
+
 import purescala.Common._
 import purescala.Definitions._
 import purescala.Trees._
@@ -62,6 +64,7 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
     val reporter = ctx.reporter
     var functionsToAnalyse = Set[String]()
     reporter.info("Running Certification phase")
+    reporter.info("Z3 version: " + Z3Wrapper.z3VersionString)
 
     for (opt <- ctx.options) opt match {
       case LeonValueOption("functions", ListValue(fs)) => functionsToAnalyse = Set() ++ fs
@@ -97,11 +100,16 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
     val vcs = generateVCs(reporter, sortedFncs)
     if (reporter.errorCount > 0) throw LeonFatalError()
     val sortedVCs = vcs.sortWith(
-      (vc1, vc2) =>
-        if (vc1.allFncCalls.contains(vc2.id)) false
-        else vc1.id < vc2.id
+      (vc1, vc2) => // TODO: is this finally a stable sort?!
+        !vc1.allFncCalls.contains(vc2.id)
+        //if (vc1.allFncCalls.contains(vc2.id)) false
+        //else vc1.id < vc2.id
       )
-    
+
+
+
+    println(sortedVCs)
+
     var currentVCs = sortedVCs
     println(currentVCs.forall(vc => vc.proven))
     while (!currentVCs.forall(vc => vc.proven) && !precisionsToTry.isEmpty) {

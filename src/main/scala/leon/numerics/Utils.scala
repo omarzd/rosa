@@ -339,9 +339,6 @@ object Utils {
         LessEquals(v, RationalLiteral(r.xhi)))
   }
 
-  /*
-    Replaces all constructs related to Real's with something meant to compile.
-  */
   class NoiseRemover extends TransformerWithPC {
     type C = Seq[Expr]
     val initC = Nil
@@ -349,7 +346,22 @@ object Utils {
     def register(e: Expr, path: C) = path :+ e
 
     override def rec(e: Expr, path: C) = e match {
-      case Roundoff(expr) => BooleanLiteral(true)
+      case Roundoff(_) => True
+      case Noise(_, _) => True
+      case _ =>
+        super.rec(e, path)
+    }
+  }
+
+  
+  class RoundoffRemover extends TransformerWithPC {
+    type C = Seq[Expr]
+    val initC = Nil
+
+    def register(e: Expr, path: C) = path :+ e
+
+    override def rec(e: Expr, path: C) = e match {
+      case Roundoff(_) => True
       case _ =>
         super.rec(e, path)
     }
