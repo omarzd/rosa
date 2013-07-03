@@ -1,0 +1,139 @@
+[ Info  ] Verification with precision: Float64
+[ Info  ] 
+[ Info  ] ----------> checking VC of rigidBody2_3Invalid
+[ Info  ] ----------> checking constraint: wholeBody
+[ Info  ] Computing approximation: NoFncs_AA
+[ Info  ] STAAATS: timeouts: 0, tight: 44, hit precision: 0, hit iteration: 12
+first try: SAT
+[ Info  ] RESULT: Some(Not sure)
+[ Info  ] Generated post: Some(((-106230.00630928118 ≤ #res) ∧ (#res ≤ 223770.0) ∧ noise(#res,2.471747535123445E-10)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of rigidBody2_3
+[ Info  ] ----------> checking constraint: wholeBody
+[ Info  ] Computing approximation: NoFncs_AA
+[ Info  ] STAAATS: timeouts: 0, tight: 44, hit precision: 0, hit iteration: 12
+first try: SAT
+[ Info  ] RESULT: Some(Not sure)
+[ Info  ] Generated post: Some(((-106230.00630928118 ≤ #res) ∧ (#res ≤ 223770.0) ∧ noise(#res,2.471747535123445E-10)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of rigidBody2_2Invalid
+[ Info  ] ----------> checking constraint: wholeBody
+[ Info  ] Computing approximation: NoFncs_AA
+[ Info  ] STAAATS: timeouts: 0, tight: 38, hit precision: 0, hit iteration: 18
+first try: SAT
+[ Info  ] RESULT: Some(Not sure)
+[ Info  ] Generated post: Some(((-595325.0341338216 ≤ #res) ∧ (#res ≤ 479875.0223885987) ∧ noise(#res,6.765845112203587E-10)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of rigidBody2_2
+[ Info  ] ----------> checking constraint: wholeBody
+[ Info  ] Computing approximation: NoFncs_AA
+[ Info  ] STAAATS: timeouts: 0, tight: 38, hit precision: 0, hit iteration: 18
+first try: SAT
+[ Info  ] RESULT: Some(Not sure)
+[ Info  ] Generated post: Some(((-595325.0341338216 ≤ #res) ∧ (#res ≤ 479875.0223885987) ∧ noise(#res,6.765845112203587E-10)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of rigidBody2Invalid
+[ Info  ] ----------> checking constraint: wholeBody
+[ Info  ] Computing approximation: NoFncs_AA
+[ Info  ] STAAATS: timeouts: 0, tight: 46, hit precision: 0, hit iteration: 10
+first try: SAT
+[ Info  ] RESULT: Some(Not sure)
+[ Info  ] Generated post: Some(((-56010.01234321943 ≤ #res) ∧ (#res ≤ 58740.0) ∧ noise(#res,6.475183068501535E-11)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of rigidBody2
+[ Info  ] ----------> checking constraint: wholeBody
+[ Info  ] Computing approximation: NoFncs_AA
+[ Info  ] STAAATS: timeouts: 0, tight: 46, hit precision: 0, hit iteration: 10
+first try: SAT
+[ Info  ] RESULT: Some(Not sure)
+[ Info  ] Generated post: Some(((-56010.01234321943 ≤ #res) ∧ (#res ≤ 58740.0) ∧ noise(#res,6.475183068501535E-11)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of rigidBody1_3
+[ Info  ] ----------> checking constraint: wholeBody
+[ Info  ] Computing approximation: NoFncs_AA
+[ Info  ] STAAATS: timeouts: 0, tight: 17, hit precision: 0, hit iteration: 9
+first try: UNSAT
+[ Info  ] RESULT: Some(VALID)
+[ Info  ] Generated post: Some(((-1165.000059134886 ≤ #res) ∧ (#res ≤ 635.0001430511475) ∧ noise(#res,9.448000055726849E-13)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of rigidBody1_2Invalid
+[ Info  ] ----------> checking constraint: wholeBody
+[ Info  ] Computing approximation: NoFncs_AA
+[ Info  ] STAAATS: timeouts: 0, tight: 22, hit precision: 0, hit iteration: 4
+first try: SAT
+[ Info  ] RESULT: Some(Not sure)
+[ Info  ] Generated post: Some(((-2685.001438330247 ≤ #res) ∧ (#res ≤ 2815.0) ∧ noise(#res,2.0983222245270748E-12)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of rigidBody1_2
+[ Info  ] ----------> checking constraint: wholeBody
+[ Info  ] Computing approximation: NoFncs_AA
+[ Info  ] STAAATS: timeouts: 0, tight: 22, hit precision: 0, hit iteration: 4
+first try: UNSAT
+[ Info  ] RESULT: Some(VALID)
+[ Info  ] Generated post: Some(((-2685.001438330247 ≤ #res) ∧ (#res ≤ 2815.0) ∧ noise(#res,2.0983222245270748E-12)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of rigidBody1Invalid
+[ Info  ] ----------> checking constraint: wholeBody
+[ Info  ] Computing approximation: NoFncs_AA
+[ Info  ] STAAATS: timeouts: 0, tight: 26, hit precision: 0, hit iteration: 0
+first try: SAT
+[ Info  ] RESULT: Some(Not sure)
+[ Info  ] Generated post: Some(((-705.0 ≤ #res) ∧ (#res ≤ 705.0) ∧ noise(#res,5.079270570002227E-13)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of rigidBody1
+[ Info  ] ----------> checking constraint: wholeBody
+[ Info  ] Computing approximation: NoFncs_AA
+[ Info  ] STAAATS: timeouts: 0, tight: 26, hit precision: 0, hit iteration: 0
+first try: UNSAT
+[ Info  ] RESULT: Some(VALID)
+[ Info  ] Generated post: Some(((-705.0 ≤ #res) ∧ (#res ≤ 705.0) ∧ noise(#res,5.079270570002227E-13)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of jetEngine
+[ Info  ] ----------> checking constraint: wholeBody
+[ Info  ] Computing approximation: NoFncs_AA
+[ Info  ] STAAATS: timeouts: 48, tight: 187, hit precision: 34, hit iteration: 29
+first try: SAT
+[ Info  ] RESULT: Some(Not sure)
+[ Info  ] Generated post: Some(((-1779.7925989719731 ≤ #res) ∧ (#res ≤ 4819.615714272166) ∧ noise(#res,3.116246548264693E-8)))
+allProven: false
+[ Info  ] Generated program with 63 lines.
+[ Info  ] . ┌─────────┐
+          ╔═╡ Summary ╞═══════════════════════════════════════════════════════════════════════╗
+          ║ └─────────┘                                                                       ║
+          ║ jetEngine                       -- ms     132046ms                                ║
+          ║                              Not sure        wholeBody                            ║
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ rigidBody2                      -- ms     3824ms                                  ║
+          ║                              Not sure        wholeBody                            ║
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ rigidBody1                      -- ms     107ms                                   ║
+          ║                                 VALID        wholeBody                            ║
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ rigidBody2_3Invalid             -- ms     6107ms                                  ║
+          ║                              Not sure        wholeBody                            ║
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ rigidBody1Invalid               -- ms     109ms                                   ║
+          ║                              Not sure        wholeBody                            ║
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ rigidBody2_2                    -- ms     9880ms                                  ║
+          ║                              Not sure        wholeBody                            ║
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ rigidBody2_2Invalid             -- ms     10031ms                                 ║
+          ║                              Not sure        wholeBody                            ║
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ rigidBody1_2Invalid             -- ms     386ms                                   ║
+          ║                              Not sure        wholeBody                            ║
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ rigidBody2_3                    -- ms     5751ms                                  ║
+          ║                              Not sure        wholeBody                            ║
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ rigidBody2Invalid               -- ms     2732ms                                  ║
+          ║                              Not sure        wholeBody                            ║
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ rigidBody1_3                    -- ms     946ms                                   ║
+          ║                                 VALID        wholeBody                            ║
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ rigidBody1_2                    -- ms     372ms                                   ║
+          ║                                 VALID        wholeBody                            ║
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ╚═══════════════════════════════════════════════════════════════════════════════════╝

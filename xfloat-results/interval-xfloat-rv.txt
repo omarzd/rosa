@@ -1,0 +1,77 @@
+[ Info  ] Verification with precision: Float64
+[ Info  ] 
+[ Info  ] ----------> checking VC of turbine3
+[ Info  ] STAAATS: timeouts: 0, tight: 58, hit precision: 2, hit iteration: 0
+[ Info  ] Generated post: Some(((0.5717164879745845 ≤ #res) ∧ (#res ≤ 11.427227224371293) ∧ noise(#res,6.87552748222559E-6)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of turbine2
+[ Info  ] STAAATS: timeouts: 1, tight: 38, hit precision: 4, hit iteration: 0
+[ Info  ] Generated post: Some(((-28.55484585116735 ≤ #res) ∧ (#res ≤ 3.822265981713324) ∧ noise(#res,1.4636292137728639E-5)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of turbine1
+[ Info  ] STAAATS: timeouts: 0, tight: 58, hit precision: 2, hit iteration: 0
+[ Info  ] Generated post: Some(((-18.525752198271828 ≤ #res) ∧ (#res ≤ -1.9915566072599342) ∧ noise(#res,9.8401701137122E-6)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of noNameQuadratic2
+[ Info  ] STAAATS: timeouts: 0, tight: 16, hit precision: 0, hit iteration: 0
+[ Info  ] Generated post: Some(((-4.04 ≤ #res) ∧ (#res ≤ 87.16) ∧ noise(#res,2.192005329071585E-8)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of noNameQuadratic1
+[ Info  ] STAAATS: timeouts: 0, tight: 20, hit precision: 0, hit iteration: 0
+[ Info  ] Generated post: Some(((19.81 ≤ #res) ∧ (#res ≤ 165.6) ∧ noise(#res,1.7792008598686463E-7)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of circleParabola2
+[ Info  ] STAAATS: timeouts: 0, tight: 15, hit precision: 1, hit iteration: 0
+[ Info  ] Generated post: Some(((-0.510011291503906 ≤ #res) ∧ (#res ≤ 24.94) ∧ noise(#res,7.074000242895708E-7)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of circleParabola1
+[ Info  ] STAAATS: timeouts: 0, tight: 18, hit precision: 2, hit iteration: 0
+[ Info  ] Generated post: Some(((-3.7000357055664064 ≤ #res) ∧ (#res ≤ 9.750038452148438) ∧ noise(#res,5.01000017127645E-7)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of anotherQuadratic3
+[ Info  ] STAAATS: timeouts: 0, tight: 16, hit precision: 0, hit iteration: 0
+[ Info  ] Generated post: Some(((-0.2999999999999998 ≤ #res) ∧ (#res ≤ 58.82000000000001) ∧ noise(#res,1.216000399056364E-7)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of anotherQuadratic2
+[ Info  ] STAAATS: timeouts: 0, tight: 24, hit precision: 0, hit iteration: 0
+[ Info  ] Generated post: Some(((3.3800000000000017 ≤ #res) ∧ (#res ≤ 36.8) ∧ noise(#res,1.8120000538951104E-6)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of anotherQuadratic1
+[ Info  ] STAAATS: timeouts: 0, tight: 19, hit precision: 1, hit iteration: 0
+[ Info  ] Generated post: Some(((2.399985961914062 ≤ #res) ∧ (#res ≤ 26.159999999999997) ∧ noise(#res,3.8400001804810545E-7)))
+allProven: true
+[ Info  ] Generated program with 53 lines.
+[ Info  ] . ┌─────────┐
+          ╔═╡ Summary ╞═══════════════════════════════════════════════════════════════════════╗
+          ║ └─────────┘                                                                       ║
+          ║ circleParabola2                 -- ms     414ms                                   ║
+          
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ circleParabola1                 -- ms     576ms                                   ║
+          
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ turbine1                        -- ms     2817ms                                  ║
+          
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ turbine3                        -- ms     4715ms                                  ║
+          
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ turbine2                        -- ms     6722ms                                  ║
+          
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ noNameQuadratic2                -- ms     193ms                                   ║
+          
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ anotherQuadratic3               -- ms     245ms                                   ║
+          
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ noNameQuadratic1                -- ms     270ms                                   ║
+          
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ anotherQuadratic2               -- ms     446ms                                   ║
+          
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ anotherQuadratic1               -- ms     452ms                                   ║
+          
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ╚═══════════════════════════════════════════════════════════════════════════════════╝

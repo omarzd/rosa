@@ -1,0 +1,183 @@
+[ Info  ] Verification with precision: Float64
+[ Info  ] 
+[ Info  ] ----------> checking VC of motzkin3
+[ Info  ] ----------> checking constraint: wholeBody
+[ Info  ] Computing approximation: NoFncs_AA
+[ Info  ] STAAATS: timeouts: 0, tight: 32, hit precision: 3, hit iteration: 17
+first try: SAT
+[ Info  ] RESULT: Some(Not sure)
+[ Info  ] Generated post: Some(((-86.32046414123984 ≤ #res) ∧ (#res ≤ 1.8218793976072204E8) ∧ noise(#res,3.0435633749237507E-7)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of motzkin2
+[ Info  ] ----------> checking constraint: wholeBody
+[ Info  ] Computing approximation: NoFncs_AA
+[ Info  ] STAAATS: timeouts: 0, tight: 27, hit precision: 1, hit iteration: 24
+first try: SAT
+[ Info  ] RESULT: Some(Not sure)
+[ Info  ] Generated post: Some(((-4.0187758507058956E7 ≤ #res) ∧ (#res ≤ 9.063475850408483E8) ∧ noise(#res,1.7479088673593424E-6)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of motzkin
+[ Info  ] ----------> checking constraint: wholeBody
+[ Info  ] Computing approximation: NoFncs_AA
+[ Info  ] STAAATS: timeouts: 3, tight: 37, hit precision: 1, hit iteration: 12
+first try: SAT
+[ Info  ] RESULT: Some(Not sure)
+[ Info  ] Generated post: Some(((-67.66496914565369 ≤ #res) ∧ (#res ≤ 4.914676944976745E8) ∧ noise(#res,8.214028177466267E-7)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of matyas3
+[ Info  ] ----------> checking constraint: wholeBody
+[ Info  ] Computing approximation: NoFncs_AA
+[ Info  ] STAAATS: timeouts: 0, tight: 25, hit precision: 3, hit iteration: 0
+first try: SAT
+[ Info  ] RESULT: Some(Not sure)
+[ Info  ] Generated post: Some(((-6.8719121917427E-5 ≤ #res) ∧ (#res ≤ 70.17139999999999) ∧ noise(#res,4.36260363227407E-14)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of matyas2
+[ Info  ] ----------> checking constraint: wholeBody
+[ Info  ] Computing approximation: NoFncs_AA
+[ Info  ] STAAATS: timeouts: 0, tight: 26, hit precision: 2, hit iteration: 0
+first try: SAT
+[ Info  ] RESULT: Some(Not sure)
+[ Info  ] Generated post: Some(((1.159922609087519 ≤ #res) ∧ (#res ≤ 176.885) ∧ noise(#res,1.1023515738461114E-13)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of matyas
+[ Info  ] ----------> checking constraint: wholeBody
+[ Info  ] Computing approximation: NoFncs_AA
+[ Info  ] STAAATS: timeouts: 0, tight: 28, hit precision: 0, hit iteration: 0
+first try: UNSAT
+[ Info  ] RESULT: Some(VALID)
+[ Info  ] Generated post: Some(((9.16 ≤ #res) ∧ (#res ≤ 36.36) ∧ noise(#res,2.2781776629788657E-14)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of goldstein
+[ Info  ] ----------> checking constraint: wholeBody
+[ Info  ] Computing approximation: NoFncs_AA
+[ Info  ] STAAATS: timeouts: 8, tight: 158, hit precision: 8, hit iteration: 4
+first try: UNSAT
+[ Info  ] RESULT: Some(VALID)
+[ Info  ] Generated post: Some(((36.687493074136 ≤ #res) ∧ (#res ≤ 351661.70763684466) ∧ noise(#res,1.0553528821468727E-8)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of camel3
+[ Info  ] ----------> checking constraint: wholeBody
+[ Info  ] Computing approximation: NoFncs_AA
+[ Info  ] STAAATS: timeouts: 0, tight: 40, hit precision: 2, hit iteration: 32
+first try: SAT
+[ Info  ] RESULT: Some(Not sure)
+[ Info  ] Generated post: Some(((-0.04507582888494661 ≤ #res) ∧ (#res ≤ 143782.00466472516) ∧ noise(#res,2.6022185695714236E-10)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of camel2
+[ Info  ] ----------> checking constraint: wholeBody
+[ Info  ] Computing approximation: NoFncs_AA
+[ Info  ] STAAATS: timeouts: 0, tight: 40, hit precision: 0, hit iteration: 34
+first try: SAT
+[ Info  ] RESULT: Some(Not sure)
+[ Info  ] Generated post: Some(((-0.21858240562453485 ≤ #res) ∧ (#res ≤ 1163623.5360426174) ∧ noise(#res,2.024284983095442E-9)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of camel
+[ Info  ] ----------> checking constraint: wholeBody
+[ Info  ] Computing approximation: NoFncs_AA
+[ Info  ] STAAATS: timeouts: 0, tight: 51, hit precision: 4, hit iteration: 19
+first try: UNSAT
+[ Info  ] RESULT: Some(VALID)
+[ Info  ] Generated post: Some(((-6.669443709382583E-4 ≤ #res) ∧ (#res ≤ 2047.917408153853) ∧ noise(#res,4.832248848066411E-12)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of booths3
+[ Info  ] ----------> checking constraint: wholeBody
+[ Info  ] Computing approximation: NoFncs_AA
+[ Info  ] STAAATS: timeouts: 0, tight: 54, hit precision: 0, hit iteration: 6
+first try: Unknown
+[ Info  ] RESULT: Some(Not sure)
+[ Info  ] Generated post: Some(((1.7998815076190962 ≤ #res) ∧ (#res ≤ 785.7) ∧ noise(#res,9.56914583376473E-13)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of booths2
+[ Info  ] ----------> checking constraint: wholeBody
+[ Info  ] Computing approximation: NoFncs_AA
+[ Info  ] STAAATS: timeouts: 0, tight: 54, hit precision: 0, hit iteration: 6
+first try: SAT
+[ Info  ] RESULT: Some(Not sure)
+[ Info  ] Generated post: Some(((-3.246307372813032E-4 ≤ #res) ∧ (#res ≤ 1832.0) ∧ noise(#res,1.8427038938081763E-12)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of booths
+[ Info  ] ----------> checking constraint: wholeBody
+[ Info  ] Computing approximation: NoFncs_AA
+[ Info  ] STAAATS: timeouts: 0, tight: 60, hit precision: 0, hit iteration: 0
+first try: Unknown
+[ Info  ] RESULT: Some(Not sure)
+[ Info  ] Generated post: Some(((180.0 ≤ #res) ∧ (#res ≤ 680.0) ∧ noise(#res,6.625811154580117E-13)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of beales3
+[ Info  ] ----------> checking constraint: wholeBody
+[ Info  ] Computing approximation: NoFncs_AA
+[ Info  ] STAAATS: timeouts: 10, tight: 88, hit precision: 0, hit iteration: 42
+first try: SAT
+[ Info  ] RESULT: Some(Not sure)
+[ Info  ] Generated post: Some(((-21.69552723621163 ≤ #res) ∧ (#res ≤ 6.4610711975715585E7) ∧ noise(#res,1.8653932615463168E-7)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of beales2
+[ Info  ] ----------> checking constraint: wholeBody
+[ Info  ] Computing approximation: NoFncs_AA
+[ Info  ] STAAATS: timeouts: 20, tight: 92, hit precision: 0, hit iteration: 36
+first try: SAT
+[ Info  ] RESULT: Some(Not sure)
+[ Info  ] Generated post: Some(((-23.353138498076692 ≤ #res) ∧ (#res ≤ 1.8650169882709333E8) ∧ noise(#res,5.403236682986026E-7)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of beales
+[ Info  ] ----------> checking constraint: wholeBody
+[ Info  ] Computing approximation: NoFncs_AA
+[ Info  ] STAAATS: timeouts: 22, tight: 95, hit precision: 1, hit iteration: 30
+first try: Unknown
+[ Info  ] RESULT: Some(Not sure)
+[ Info  ] Generated post: Some(((0.23405739570867545 ≤ #res) ∧ (#res ≤ 3.1836665624436285E7) ∧ noise(#res,9.19693212516324E-8)))
+allProven: false
+[ Info  ] Generated program with 83 lines.
+[ Info  ] . ┌─────────┐
+          ╔═╡ Summary ╞═══════════════════════════════════════════════════════════════════════╗
+          ║ └─────────┘                                                                       ║
+          ║ beales2                         -- ms     52132ms                                 ║
+          ║                              Not sure        wholeBody                            ║
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ motzkin                         -- ms     12809ms                                 ║
+          ║                              Not sure        wholeBody                            ║
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ booths2                         -- ms     977ms                                   ║
+          ║                              Not sure        wholeBody                            ║
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ camel                           -- ms     4099ms                                  ║
+          ║                                 VALID        wholeBody                            ║
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ motzkin2                        -- ms     15279ms                                 ║
+          ║                              Not sure        wholeBody                            ║
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ goldstein                       -- ms     27475ms                                 ║
+          ║                                 VALID        wholeBody                            ║
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ matyas3                         -- ms     598ms                                   ║
+          ║                              Not sure        wholeBody                            ║
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ beales                          -- ms     52458ms                                 ║
+          ║                              Not sure        wholeBody                            ║
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ matyas                          -- ms     540ms                                   ║
+          ║                                 VALID        wholeBody                            ║
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ booths3                         -- ms     2317ms                                  ║
+          ║                              Not sure        wholeBody                            ║
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ matyas2                         -- ms     961ms                                   ║
+          ║                              Not sure        wholeBody                            ║
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ motzkin3                        -- ms     8733ms                                  ║
+          ║                              Not sure        wholeBody                            ║
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ booths                          -- ms     1488ms                                  ║
+          ║                              Not sure        wholeBody                            ║
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ camel3                          -- ms     8396ms                                  ║
+          ║                              Not sure        wholeBody                            ║
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ camel2                          -- ms     8974ms                                  ║
+          ║                              Not sure        wholeBody                            ║
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ beales3                         -- ms     35195ms                                 ║
+          ║                              Not sure        wholeBody                            ║
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ╚═══════════════════════════════════════════════════════════════════════════════════╝

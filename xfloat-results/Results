@@ -1,0 +1,292 @@
+doppler5
+affine:  timeouts: 2, tight: 40, hit precision: 4, hit iteration: 2   (-83.06535389873775 ≤ #res) ∧ (#res ≤ -0.5073820426352984) ∧ noise(#res,1.9203697643210677E-6)))
+interval: timeouts: 4, tight: 44, hit precision: 2, hit iteration: 0  (-83.06533563855777 ≤ #res) ∧ (#res ≤ -0.507389487904401) ∧ noise(#res,1.8835916324902277E-6)))
+
+doppler4
+  affine: timeouts: 2, tight: 39, hit precision: 1, hit iteration: 6  (-230.9908309863934 ≤ #res) ∧ (#res ≤ -0.019860942877156087) ∧ noise(#res,1.256965279016522E-5)))
+interval: timeouts: 4, tight: 43, hit precision: 0, hit iteration: 3  (-230.9905601592768 ≤ #res) ∧ (#res ≤ -0.02270351107876934) ∧ noise(#res,1.1891660915116182E-5)))
+
+
+doppler3
+  affine: timeouts: 2, tight: 40, hit precision: 4, hit iteration: 2   (-83.06535389873775 ≤ #res) ∧ (#res ≤ -0.5073820426352984) ∧ noise(#res,3.8685672507578493E-13)))
+interval:  timeouts: 4, tight: 44, hit precision: 2, hit iteration: 0  (-83.06533563855777 ≤ #res) ∧ (#res ≤ -0.507389487904401) ∧ noise(#res,3.7930924719300813E-13)))
+
+
+doppler2
+affine:  timeouts: 2, tight: 39, hit precision: 1, hit iteration: 6    (-230.9908309863934 ≤ #res) ∧ (#res ≤ -0.019860942877156087) ∧ noise(#res,2.635533331615728E-12)))
+interval:timeouts: 4, tight: 43, hit precision: 0, hit iteration: 3    (-230.9905601592768 ≤ #res) ∧ (#res ≤ -0.02270351107876934) ∧ noise(#res,2.488070909772189E-12)))
+
+
+doppler1
+affine:  timeouts: 2, tight: 40, hit precision: 0, hit iteration: 6    (-137.6385796994873 ≤ #res) ∧ (#res ≤ -0.03377329981793961) ∧ noise(#res,9.820878362704486E-13)))
+interval:timeouts: 4, tight: 44, hit precision: 2, hit iteration: 0    (-137.63862821824702 ≤ #res) ∧ (#res ≤ -0.033906920237177056) ∧ noise(#res,9.377004551549867E-13)))
+
+
+doppler0
+affine: timeouts: 2, tight: 40, hit precision: 0, hit iteration: 6     (-137.6385796994873 ≤ #res) ∧ (#res ≤ -0.03377329981793961) ∧ noise(#res,9.820878362704486E-13)))
+interval:timeouts: 4, tight: 44, hit precision: 2, hit iteration: 0    (-137.63862821824702 ≤ #res) ∧ (#res ≤ -0.033906920237177056) ∧ noise(#res,9.377004551549867E-13)))
+
+
+doppler
+affine:  timeouts: 2, tight: 40, hit precision: 0, hit iteration: 6    (-137.6385796994873 ≤ #res) ∧ (#res ≤ -0.03377329981793961) ∧ noise(#res,4.9758843067224375E-6)))
+interval:timeouts: 4, tight: 44, hit precision: 2, hit iteration: 0    (-137.63862821824702 ≤ #res) ∧ (#res ≤ -0.033906920237177056) ∧ noise(#res,4.766248234756109E-6)))
+
+
+
+
+rigidBody2_3Invalid
+affine:  timeouts: 0, tight: 34, hit precision: 0, hit iteration: 22   (-106230.0352191925 ≤ #res) ∧ (#res ≤ 223770.0) ∧ noise(#res,2.471747535123445E-10)))
+interval: timeouts: 0, tight: 44, hit precision: 0, hit iteration: 12  (-106230.00630928118 ≤ #res) ∧ (#res ≤ 223770.0) ∧ noise(#res,2.471747535123445E-10)))
+
+rigidBody2_3
+affine;  timeouts: 0, tight: 34, hit precision: 0, hit iteration: 22   (-106230.0352191925 ≤ #res) ∧ (#res ≤ 223770.0) ∧ noise(#res,2.471747535123445E-10)))
+interval: timeouts: 0, tight: 44, hit precision: 0, hit iteration: 12  (-106230.00630928118 ≤ #res) ∧ (#res ≤ 223770.0) ∧ noise(#res,2.471747535123445E-10)))
+
+
+
+rigidBody2_2Invalid
+affine: timeouts: 0, tight: 34, hit precision: 0, hit iteration: 22    (-595325.5225300789 ≤ #res) ∧ (#res ≤ 479875.3239929676) ∧ noise(#res,6.765845112203587E-10)))
+interval: timeouts: 0, tight: 38, hit precision: 0, hit iteration: 18  (-595325.0341338216 ≤ #res) ∧ (#res ≤ 479875.0223885987) ∧ noise(#res,6.765845112203587E-10)))
+
+
+rigidBody2_2
+affine: timeouts: 0, tight: 34, hit precision: 0, hit iteration: 22    (-595325.5225300789 ≤ #res) ∧ (#res ≤ 479875.3239929676) ∧ noise(#res,6.765845112203587E-10)))
+interval: timeouts: 0, tight: 38, hit precision: 0, hit iteration: 18   (-595325.0341338216 ≤ #res) ∧ (#res ≤ 479875.0223885987) ∧ noise(#res,6.765845112203587E-10)))
+
+
+rigidBody2Invalid
+affine: timeouts: 0, tight: 48, hit precision: 0, hit iteration: 8     (-56010.05252838135 ≤ #res) ∧ (#res ≤ 58740.0) ∧ noise(#res,6.475183068501535E-11)))
+interval: timeouts: 0, tight: 46, hit precision: 0, hit iteration: 10  (-56010.01234321943 ≤ #res) ∧ (#res ≤ 58740.0) ∧ noise(#res,6.475183068501535E-11)))
+
+
+rigidBody2
+affine: timeouts: 0, tight: 48, hit precision: 0, hit iteration: 8     (-56010.05252838135 ≤ #res) ∧ (#res ≤ 58740.0) ∧ noise(#res,6.475183068501535E-11)))
+interval: timeouts: 0, tight: 46, hit precision: 0, hit iteration: 10  (-56010.01234321943 ≤ #res) ∧ (#res ≤ 58740.0) ∧ noise(#res,6.475183068501535E-11)))
+
+
+rigidBody1_3
+affine: timeouts: 0, tight: 16, hit precision: 0, hit iteration: 10    (-1165.0 ≤ #res) ∧ (#res ≤ 635.0004434585571) ∧ noise(#res,9.447999323619815E-13)))
+interval: timeouts: 0, tight: 17, hit precision: 0, hit iteration: 9   (-1165.000059134886 ≤ #res) ∧ (#res ≤ 635.0001430511475) ∧ noise(#res,9.448000055726849E-13)))
+
+
+rigidBody1_2Invalid
+affine: timeouts: 0, tight: 22, hit precision: 0, hit iteration: 4     (-2685.0013966560364 ≤ #res) ∧ (#res ≤ 2815.0) ∧ noise(#res,2.0983222245270748E-12)))
+interval: timeouts: 0, tight: 22, hit precision: 0, hit iteration: 4   (-2685.001438330247 ≤ #res) ∧ (#res ≤ 2815.0) ∧ noise(#res,2.0983222245270748E-12)))
+
+
+rigidBody1_2
+affine: timeouts: 0, tight: 22, hit precision: 0, hit iteration: 4     (-2685.0013966560364 ≤ #res) ∧ (#res ≤ 2815.0) ∧ noise(#res,2.0983222245270748E-12)))
+interval: timeouts: 0, tight: 22, hit precision: 0, hit iteration: 4   (-2685.001438330247 ≤ #res) ∧ (#res ≤ 2815.0) ∧ noise(#res,2.0983222245270748E-12)))
+
+
+rigidBody1Invalid
+affine: timeouts: 0, tight: 26, hit precision: 0, hit iteration: 0     (-705.0 ≤ #res) ∧ (#res ≤ 705.0) ∧ noise(#res,5.079270570002227E-13)))
+interval: timeouts: 0, tight: 26, hit precision: 0, hit iteration: 0  (-705.0 ≤ #res) ∧ (#res ≤ 705.0) ∧ noise(#res,5.079270570002227E-13)))
+
+
+
+rigidBody1
+affine: timeouts: 0, tight: 26, hit precision: 0, hit iteration: 0     (-705.0 ≤ #res) ∧ (#res ≤ 705.0) ∧ noise(#res,5.079270570002227E-13)))
+interval: timeouts: 0, tight: 26, hit precision: 0, hit iteration: 0   (-705.0 ≤ #res) ∧ (#res ≤ 705.0) ∧ noise(#res,5.079270570002227E-13)))
+
+
+
+jetEngine
+affine: timeouts: 0, tight: 172, hit precision: 34, hit iteration: 56     (-1780.3677909349549 ≤ #res) ∧ (#res ≤ 4820.019826331788) ∧ noise(#res,3.116241685974287E-8)))
+interval: timeouts: 48, tight: 187, hit precision: 34, hit iteration: 29  (-1779.7925989719731 ≤ #res) ∧ (#res ≤ 4819.615714272166) ∧ noise(#res,3.116246548264693E-8)))
+
+
+
+
+motzkin3
+affine: timeouts: 0, tight: 22, hit precision: 6, hit iteration: 24      (-115.68653340338761 ≤ #res) ∧ (#res ≤ 1.8218793169709414E8) ∧ noise(#res,3.0435632029010354E-7)))
+interval:timeouts: 0, tight: 32, hit precision: 3, hit iteration: 17     (-86.32046414123984 ≤ #res) ∧ (#res ≤ 1.8218793976072204E8) ∧ noise(#res,3.0435633749237507E-7)))
+
+
+motzkin2
+affine: timeouts: 0, tight: 22, hit precision: 2, hit iteration: 28     (-4.018829100887262E7 ≤ #res) ∧ (#res ≤ 9.063478404814436E8) ∧ noise(#res,1.7479087963530037E-6)))
+interval:timeouts: 0, tight: 27, hit precision: 1, hit iteration: 24    (-4.0187758507058956E7 ≤ #res) ∧ (#res ≤ 9.063475850408483E8) ∧ noise(#res,1.7479088673593424E-6)))
+  
+
+motzkin
+affine: timeouts: 2, tight: 22, hit precision: 2, hit iteration: 26     (-61.13473092998687 ≤ #res) ∧ (#res ≤ 5.060501075054249E8) ∧ noise(#res,8.214027836291564E-7)))
+interval:timeouts: 3, tight: 37, hit precision: 1, hit iteration: 12    (-67.66496914565369 ≤ #res) ∧ (#res ≤ 4.914676944976745E8) ∧ noise(#res,8.214028177466267E-7)))
+  
+
+
+matyas3
+affine: timeouts: 0, tight: 16, hit precision: 12, hit iteration: 0     (-1.2939929959592872E-6 ≤ #res) ∧ (#res ≤ 70.17139999999999) ∧ noise(#res,4.36260363227407E-14)))
+interval:timeouts: 0, tight: 25, hit precision: 3, hit iteration: 0     (-6.8719121917427E-5 ≤ #res) ∧ (#res ≤ 70.17139999999999) ∧ noise(#res,4.36260363227407E-14)))
+  
+   
+
+matyas2
+affine: timeouts: 0, tight: 16, hit precision: 6, hit iteration: 6     (1.1599599254131325 ≤ #res) ∧ (#res ≤ 176.885) ∧ noise(#res,1.1023515738461114E-13)))
+interval:timeouts: 0, tight: 26, hit precision: 2, hit iteration: 0    (1.159922609087519 ≤ #res) ∧ (#res ≤ 176.885) ∧ noise(#res,1.1023515738461114E-13)))
+  
+
+matyas
+affine: timeouts: 0, tight: 16, hit precision: 12, hit iteration: 0    (9.159963684082031 ≤ #res) ∧ (#res ≤ 36.36) ∧ noise(#res,2.2781776629788657E-14)))
+interval: timeouts: 0, tight: 28, hit precision: 0, hit iteration: 0   (9.16 ≤ #res) ∧ (#res ≤ 36.36) ∧ noise(#res,2.2781776629788657E-14)))
+  
+
+goldstein
+affine: timeouts: 2, tight: 124, hit precision: 28, hit iteration: 18   (-2161.967248916626 ≤ #res) ∧ (#res ≤ 351662.8131090896) ∧ noise(#res,1.055352936112767E-8)))
+interval:timeouts: 8, tight: 158, hit precision: 8, hit iteration: 4    (36.687493074136 ≤ #res) ∧ (#res ≤ 351661.70763684466) ∧ noise(#res,1.0553528821468727E-8)))
+  
+
+camel3
+affine: timeouts: 0, tight: 34, hit precision: 4, hit iteration: 36     (-0.05086183669143466 ≤ #res) ∧ (#res ≤ 143782.11499246015) ∧ noise(#res,2.602218575092841E-10)))
+interval:timeouts: 0, tight: 40, hit precision: 2, hit iteration: 32    (-0.04507582888494661 ≤ #res) ∧ (#res ≤ 143782.00466472516) ∧ noise(#res,2.6022185695714236E-10)))
+  
+
+camel2
+affine: timeouts: 0, tight: 34, hit precision: 2, hit iteration: 38     (-0.5308818297225 ≤ #res) ∧ (#res ≤ 1163623.4588703522) ∧ noise(#res,2.0242849830283606E-9)))
+interval:timeouts: 0, tight: 40, hit precision: 0, hit iteration: 34    (-0.21858240562453485 ≤ #res) ∧ (#res ≤ 1163623.5360426174) ∧ noise(#res,2.024284983095442E-9)))
+  
+   
+camel
+affine: timeouts: 0, tight: 50, hit precision: 0, hit iteration: 24     (-0.0010172526041750674 ≤ #res) ∧ (#res ≤ 2047.916825612386) ∧ noise(#res,4.8322490734326894E-12)))
+interval: timeouts: 0, tight: 51, hit precision: 4, hit iteration: 19   (-6.669443709382583E-4 ≤ #res) ∧ (#res ≤ 2047.917408153853) ∧ noise(#res,4.832248848066411E-12)))   
+  
+   
+
+booths3
+ affine: timeouts: 0, tight: 54, hit precision: 0, hit iteration: 6     (1.7994421005249028 ≤ #res) ∧ (#res ≤ 785.7) ∧ noise(#res,9.56914583376473E-13)))
+interval: timeouts: 0, tight: 54, hit precision: 0, hit iteration: 6    (1.7998815076190962 ≤ #res) ∧ (#res ≤ 785.7) ∧ noise(#res,9.56914583376473E-13)))
+  
+   
+booths2
+affine: timeouts: 0, tight: 54, hit precision: 0, hit iteration: 6      (-6.041526794356453E-4 ≤ #res) ∧ (#res ≤ 1832.0) ∧ noise(#res,1.8427038938081763E-12)))
+interval:timeouts: 0, tight: 54, hit precision: 0, hit iteration: 6     (-3.246307372813032E-4 ≤ #res) ∧ (#res ≤ 1832.0) ∧ noise(#res,1.8427038938081763E-12)))
+  
+   
+booths
+affine: timeouts: 0, tight: 54, hit precision: 2, hit iteration: 4      (179.99978494644165 ≤ #res) ∧ (#res ≤ 680.0) ∧ noise(#res,6.625811154580117E-13)))
+interval:timeouts: 0, tight: 60, hit precision: 0, hit iteration: 0     (180.0 ≤ #res) ∧ (#res ≤ 680.0) ∧ noise(#res,6.625811154580117E-13)))
+  
+   
+beales3
+affine: timeouts: 12, tight: 78, hit precision: 24, hit iteration: 30   (-22.990542135483743 ≤ #res) ∧ (#res ≤ 6.4610685288849235E7) ∧ noise(#res,1.8653914682891579E-7)))
+interval: timeouts: 10, tight: 88, hit precision: 0, hit iteration: 42  (-21.69552723621163 ≤ #res) ∧ (#res ≤ 6.4610711975715585E7) ∧ noise(#res,1.8653932615463168E-7)))
+  
+   
+beales2
+affine: timeouts: 8, tight: 82, hit precision: 24, hit iteration: 26    (-7.371678356769972 ≤ #res) ∧ (#res ≤ 1.8650167749003607E8) ∧ noise(#res,5.403233143806791E-7)))
+interval: timeouts: 20, tight: 92, hit precision: 0, hit iteration: 36  (-23.353138498076692 ≤ #res) ∧ (#res ≤ 1.8650169882709333E8) ∧ noise(#res,5.403236682986026E-7)))
+  
+   
+beales
+affine: timeouts: 16, tight: 78, hit precision: 24, hit iteration: 26   (3.6696069005149328 ≤ #res) ∧ (#res ≤ 3.1836658236229006E7) ∧ noise(#res,9.196918875400287E-8)))
+interval:timeouts: 22, tight: 95, hit precision: 1, hit iteration: 30   (0.23405739570867545 ≤ #res) ∧ (#res ≤ 3.1836665624436285E7) ∧ noise(#res,9.19693212516324E-8)))
+
+
+
+turbine3
+ affine: timeouts: 0, tight: 33, hit precision: 27, hit iteration: 0    (0.5716735849077244 ≤ #res) ∧ (#res ≤ 11.427222141771512) ∧ noise(#res,6.875527479144374E-6)))
+interval:timeouts: 0, tight: 58, hit precision: 2, hit iteration: 0     (0.5717164879745845 ≤ #res) ∧ (#res ≤ 11.427227224371293) ∧ noise(#res,6.87552748222559E-6)))
+ 
+  
+turbine2
+ affine: timeouts: 0, tight: 22, hit precision: 20, hit iteration: 0    (-28.554856857106905 ≤ #res) ∧ (#res ≤ 3.822230139727079) ∧ noise(#res,1.4636292137728637E-5)))
+interval:timeouts: 1, tight: 38, hit precision: 4, hit iteration: 0     (-28.55484585116735 ≤ #res) ∧ (#res ≤ 3.822265981713324) ∧ noise(#res,1.4636292137728639E-5)))
+ 
+
+turbine1
+affine: timeouts: 0, tight: 33, hit precision: 27, hit iteration: 0     (-18.52578465903276 ≤ #res) ∧ (#res ≤ -1.991525991173983) ∧ noise(#res,9.840170110631001E-6)))
+interval:timeouts: 0, tight: 58, hit precision: 2, hit iteration: 0     (-18.525752198271828 ≤ #res) ∧ (#res ≤ -1.9915566072599342) ∧ noise(#res,9.8401701137122E-6)))
+ 
+
+noNameQuadratic2
+ affine: timeouts: 0, tight: 10, hit precision: 6, hit iteration: 0     (-4.040047092437744 ≤ #res) ∧ (#res ≤ 87.16) ∧ noise(#res,2.192005329071585E-8))) 
+interval:timeouts: 0, tight: 16, hit precision: 0, hit iteration: 0     (-4.04 ≤ #res) ∧ (#res ≤ 87.16) ∧ noise(#res,2.192005329071585E-8)))
+  
+
+noNameQuadratic1
+ affine: timeouts: 0, tight: 12, hit precision: 8, hit iteration: 0     (19.809922991991044 ≤ #res) ∧ (#res ≤ 165.6) ∧ noise(#res,1.7792008598686463E-7)))
+ interval:timeouts: 0, tight: 20, hit precision: 0, hit iteration: 0    (19.81 ≤ #res) ∧ (#res ≤ 165.6) ∧ noise(#res,1.7792008598686463E-7)))
+
+
+circleParabola2
+ affine: timeouts: 0, tight: 8, hit precision: 8, hit iteration: 0      (-0.5100138092041021 ≤ #res) ∧ (#res ≤ 24.94) ∧ noise(#res,7.074000242895708E-7)))
+interval:timeouts: 0, tight: 15, hit precision: 1, hit iteration: 0     (-0.510011291503906 ≤ #res) ∧ (#res ≤ 24.94) ∧ noise(#res,7.074000242895708E-7)))
+ 
+  
+circleParabola1
+affine: timeouts: 0, tight: 12, hit precision: 8, hit iteration: 0      (-3.7000581359863283 ≤ #res) ∧ (#res ≤ 9.75) ∧ noise(#res,5.010000171276322E-7)))
+interval: timeouts: 0, tight: 18, hit precision: 2, hit iteration: 0    (-3.7000357055664064 ≤ #res) ∧ (#res ≤ 9.750038452148438) ∧ noise(#res,5.01000017127645E-7)))
+
+ 
+anotherQuadratic3
+affine: timeouts: 0, tight: 10, hit precision: 6, hit iteration: 0      (-0.3000244426727295 ≤ #res) ∧ (#res ≤ 58.82000000000001) ∧ noise(#res,1.216000399056364E-7)))
+interval:timeouts: 0, tight: 16, hit precision: 0, hit iteration: 0     (-0.2999999999999998 ≤ #res) ∧ (#res ≤ 58.82000000000001) ∧ noise(#res,1.216000399056364E-7)))
+ 
+  
+anotherQuadratic2
+affine: timeouts: 0, tight: 16, hit precision: 8, hit iteration: 0      (3.3799786853790303 ≤ #res) ∧ (#res ≤ 36.8) ∧ noise(#res,1.8120000538951104E-6)))
+interval:timeouts: 0, tight: 24, hit precision: 0, hit iteration: 0     (3.3800000000000017 ≤ #res) ∧ (#res ≤ 36.8) ∧ noise(#res,1.8120000538951104E-6)))
+ 
+  
+anotherQuadratic1
+affine: timeouts: 0, tight: 14, hit precision: 6, hit iteration: 0      (2.399970474243165 ≤ #res) ∧ (#res ≤ 26.159999999999997) ∧ noise(#res,3.8400001804810545E-7)))
+interval: timeouts: 0, tight: 19, hit precision: 1, hit iteration: 0    (2.399985961914062 ≤ #res) ∧ (#res ≤ 26.159999999999997) ∧ noise(#res,3.8400001804810545E-7)))
+
+ 
+tan5
+ affine: timeouts: 0, tight: 46, hit precision: 2, hit iteration: 0     (-2.527390666666667 ≤ #res) ∧ (#res ≤ 2.527390666666667) ∧ noise(#res,1.7429785032188902E-15)))
+interval:timeouts: 0, tight: 45, hit precision: 3, hit iteration: 0     (-2.527390666666667 ≤ #res) ∧ (#res ≤ 2.527390666666667) ∧ noise(#res,1.7429785032188902E-15)))
+ 
+  
+sqrt3
+ affine: timeouts: 0, tight: 74, hit precision: 22, hit iteration: 0    (0.2668868064756732 ≤ #res) ∧ (#res ≤ 4.520115731173194) ∧ noise(#res,2.2541796693125458E-14)))
+interval:timeouts: 0, tight: 91, hit precision: 5, hit iteration: 0     (0.2669023275296778 ≤ #res) ∧ (#res ≤ 4.520095159494048) ∧ noise(#res,2.2541738227286614E-14)))
+ 
+
+sqrt2
+ affine: timeouts: 0, tight: 80, hit precision: 16, hit iteration: 0    (1.8395320646609077 ≤ #res) ∧ (#res ≤ 3.501811897192504) ∧ noise(#res,2.1887950620517334E-15)))
+interval:timeouts: 0, tight: 88, hit precision: 8, hit iteration: 0     (1.8395320646609077 ≤ #res) ∧ (#res ≤ 3.5017772377647365) ∧ noise(#res,2.188793666618831E-15)))
+ 
+
+sqrt
+ affine: timeouts: 0, tight: 104, hit precision: 28, hit iteration: 0   (1.16872446323786 ≤ #res) ∧ (#res ≤ 2.068866699610161) ∧ noise(#res,1.5142739682076693E-15)))
+interval:timeouts: 0, tight: 119, hit precision: 13, hit iteration: 0   (1.1687302988147248 ≤ #res) ∧ (#res ≤ 2.068864281456569) ∧ noise(#res,1.5142669510393012E-15)))
+ 
+
+sin3
+ affine: timeouts: 0, tight: 106, hit precision: 34, hit iteration: 0   (0.10528611810023487 ≤ #res) ∧ (#res ≤ 3.5892731272342737) ∧ noise(#res,3.028042663334906E-14)))
+interval:timeouts: 0, tight: 123, hit precision: 17, hit iteration: 0   (0.10529977268103155 ≤ #res) ∧ (#res ≤ 3.5892887445651556) ∧ noise(#res,3.028043188977683E-14)))
+ 
+
+sin2
+ affine: timeouts: 0, tight: 106, hit precision: 34, hit iteration: 0   (-0.779673871768131 ≤ #res) ∧ (#res ≤ 1.0000137048832503) ∧ noise(#res,6.663159901542457E-15)))
+interval:timeouts: 0, tight: 123, hit precision: 17, hit iteration: 0   (-0.779658893131251 ≤ #res) ∧ (#res ≤ 1.0000550453844343) ∧ noise(#res,6.66314489463691E-15)))
+ 
+
+sin
+ affine: timeouts: 0, tight: 36, hit precision: 42, hit iteration: 0    (-0.9757272443365013 ≤ #res) ∧ (#res ≤ 0.9580730710986892) ∧ noise(#res,7.423982356650248E-16)))
+interval:timeouts: 0, tight: 62, hit precision: 16, hit iteration: 0    (-0.9757214125781642 ≤ #res) ∧ (#res ≤ 0.958018020352178) ∧ noise(#res,7.424023274138207E-16)))
+ 
+
+exOverCosx
+affine: timeouts: 0, tight: 30, hit precision: 26, hit iteration: 0    (0.6786265643954277 ≤ #res) ∧ (#res ≤ 2.986160283168157) ∧ noise(#res,5.472409212299221E-15)))
+interval:timeouts: 0, tight: 45, hit precision: 11, hit iteration: 0   (0.6786158825798528 ≤ #res) ∧ (#res ≤ 2.986180191766199) ∧ noise(#res,5.472413937268179E-15)))
+ 
+
+cosh6
+ affine: timeouts: 0, tight: 36, hit precision: 28, hit iteration: 2   (0.9999286657327762 ≤ #res) ∧ (#res ≤ 5.215072735712799) ∧ noise(#res,4.17681125372102E-15)))
+interval:timeouts: 0, tight: 57, hit precision: 8, hit iteration: 1    (0.9999915178356737 ≤ #res) ∧ (#res ≤ 5.215072735712799) ∧ noise(#res,4.17681125372102E-15)))
+ 
+
+cos3
+ affine: timeouts: 0, tight: 106, hit precision: 34, hit iteration: 0  (-59.62788996005271 ≤ #res) ∧ (#res ≤ 0.9618583441060586) ∧ noise(#res,2.718997698503457E-13)))
+interval:timeouts: 0, tight: 124, hit precision: 16, hit iteration: 0  (-59.627873223863055 ≤ #res) ∧ (#res ≤ 0.9618568958785357) ∧ noise(#res,2.718997450058014E-13)))
+ 
+
+cos2
+affine: timeouts: 0, tight: 108, hit precision: 26, hit iteration: 6   (-0.49225926169412965 ≤ #res) ∧ (#res ≤ 216.86282354162822) ∧ noise(#res,4.752349047268667E-13)))
+interval:timeouts: 0, tight: 121, hit precision: 14, hit iteration: 5  (-0.49210725805822975 ≤ #res) ∧ (#res ≤ 216.8626979775194) ∧ noise(#res,4.75234923477589E-13)))
+ 
+
+cos
+affine: timeouts: 0, tight: 32, hit precision: 26, hit iteration: 8    (-1.4255773873013033 ≤ #res) ∧ (#res ≤ 1.0000445945677914) ∧ noise(#res,1.1546525284949627E-14)))
+interval:timeouts: 0, tight: 52, hit precision: 11, hit iteration: 3   (-1.4255786291304342 ≤ #res) ∧ (#res ≤ 1.0000631403636655) ∧ noise(#res,1.1546530305308261E-14)))

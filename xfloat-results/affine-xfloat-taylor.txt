@@ -1,0 +1,139 @@
+[ Info  ] Verification with precision: Float64
+[ Info  ] 
+[ Info  ] ----------> checking VC of tan5
+[ Info  ] ----------> checking constraint: wholeBody
+[ Info  ] Computing approximation: NoFncs_AA
+[ Info  ] STAAATS: timeouts: 0, tight: 46, hit precision: 2, hit iteration: 0
+first try: SAT
+[ Info  ] RESULT: Some(Not sure)
+[ Info  ] Generated post: Some(((-2.527390666666667 ≤ #res) ∧ (#res ≤ 2.527390666666667) ∧ noise(#res,1.7429785032188902E-15)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of sqrt3
+[ Info  ] ----------> checking constraint: wholeBody
+[ Info  ] Computing approximation: NoFncs_AA
+[ Info  ] STAAATS: timeouts: 0, tight: 74, hit precision: 22, hit iteration: 0
+first try: UNSAT
+[ Info  ] RESULT: Some(VALID)
+[ Info  ] Generated post: Some(((0.2668868064756732 ≤ #res) ∧ (#res ≤ 4.520115731173194) ∧ noise(#res,2.2541796693125458E-14)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of sqrt2
+[ Info  ] ----------> checking constraint: wholeBody
+[ Info  ] Computing approximation: NoFncs_AA
+[ Info  ] STAAATS: timeouts: 0, tight: 80, hit precision: 16, hit iteration: 0
+first try: SAT
+[ Info  ] RESULT: Some(Not sure)
+[ Info  ] Generated post: Some(((1.8395320646609077 ≤ #res) ∧ (#res ≤ 3.501811897192504) ∧ noise(#res,2.1887950620517334E-15)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of sqrt
+[ Info  ] ----------> checking constraint: wholeBody
+[ Info  ] Computing approximation: NoFncs_AA
+[ Info  ] STAAATS: timeouts: 0, tight: 104, hit precision: 28, hit iteration: 0
+first try: UNSAT
+[ Info  ] RESULT: Some(VALID)
+[ Info  ] Generated post: Some(((1.16872446323786 ≤ #res) ∧ (#res ≤ 2.068866699610161) ∧ noise(#res,1.5142739682076693E-15)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of sin3
+[ Info  ] ----------> checking constraint: wholeBody
+[ Info  ] Computing approximation: NoFncs_AA
+[ Info  ] STAAATS: timeouts: 0, tight: 106, hit precision: 34, hit iteration: 0
+first try: UNSAT
+[ Info  ] RESULT: Some(VALID)
+[ Info  ] Generated post: Some(((0.10528611810023487 ≤ #res) ∧ (#res ≤ 3.5892731272342737) ∧ noise(#res,3.028042663334906E-14)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of sin2
+[ Info  ] ----------> checking constraint: wholeBody
+[ Info  ] Computing approximation: NoFncs_AA
+[ Info  ] STAAATS: timeouts: 0, tight: 106, hit precision: 34, hit iteration: 0
+first try: SAT
+[ Info  ] RESULT: Some(Not sure)
+[ Info  ] Generated post: Some(((-0.779673871768131 ≤ #res) ∧ (#res ≤ 1.0000137048832503) ∧ noise(#res,6.663159901542457E-15)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of sin
+[ Info  ] ----------> checking constraint: wholeBody
+[ Info  ] Computing approximation: NoFncs_AA
+[ Info  ] STAAATS: timeouts: 0, tight: 36, hit precision: 42, hit iteration: 0
+first try: UNSAT
+[ Info  ] RESULT: Some(VALID)
+[ Info  ] Generated post: Some(((-0.9757272443365013 ≤ #res) ∧ (#res ≤ 0.9580730710986892) ∧ noise(#res,7.423982356650248E-16)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of exOverCosx
+[ Info  ] ----------> checking constraint: wholeBody
+[ Info  ] Computing approximation: NoFncs_AA
+[ Info  ] STAAATS: timeouts: 0, tight: 30, hit precision: 26, hit iteration: 0
+first try: SAT
+[ Info  ] RESULT: Some(Not sure)
+[ Info  ] Generated post: Some(((0.6786265643954277 ≤ #res) ∧ (#res ≤ 2.986160283168157) ∧ noise(#res,5.472409212299221E-15)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of cosh6
+[ Info  ] ----------> checking constraint: wholeBody
+[ Info  ] Computing approximation: NoFncs_AA
+[ Info  ] STAAATS: timeouts: 0, tight: 36, hit precision: 28, hit iteration: 2
+first try: UNSAT
+[ Info  ] RESULT: Some(VALID)
+[ Info  ] Generated post: Some(((0.9999286657327762 ≤ #res) ∧ (#res ≤ 5.215072735712799) ∧ noise(#res,4.17681125372102E-15)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of cos3
+[ Info  ] ----------> checking constraint: wholeBody
+[ Info  ] Computing approximation: NoFncs_AA
+[ Info  ] STAAATS: timeouts: 0, tight: 106, hit precision: 34, hit iteration: 0
+first try: UNSAT
+[ Info  ] RESULT: Some(VALID)
+[ Info  ] Generated post: Some(((-59.62788996005271 ≤ #res) ∧ (#res ≤ 0.9618583441060586) ∧ noise(#res,2.718997698503457E-13)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of cos2
+[ Info  ] ----------> checking constraint: wholeBody
+[ Info  ] Computing approximation: NoFncs_AA
+[ Info  ] STAAATS: timeouts: 0, tight: 108, hit precision: 26, hit iteration: 6
+first try: UNSAT
+[ Info  ] RESULT: Some(VALID)
+[ Info  ] Generated post: Some(((-0.49225926169412965 ≤ #res) ∧ (#res ≤ 216.86282354162822) ∧ noise(#res,4.752349047268667E-13)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of cos
+[ Info  ] ----------> checking constraint: wholeBody
+[ Info  ] Computing approximation: NoFncs_AA
+[ Info  ] STAAATS: timeouts: 0, tight: 32, hit precision: 26, hit iteration: 8
+first try: UNSAT
+[ Info  ] RESULT: Some(VALID)
+[ Info  ] Generated post: Some(((-1.4255773873013033 ≤ #res) ∧ (#res ≤ 1.0000445945677914) ∧ noise(#res,1.1546525284949627E-14)))
+allProven: false
+[ Info  ] Generated program with 63 lines.
+[ Info  ] . ┌─────────┐
+          ╔═╡ Summary ╞═══════════════════════════════════════════════════════════════════════╗
+          ║ └─────────┘                                                                       ║
+          ║ cos3                            -- ms     4487ms                                  ║
+          ║                                 VALID        wholeBody                            ║
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ cos                             -- ms     4157ms                                  ║
+          ║                                 VALID        wholeBody                            ║
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ sqrt3                           -- ms     2520ms                                  ║
+          ║                                 VALID        wholeBody                            ║
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ exOverCosx                      -- ms     2393ms                                  ║
+          ║                              Not sure        wholeBody                            ║
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ sin2                            -- ms     3971ms                                  ║
+          ║                              Not sure        wholeBody                            ║
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ sqrt                            -- ms     2527ms                                  ║
+          ║                                 VALID        wholeBody                            ║
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ cosh6                           -- ms     3665ms                                  ║
+          ║                                 VALID        wholeBody                            ║
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ cos2                            -- ms     4536ms                                  ║
+          ║                                 VALID        wholeBody                            ║
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ sin                             -- ms     5008ms                                  ║
+          ║                                 VALID        wholeBody                            ║
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ tan5                            -- ms     980ms                                   ║
+          ║                              Not sure        wholeBody                            ║
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ sqrt2                           -- ms     1680ms                                  ║
+          ║                              Not sure        wholeBody                            ║
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ sin3                            -- ms     4259ms                                  ║
+          ║                                 VALID        wholeBody                            ║
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ╚═══════════════════════════════════════════════════════════════════════════════════╝

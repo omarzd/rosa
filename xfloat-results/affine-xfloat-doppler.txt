@@ -1,0 +1,84 @@
+[ Info  ] Verification with precision: Float64
+[ Info  ] 
+[ Info  ] ----------> checking VC of doppler5
+[ Info  ] ----------> checking constraint: wholeBody
+[ Info  ] Computing approximation: NoFncs_AA
+[ Info  ] STAAATS: timeouts: 2, tight: 40, hit precision: 4, hit iteration: 2
+first try: SAT
+[ Info  ] RESULT: Some(Not sure)
+[ Info  ] Generated post: Some(((-83.06535389873775 ≤ #res) ∧ (#res ≤ -0.5073820426352984) ∧ noise(#res,1.9203697643210677E-6)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of doppler4
+[ Info  ] ----------> checking constraint: wholeBody
+[ Info  ] Computing approximation: NoFncs_AA
+[ Info  ] STAAATS: timeouts: 2, tight: 39, hit precision: 1, hit iteration: 6
+first try: SAT
+[ Info  ] RESULT: Some(Not sure)
+[ Info  ] Generated post: Some(((-230.9908309863934 ≤ #res) ∧ (#res ≤ -0.019860942877156087) ∧ noise(#res,1.256965279016522E-5)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of doppler3
+[ Info  ] ----------> checking constraint: wholeBody
+[ Info  ] Computing approximation: NoFncs_AA
+[ Info  ] STAAATS: timeouts: 2, tight: 40, hit precision: 4, hit iteration: 2
+first try: SAT
+[ Info  ] RESULT: Some(Not sure)
+[ Info  ] Generated post: Some(((-83.06535389873775 ≤ #res) ∧ (#res ≤ -0.5073820426352984) ∧ noise(#res,3.8685672507578493E-13)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of doppler2
+[ Info  ] ----------> checking constraint: wholeBody
+[ Info  ] Computing approximation: NoFncs_AA
+[ Info  ] STAAATS: timeouts: 2, tight: 39, hit precision: 1, hit iteration: 6
+first try: SAT
+[ Info  ] RESULT: Some(Not sure)
+[ Info  ] Generated post: Some(((-230.9908309863934 ≤ #res) ∧ (#res ≤ -0.019860942877156087) ∧ noise(#res,2.635533331615728E-12)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of doppler1
+[ Info  ] ----------> checking constraint: wholeBody
+[ Info  ] Computing approximation: NoFncs_AA
+[ Info  ] STAAATS: timeouts: 2, tight: 40, hit precision: 0, hit iteration: 6
+first try: SAT
+[ Info  ] RESULT: Some(Not sure)
+[ Info  ] Generated post: Some(((-137.6385796994873 ≤ #res) ∧ (#res ≤ -0.03377329981793961) ∧ noise(#res,9.820878362704486E-13)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of doppler0
+[ Info  ] ----------> checking constraint: wholeBody
+[ Info  ] Computing approximation: NoFncs_AA
+[ Info  ] STAAATS: timeouts: 2, tight: 40, hit precision: 0, hit iteration: 6
+first try: Unknown
+[ Info  ] RESULT: Some(Not sure)
+[ Info  ] Generated post: Some(((-137.6385796994873 ≤ #res) ∧ (#res ≤ -0.03377329981793961) ∧ noise(#res,9.820878362704486E-13)))
+[ Info  ] 
+[ Info  ] ----------> checking VC of doppler
+[ Info  ] ----------> checking constraint: wholeBody
+[ Info  ] Computing approximation: NoFncs_AA
+[ Info  ] STAAATS: timeouts: 2, tight: 40, hit precision: 0, hit iteration: 6
+first try: Unknown
+[ Info  ] RESULT: Some(Not sure)
+[ Info  ] Generated post: Some(((-137.6385796994873 ≤ #res) ∧ (#res ≤ -0.03377329981793961) ∧ noise(#res,4.9758843067224375E-6)))
+allProven: false
+[ Info  ] Generated program with 38 lines.
+[ Info  ] . ┌─────────┐
+          ╔═╡ Summary ╞═══════════════════════════════════════════════════════════════════════╗
+          ║ └─────────┘                                                                       ║
+          ║ doppler5                        -- ms     6009ms                                  ║
+          ║                              Not sure        wholeBody                            ║
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ doppler0                        -- ms     6309ms                                  ║
+          ║                              Not sure        wholeBody                            ║
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ doppler                         -- ms     6245ms                                  ║
+          ║                              Not sure        wholeBody                            ║
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ doppler1                        -- ms     5250ms                                  ║
+          ║                              Not sure        wholeBody                            ║
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ doppler4                        -- ms     5244ms                                  ║
+          ║                              Not sure        wholeBody                            ║
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ doppler3                        -- ms     5332ms                                  ║
+          ║                              Not sure        wholeBody                            ║
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ doppler2                        -- ms     5122ms                                  ║
+          ║                              Not sure        wholeBody                            ║
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ╚═══════════════════════════════════════════════════════════════════════════════════╝
