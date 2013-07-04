@@ -4,63 +4,78 @@ no transformation, precision: 0.0001, count: 20, solver timeout: 2000ms, no comp
 
 doppler1
 timeouts: 12, tight: 42, hit precision: 2, hit iteration: 0
-[-137.63863298449525, -0.033902153988945936] ∧ noise(#res,4.766248234756109E-6)))
+[-137.63863298449525, -0.033902153988945936] ∧
+noise(#res,4.766248234756109E-6)))
 
  doppler2
 timeouts: 12, tight: 41, hit precision: 0, hit iteration: 3
-[-230.9906737748855, -0.02258989547092637] ∧ noise(#res,1.1361560869086043E-4)))
+[-230.9906737748855, -0.02258989547092637] ∧
+noise(#res,1.1361560869086043E-4)))
 
  doppler3
  timeouts: 12, tight: 42, hit precision: 2, hit iteration: 0
-[-83.06558114936436, -0.5071439771110643] ∧ noise(#res,2.4551080658755017E-4)))
+[-83.06558114936436, -0.5071439771110643] ∧
+noise(#res,2.4551080658755017E-4)))
 
 jetEngine
 timeouts: 45, tight: 114, hit precision: 24, hit iteration: 33
-(-1780.063957772989 ≤ #res) ∧ (#res ≤ 4819.890089382655) ∧ noise(#res,0.2737297679026677)))
+(-1780.063957772989 ≤ #res) ∧ (#res ≤ 4819.890089382655) ∧
+noise(#res,0.2737297679026677)))
 
 
 jetEngine_1
 timeouts: 45, tight: 114, hit precision: 24, hit iteration: 33
-(-1779.7929920295742 ≤ #res) ∧ (#res ≤ 4819.619123639236) ∧ noise(#res,0.0027640244842463226)))
+(-1779.7929920295742 ≤ #res) ∧ (#res ≤ 4819.619123639236) ∧
+noise(#res,0.0027640244842463226)))
 
 rigidBody1
 timeouts: 0, tight: 26, hit precision: 0, hit iteration: 0
-(-705.0000009200005 ≤ #res) ∧ (#res ≤ 705.0000009200005) ∧ noise(#res,9.200005082270577E-7)))
+(-705.0000009200005 ≤ #res) ∧ (#res ≤ 705.0000009200005) ∧
+noise(#res,9.200005082270577E-7)))
 
 rigidBody1_1
 timeouts: 0, tight: 26, hit precision: 0, hit iteration: 0
-(-705.0001955000017 ≤ #res) ∧ (#res ≤ 705.0001955000017) ∧ noise(#res,1.955000017079272E-4)))
+(-705.0001955000017 ≤ #res) ∧ (#res ≤ 705.0001955000017) ∧
+noise(#res,1.955000017079272E-4)))
 
 rigidBody2
 timeouts: 0, tight: 46, hit precision: 0, hit iteration: 10
-(-56010.012493529495 ≤ #res) ∧ (#res ≤ 58740.000150310065) ∧ noise(#res,1.5031006489643083E-4)))
+(-56010.012493529495 ≤ #res) ∧ (#res ≤ 58740.000150310065) ∧
+noise(#res,1.5031006489643083E-4)))
 
 rigidBody2_1
 timeouts: 0, tight: 46, hit precision: 0, hit iteration: 10
-(-56010.05531832257 ≤ #res) ∧ (#res ≤ 58740.04297510315) ∧ noise(#res,0.04297510315100189)))
+(-56010.05531832257 ≤ #res) ∧ (#res ≤ 58740.04297510315) ∧
+noise(#res,0.04297510315100189)))
 
 
  carbonGas
 timeouts: 4, tight: 40, hit precision: 0, hit iteration: 4
-[-2682582.6613464532, 2.1672398437941473E7] ∧ noise(#res,4933387.8370274715)))
+[-2682582.6613464532, 2.1672398437941473E7] ∧
+noise(#res,4933387.8370274715)))
 
  predatorPrey
 timeouts: 0, tight: 32, hit precision: 2, hit iteration: 0
-[0.039525657542735126, 0.33564486719616793] ∧ noise(#res,9.386719405792591E-5)))
+[0.039525657542735126, 0.33564486719616793] ∧
+noise(#res,9.386719405792591E-5)))
 
 verhulst
 timeouts: 4, tight: 16, hit precision: 0, hit iteration: 0
-[0.31460308184924246, 1.101116981459091] ∧ noise(#res,2.905351780994059E-4)))
+[0.31460308184924246, 1.101116981459091] ∧
+noise(#res,2.905351780994059E-4)))
 
 
 turbine1
  timeouts: 12, tight: 48, hit precision: 0, hit iteration: 0
-[-29.992653094010294, -1.5505187319780322] ∧ noise(#res,9.840170117531441E-6)))
+[-29.992653094010294, -1.5505187319780322] ∧
+noise(#res,9.840170117531441E-6)))
 
 turbine2
  timeouts: 12, tight: 30, hit precision: 0, hit iteration: 0
-[-29.437003727201077, 17.07052281811032] ∧ noise(#res,1.4636292138058882E-5)))
+[-29.437003727201077, 17.07052281811032] ∧
+noise(#res,1.4636292138058882E-5)))
 
 turbine3
  timeouts: 6, tight: 53, hit precision: 1, hit iteration: 0
-[0.5717184942149363, 20.473433765731297] ∧ noise(#res,6.8755274852385805E-6)))
+[0.5717184942149363, 20.473433765731297] ∧
+noise(#res,6.8755274852385805E-6)))

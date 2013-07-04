@@ -12,7 +12,7 @@ object Triangle {
 
     val s = (a + b + c)/2.0
     sqrt(s * (s - a) * (s - b) * (s - c))
-  } ensuring (res => noise(res, 1e-13))
+  } ensuring (res => noise(res, 1e-10))
 
 
   def triangleStable(a: Real, b: Real, c: Real): Real = {
@@ -33,9 +33,9 @@ object Triangle {
     } else {
       sqrt(c+(b+a)) * (a-(c-b)) * (a+(c-b)) * (c+(b-a)) / 4.0  // a < b < c
     }
-  } ensuring (res => noise(res, 1e-13))
+  } ensuring (res => noise(res, 1e-10))
 
-  def invariant(a: Real, b: Real, c: Real): Boolean = {
+  /*def invariant(a: Real, b: Real, c: Real): Boolean = {
     require(a.in(1.0, 9.0) && b.in(1.0, 9.0) && c.in(1.0, 9.0) &&
       a + b > c + 0.1 && a + c > b + 0.1 && b + c > a + 0.1)
 
@@ -43,6 +43,6 @@ object Triangle {
     val k = triangleStable(a, b, c)
     ~k <= ~t + 0.001  // 0.001 is the max absolute tolerance
   } holds
-
+  */
 
 }

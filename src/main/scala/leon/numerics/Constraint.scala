@@ -17,6 +17,7 @@ case class APath(pathCondition: Expr, idealBody: Expr, idealCnst: Expr, actualBo
   xfloats: Map[Expr, XFloat] = Map.empty) {
   def updateNoisy(newBody: Expr, newCnst: Expr): APath = APath(pathCondition, idealBody, idealCnst, newBody, newCnst, xfloats)
 
+  var status: Option[Valid] = None
 }
 
 // This is an approximation of an constraint.
@@ -87,6 +88,10 @@ case class Constraint(pre: Expr, body: Expr, post: Expr, description: String) {
   def approximationForSpec: Option[ConstraintApproximation] = {
     //approximations.find(a => a.tpe == PostInlining_AA)
     None
+  }
+
+  def overrideStatus(s: Option[Valid]) = {
+    status = s
   }
 
   def overrideStatus(s: (Option[Valid], Option[Map[Identifier, Expr]])) = {

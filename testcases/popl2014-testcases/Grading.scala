@@ -7,18 +7,14 @@ import leon.Utils._
 
 object Grading {
 
-  //def isRatio(x:Real): Boolean = {0.0 <= x && x <= 1.0}
-
   def invariant(project: Real, homeworks: Real, quiz: Real) : Boolean = {
-    //require(isRatio(project) && isRatio(homeworks) && isRatio(quiz))
     require(0.0 < project && project < 1.0 && 0.0 < homeworks && homeworks < 1.0 && 0.0 < quiz && quiz < 1.0)
 
-    goodGradingNoRounding(project, homeworks, quiz) >= badGradingNoRounding(project, homeworks, quiz)
+    ~goodGradingNoRounding(project, homeworks, quiz) >= ~badGradingNoRounding(project, homeworks, quiz) + 0.001
 
   } holds
 
   def goodGradingNoRounding(project: Real, homeworks: Real, quiz: Real) : Real = {
-    //require(isRatio(project) && isRatio(homeworks) && isRatio(quiz))
     require(0.0 < project && project < 1.0 && 0.0 < homeworks && homeworks < 1.0 && 0.0 < quiz && quiz < 1.0)
 
     val result: Real =

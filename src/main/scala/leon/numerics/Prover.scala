@@ -55,7 +55,11 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
           case Some(approx) =>
             //println("Approx: " + approx)
             c.approximations = Seq(approx) ++ c.approximations
-            c.overrideStatus(checkWithZ3(approx, vc.allVariables))
+            if (approx.paths.size > 1)
+              c.overrideStatus(checkWithZ3PathWise(approx, vc.allVariables))
+            else
+              c.overrideStatus(checkWithZ3OneConstraint(approx, vc.allVariables))
+            //c.overrideStatus(checkWithZ3(approx, vc.allVariables))
             reporter.info("RESULT: " + c.status)
           case None =>
             reporter.info("Skipping approximation, None returned.")
@@ -74,17 +78,101 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
       } else
         reporter.info("Skipping spec gen on this one")
     //} catch {case _=> ;}
-    
+
     val totalTime = (System.currentTimeMillis - start)
     vc.verificationTime = Some(totalTime)
     vc
   }
 
 
+  private def checkWithZ3OneConstraint(ca: ConstraintApproximation, parameters: Seq[Variable]): Option[Valid] = {
+    println("Choosing one constraint version")
+    val (resVar, eps, buddies) = getVariables(parameters ++ ca.vars)
+    val trans = new NumericConstraintTransformer(buddies, resVar, eps, RoundoffType.RoundoffMultiplier, reporter)
+    // TODO: constraint.addInitialVariableConnection
+    //val precondition =  if (ca.addInitialVariableConnection) trans.transformCondition(ca.pre)
+    //                   else trans.transformCondition(noiseRemover.transform(ca.pre))
+    val precondition = trans.transformCondition(ca.pre)
+    val postcondition = trans.transformCondition(ca.post)
+
+    // TODO: errors on computing the path condition?
+
+    var (idealPart, actualPart) = (Seq[Expr](), Seq[Expr]())
+    for(path <- ca.paths) {
+      val aI = trans.transformIdealBlock(path.idealBody)
+      idealPart = idealPart :+ And(And(path.pathCondition, trans.transformCondition(path.idealCnst)), aI)
+      val nN = trans.transformNoisyBlock(path.actualBody)
+      actualPart = actualPart :+ And(And(trans.getNoisyCondition(path.pathCondition), trans.transformCondition(path.actualCnst)), nN)
+    }
+    val machineEpsilon = Equals(eps, RationalLiteral(unitRoundoff))
+
+    val body =
+      if(ca.needEps) And(And(Or(idealPart), Or(actualPart)), machineEpsilon)
+      else And(Or(idealPart), Or(actualPart))
+
+    //TODO: somehow remove redundant definitions of errors? stuff like And(Or(idealPart), Or(actualPart))
+    var toCheck = ArithmeticOps.totalMakeover(And(And(precondition, body), Not(postcondition))) //has to be unsat
+    println("toCheck: " + deltaRemover.transform(toCheck))
+
+    if (reporter.errorCount == 0 && sanityCheck(precondition, false, body))
+      solver.checkSat(toCheck) match {
+        case (UNSAT, _) => Some(VALID)
+        case (SAT, model) =>
+          println("Model found: " + model)
+          // TODO: print the models that are actually useful, once we figure out which ones those are
+          Some(NOT_SURE)
+        case _ =>
+          Some(NOT_SURE)
+      }
+    else
+      None
+  }
+
+  private def checkWithZ3PathWise(ca: ConstraintApproximation, parameters: Seq[Variable]): Option[Valid] = {
+    val (resVar, eps, buddies) = getVariables(parameters ++ ca.vars)
+    val trans = new NumericConstraintTransformer(buddies, resVar, eps, RoundoffType.RoundoffMultiplier, reporter)
+    // TODO: constraint.addInitialVariableConnection
+    //val precondition =  if (ca.addInitialVariableConnection) trans.transformCondition(ca.pre)
+    //                   else trans.transformCondition(noiseRemover.transform(ca.pre))
+    val precondition = trans.transformCondition(ca.pre)
+    val postcondition = trans.transformCondition(ca.post)
+    val machineEpsilon = Equals(eps, RationalLiteral(unitRoundoff))
+    var allProven = true
+
+    for (path <- ca.paths) {
+      val aI = trans.transformIdealBlock(path.idealBody)
+      val idealPart = And(And(path.pathCondition, trans.transformCondition(path.idealCnst)), aI)
+      val nN = trans.transformNoisyBlock(path.actualBody)
+      val actualPart = And(And(trans.getNoisyCondition(path.pathCondition), trans.transformCondition(path.actualCnst)), nN)
+      val body =
+        if(ca.needEps) And(And(idealPart, actualPart), machineEpsilon)
+          else And(idealPart, actualPart)
+      //TODO: somehow remove redundant definitions of errors? stuff like And(Or(idealPart), Or(actualPart))
+      var toCheck = ArithmeticOps.totalMakeover(And(And(precondition, body), Not(postcondition))) //has to be unsat
+      println("toCheck: " + deltaRemover.transform(toCheck))
+      if (reporter.errorCount == 0 && sanityCheck(precondition, false, body))
+        solver.checkSat(toCheck) match {
+          case (UNSAT, _) => path.status = Some(VALID)
+          case (SAT, model) =>
+            allProven = false
+            println("Model found: " + model)
+            // TODO save this somewhere so we can emit the appropriate runtime checks
+            path.status = Some(NOT_SURE)
+          case _ =>
+            path.status = Some(NOT_SURE)
+            allProven = false
+        }
+      else allProven = false
+    }
+    if (allProven) Some(VALID)
+    else Some(NOT_SURE)
+  }
+
 
   /* *************************
         Verification
   **************************** */
+  // TODO: SPLIT into one that does the full one and another one that goes path-by-path
   private def checkWithZ3(ca: ConstraintApproximation, parameters: Seq[Variable]): (Option[Valid], Option[Map[Identifier, Expr]]) = {
     val (resVar, eps, buddies) = getVariables(parameters ++ ca.vars)
     val trans = new NumericConstraintTransformer(buddies, resVar, eps, RoundoffType.RoundoffMultiplier, reporter)
@@ -111,11 +199,11 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
         val body =
           if(ca.needEps) And(And(Or(idealPart), Or(actualPart)), machineEpsilon)
           else And(Or(idealPart), Or(actualPart))
-    
+
           //TODO: somehow remove redundant definitions of errors? stuff like And(Or(idealPart), Or(actualPart))
           var toCheck = ArithmeticOps.totalMakeover(And(And(precondition, body), Not(postcondition))) //has to be unsat
           //println("toCheck: " + deltaRemover.transform(toCheck))
-    
+
           if (reporter.errorCount == 0 && sanityCheck(precondition, false, body))
             solver.checkSat(toCheck)
           else
@@ -177,11 +265,11 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
     }
   }
 
-  
+
   /* *************************
         Approximations
   **************************** */
-  
+
   // TODO: we can cache some of the body transforms and reuse for AA...
   def getNextApproximation(tpe: ApproximationType, c: Constraint, inputs: Map[Variable, Record]): Option[ConstraintApproximation] = tpe match {
     /* ******************
@@ -222,7 +310,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
             //println("fullPathCondition: " + fullPathCondition)
 
             val (resConstraint, xfloatMap) =
-              if(And(path.expression) == True) { (True, Map[Expr, XFloat]()) } 
+              if(And(path.expression) == True) { (True, Map[Expr, XFloat]()) }
               else {
                 val (xfloats, indices) = xevaluator.evaluate(path.expression, fullPathCondition, inputs)
                 //println("xfloats: " + xfloats)
@@ -262,7 +350,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
         // TODO: inline pre and post? how about invariants?
         val paths = c.paths
         val filteredPrecondition = filterPreconditionForBoundsIteration(c.pre)
-        val apaths = paths.collect { 
+        val apaths = paths.collect {
           case path: Path if (sanityCheck(And(path.condition, filteredPrecondition))) =>
             val fullPathCondition = And(path.condition, filteredPrecondition)
             val (xfloats, indices) = xevaluator.evaluateWithFncCalls(path.expression, fullPathCondition, inputs)
@@ -308,7 +396,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
             //println("fullPathCondition: " + fullPathCondition)
 
             val (resConstraint, xfloatMap) =
-              if(And(path.expression) == True) { (True, Map[Expr, XFloat]()) } 
+              if(And(path.expression) == True) { (True, Map[Expr, XFloat]()) }
               else {
                 val (xfloats, indices) = xevaluator.evaluate(path.expression, fullPathCondition, newInputs)
                 (noiseConstraintFromXFloats(xfloats), xfloats)
@@ -330,8 +418,8 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
           None
         }
       //} catch { case _ => ;}
-      //None  
-      
+      //None
+
       // TODO: postinlining with AA?
   }
 
@@ -395,7 +483,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
     }
   }
 
-  
+
 
   /* *************************
             Utils
@@ -540,7 +628,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
         return Some(ConstraintApproximation(And(newPre, newConstraint), apaths, newPost, vars, tpe, values))
       } catch { case _ => ;}
       None
-      
+
       try {
         // TODO: inline pre and post
         // TODO: this overwrites the path.values/indices that may have been computed before
@@ -553,7 +641,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
         }
         //val approxValues = mergeRealPathResults(paths)
         //val newConstraint = constraintFromResults(approxValues)
-        val apaths = paths.collect { 
+        val apaths = paths.collect {
           case path: Path if (path.feasible) =>
             val resNoise = Noise(ResultVariable(), RationalLiteral(path.values(ResultVariable()).maxError))
 
@@ -570,12 +658,12 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
              True, resNoise, path.values)
           }
 
-        return Some(ConstraintApproximation(c.pre, apaths, c.post, Set.empty, tpe))   
+        return Some(ConstraintApproximation(c.pre, apaths, c.post, Set.empty, tpe))
 
       } catch { case _=> ;}
       None
-      
-      
+
+
 
     case FullInlining_AAPathSensitive =>
       val (newPre, newBody, newPost, vars) = fullInliner.inlineFunctions(c.pre, c.body, c.post)
