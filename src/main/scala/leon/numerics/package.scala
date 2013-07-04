@@ -37,6 +37,7 @@ package object numerics {
     val PostInlining_None = Value("PostInlining_None")
     val FullInlining_None = Value("FullInlining_None")
     val NoFncs_AA = Value("NoFncs_AA")
+    val NoFncs_AAMerging = Value("NoFncs_AAMerging")
     val FullInlining_AACompactOnFnc = Value("FullInlining_AACompactOnFnc")
     val FullInlining_AA = Value("FullInlining_AA")
   }

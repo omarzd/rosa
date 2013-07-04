@@ -314,7 +314,7 @@ case class XFloatConfig(reporter: Reporter, solver: NumericSolver, precondition:
 
 
   override def toString: String = this.interval.toString + " - (" +
-    this.maxError + ")(abs)"
+    this.maxError + ")(abs)("+tree+")"
 
   // Always returns a positive number
   private def roundoff(range: RationalInterval): Rational = {

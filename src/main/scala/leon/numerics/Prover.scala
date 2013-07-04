@@ -84,9 +84,11 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
     vc
   }
 
-
+  /* *************************
+        Verification
+  **************************** */
   private def checkWithZ3OneConstraint(ca: ConstraintApproximation, parameters: Seq[Variable]): Option[Valid] = {
-    println("Choosing one constraint version")
+    //println("Choosing one constraint version")
     val (resVar, eps, buddies) = getVariables(parameters ++ ca.vars)
     val trans = new NumericConstraintTransformer(buddies, resVar, eps, RoundoffType.RoundoffMultiplier, reporter)
     // TODO: constraint.addInitialVariableConnection
@@ -112,13 +114,13 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
 
     //TODO: somehow remove redundant definitions of errors? stuff like And(Or(idealPart), Or(actualPart))
     var toCheck = ArithmeticOps.totalMakeover(And(And(precondition, body), Not(postcondition))) //has to be unsat
-    println("toCheck: " + deltaRemover.transform(toCheck))
+    //println("toCheck: " + deltaRemover.transform(toCheck))
 
     if (reporter.errorCount == 0 && sanityCheck(precondition, false, body))
       solver.checkSat(toCheck) match {
         case (UNSAT, _) => Some(VALID)
         case (SAT, model) =>
-          println("Model found: " + model)
+          //println("Model found: " + model)
           // TODO: print the models that are actually useful, once we figure out which ones those are
           Some(NOT_SURE)
         case _ =>
@@ -169,75 +171,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
   }
 
 
-  /* *************************
-        Verification
-  **************************** */
-  // TODO: SPLIT into one that does the full one and another one that goes path-by-path
-  private def checkWithZ3(ca: ConstraintApproximation, parameters: Seq[Variable]): (Option[Valid], Option[Map[Identifier, Expr]]) = {
-    val (resVar, eps, buddies) = getVariables(parameters ++ ca.vars)
-    val trans = new NumericConstraintTransformer(buddies, resVar, eps, RoundoffType.RoundoffMultiplier, reporter)
-    // TODO: constraint.addInitialVariableConnection
-    //val precondition =  if (ca.addInitialVariableConnection) trans.transformCondition(ca.pre)
-    //                   else trans.transformCondition(noiseRemover.transform(ca.pre))
-    val precondition = trans.transformCondition(ca.pre)
-    val postcondition = trans.transformCondition(ca.post)
-
-    // TODO: errors on computing the path condition?
-
-    var (idealPart, actualPart) = (Seq[Expr](), Seq[Expr]())
-    for(path <- ca.paths) {
-      val aI = trans.transformIdealBlock(path.idealBody)
-      idealPart = idealPart :+ And(And(path.pathCondition, trans.transformCondition(path.idealCnst)), aI)
-      val nN = trans.transformNoisyBlock(path.actualBody)
-      actualPart = actualPart :+ And(And(trans.getNoisyCondition(path.pathCondition), trans.transformCondition(path.actualCnst)), nN)
-    }
-    val machineEpsilon = Equals(eps, RationalLiteral(unitRoundoff))
-
-    println("idealPart.size = " + idealPart.size)
-    val firstTry =
-      if(idealPart.size <= 1) {
-        val body =
-          if(ca.needEps) And(And(Or(idealPart), Or(actualPart)), machineEpsilon)
-          else And(Or(idealPart), Or(actualPart))
-
-          //TODO: somehow remove redundant definitions of errors? stuff like And(Or(idealPart), Or(actualPart))
-          var toCheck = ArithmeticOps.totalMakeover(And(And(precondition, body), Not(postcondition))) //has to be unsat
-          //println("toCheck: " + deltaRemover.transform(toCheck))
-
-          if (reporter.errorCount == 0 && sanityCheck(precondition, false, body))
-            solver.checkSat(toCheck)
-          else
-            (None, None)
-      } else {
-        println("Skipping all in.")
-        (None, None)
-      }
-    println("first try: " + firstTry._1)
-
-    firstTry match {
-      case (UNSAT, _) => (Some(VALID), None)
-      case _ => // try again for each part separately
-        if (ca.paths.size > 1) {
-          val paths = idealPart.zip(actualPart)
-          for ((i, a) <- paths) {
-            println("\n checking path: " )//+ deltaRemover.transform(And(i, a)))
-            val toCheck = ArithmeticOps.totalMakeover(And(Seq(precondition, i, a, machineEpsilon, Not(postcondition))))
-            println("toCheck:" + toCheck)
-            val (sat, model) = solver.checkSat(toCheck)
-            println("with result: " + sat)
-            // TODO: print the models that are actually useful, once we figure out which ones those are
-            if (sat != UNSAT) {
-              // TODO save this somewhere so we can emit the appropriate runtime checks
-              reporter.info("path could not be proven")
-              return (Some(NOT_SURE), None)
-            }
-          }
-        } else {
-          return (Some(NOT_SURE), None)
-        }
-    }
-    (Some(VALID), None)
-  }
+  
 
   /*val eps2 = Variable(FreshIdentifier("#eps2")).setType(RealType)
     val boundsConverter = new BoundsConverter(eps2, eps)
@@ -298,6 +232,18 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
     * ******************* */
     // TODO: Z3 only for the very small cases (some heuristic here to select which ones)
 
+    case NoFncs_AAMerging =>
+      val body = c.body
+      val filteredPrecondition = filterPreconditionForBoundsIteration(c.pre)
+      val (xfloats, indices) = xevaluator.evaluateWithMerging(body, filteredPrecondition, inputs)
+      //println("\n\n xfloats: " + xfloats)
+
+      val apaths = Set(APath(True, body, True, True, noiseConstraintFromXFloats(xfloats), xfloats))
+      val cApprox = ConstraintApproximation(c.pre, apaths, c.post, Set.empty, tpe)
+      cApprox.needEps = false
+      cApprox.addInitialVariableConnection = false
+      Some(cApprox)
+
     case NoFncs_AA => // we'll make this by default path sensitive
       try {
         val paths = c.paths
@@ -319,7 +265,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
                 // Like when it's an invariant we need full, else only res?
                 //Noise(ResultVariable(), RationalLiteral(xfloats(ResultVariable()).maxError))
               }
-            println("resConstraint: " + resConstraint)
+            //println("resConstraint: " + resConstraint)
             APath(path.condition,
               True, And(path.expression),
               True, resConstraint, xfloatMap)
@@ -456,7 +402,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
 
   private def getPost(c: Constraint, inputs: Map[Variable, Record]): Expr = c.hasFunctionCalls match {
     case false =>
-      (findApproximation(c, inputs, List(NoFncs_AA)), c.status) match {
+      (findApproximation(c, inputs, List(NoFncs_AAMerging)), c.status) match {
         case (Some(approx), Some(VALID)) =>
           constraintFromResults(Map(ResultVariable() -> approx.actualXfloats(ResultVariable())))
           // TODO: getMostPrecise(c.post, approx.values)
@@ -757,4 +703,70 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
     And(ratint2expr(restError, restErrorVar), cnstr)
   }*/
 
+  // TODO: SPLIT into one that does the full one and another one that goes path-by-path
+ /* private def checkWithZ3(ca: ConstraintApproximation, parameters: Seq[Variable]): (Option[Valid], Option[Map[Identifier, Expr]]) = {
+    val (resVar, eps, buddies) = getVariables(parameters ++ ca.vars)
+    val trans = new NumericConstraintTransformer(buddies, resVar, eps, RoundoffType.RoundoffMultiplier, reporter)
+    // TODO: constraint.addInitialVariableConnection
+    //val precondition =  if (ca.addInitialVariableConnection) trans.transformCondition(ca.pre)
+    //                   else trans.transformCondition(noiseRemover.transform(ca.pre))
+    val precondition = trans.transformCondition(ca.pre)
+    val postcondition = trans.transformCondition(ca.post)
+
+    // TODO: errors on computing the path condition?
+
+    var (idealPart, actualPart) = (Seq[Expr](), Seq[Expr]())
+    for(path <- ca.paths) {
+      val aI = trans.transformIdealBlock(path.idealBody)
+      idealPart = idealPart :+ And(And(path.pathCondition, trans.transformCondition(path.idealCnst)), aI)
+      val nN = trans.transformNoisyBlock(path.actualBody)
+      actualPart = actualPart :+ And(And(trans.getNoisyCondition(path.pathCondition), trans.transformCondition(path.actualCnst)), nN)
+    }
+    val machineEpsilon = Equals(eps, RationalLiteral(unitRoundoff))
+
+    println("idealPart.size = " + idealPart.size)
+    val firstTry =
+      if(idealPart.size <= 1) {
+        val body =
+          if(ca.needEps) And(And(Or(idealPart), Or(actualPart)), machineEpsilon)
+          else And(Or(idealPart), Or(actualPart))
+
+          //TODO: somehow remove redundant definitions of errors? stuff like And(Or(idealPart), Or(actualPart))
+          var toCheck = ArithmeticOps.totalMakeover(And(And(precondition, body), Not(postcondition))) //has to be unsat
+          //println("toCheck: " + deltaRemover.transform(toCheck))
+
+          if (reporter.errorCount == 0 && sanityCheck(precondition, false, body))
+            solver.checkSat(toCheck)
+          else
+            (None, None)
+      } else {
+        println("Skipping all in.")
+        (None, None)
+      }
+    println("first try: " + firstTry._1)
+
+    firstTry match {
+      case (UNSAT, _) => (Some(VALID), None)
+      case _ => // try again for each part separately
+        if (ca.paths.size > 1) {
+          val paths = idealPart.zip(actualPart)
+          for ((i, a) <- paths) {
+            println("\n checking path: " )//+ deltaRemover.transform(And(i, a)))
+            val toCheck = ArithmeticOps.totalMakeover(And(Seq(precondition, i, a, machineEpsilon, Not(postcondition))))
+            println("toCheck:" + toCheck)
+            val (sat, model) = solver.checkSat(toCheck)
+            println("with result: " + sat)
+            // TODO: print the models that are actually useful, once we figure out which ones those are
+            if (sat != UNSAT) {
+              // TODO save this somewhere so we can emit the appropriate runtime checks
+              reporter.info("path could not be proven")
+              return (Some(NOT_SURE), None)
+            }
+          }
+        } else {
+          return (Some(NOT_SURE), None)
+        }
+    }
+    (Some(VALID), None)
+  }*/
 }

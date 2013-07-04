@@ -37,9 +37,12 @@ class FullInliner(reporter: Reporter, vcMap: Map[FunDef, VerificationCondition])
       val fresh = getNewFncVariable(funDef.id.name)
       vars = vars + fresh
 
-      val vc = vcMap(funDef)
-      val fncBody = vc.body
-      vars = vars ++ vc.localVars
+      val vc = vcMap.get(funDef)
+      if(vc.isEmpty) {
+        throw new Exception("Trying to inline missing function: " + funDef.id.toString)
+      }
+      val fncBody = vc.get.body
+      vars = vars ++ vc.get.localVars
 
       val arguments: Map[Expr, Expr] = funDef.args.map(decl => decl.toVariable).zip(args).toMap
       val newBody = replace(arguments + (ResultVariable() -> fresh), fncBody)

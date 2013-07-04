@@ -98,16 +98,22 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
       }
 
     val vcs = generateVCs(reporter, sortedFncs)
+
+    vcs.foreach(v => println(v.id + ": "+v.allFncCalls))
+
+    def lt(vc1: VerificationCondition, vc2: VerificationCondition): Boolean = {
+      if (vc1.allFncCalls.isEmpty) true
+      else if (vc2.allFncCalls.isEmpty) false
+      else if (vc2.allFncCalls.contains(vc1.id)) true
+      else if (vc1.allFncCalls.contains(vc2.id)) false
+      else true
+    }
+
+
     if (reporter.errorCount > 0) throw LeonFatalError()
-    val sortedVCs = vcs /*vcs.sortWith(
-      (vc1, vc2) => // TODO: is this finally a stable sort?!
-        !vc1.allFncCalls.contains(vc2.id)
-        //if (vc1.allFncCalls.contains(vc2.id)) false
-        //else vc1.id < vc2.id
-      )*/
+    val sortedVCs = vcs.sortWith((vc1, vc2) => lt(vc1, vc2))
 
-
-
+    
     println(sortedVCs)
 
     var currentVCs = sortedVCs
