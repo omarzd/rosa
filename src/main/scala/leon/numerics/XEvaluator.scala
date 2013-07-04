@@ -9,7 +9,7 @@ import purescala.Common._
 
 import affine._
 import affine.XFloat._
-import Rational.{zero, max}
+import Rational.{zero, max, abs}
 
 import RoundoffType._
 import Precision._
@@ -127,18 +127,60 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
         (currentVars, None)
 
       case Equals(variable, IfExpr(cond, then, elze)) =>
-        // TODO: eval error across paths
+        println("Equals with branch: " + expr)
         val thenConfig = config.addCondition(cond)
-        val elzeConfig = config.addCondition(Not(cond))
+        val elzeConfig = config.addCondition(negate(cond))
 
         val (thenMap, thenValue) = if (sanityCheck(thenConfig.getCondition)) inXFloatsWithMerging(reporter, then, vars, thenConfig)
           else (vars, None)
         val (elzeMap, elzeValue) = if (sanityCheck(elzeConfig.getCondition)) inXFloatsWithMerging(reporter, elze, vars, elzeConfig)
           else (vars, None)
-        //println("thenValue: " + thenValue)
-        //println("elseValue: " + elzeValue)
         assert(!thenValue.isEmpty || !elzeValue.isEmpty)
-        //println("merged: " + mergeXFloat(thenValue, elzeValue, config))
+
+        // When the actual computation goes a different way than the real one
+        val (flCond1, reCond1) = getDiffPathsConditions(cond, vars, config)
+        val (flCond2, reCond2) = getDiffPathsConditions(negate(cond), vars, config)
+        println("flCond1: " + flCond1)
+        println("reCond1: " + reCond1)
+        println("flCond2: " + flCond2)
+        println("reCond2: " + reCond2)
+        
+        val pathErrorThen = {
+          println("\n computing path error then")
+          if (sanityCheck(And(flCond1, negate(cond)))) {
+            val (m, floatRange) = inXFloatsWithMerging(reporter, elze, vars, elzeConfig.addCondition(flCond1))
+            println("floatRange: " + floatRange)
+            
+            val freshMap = getFreshMap(vars.keySet)
+            val (freshThen, freshVars) = freshenUp(then, freshMap, vars)
+            val (mm, realRange) = inXFloatsWithMerging(reporter, freshThen, freshVars, thenConfig.addCondition(reCond1).freshenUp(freshMap))
+            println("realRange: "+realRange)
+            val diff = (floatRange.get - realRange.get).interval
+            val maxError = max(abs(diff.xlo), abs(diff.xhi))
+            maxError
+          } else Rational.zero
+        }
+        println("pathError1: " + pathErrorThen)
+
+        val pathErrorElze = {
+          println("\n computing path error else")
+          if (sanityCheck(And(flCond2, cond))) {
+            val (m, floatRange) = inXFloatsWithMerging(reporter, then, vars, thenConfig.addCondition(flCond2))
+            println("floatRange: " + floatRange)
+
+            val freshMap = getFreshMap(vars.keySet)
+            val (freshElze, freshVars) = freshenUp(elze, freshMap, vars)
+            val (mm, realRange) = inXFloatsWithMerging(reporter, freshElze, freshVars, elzeConfig.addCondition(reCond2).freshenUp(freshMap))
+            println("realRange: "+realRange)
+            //TODO: one should really remove the errors on realRange
+            val diff = (floatRange.get - realRange.get).interval
+            println("diff: " + diff)
+            val maxError = max(abs(diff.xlo), abs(diff.xhi))
+            maxError
+          } else Rational.zero
+        }
+        println("pathError2: " + pathErrorElze)
+        // TODO: do we  also have to keep track of the flRange computed? I think so
 
         (vars + (variable -> mergeXFloat(thenValue, elzeValue, config).get), None)
 
@@ -181,6 +223,52 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
     }
   }
 
+  def getFreshMap(vars: Set[Expr]): Map[Expr, Expr] = {
+    vars.collect {
+      case v @ Variable(id) => (v, getFreshVarOf(id.toString))
+    }.toMap
+  }
+
+  def freshenUp(expr: Expr, freshMap: Map[Expr, Expr], inputs: Map[Expr, XFloat]): (Expr, Map[Expr, XFloat]) = {
+    val freshExpr = replace(freshMap, expr)
+    val freshInputs: Map[Expr, XFloat] = inputs.collect {
+      case (k, xf) if(freshMap.contains(k)) =>
+        val newXf = new XFloat(replace(freshMap, xf.tree), xf.approxInterval, xf.error, xf.config.freshenUp(freshMap))
+       (freshMap(k), newXf)
+    }
+    (freshExpr, freshInputs)
+  }
+
+  private def getDiffPathsConditions(cond: Expr, inputs: Map[Expr, XFloat], config: XFloatConfig): (Expr, Expr) = cond match {
+    case LessThan(l, r) =>
+      val errLeft = eval(l, inputs, config).maxError
+      val errRight = eval(r, inputs, config).maxError
+      val floatCond = LessThan(l, Plus(r, RationalLiteral(errLeft + errRight)))
+      val realCond = GreaterEquals(l, Minus(r, RationalLiteral(errLeft + errRight)))
+      (floatCond, realCond)
+
+    case LessEquals(l, r) =>
+      val errLeft = eval(l, inputs, config).maxError
+      val errRight = eval(r, inputs, config).maxError
+      val floatCond = LessEquals(l, Plus(r, RationalLiteral(errLeft + errRight)))
+      val realCond = GreaterThan(l, Minus(r, RationalLiteral(errLeft + errRight)))
+      (floatCond, realCond)
+
+    case GreaterThan(l, r) =>
+      val errLeft = eval(l, inputs, config).maxError
+      val errRight = eval(r, inputs, config).maxError
+      val floatCond = GreaterThan(l, Minus(r, RationalLiteral(errLeft + errRight)))
+      val realCond = LessEquals(l, Plus(r, RationalLiteral(errLeft + errRight)))
+      (floatCond, realCond)
+
+    case GreaterEquals(l, r) =>
+      val errLeft = eval(l, inputs, config).maxError
+      val errRight = eval(r, inputs, config).maxError
+      val floatCond = GreaterEquals(l, Minus(r, RationalLiteral(errLeft + errRight)))
+      val realCond = LessThan(l, Plus(r, RationalLiteral(errLeft + errRight)))
+      (floatCond, realCond)
+  }
+
   private def mergeXFloat(one: Option[XFloat], two: Option[XFloat], config: XFloatConfig): Option[XFloat] = (one, two) match {
     case (Some(x1), Some(x2)) =>
       val newInt = x1.realInterval.union(x2.realInterval)
@@ -192,18 +280,6 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
     case (None, Some(x2)) => Some(x2)
     case (None, None) => None
   }
-
-  /*private def mergeXFloatMap(first: Map[Expr, XFloat], second: Map[Expr, XFloat]): Map[Expr, XFloat] = {
-    val newKeys: Set[Expr] = first.keySet ++ second.keySet
-    var newMap = Map[Expr, XFloat]()
-    for (key <- newKeys) {
-      (first.get(key), second.get(key)) match {
-        case (Some(xf1), Some(xf2))
-      }
-    }
-
-  }*/
-
 
   // TODO: compacting of XFloats
   def evaluate(expr: List[Expr], precondition: Expr, inputs: Map[Variable, Record]): (Map[Expr, XFloat], Map[Int, Expr]) = {
@@ -269,11 +345,11 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
     newXFloat
   }
 
-  private def sanityCheck(pre: Expr, silent: Boolean = true): Boolean = {
+  private def sanityCheck(pre: Expr, silent: Boolean = false): Boolean = {
     import Sat._
     solver.checkSat(pre) match {
       case (SAT, model) =>
-        //if (!silent) reporter.info("Sanity check passed! :-)")
+        if (!silent) reporter.info("Sanity check passed! :-)")
         //reporter.info("model: " + model)
         true
       case (UNSAT, model) =>
@@ -284,4 +360,46 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
         false
     }
   }
+
+    /*private def mergeXFloatMap(first: Map[Expr, XFloat], second: Map[Expr, XFloat]): Map[Expr, XFloat] = {
+    val newKeys: Set[Expr] = first.keySet ++ second.keySet
+    var newMap = Map[Expr, XFloat]()
+    for (key <- newKeys) {
+      (first.get(key), second.get(key)) match {
+        case (Some(xf1), Some(xf2))
+      }
+    }
+
+  }*/
+
+
+  /*private def getDiffPathsConditions(cond: Expr, inputs: Map[Expr, XFloat], config: XFloatConfig): (Expr, Expr) = cond match {
+    case LessThan(l, r) =>
+      val errLeft = eval(l, inputs, config).maxError
+      val errRight = eval(r, inputs, config).maxError
+      val floatCond = LessThan(Plus(l, RationalLiteral(errLeft)), Minus(r, RationalLiteral(errRight)))
+      val realCond = GreaterEquals(Minus(l, RationalLiteral(errLeft)), Plus(r, RationalLiteral(errRight)))
+      (floatCond, realCond)
+
+    case LessEquals(l, r) =>
+      val errLeft = eval(l, inputs, config).maxError
+      val errRight = eval(r, inputs, config).maxError
+      val floatCond = LessEquals(Plus(l, RationalLiteral(errLeft)), Minus(r, RationalLiteral(errRight)))
+      val realCond = GreaterThan(Minus(l, RationalLiteral(errLeft)), Plus(r, RationalLiteral(errRight)))
+      (floatCond, realCond)
+
+    case GreaterThan(l, r) =>
+      val errLeft = eval(l, inputs, config).maxError
+      val errRight = eval(r, inputs, config).maxError
+      val floatCond = GreaterThan(Minus(l, RationalLiteral(errLeft)), Plus(r, RationalLiteral(errRight)))
+      val realCond = LessEquals(Plus(l, RationalLiteral(errLeft)), Minus(r, RationalLiteral(errRight)))
+      (floatCond, realCond)
+
+    case GreaterEquals(l, r) =>
+      val errLeft = eval(l, inputs, config).maxError
+      val errRight = eval(r, inputs, config).maxError
+      val floatCond = GreaterEquals(Minus(l, RationalLiteral(errLeft)), Plus(r, RationalLiteral(errRight)))
+      val realCond = LessThan(Plus(l, RationalLiteral(errLeft)), Minus(r, RationalLiteral(errRight)))
+      (floatCond, realCond)
+  }*/
 }

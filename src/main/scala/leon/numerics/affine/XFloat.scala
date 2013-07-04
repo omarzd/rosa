@@ -125,18 +125,6 @@ object XFloat {
 
 }
 
-case class XFloatConfig(reporter: Reporter, solver: NumericSolver, precondition: Expr, precision: Precision,
-  machineEps: Rational, additionalConstraints: Set[Expr] = Set.empty) {
-
-  def getCondition: Expr = And(precondition, And(additionalConstraints.toSeq))
-
-  def addCondition(c: Expr): XFloatConfig =
-    XFloatConfig(reporter, solver, precondition, precision, machineEps, additionalConstraints + c)
-
-  def and(other: XFloatConfig): XFloatConfig = {
-    XFloatConfig(reporter, solver, precondition, precision, machineEps, this.additionalConstraints ++ other.additionalConstraints)
-  }
-}
 
 /**
   A datatype for range arithmetic that keeps track of floating-point roundoff errors.
@@ -152,12 +140,12 @@ case class XFloatConfig(reporter: Reporter, solver: NumericSolver, precondition:
 
   import XFloat._
 
-  lazy val realInterval: RationalInterval = {
+  def realInterval: RationalInterval = {
     getTightInterval(tree, approxInterval, config.getCondition)
   }
-  lazy val interval: RationalInterval = realInterval + error.interval
+  def interval: RationalInterval = realInterval + error.interval
 
-  lazy val maxError: Rational = {
+  def maxError: Rational = {
     val i = error.interval
     max(abs(i.xlo), abs(i.xhi))
   }
@@ -217,7 +205,7 @@ case class XFloatConfig(reporter: Reporter, solver: NumericSolver, precondition:
     val newConfig = config.and(y.config)
     val newTree = Minus(this.tree, y.tree)
     val newInterval = this.approxInterval - y.approxInterval
-
+    
     var newError = this.error - y.error
     val newRealRange = getTightInterval(newTree, newInterval, newConfig.getCondition)
     val rndoff = roundoff(newRealRange + newError.interval)

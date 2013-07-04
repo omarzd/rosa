@@ -113,7 +113,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
       else And(Or(idealPart), Or(actualPart))
 
     //TODO: somehow remove redundant definitions of errors? stuff like And(Or(idealPart), Or(actualPart))
-    var toCheck = ArithmeticOps.totalMakeover(And(And(precondition, body), Not(postcondition))) //has to be unsat
+    var toCheck = ArithmeticOps.totalMakeover(And(And(precondition, body), negate(postcondition))) //has to be unsat
     //println("toCheck: " + deltaRemover.transform(toCheck))
 
     if (reporter.errorCount == 0 && sanityCheck(precondition, false, body))
@@ -150,7 +150,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
         if(ca.needEps) And(And(idealPart, actualPart), machineEpsilon)
           else And(idealPart, actualPart)
       //TODO: somehow remove redundant definitions of errors? stuff like And(Or(idealPart), Or(actualPart))
-      var toCheck = ArithmeticOps.totalMakeover(And(And(precondition, body), Not(postcondition))) //has to be unsat
+      var toCheck = ArithmeticOps.totalMakeover(And(And(precondition, body), negate(postcondition))) //has to be unsat
       println("toCheck: " + deltaRemover.transform(toCheck))
       if (reporter.errorCount == 0 && sanityCheck(precondition, false, body))
         solver.checkSat(toCheck) match {
