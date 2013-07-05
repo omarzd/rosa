@@ -301,8 +301,8 @@ object XFloat {
   }
 
 
-  override def toString: String = this.interval.toString + " - (" +
-    this.maxError + ")(abs)("+tree+")"
+  override def toString: String =
+    "%s - (%.16g)(%s)".format(this.interval.toString, this.maxError.toDouble, tree)
 
   // Always returns a positive number
   private def roundoff(range: RationalInterval): Rational = {

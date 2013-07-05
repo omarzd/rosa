@@ -113,9 +113,6 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
 
   private def inXFloatsWithMerging(reporter: Reporter, expr: Expr, vars: Map[Expr, XFloat],
     config: XFloatConfig): (Map[Expr, XFloat], Option[XFloat]) = {
-    //println("\nEvaluating: " + expr)
-    //println("with Map: " + vars)
-    //println("with pre: " + config.getCondition)
     expr match {
       case And(args) =>
         var currentVars: Map[Expr, XFloat] = vars
@@ -126,92 +123,76 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
         //println("currentVars: " + currentVars)  
         (currentVars, None)
 
+      
       case Equals(variable, IfExpr(cond, then, elze)) =>
-        println("Equals with branch: " + expr)
+        // Errors and ranges from the two branches
         val thenConfig = config.addCondition(cond)
         val elzeConfig = config.addCondition(negate(cond))
-
-        val (thenMap, thenValue) = if (sanityCheck(thenConfig.getCondition)) inXFloatsWithMerging(reporter, then, vars, thenConfig)
+        val (thenMap, thenValue) =
+          if (sanityCheck(thenConfig.getCondition))
+            inXFloatsWithMerging(reporter, then, addConditionToInputs(vars, cond), thenConfig)
           else (vars, None)
-        val (elzeMap, elzeValue) = if (sanityCheck(elzeConfig.getCondition)) inXFloatsWithMerging(reporter, elze, vars, elzeConfig)
+        val (elzeMap, elzeValue) =
+          if (sanityCheck(elzeConfig.getCondition))
+            inXFloatsWithMerging(reporter, elze, addConditionToInputs(vars, negate(cond)), elzeConfig)
           else (vars, None)
         assert(!thenValue.isEmpty || !elzeValue.isEmpty)
-
+        println("thenValue: " + thenValue)
+        println("elseValue: " + elzeValue)
         // When the actual computation goes a different way than the real one
         val (flCond1, reCond1) = getDiffPathsConditions(cond, vars, config)
         val (flCond2, reCond2) = getDiffPathsConditions(negate(cond), vars, config)
-        println("flCond1: " + flCond1)
-        println("reCond1: " + reCond1)
-        println("flCond2: " + flCond2)
-        println("reCond2: " + reCond2)
-        
-        val pathErrorThen = {
-          println("\n computing path error then")
-          if (sanityCheck(And(flCond1, negate(cond)))) {
-            val (m, floatRange) = inXFloatsWithMerging(reporter, elze, vars, elzeConfig.addCondition(flCond1))
-            println("floatRange: " + floatRange)
-            
-            val freshMap = getFreshMap(vars.keySet)
-            val (freshThen, freshVars) = freshenUp(then, freshMap, vars)
-            val (mm, realRange) = inXFloatsWithMerging(reporter, freshThen, freshVars, thenConfig.addCondition(reCond1).freshenUp(freshMap))
-            println("realRange: "+realRange)
-            val diff = (floatRange.get - realRange.get).interval
-            val maxError = max(abs(diff.xlo), abs(diff.xhi))
-            maxError
-          } else Rational.zero
-        }
-        println("pathError1: " + pathErrorThen)
+        //println("flCond1: " + flCond1); println("reCond1: " + reCond1); println("flCond2: " + flCond2);  println("reCond2: " + reCond2)
 
-        val pathErrorElze = {
-          println("\n computing path error else")
-          if (sanityCheck(And(flCond2, cond))) {
-            val (m, floatRange) = inXFloatsWithMerging(reporter, then, vars, thenConfig.addCondition(flCond2))
-            println("floatRange: " + floatRange)
+        // TODO: for this we have to set the solver precision high!
+        val pathErrorThen =
+          getPathError(elze, And(flCond1, negate(cond)), then, And(cond, reCond1), vars, config)
+        println("pathError1: %.16g".format(pathErrorThen.toDouble))
 
-            val freshMap = getFreshMap(vars.keySet)
-            val (freshElze, freshVars) = freshenUp(elze, freshMap, vars)
-            val (mm, realRange) = inXFloatsWithMerging(reporter, freshElze, freshVars, elzeConfig.addCondition(reCond2).freshenUp(freshMap))
-            println("realRange: "+realRange)
-            //TODO: one should really remove the errors on realRange
-            val diff = (floatRange.get - realRange.get).interval
-            println("diff: " + diff)
-            val maxError = max(abs(diff.xlo), abs(diff.xhi))
-            maxError
-          } else Rational.zero
-        }
-        println("pathError2: " + pathErrorElze)
+        val pathErrorElze =
+          getPathError(then, And(flCond2, cond), elze, And(negate(cond), reCond2), vars, config)
+        println("pathError2: %.16g".format(pathErrorElze.toDouble))
         // TODO: do we  also have to keep track of the flRange computed? I think so
 
-        (vars + (variable -> mergeXFloat(thenValue, elzeValue, config).get), None)
+        // TODO The merging has to remove the conditions again!
+        (vars + (variable -> mergeXFloatWithExtraError(thenValue, elzeValue, config, max(pathErrorThen, pathErrorElze)).get), None)
 
-      case Equals(variable, value) =>
-        val computedValue = eval(value, vars, config)
-        //println("computedValue: " + computedValue)
-        (vars + (variable -> computedValue), None)
-
+      
       case IfExpr(cond, then, elze) =>
         // TODO: eval error across paths
         val thenConfig = config.addCondition(cond)
         val elzeConfig = config.addCondition(Not(cond))
         
-        val (thenMap, thenValue) = if (sanityCheck(thenConfig.getCondition)) inXFloatsWithMerging(reporter, then, vars, thenConfig)
-          else { //println("Skipping then branch");
-            (vars, None)}
+        val (thenMap, thenValue) =
+          if (sanityCheck(thenConfig.getCondition))
+            inXFloatsWithMerging(reporter, then, addConditionToInputs(vars, cond), thenConfig)
+          else (vars, None)
 
-        val (elzeMap, elzeValue) = if (sanityCheck(elzeConfig.getCondition)) inXFloatsWithMerging(reporter, elze, vars, elzeConfig)
-          else { //println("Skipping else branch");
-            (vars, None)}
-        //println("thenValue: " + thenValue)
-        //println("elseValue: " + elzeValue)
-        //println("thenMap: " + thenMap)
-        //println("elzeMap: " + elzeMap)
+        val (elzeMap, elzeValue) =
+          if (sanityCheck(elzeConfig.getCondition))
+            inXFloatsWithMerging(reporter, elze, addConditionToInputs(vars, negate(cond)), elzeConfig)
+          else (vars, None)
         assert(thenValue.isEmpty && elzeValue.isEmpty)
         //println("merged: " + mergeXFloat(thenMap.get(ResultVariable()), elzeMap.get(ResultVariable()), config))
 
-        mergeXFloat(thenMap.get(ResultVariable()), elzeMap.get(ResultVariable()), config) match {
+        val (flCond1, reCond1) = getDiffPathsConditions(cond, vars, config)
+        val (flCond2, reCond2) = getDiffPathsConditions(negate(cond), vars, config)
+        val pathErrorThen = getPathErrorForRes(elze, And(flCond1, negate(cond)), then, And(cond, reCond1), vars, config)
+        println("pathError1: %.16g".format(pathErrorThen.toDouble))
+
+        val pathErrorElze = getPathErrorForRes(then, And(flCond2, cond), elze, And(negate(cond), reCond2), vars, config)
+        println("pathError2: %.16g".format(pathErrorElze.toDouble))
+
+        mergeXFloatWithExtraError(thenMap.get(ResultVariable()), elzeMap.get(ResultVariable()), config,
+          max(pathErrorThen, pathErrorElze)) match {
           case Some(res) => (vars + (ResultVariable() -> res), None)
           case None => (vars, None)
         }
+
+      case Equals(variable, value) =>
+        val computedValue = eval(value, vars, config)
+        //println("computedValue: " + computedValue)
+        (vars + (variable -> computedValue), None)
 
       case Variable(_) | RationalLiteral(_) | IntLiteral(_) | UMinus(_) | Plus(_, _) | Minus(_, _) | Times(_, _) | Division(_, _) | Sqrt(_) =>
         (vars, Some(eval(expr, vars, config)))
@@ -223,20 +204,81 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
     }
   }
 
-  def getFreshMap(vars: Set[Expr]): Map[Expr, Expr] = {
-    vars.collect {
-      case v @ Variable(id) => (v, getFreshVarOf(id.toString))
-    }.toMap
+  // The conditions are not fresh, we do that here automatically
+  private def getPathError(flExpr: Expr, flCond: Expr, reExpr: Expr, reCond: Expr, vars: Map[Expr, XFloat],
+    config: XFloatConfig): Rational = {
+    //val flCond = And(flCond1, negate(cond))
+    if (sanityCheck(flCond)) {
+      // execution taken by actual computation
+      val flConfig = config.addCondition(flCond)
+      val flVars = addConditionToInputsAndRemoveErrors(vars, flCond)
+      //println("fl vars:"); flVars.foreach {f => println(f); println(f._2.config.getCondition)}
+      val (m, floatRange) = inXFloatsWithMerging(reporter, flExpr, flVars, flConfig)
+      //println("floatRange: " + floatRange)
+            
+      val freshMap = getFreshMap(vars.keySet)
+      val (freshThen, freshVars) = freshenUp(reExpr, freshMap, vars)
+      val reConfig = config.addCondition(reCond).freshenUp(freshMap)
+      val reVars = addConditionToInputsAndRemoveErrors(freshVars, replace(freshMap, reCond))
+      //println("re vars:"); reVars.foreach {f => println(f); println(f._2.config.getCondition)}
+      val (mm, realRange) = inXFloatsWithMerging(reporter, freshThen, reVars, reConfig)
+      //println("realRange: "+ removeErrors(realRange.get))
+      
+      val diff = (floatRange.get - removeErrors(realRange.get)).interval
+      val maxError = max(abs(diff.xlo), abs(diff.xhi))
+      maxError
+    } else {
+      Rational.zero
+    }
   }
 
-  def freshenUp(expr: Expr, freshMap: Map[Expr, Expr], inputs: Map[Expr, XFloat]): (Expr, Map[Expr, XFloat]) = {
-    val freshExpr = replace(freshMap, expr)
-    val freshInputs: Map[Expr, XFloat] = inputs.collect {
-      case (k, xf) if(freshMap.contains(k)) =>
-        val newXf = new XFloat(replace(freshMap, xf.tree), xf.approxInterval, xf.error, xf.config.freshenUp(freshMap))
-       (freshMap(k), newXf)
+  private def getPathErrorForRes(flExpr: Expr, flCond: Expr, reExpr: Expr, reCond: Expr, vars: Map[Expr, XFloat],
+    config: XFloatConfig): Rational = {
+    //val flCond = And(flCond1, negate(cond))
+    if (sanityCheck(flCond)) {
+      // execution taken by actual computation
+      val flConfig = config.addCondition(flCond)
+      val flVars = addConditionToInputsAndRemoveErrors(vars, flCond)
+      //println("fl vars:"); flVars.foreach {f => println(f); println(f._2.config.getCondition)}
+      val (flMap, _) = inXFloatsWithMerging(reporter, flExpr, flVars, flConfig)
+      val floatRange = flMap.get(ResultVariable())
+      println("floatRange: " + floatRange)
+            
+      val freshMap = getFreshMap(vars.keySet)
+      val (freshThen, freshVars) = freshenUp(reExpr, freshMap, vars)
+      val reConfig = config.addCondition(reCond).freshenUp(freshMap)
+      val reVars = addConditionToInputsAndRemoveErrors(freshVars, replace(freshMap, reCond))
+      //println("re vars:"); reVars.foreach {f => println(f); println(f._2.config.getCondition)}
+      val (reMap, _) = inXFloatsWithMerging(reporter, freshThen, reVars, reConfig)
+      val realRange = removeErrors(reMap.get(ResultVariable()).get)
+      println("realRange: "+ realRange)
+      
+      val diff = (floatRange.get - realRange).interval
+      val maxError = max(abs(diff.xlo), abs(diff.xhi))
+      maxError
+    } else {
+      Rational.zero
     }
-    (freshExpr, freshInputs)
+
+  }
+
+  // TODO: do we also need the interval?
+  private def removeErrors(xf: XFloat): XFloat = {
+    new XFloat(xf.tree, xf.approxInterval, new XRationalForm(Rational.zero), xf.config)
+  }
+
+  private def addConditionToInputs(inputs: Map[Expr, XFloat], cond: Expr): Map[Expr, XFloat] = {
+    inputs.map{
+      case (k, x) =>
+       (k, new XFloat(x.tree, x.approxInterval, x.error, x.config.addCondition(cond)))
+    }
+  }
+
+  private def addConditionToInputsAndRemoveErrors(inputs: Map[Expr, XFloat], cond: Expr): Map[Expr, XFloat] = {
+    inputs.map{
+      case (k, x) =>
+       (k, new XFloat(x.tree, x.approxInterval, new XRationalForm(Rational.zero), x.config.addCondition(cond)))
+    }
   }
 
   private def getDiffPathsConditions(cond: Expr, inputs: Map[Expr, XFloat], config: XFloatConfig): (Expr, Expr) = cond match {
@@ -267,6 +309,51 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
       val floatCond = GreaterEquals(l, Minus(r, RationalLiteral(errLeft + errRight)))
       val realCond = LessThan(l, Plus(r, RationalLiteral(errLeft + errRight)))
       (floatCond, realCond)
+  }
+
+  def getFreshMap(vars: Set[Expr]): Map[Expr, Expr] = {
+    vars.collect {
+      case v @ Variable(id) => (v, getFreshVarOf(id.toString))
+    }.toMap
+  }
+
+  def freshenUp(expr: Expr, freshMap: Map[Expr, Expr], inputs: Map[Expr, XFloat]): (Expr, Map[Expr, XFloat]) = {
+    val freshExpr = replace(freshMap, expr)
+    val freshInputs: Map[Expr, XFloat] = inputs.collect {
+      case (k, xf) if(freshMap.contains(k)) =>
+        val newXf = new XFloat(replace(freshMap, xf.tree), xf.approxInterval, xf.error, xf.config.freshenUp(freshMap))
+       (freshMap(k), newXf)
+    }
+    (freshExpr, freshInputs)
+  }
+
+  private def mergeXFloatWithExtraError(one: Option[XFloat], two: Option[XFloat], config: XFloatConfig,
+    pathError: Rational): Option[XFloat] = (one, two) match {
+    case (Some(x1), Some(x2)) =>
+      val newInt = x1.realInterval.union(x2.realInterval)
+      val newError = max(max(x1.maxError, x2.maxError), pathError)
+      val fresh = getNewXFloatVar
+      val newConfig = config.addCondition(rangeConstraint(fresh, newInt))
+      Some(xFloatWithUncertain(fresh, newInt, newConfig, newError, false)._1)
+    case (Some(x1), None) =>
+      if (pathError != zero) {
+        val newError = max(x1.maxError, pathError)
+        val newInt = x1.realInterval
+        val fresh = getNewXFloatVar
+        val newConfig = config.addCondition(rangeConstraint(fresh, newInt))
+        Some(xFloatWithUncertain(fresh, newInt, newConfig, newError, false)._1)
+      } else
+        Some(x1)
+    case (None, Some(x2)) =>
+      if (pathError != zero) {
+        val newError = max(x2.maxError, pathError)
+        val newInt = x2.realInterval
+        val fresh = getNewXFloatVar
+        val newConfig = config.addCondition(rangeConstraint(fresh, newInt))
+        Some(xFloatWithUncertain(fresh, newInt, newConfig, newError, false)._1)
+      } else
+        Some(x2)
+    case (None, None) => None
   }
 
   private def mergeXFloat(one: Option[XFloat], two: Option[XFloat], config: XFloatConfig): Option[XFloat] = (one, two) match {

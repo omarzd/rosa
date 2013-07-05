@@ -40,7 +40,7 @@ class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3
   def getCounts: String = "timeouts: %d, tight: %d, hit precision: %d, hit iteration: %d".format(
     countTimeouts, countTightRanges, countHitPrecisionThreshold, countHitIterationThreshold)
 
-  var precision = Rational.rationalFromReal(0.0000001) //0.0001
+  var precision = Rational.rationalFromReal(1e-16) //0.0001
   val maxIterationsBinary = 50
 
   override protected[leon] val z3cfg = new Z3Config(
@@ -129,7 +129,7 @@ class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3
   def tightenRange(tree: Expr, precondition: Expr, initialBound: RationalInterval): RationalInterval = tree match {
     case IntLiteral(v) => initialBound
     case RationalLiteral(v) => initialBound
-    case Variable(id) => initialBound
+    //case Variable(id) => initialBound
     case _ =>
       assert(solver.getNumScopes == 0)
       solver.push
