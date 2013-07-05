@@ -36,20 +36,21 @@ object Mean {
   */
 
 
-  def aspecIsAlwaysLess(y1: Real, y2: Real, y3: Real, y4: Real, y5: Real, y6: Real): Boolean = {
+  /*def aspecIsAlwaysLess(y1: Real, y2: Real, y3: Real, y4: Real, y5: Real, y6: Real): Boolean = {
     require(y1.in(-1200, 1200) && y2.in(-1200, 1200) && y3.in(-1200, 1200) &&
      y4.in(-1200, 1200) && y5.in(-1200, 1200) && y6.in(-1200, 1200))
 
     meanSpec(y1, y2, y3, y4, y5, y6) <= meanImpl(y1, y2, y3, y4, y5, y6)
   } holds
-
-  /*def actualSpecIsAlwaysLess(y1: Real, y2: Real, y3: Real, y4: Real, y5: Real, y6: Real): Boolean = {
+  */
+  
+  def actualSpecIsAlwaysLess(y1: Real, y2: Real, y3: Real, y4: Real, y5: Real, y6: Real): Boolean = {
     require(y1.in(-1200, 1200) && y2.in(-1200, 1200) && y3.in(-1200, 1200) &&
      y4.in(-1200, 1200) && y5.in(-1200, 1200) && y6.in(-1200, 1200) && roundoff(y1, y2, y3, y4, y5) && roundoff(y6))
 
     ~meanSpec(y1, y2, y3, y4, y5, y6) <= ~meanImpl(y1, y2, y3, y4, y5, y6)// + 1e-12
   } holds
-  */
+  
 
   def meanSpec(x1: Real, x2: Real, x3: Real, x4: Real, x5: Real, x6: Real): Real = {
     require(x1.in(-1200, 1200) && x2.in(-1200, 1200) && x3.in(-1200, 1200) &&

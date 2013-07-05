@@ -69,7 +69,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
 
     reporter.info("Now computing the postcondition.")
     //try {
-    /*  if (specgen && !(vc.isInvariant || vc.nothingToCompute)) {
+      /*if (specgen && !(vc.isInvariant || vc.nothingToCompute)) {
         val mainCnstr = if(vc.allConstraints.size > 0) vc.allConstraints.head
           else Constraint(vc.precondition, vc.body, True, "wholebody", merging, z3only)
         vc.generatedPost = Some(getPost(mainCnstr, vc.inputs))
@@ -78,7 +78,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
       } else
         reporter.info("Skipping spec gen on this one")
     //} catch {case _=> ;}
-    */
+      */
     val totalTime = (System.currentTimeMillis - start)
     vc.verificationTime = Some(totalTime)
     vc
@@ -110,7 +110,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
       if(ca.needEps) And(And(Or(idealPart), Or(actualPart)), machineEpsilon)
       else And(Or(idealPart), Or(actualPart))
 
-    var toCheck = ArithmeticOps.totalMakeover(And(And(precondition, body), negate(postcondition)))
+    var toCheck = ArithmeticOps.totalMakeover(And(And(precondition, body), negate(postcondition) ))
     //var toCheck = And(And(precondition, body), negate(postcondition))
     println("toCheck: " + deltaRemover.transform(toCheck))
 
@@ -150,7 +150,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
       
       var toCheck = ArithmeticOps.totalMakeover(And(And(precondition, body), negate(postcondition)))
       //var toCheck = And(And(precondition, body), negate(postcondition))
-      //println("toCheck: " + deltaRemover.transform(toCheck))
+      println("toCheck: " + deltaRemover.transform(toCheck))
       if (reporter.errorCount == 0 && sanityCheck(precondition, false, body))
         solver.checkSat(toCheck) match {
           case (UNSAT, _) => path.status = Some(VALID)
@@ -183,7 +183,6 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
   // if true, we're sane
   private def sanityCheck(pre: Expr, silent: Boolean = true, body: Expr = BooleanLiteral(true)): Boolean = {
     val sanityCondition = And(pre, body)
-    //println("Checking condition: " + sanityCondition)
     solver.checkSat(sanityCondition) match {
       case (SAT, model) =>
         //if (!silent) reporter.info("Sanity check passed! :-)")
@@ -235,8 +234,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
       val body = c.body
       val filteredPrecondition = filterPreconditionForBoundsIteration(c.pre)
       val (xfloats, indices) = xevaluator.evaluate(body, filteredPrecondition, inputs)
-      //println("\n\n xfloats: " + xfloats)
-
+      
       val apaths = Set(APath(True, body, True, True, noiseConstraintFromXFloats(xfloats), xfloats))
       val cApprox = ConstraintApproximation(c.pre, apaths, c.post, Set.empty, tpe)
       cApprox.needEps = false
@@ -247,24 +245,19 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
       try {
         val paths = c.paths
         val filteredPrecondition = filterPreconditionForBoundsIteration(c.pre)
-        //println("paths: " + paths.mkString("\n"))
         val apaths = paths.collect {
           case path: Path if (sanityCheck(And(path.condition, filteredPrecondition), false)) =>
-            //println("Computing for path: " + path)
             val fullPathCondition = And(path.condition, filteredPrecondition)
-            //println("fullPathCondition: " + fullPathCondition)
-
+            
             val (resConstraint, xfloatMap) =
               if(And(path.expression) == True) { (True, Map[Expr, XFloat]()) }
               else {
                 val (xfloats, indices) = xevaluator.evaluate(And(path.expression), fullPathCondition, inputs)
-                //println("xfloats: " + xfloats)
                 (noiseConstraintFromXFloats(xfloats), xfloats)
                 // TODO: can we find out when we don't need the full constraint, only for res?
                 // Like when it's an invariant we need full, else only res?
                 //Noise(ResultVariable(), RationalLiteral(xfloats(ResultVariable()).maxError))
               }
-            //println("resConstraint: " + resConstraint)
             APath(path.condition,
               True, And(path.expression),
               True, resConstraint, xfloatMap)
@@ -285,12 +278,22 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
       }
       None
 
-    // So, now we have functions, two options:
-    // 1) inline the function body first, and then do approximation with compacting
-    // 2) do the compacting on the fly with every function call
+    case AdHocFullInlining_AAMerging =>
+      val body = c.body
+      println("body: " + body)
+      val filteredPrecondition = filterPreconditionForBoundsIteration(c.pre)
+      val (xfloats, indices) = xevaluator.evaluate(body, filteredPrecondition, inputs)
+      println("xfloats: " + xfloats)
+      //TODO: what happened to the vars here?
+      val (newPre, newBody, newPost, vars) = fullInliner.inlineFunctions(c.pre, body, c.post)
+      val apaths = Set(APath(True, newBody, True, True, noiseConstraintFromXFloats(xfloats), xfloats))
+      
+      val cApprox = ConstraintApproximation(newPre, apaths, newPost, vars, tpe)
+      cApprox.needEps = false
+      cApprox.addInitialVariableConnection = false
+      Some(cApprox)
 
-    // This is the second option
-    case FullInlining_AACompactOnFnc =>
+    case AdHocFullInlining_AA =>
       //try {
         // TODO: inline pre and post? how about invariants?
         val paths = c.paths
@@ -303,15 +306,8 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
             // TODO: see above
             //Noise(ResultVariable(), RationalLiteral(path.values(ResultVariable()).maxError))
 
-            //ideal part, needs fncs inlined
-            //println("path cond: " + path.condition)
-            //println("body: " + path.expression)
             //TODO: what happened to the vars here?
             val (newPre, newBody, newPost, vars) = fullInliner.inlineFunctions(path.condition, And(path.expression), True)
-
-            //println("newPre: " + newPre)
-            //println("newBody: " + newBody)
-            //println("newPost: " + newPost)
             APath(newPre,
              True, newBody,
              True, resNoise, xfloats)
@@ -327,13 +323,28 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
       //} catch { case _=> ;}
       //None
 
+    case FullInlining_AAMerging =>
+      val (newPre, newBody, newPost, vars) = fullInliner.inlineFunctions(c.pre, c.body, c.post)
+      val body = newBody
+      println("newBody: " + newBody)
+
+      val filteredPrecondition = filterPreconditionForBoundsIteration(newPre)
+      val (xfloats, indices) = xevaluator.evaluate(body, filteredPrecondition, inputs)
+      
+      val apaths = Set(APath(True, body, True, True, noiseConstraintFromXFloats(xfloats), xfloats))
+      val cApprox = ConstraintApproximation(newPre, apaths, newPost, vars, tpe)
+      cApprox.needEps = false
+      cApprox.addInitialVariableConnection = false
+      Some(cApprox)
+
+
     case FullInlining_AA =>
       //try {
         val (newPre, newBody, newPost, vars) = fullInliner.inlineFunctions(c.pre, c.body, c.post)
         val paths = collectPaths(newBody)
         val newInputs = getVariableRecords(newPre)
         val filteredPrecondition = filterPreconditionForBoundsIteration(newPre)
-        //println("paths: " + paths.mkString("\n"))
+        println("paths: " + paths.mkString("\n"))
         val apaths = paths.collect {
           case path: Path if (sanityCheck(And(path.condition, filteredPrecondition))) =>
             println("Computing for path: " )//+ path)
@@ -411,7 +422,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
       }
 
     case true =>
-      (findApproximation(c, inputs, List(FullInlining_AA, FullInlining_AACompactOnFnc)), c.status) match {
+      (findApproximation(c, inputs, List(FullInlining_AA, AdHocFullInlining_AAMerging)), c.status) match {
         case (Some(approx), Some(VALID)) =>
           constraintFromResults(Map(ResultVariable() -> approx.actualXfloats(ResultVariable())))
           // TODO: getMostPrecise(c.post, approx.values)

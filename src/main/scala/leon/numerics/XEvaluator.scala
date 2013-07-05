@@ -120,6 +120,7 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
   }
 
   // The conditions are not fresh, we do that here automatically
+  // TODO: this has a bug with function calls
   private def getPathError(flExpr: Expr, flCond: Expr, reExpr: Expr, reCond: Expr, vars: Map[Expr, XFloat],
     config: XFloatConfig): Rational = {
     //val flCond = And(flCond1, negate(cond))
@@ -147,6 +148,7 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
     }
   }
 
+  // TODO: this has a bug with function calls
   private def getPathErrorForRes(flExpr: Expr, flCond: Expr, reExpr: Expr, reCond: Expr, vars: Map[Expr, XFloat],
     config: XFloatConfig): Rational = {
     //val flCond = And(flCond1, negate(cond))
@@ -192,7 +194,7 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
     case Sqrt(t) => eval(t, vars, config).squareRoot
     case FunctionInvocation(funDef, args) =>
       // EValuate the function, i.e. compute the postcondition and inline it
-      //println("function call: " + funDef.id.toString)
+      println("function call: " + funDef.id.toString)
       val fresh = getNewFncVariable(funDef.id.name)
       val arguments: Map[Expr, Expr] = funDef.args.map(decl => decl.toVariable).zip(args).toMap
       val newBody = replace(arguments, vcMap(funDef).body)
@@ -207,7 +209,7 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
       val result = vals._1(ResultVariable())
       //println("result: " + result)
       val newXFloat = compactXFloat(result, fresh)
-      //println("newXFloat: " + newXFloat)
+      println("newXFloat: " + newXFloat)
       newXFloat
     case _ =>
       throw UnsupportedFragmentException("AA cannot handle: " + expr)
