@@ -13,7 +13,6 @@ import Rational.{zero, max, abs}
 
 import RoundoffType._
 import Precision._
-//import Utils._
 import VariableShop._
 
 class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision, vcMap: Map[FunDef, VerificationCondition]) {
@@ -22,119 +21,37 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
   val unitRoundoffDefault = getUnitRoundoff(Float64)
 
 
-  def evaluateWithFncCalls(expr: List[Expr], precondition: Expr, inputs: Map[Variable, Record]): (Map[Expr, XFloat], Map[Int, Expr]) = {
-    //println("Evaluating: " + expr)
+  def evaluate(expr: Expr, precondition: Expr, inputs: Map[Variable, Record]): (Map[Expr, XFloat], Map[Int, Expr]) = {
     val config = XFloatConfig(reporter, solver, precondition, precision, unitRoundoff)
     val (variables, indices) = variables2xfloats(inputs, config)
     solver.clearCounts
-    val values = inXFloatsWithFncs(expr, variables, config) -- inputs.keys
+    val values = inXFloats(reporter, expr, variables, config)._1 -- inputs.keys
     if (printStats) reporter.info("STAAATS: " + solver.getCounts)
     (values, indices)
   }
 
-  private def inXFloatsWithFncs(exprs: List[Expr], vars: Map[Expr, XFloat], config: XFloatConfig): Map[Expr, XFloat] = {
-    var currentVars: Map[Expr, XFloat] = vars
-
-    for (expr <- exprs) expr match {
-      case Equals(variable, value) =>
-        try {
-          val computedValue = evalWithFncs(value, currentVars, config)
-          currentVars = currentVars + (variable -> computedValue)
-          //println("Computed for: " + variable + "  : " + computedValue)
-          //println("tree: " + computedValue.tree)
-        } catch {
-          case UnsupportedFragmentException(msg) => reporter.error(msg)
-        }
-
-      case BooleanLiteral(true) => ;
-      case _ =>
-        reporter.error("AA cannot handle: " + expr)
-    }
-
-    currentVars
-  }
-
-  private def evalWithFncs(expr: Expr, vars: Map[Expr, XFloat], config: XFloatConfig): XFloat = expr match {
-    case v @ Variable(id) => vars(v)
-    case RationalLiteral(v) => XFloat(v, config)
-    case IntLiteral(v) => XFloat(v, config)
-    case UMinus(rhs) => - evalWithFncs(rhs, vars, config)
-    case Plus(lhs, rhs) => evalWithFncs(lhs, vars, config) + evalWithFncs(rhs, vars, config)
-    case Minus(lhs, rhs) => evalWithFncs(lhs, vars, config) - evalWithFncs(rhs, vars, config)
-    case Times(lhs, rhs) => evalWithFncs(lhs, vars, config) * evalWithFncs(rhs, vars, config)
-    case Division(lhs, rhs) => evalWithFncs(lhs, vars, config) / evalWithFncs(rhs, vars, config)
-    case Sqrt(t) => evalWithFncs(t, vars, config).squareRoot
-
-    case FunctionInvocation(funDef, args) =>
-      //println("function call: " + funDef.id.toString)
-      val fresh = getNewFncVariable(funDef.id.name)
-      val arguments: Map[Expr, Expr] = funDef.args.map(decl => decl.toVariable).zip(args).toMap
-      val newBody = replace(arguments, vcMap(funDef).body)
-      //println("newBody: " + newBody)
-      //println("inputs: ")
-      //for((k, v) <- vars) {
-        //println(k + ": " +v.tree)
-        //println("compacted: " + compactXFloat(v, k).tree)
-      //}
-      val bodyAsList = newBody match {
-        case And(list) => list
-        case eq: Equals => List(eq)
-        // e.g. if the function has if-then-else's
-        case _=> throw UnsupportedFragmentException("AA cannot handle: " + expr); null
-      }
-
-      //println("bodyList: " + bodyAsList)
-      val vals = inXFloatsWithFncs(bodyAsList.toList, vars, config)
-      val result = vals(ResultVariable())
-      //println("result: " + result)
-      val newXFloat = compactXFloat(result, fresh)
-      //println("newXFloat: " + newXFloat)
-      newXFloat
-      
-    case _ =>
-      throw UnsupportedFragmentException("AA cannot handle: " + expr)
-      null
-  }
-
-
-
-  private def rangeConstraint(v: Expr, i: RationalInterval): Expr = {
-    And(LessEquals(RationalLiteral(i.xlo), v), LessEquals(v, RationalLiteral(i.xhi)))
-  }
-
-  def evaluateWithMerging(expr: Expr, precondition: Expr, inputs: Map[Variable, Record]): (Map[Expr, XFloat], Map[Int, Expr]) = {
-    val config = XFloatConfig(reporter, solver, precondition, precision, unitRoundoff)
-    val (variables, indices) = variables2xfloats(inputs, config)
-    solver.clearCounts
-    val values = inXFloatsWithMerging(reporter, expr, variables, config)._1 -- inputs.keys
-    if (printStats) reporter.info("STAAATS: " + solver.getCounts)
-    (values, indices)
-  }
-
-  private def inXFloatsWithMerging(reporter: Reporter, expr: Expr, vars: Map[Expr, XFloat],
+  private def inXFloats(reporter: Reporter, expr: Expr, vars: Map[Expr, XFloat],
     config: XFloatConfig): (Map[Expr, XFloat], Option[XFloat]) = {
     expr match {
       case And(args) =>
         var currentVars: Map[Expr, XFloat] = vars
         for (arg <- args) {
-          val (map, xf) = inXFloatsWithMerging(reporter, arg, currentVars, config)
+          val (map, xf) = inXFloats(reporter, arg, currentVars, config)
           currentVars = map
         }
-        //println("currentVars: " + currentVars)  
         (currentVars, None)
 
-      
       case Equals(variable, IfExpr(cond, then, elze)) =>
         // Errors and ranges from the two branches
         val thenConfig = config.addCondition(cond)
         val elzeConfig = config.addCondition(negate(cond))
         val (thenMap, thenValue) =
           if (sanityCheck(thenConfig.getCondition))
-            inXFloatsWithMerging(reporter, then, addConditionToInputs(vars, cond), thenConfig)
+            inXFloats(reporter, then, addConditionToInputs(vars, cond), thenConfig)
           else (vars, None)
         val (elzeMap, elzeValue) =
           if (sanityCheck(elzeConfig.getCondition))
-            inXFloatsWithMerging(reporter, elze, addConditionToInputs(vars, negate(cond)), elzeConfig)
+            inXFloats(reporter, elze, addConditionToInputs(vars, negate(cond)), elzeConfig)
           else (vars, None)
         assert(!thenValue.isEmpty || !elzeValue.isEmpty)
         println("thenValue: " + thenValue)
@@ -156,7 +73,6 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
 
         // TODO The merging has to remove the conditions again!
         (vars + (variable -> mergeXFloatWithExtraError(thenValue, elzeValue, config, max(pathErrorThen, pathErrorElze)).get), None)
-
       
       case IfExpr(cond, then, elze) =>
         // TODO: eval error across paths
@@ -165,12 +81,12 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
         
         val (thenMap, thenValue) =
           if (sanityCheck(thenConfig.getCondition))
-            inXFloatsWithMerging(reporter, then, addConditionToInputs(vars, cond), thenConfig)
+            inXFloats(reporter, then, addConditionToInputs(vars, cond), thenConfig)
           else (vars, None)
 
         val (elzeMap, elzeValue) =
           if (sanityCheck(elzeConfig.getCondition))
-            inXFloatsWithMerging(reporter, elze, addConditionToInputs(vars, negate(cond)), elzeConfig)
+            inXFloats(reporter, elze, addConditionToInputs(vars, negate(cond)), elzeConfig)
           else (vars, None)
         assert(thenValue.isEmpty && elzeValue.isEmpty)
         //println("merged: " + mergeXFloat(thenMap.get(ResultVariable()), elzeMap.get(ResultVariable()), config))
@@ -191,7 +107,6 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
 
       case Equals(variable, value) =>
         val computedValue = eval(value, vars, config)
-        //println("computedValue: " + computedValue)
         (vars + (variable -> computedValue), None)
 
       case Variable(_) | RationalLiteral(_) | IntLiteral(_) | UMinus(_) | Plus(_, _) | Minus(_, _) | Times(_, _) | Division(_, _) | Sqrt(_) =>
@@ -213,7 +128,7 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
       val flConfig = config.addCondition(flCond)
       val flVars = addConditionToInputsAndRemoveErrors(vars, flCond)
       //println("fl vars:"); flVars.foreach {f => println(f); println(f._2.config.getCondition)}
-      val (m, floatRange) = inXFloatsWithMerging(reporter, flExpr, flVars, flConfig)
+      val (m, floatRange) = inXFloats(reporter, flExpr, flVars, flConfig)
       //println("floatRange: " + floatRange)
             
       val freshMap = getFreshMap(vars.keySet)
@@ -221,7 +136,7 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
       val reConfig = config.addCondition(reCond).freshenUp(freshMap)
       val reVars = addConditionToInputsAndRemoveErrors(freshVars, replace(freshMap, reCond))
       //println("re vars:"); reVars.foreach {f => println(f); println(f._2.config.getCondition)}
-      val (mm, realRange) = inXFloatsWithMerging(reporter, freshThen, reVars, reConfig)
+      val (mm, realRange) = inXFloats(reporter, freshThen, reVars, reConfig)
       //println("realRange: "+ removeErrors(realRange.get))
       
       val diff = (floatRange.get - removeErrors(realRange.get)).interval
@@ -240,7 +155,7 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
       val flConfig = config.addCondition(flCond)
       val flVars = addConditionToInputsAndRemoveErrors(vars, flCond)
       //println("fl vars:"); flVars.foreach {f => println(f); println(f._2.config.getCondition)}
-      val (flMap, _) = inXFloatsWithMerging(reporter, flExpr, flVars, flConfig)
+      val (flMap, _) = inXFloats(reporter, flExpr, flVars, flConfig)
       val floatRange = flMap.get(ResultVariable())
       println("floatRange: " + floatRange)
             
@@ -249,7 +164,7 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
       val reConfig = config.addCondition(reCond).freshenUp(freshMap)
       val reVars = addConditionToInputsAndRemoveErrors(freshVars, replace(freshMap, reCond))
       //println("re vars:"); reVars.foreach {f => println(f); println(f._2.config.getCondition)}
-      val (reMap, _) = inXFloatsWithMerging(reporter, freshThen, reVars, reConfig)
+      val (reMap, _) = inXFloats(reporter, freshThen, reVars, reConfig)
       val realRange = removeErrors(reMap.get(ResultVariable()).get)
       println("realRange: "+ realRange)
       
@@ -262,23 +177,52 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
 
   }
 
-  // TODO: do we also need the interval?
-  private def removeErrors(xf: XFloat): XFloat = {
-    new XFloat(xf.tree, xf.approxInterval, new XRationalForm(Rational.zero), xf.config)
-  }
-
-  private def addConditionToInputs(inputs: Map[Expr, XFloat], cond: Expr): Map[Expr, XFloat] = {
-    inputs.map{
-      case (k, x) =>
-       (k, new XFloat(x.tree, x.approxInterval, x.error, x.config.addCondition(cond)))
+  
+  // Evaluates an arithmetic expression
+  private def eval(expr: Expr, vars: Map[Expr, XFloat], config: XFloatConfig): XFloat = {
+    val xfloat = expr match {
+    case v @ Variable(id) => vars(v)
+    case RationalLiteral(v) => XFloat(v, config)
+    case IntLiteral(v) => XFloat(v, config)
+    case UMinus(rhs) => - eval(rhs, vars, config)
+    case Plus(lhs, rhs) => eval(lhs, vars, config) + eval(rhs, vars, config)
+    case Minus(lhs, rhs) => eval(lhs, vars, config) - eval(rhs, vars, config)
+    case Times(lhs, rhs) => eval(lhs, vars, config) * eval(rhs, vars, config)
+    case Division(lhs, rhs) => eval(lhs, vars, config) / eval(rhs, vars, config)
+    case Sqrt(t) => eval(t, vars, config).squareRoot
+    case FunctionInvocation(funDef, args) =>
+      // EValuate the function, i.e. compute the postcondition and inline it
+      //println("function call: " + funDef.id.toString)
+      val fresh = getNewFncVariable(funDef.id.name)
+      val arguments: Map[Expr, Expr] = funDef.args.map(decl => decl.toVariable).zip(args).toMap
+      val newBody = replace(arguments, vcMap(funDef).body)
+      /*val bodyAsList = newBody match {
+        case And(list) => list
+        case eq: Equals => List(eq)
+        // e.g. if the function has if-then-else's
+        case _=> throw UnsupportedFragmentException("AA cannot handle: " + expr); null
+      }*/
+      //println("bodyList: " + bodyAsList)
+      val vals = inXFloats(reporter, newBody, vars, config)
+      val result = vals._1(ResultVariable())
+      //println("result: " + result)
+      val newXFloat = compactXFloat(result, fresh)
+      //println("newXFloat: " + newXFloat)
+      newXFloat
+    case _ =>
+      throw UnsupportedFragmentException("AA cannot handle: " + expr)
+      null
     }
-  }
-
-  private def addConditionToInputsAndRemoveErrors(inputs: Map[Expr, XFloat], cond: Expr): Map[Expr, XFloat] = {
-    inputs.map{
-      case (k, x) =>
-       (k, new XFloat(x.tree, x.approxInterval, new XRationalForm(Rational.zero), x.config.addCondition(cond)))
-    }
+    //TODO: compacting of floats also without functions
+    /*print(".("+formulaSize(xfloat.tree)+") ") // marking progress
+    if (formulaSize(xfloat.tree) > 70) {
+      println("compacting")
+      val fresh = getNewXFloatVar
+      compactXFloat(xfloat, fresh)
+    } else {
+      xfloat
+    }*/
+    xfloat
   }
 
   private def getDiffPathsConditions(cond: Expr, inputs: Map[Expr, XFloat], config: XFloatConfig): (Expr, Expr) = cond match {
@@ -311,13 +255,27 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
       (floatCond, realCond)
   }
 
-  def getFreshMap(vars: Set[Expr]): Map[Expr, Expr] = {
+  private def addConditionToInputs(inputs: Map[Expr, XFloat], cond: Expr): Map[Expr, XFloat] = {
+    inputs.map{
+      case (k, x) =>
+       (k, new XFloat(x.tree, x.approxInterval, x.error, x.config.addCondition(cond)))
+    }
+  }
+
+  private def addConditionToInputsAndRemoveErrors(inputs: Map[Expr, XFloat], cond: Expr): Map[Expr, XFloat] = {
+    inputs.map{
+      case (k, x) =>
+       (k, new XFloat(x.tree, x.approxInterval, new XRationalForm(Rational.zero), x.config.addCondition(cond)))
+    }
+  }
+
+  private def getFreshMap(vars: Set[Expr]): Map[Expr, Expr] = {
     vars.collect {
       case v @ Variable(id) => (v, getFreshVarOf(id.toString))
     }.toMap
   }
 
-  def freshenUp(expr: Expr, freshMap: Map[Expr, Expr], inputs: Map[Expr, XFloat]): (Expr, Map[Expr, XFloat]) = {
+  private def freshenUp(expr: Expr, freshMap: Map[Expr, Expr], inputs: Map[Expr, XFloat]): (Expr, Map[Expr, XFloat]) = {
     val freshExpr = replace(freshMap, expr)
     val freshInputs: Map[Expr, XFloat] = inputs.collect {
       case (k, xf) if(freshMap.contains(k)) =>
@@ -368,71 +326,21 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
     case (None, None) => None
   }
 
-  // TODO: compacting of XFloats
-  def evaluate(expr: List[Expr], precondition: Expr, inputs: Map[Variable, Record]): (Map[Expr, XFloat], Map[Int, Expr]) = {
-    val config = XFloatConfig(reporter, solver, precondition, precision, unitRoundoff)
-    val (variables, indices) = variables2xfloats(inputs, config)
-    solver.clearCounts
-    val values = inXFloats(reporter, expr, variables, config) -- inputs.keys
-    if (printStats) reporter.info("STAAATS: " + solver.getCounts)
-    (values, indices)
-  }
-
-
-  private def inXFloats(reporter: Reporter, exprs: List[Expr], vars: Map[Expr, XFloat], config: XFloatConfig): Map[Expr, XFloat] = {
-    var currentVars: Map[Expr, XFloat] = vars
-
-    for (expr <- exprs) expr match {
-      case Equals(variable, value) =>
-        try {
-          val computedValue = eval(value, currentVars, config)
-          //val compacted = compactXFloat(computedValue, Variable(FreshIdentifier("x")).setType(RealType))
-          currentVars = currentVars + (variable -> computedValue)
-        } catch {
-          case UnsupportedFragmentException(msg) => reporter.error(msg)
-        }
-      case BooleanLiteral(true) => ;
-      case _ =>
-        reporter.error("AA cannot handle: " + expr)
-    }
-
-    currentVars
-  }
-
-  // Evaluates an arithmetic expression
-  private def eval(expr: Expr, vars: Map[Expr, XFloat], config: XFloatConfig): XFloat = {
-    val xfloat = expr match {
-    case v @ Variable(id) => vars(v)
-    case RationalLiteral(v) => XFloat(v, config)
-    case IntLiteral(v) => XFloat(v, config)
-    case UMinus(rhs) => - eval(rhs, vars, config)
-    case Plus(lhs, rhs) => eval(lhs, vars, config) + eval(rhs, vars, config)
-    case Minus(lhs, rhs) => eval(lhs, vars, config) - eval(rhs, vars, config)
-    case Times(lhs, rhs) => eval(lhs, vars, config) * eval(rhs, vars, config)
-    case Division(lhs, rhs) => eval(lhs, vars, config) / eval(rhs, vars, config)
-    case Sqrt(t) => eval(t, vars, config).squareRoot
-    case _ =>
-      throw UnsupportedFragmentException("AA cannot handle: " + expr)
-      null
-    }
-    /*print(".("+formulaSize(xfloat.tree)+") ") // marking progress
-    if (formulaSize(xfloat.tree) > 70) {
-      println("compacting")
-      val fresh = getNewXFloatVar
-      compactXFloat(xfloat, fresh)
-    } else {
-      xfloat
-    }*/
-    xfloat
-  }
-
   private def compactXFloat(xfloat: XFloat, newTree: Expr): XFloat = {
     val newConfig = xfloat.config.addCondition(rangeConstraint(newTree, xfloat.realInterval))
     val (newXFloat, index) = xFloatWithUncertain(newTree, xfloat.realInterval, newConfig, xfloat.maxError, false)
     newXFloat
   }
 
-  private def sanityCheck(pre: Expr, silent: Boolean = false): Boolean = {
+  private def removeErrors(xf: XFloat): XFloat = {
+    new XFloat(xf.tree, xf.approxInterval, new XRationalForm(Rational.zero), xf.config)
+  }
+
+  private def rangeConstraint(v: Expr, i: RationalInterval): Expr = {
+    And(LessEquals(RationalLiteral(i.xlo), v), LessEquals(v, RationalLiteral(i.xhi)))
+  }
+
+  private def sanityCheck(pre: Expr, silent: Boolean = true): Boolean = {
     import Sat._
     solver.checkSat(pre) match {
       case (SAT, model) =>
@@ -447,46 +355,4 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
         false
     }
   }
-
-    /*private def mergeXFloatMap(first: Map[Expr, XFloat], second: Map[Expr, XFloat]): Map[Expr, XFloat] = {
-    val newKeys: Set[Expr] = first.keySet ++ second.keySet
-    var newMap = Map[Expr, XFloat]()
-    for (key <- newKeys) {
-      (first.get(key), second.get(key)) match {
-        case (Some(xf1), Some(xf2))
-      }
-    }
-
-  }*/
-
-
-  /*private def getDiffPathsConditions(cond: Expr, inputs: Map[Expr, XFloat], config: XFloatConfig): (Expr, Expr) = cond match {
-    case LessThan(l, r) =>
-      val errLeft = eval(l, inputs, config).maxError
-      val errRight = eval(r, inputs, config).maxError
-      val floatCond = LessThan(Plus(l, RationalLiteral(errLeft)), Minus(r, RationalLiteral(errRight)))
-      val realCond = GreaterEquals(Minus(l, RationalLiteral(errLeft)), Plus(r, RationalLiteral(errRight)))
-      (floatCond, realCond)
-
-    case LessEquals(l, r) =>
-      val errLeft = eval(l, inputs, config).maxError
-      val errRight = eval(r, inputs, config).maxError
-      val floatCond = LessEquals(Plus(l, RationalLiteral(errLeft)), Minus(r, RationalLiteral(errRight)))
-      val realCond = GreaterThan(Minus(l, RationalLiteral(errLeft)), Plus(r, RationalLiteral(errRight)))
-      (floatCond, realCond)
-
-    case GreaterThan(l, r) =>
-      val errLeft = eval(l, inputs, config).maxError
-      val errRight = eval(r, inputs, config).maxError
-      val floatCond = GreaterThan(Minus(l, RationalLiteral(errLeft)), Plus(r, RationalLiteral(errRight)))
-      val realCond = LessEquals(Plus(l, RationalLiteral(errLeft)), Minus(r, RationalLiteral(errRight)))
-      (floatCond, realCond)
-
-    case GreaterEquals(l, r) =>
-      val errLeft = eval(l, inputs, config).maxError
-      val errRight = eval(r, inputs, config).maxError
-      val floatCond = GreaterEquals(Minus(l, RationalLiteral(errLeft)), Plus(r, RationalLiteral(errRight)))
-      val realCond = LessThan(Plus(l, RationalLiteral(errLeft)), Minus(r, RationalLiteral(errRight)))
-      (floatCond, realCond)
-  }*/
 }

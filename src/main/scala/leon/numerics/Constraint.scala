@@ -56,7 +56,7 @@ case class Constraint(pre: Expr, body: Expr, post: Expr, description: String) {
 
   val hasFunctionCalls = (containsFunctionCalls(body) || containsFunctionCalls(pre) || containsFunctionCalls(post))
 
-  // TODO: fix this
+  // TODO: fix this (merging or not?)
   var approxStrategy =
     if (hasFunctionCalls) {
       //Seq(Uninterpreted_None) ++
@@ -67,8 +67,7 @@ case class Constraint(pre: Expr, body: Expr, post: Expr, description: String) {
     } else {
       //Seq(Uninterpreted_None) ++
       //Seq(NoFncs_AA, NoFncs_AAPathSensitive)
-      //Seq(NoFncs_PartialAA)
-      Seq(NoFncs_AAMerging)
+      Seq(NoFncs_AA)
     }
 
   def hasNextApproximation = !approxStrategy.isEmpty

@@ -235,7 +235,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
     case NoFncs_AAMerging =>
       val body = c.body
       val filteredPrecondition = filterPreconditionForBoundsIteration(c.pre)
-      val (xfloats, indices) = xevaluator.evaluateWithMerging(body, filteredPrecondition, inputs)
+      val (xfloats, indices) = xevaluator.evaluate(body, filteredPrecondition, inputs)
       //println("\n\n xfloats: " + xfloats)
 
       val apaths = Set(APath(True, body, True, True, noiseConstraintFromXFloats(xfloats), xfloats))
@@ -244,7 +244,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
       cApprox.addInitialVariableConnection = false
       Some(cApprox)
 
-    case NoFncs_AA => // we'll make this by default path sensitive
+    case NoFncs_AA =>
       try {
         val paths = c.paths
         val filteredPrecondition = filterPreconditionForBoundsIteration(c.pre)
@@ -258,7 +258,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
             val (resConstraint, xfloatMap) =
               if(And(path.expression) == True) { (True, Map[Expr, XFloat]()) }
               else {
-                val (xfloats, indices) = xevaluator.evaluate(path.expression, fullPathCondition, inputs)
+                val (xfloats, indices) = xevaluator.evaluate(And(path.expression), fullPathCondition, inputs)
                 //println("xfloats: " + xfloats)
                 (noiseConstraintFromXFloats(xfloats), xfloats)
                 // TODO: can we find out when we don't need the full constraint, only for res?
@@ -292,14 +292,14 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
 
     // This is the second option
     case FullInlining_AACompactOnFnc =>
-      try {
+      //try {
         // TODO: inline pre and post? how about invariants?
         val paths = c.paths
         val filteredPrecondition = filterPreconditionForBoundsIteration(c.pre)
         val apaths = paths.collect {
           case path: Path if (sanityCheck(And(path.condition, filteredPrecondition))) =>
             val fullPathCondition = And(path.condition, filteredPrecondition)
-            val (xfloats, indices) = xevaluator.evaluateWithFncCalls(path.expression, fullPathCondition, inputs)
+            val (xfloats, indices) = xevaluator.evaluate(And(path.expression), fullPathCondition, inputs)
             val resNoise = noiseConstraintFromXFloats(xfloats)
             // TODO: see above
             //Noise(ResultVariable(), RationalLiteral(path.values(ResultVariable()).maxError))
@@ -325,8 +325,8 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
         } else {
           None
         }
-      } catch { case _=> ;}
-      None
+      //} catch { case _=> ;}
+      //None
 
     case FullInlining_AA =>
       //try {
@@ -344,7 +344,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
             val (resConstraint, xfloatMap) =
               if(And(path.expression) == True) { (True, Map[Expr, XFloat]()) }
               else {
-                val (xfloats, indices) = xevaluator.evaluate(path.expression, fullPathCondition, newInputs)
+                val (xfloats, indices) = xevaluator.evaluate(And(path.expression), fullPathCondition, newInputs)
                 (noiseConstraintFromXFloats(xfloats), xfloats)
                 //TODO: see above
                 //Noise(ResultVariable(), RationalLiteral(xfloats(ResultVariable()).maxError))

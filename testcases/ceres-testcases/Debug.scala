@@ -15,7 +15,7 @@ object Debug {
       } else {
         2*x
       }
-  }
+  } ensuring(res => noise(res, 1e-8))
 
   def test2(x: Real): Real = {
     require(x.in(-5.0, 5.0) && noise(x, 1e-10))
@@ -24,5 +24,5 @@ object Debug {
     } else {
       2*x + 0.1
     }
-  }
+  } ensuring(res => noise(res, 1e-8))
 }

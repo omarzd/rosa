@@ -99,38 +99,24 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
 
     val vcs = generateVCs(reporter, sortedFncs)
 
-    vcs.foreach(v => println(v.id + ": "+v.allFncCalls))
-
-    def lt(vc1: VerificationCondition, vc2: VerificationCondition): Boolean = {
-      if (vc1.allFncCalls.isEmpty) true
-      else if (vc2.allFncCalls.isEmpty) false
-      else if (vc2.allFncCalls.contains(vc1.id)) true
-      else if (vc1.allFncCalls.contains(vc2.id)) false
-      else true
-    }
-
-
     if (reporter.errorCount > 0) throw LeonFatalError()
     val sortedVCs = vcs.sortWith((vc1, vc2) => lt(vc1, vc2))
 
-    
-    println(sortedVCs)
-
     var currentVCs = sortedVCs
-    println(currentVCs.forall(vc => vc.proven))
-    while (!currentVCs.forall(vc => vc.proven) && !precisionsToTry.isEmpty) {
+    var allProven = false
+    while (!allProven && !precisionsToTry.isEmpty) {
       precision = precisionsToTry.head
-      reporter.info("Verification with precision: " + precision)
+      reporter.info("*** Verification with precision: " + precision + " ***")
       var vcMap: Map[FunDef, VerificationCondition] = Map.empty //vcs.map { t => (t.funDef, t) }.toMap
       val prover = new Prover(reporter, ctx, program, precision, specgen)
       for (vc <- sortedVCs) {
         val checkedVC = prover.check(vc, vcMap)
         vcMap = vcMap + (checkedVC.funDef -> checkedVC)
       }
-      //currentVCs = sortedVCs.map( vc => prover.check(vc) )
       currentVCs = vcMap.values.toSeq
       precisionsToTry = precisionsToTry.tail
-      println("allProven: " + currentVCs.forall(vc => vc.proven))
+      allProven = currentVCs.forall(vc => vc.proven)
+      reporter.info("*** Verification with precision " + precision + " succeeded: " + allProven + " ***")
     }
 
     if (simulation) {
@@ -141,6 +127,14 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
     val sortedForCodeGen = currentVCs.sortWith((f1, f2) => f1.id < f2.id)
     generateCode(reporter, program, sortedForCodeGen)
     new CertificationReport(sortedForCodeGen)
+  }
+
+  private def lt(vc1: VerificationCondition, vc2: VerificationCondition): Boolean = {
+    if (vc1.allFncCalls.isEmpty) true
+    else if (vc2.allFncCalls.isEmpty) false
+    else if (vc2.allFncCalls.contains(vc1.id)) true
+    else if (vc1.allFncCalls.contains(vc2.id)) false
+    else true
   }
 
 }
