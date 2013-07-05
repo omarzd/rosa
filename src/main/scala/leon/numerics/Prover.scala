@@ -19,7 +19,7 @@ import ApproximationType._
 import Precision._
 
 
-class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: Precision, specgen: Boolean) {
+class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: Precision, specgen: Boolean, merging: Boolean) {
   val verbose = false
   val deltaRemover = new DeltaRemover
   val noiseRemover = new NoiseRemover
@@ -71,7 +71,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
     //try {
       if (specgen && !(vc.isInvariant || vc.nothingToCompute)) {
         val mainCnstr = if(vc.allConstraints.size > 0) vc.allConstraints.head
-          else Constraint(vc.precondition, vc.body, True, "wholebody")
+          else Constraint(vc.precondition, vc.body, True, "wholebody", merging)
         vc.generatedPost = Some(getPost(mainCnstr, vc.inputs))
 
         reporter.info("Generated post: " + vc.generatedPost)

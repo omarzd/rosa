@@ -37,7 +37,7 @@ case class ConstraintApproximation(pre: Expr, paths: Set[APath], post: Expr, var
 }
 
 // An original (unapproximated constraint) derived from somewhere in the program.
-case class Constraint(pre: Expr, body: Expr, post: Expr, description: String) {
+case class Constraint(pre: Expr, body: Expr, post: Expr, description: String, merging: Boolean) {
   var status: Option[Valid] = None
   var model: Option[Map[Identifier, Expr]] = None
   var strategy: String = ""
@@ -64,9 +64,11 @@ case class Constraint(pre: Expr, body: Expr, post: Expr, description: String) {
       //Seq(PostInlining_None, FullInlining_None, FullInlining_AA)
       //Seq(FullInlining_AA, FullInlining_AACompactOnFnc)
       Seq(FullInlining_AA)
+    } else if (merging) {
+      //Seq(Uninterpreted_None) ++
+      Seq(NoFncs_AAMerging)
     } else {
       //Seq(Uninterpreted_None) ++
-      //Seq(NoFncs_AA, NoFncs_AAPathSensitive)
       Seq(NoFncs_AA)
     }
 
