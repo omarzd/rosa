@@ -146,43 +146,6 @@ object Utils {
 
   }
 
-   // Returns a map from all variables to their final value, including local vars
-  /*def inXFloats(reporter: Reporter, exprs: List[Expr], vars: Map[Expr, XFloat], config: XFloatConfig): Map[Expr, XFloat] = {
-    var currentVars: Map[Expr, XFloat] = vars
-
-    for (expr <- exprs) expr match {
-      case Equals(variable, value) =>
-        try {
-          val computedValue = eval(value, currentVars, config)
-          currentVars = currentVars + (variable -> computedValue)
-        } catch {
-          case UnsupportedFragmentException(msg) => reporter.error(msg)
-        }
-
-      case BooleanLiteral(true) => ;
-      case _ =>
-        reporter.error("AA cannot handle: " + expr)
-    }
-
-    currentVars
-  }
-
-  // Evaluates an arithmetic expression
-  private def eval(expr: Expr, vars: Map[Expr, XFloat], config: XFloatConfig): XFloat = expr match {
-    case v @ Variable(id) => vars(v)
-    case RationalLiteral(v) => XFloat(v, config)
-    case IntLiteral(v) => XFloat(v, config)
-    case UMinus(rhs) => - eval(rhs, vars, config)
-    case Plus(lhs, rhs) => eval(lhs, vars, config) + eval(rhs, vars, config)
-    case Minus(lhs, rhs) => eval(lhs, vars, config) - eval(rhs, vars, config)
-    case Times(lhs, rhs) => eval(lhs, vars, config) * eval(rhs, vars, config)
-    case Division(lhs, rhs) => eval(lhs, vars, config) / eval(rhs, vars, config)
-    case Sqrt(t) => eval(t, vars, config).squareRoot
-    case _ =>
-      throw UnsupportedFragmentException("AA cannot handle: " + expr)
-      null
-  }*/
-
   def collectPaths(expr: Expr): Set[Path] = expr match {
     case IfExpr(cond, then, elze) =>
       val thenPaths = collectPaths(then).map(p => p.addCondition(cond))
@@ -338,6 +301,9 @@ object Utils {
     And(LessEquals(RationalLiteral(r.xlo), v),
         LessEquals(v, RationalLiteral(r.xhi)))
   }
+
+ 
+
 
   class NoiseRemover extends TransformerWithPC {
     type C = Seq[Expr]

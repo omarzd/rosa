@@ -255,7 +255,7 @@ object XFloat {
 
     val yInt = y.interval
     val a = min(abs(yInt.xlo), abs(yInt.xhi))
-    val errorMultiplier = negOne / (a*a)
+    val errorMultiplier = -one / (a*a)
     val gErr = y.error * new XRationalForm(errorMultiplier)
 
     // Now do the multiplication x * (1/y)

@@ -19,7 +19,7 @@ import ApproximationType._
 import Precision._
 
 
-class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: Precision, specgen: Boolean, merging: Boolean) {
+class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: Precision, specgen: Boolean, merging: Boolean, z3only: Boolean) {
   val verbose = false
   val deltaRemover = new DeltaRemover
   val noiseRemover = new NoiseRemover
@@ -69,16 +69,16 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
 
     reporter.info("Now computing the postcondition.")
     //try {
-      if (specgen && !(vc.isInvariant || vc.nothingToCompute)) {
+    /*  if (specgen && !(vc.isInvariant || vc.nothingToCompute)) {
         val mainCnstr = if(vc.allConstraints.size > 0) vc.allConstraints.head
-          else Constraint(vc.precondition, vc.body, True, "wholebody", merging)
+          else Constraint(vc.precondition, vc.body, True, "wholebody", merging, z3only)
         vc.generatedPost = Some(getPost(mainCnstr, vc.inputs))
 
         reporter.info("Generated post: " + vc.generatedPost)
       } else
         reporter.info("Skipping spec gen on this one")
     //} catch {case _=> ;}
-
+    */
     val totalTime = (System.currentTimeMillis - start)
     vc.verificationTime = Some(totalTime)
     vc
@@ -97,8 +97,6 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
     val precondition = trans.transformCondition(ca.pre)
     val postcondition = trans.transformCondition(ca.post)
 
-    // TODO: errors on computing the path condition?
-
     var (idealPart, actualPart) = (Seq[Expr](), Seq[Expr]())
     for(path <- ca.paths) {
       val aI = trans.transformIdealBlock(path.idealBody)
@@ -112,9 +110,9 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
       if(ca.needEps) And(And(Or(idealPart), Or(actualPart)), machineEpsilon)
       else And(Or(idealPart), Or(actualPart))
 
-    //TODO: somehow remove redundant definitions of errors? stuff like And(Or(idealPart), Or(actualPart))
-    var toCheck = ArithmeticOps.totalMakeover(And(And(precondition, body), negate(postcondition))) //has to be unsat
-    //println("toCheck: " + deltaRemover.transform(toCheck))
+    var toCheck = ArithmeticOps.totalMakeover(And(And(precondition, body), negate(postcondition)))
+    //var toCheck = And(And(precondition, body), negate(postcondition))
+    println("toCheck: " + deltaRemover.transform(toCheck))
 
     if (reporter.errorCount == 0 && sanityCheck(precondition, false, body))
       solver.checkSat(toCheck) match {
@@ -149,15 +147,16 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
       val body =
         if(ca.needEps) And(And(idealPart, actualPart), machineEpsilon)
           else And(idealPart, actualPart)
-      //TODO: somehow remove redundant definitions of errors? stuff like And(Or(idealPart), Or(actualPart))
-      var toCheck = ArithmeticOps.totalMakeover(And(And(precondition, body), negate(postcondition))) //has to be unsat
-      println("toCheck: " + deltaRemover.transform(toCheck))
+      
+      var toCheck = ArithmeticOps.totalMakeover(And(And(precondition, body), negate(postcondition)))
+      //var toCheck = And(And(precondition, body), negate(postcondition))
+      //println("toCheck: " + deltaRemover.transform(toCheck))
       if (reporter.errorCount == 0 && sanityCheck(precondition, false, body))
         solver.checkSat(toCheck) match {
           case (UNSAT, _) => path.status = Some(VALID)
           case (SAT, model) =>
             allProven = false
-            println("Model found: " + model)
+            //println("Model found: " + model)
             // TODO save this somewhere so we can emit the appropriate runtime checks
             path.status = Some(NOT_SURE)
           case _ =>

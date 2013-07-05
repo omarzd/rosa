@@ -12,7 +12,7 @@ import xlang.Trees._
 
 import affine._
 
-class Analyser(reporter: Reporter, merging: Boolean) {
+class Analyser(reporter: Reporter, merging: Boolean, z3only: Boolean) {
 
   val verbose = false
   val assertionRemover = new AssertionRemover
@@ -47,12 +47,12 @@ class Analyser(reporter: Reporter, merging: Boolean) {
         val postConditions = getInvariantCondition(funDef.body.get)
         val bodyWOLets = convertLetsToEquals(funDef.body.get)
         val body = replace(postConditions.map(p => (p, True)).toMap, bodyWOLets)
-        constraints = constraints :+ Constraint(vcPrecondition, body, Or(postConditions), "wholebody", merging)
+        constraints = constraints :+ Constraint(vcPrecondition, body, Or(postConditions), "wholebody", merging, z3only)
         (bodyWOLets, body)
       // 'Normal' function R^n -> R
       case Some(post) =>
         val body = convertLetsToEquals(addResult(funDef.body.get))
-        constraints = constraints :+ Constraint(vcPrecondition, body, post, "wholeBody", merging)
+        constraints = constraints :+ Constraint(vcPrecondition, body, post, "wholeBody", merging, z3only)
         allFncCalls ++= functionCallsOf(post).map(invc => invc.funDef.id.toString)
         (body, body)
       // Auxiliary function, nothing to prove
@@ -74,7 +74,7 @@ class Analyser(reporter: Reporter, merging: Boolean) {
             path.expression(j) match {
               case Assertion(expr) =>
                 constraints = constraints :+ Constraint(
-                      And(vcPrecondition, path.condition), And(pathToAssert), expr, "assertion", merging)
+                      And(vcPrecondition, path.condition), And(pathToAssert), expr, "assertion", merging, z3only)
               case x =>
                 reporter.warning("This was supposed to be an assertion: " + x)
             }
@@ -83,7 +83,7 @@ class Analyser(reporter: Reporter, merging: Boolean) {
       }
     }
 
-    constraints = constraints.map(c => Constraint(c.pre, assertionRemover.transform(c.body), c.post, c.description, merging))
+    constraints = constraints.map(c => Constraint(c.pre, assertionRemover.transform(c.body), c.post, c.description, merging, z3only))
 
     if (containsFunctionCalls(bodyProcessed)) {
       val roundoffRemover = new RoundoffRemover
@@ -102,7 +102,7 @@ class Analyser(reporter: Reporter, merging: Boolean) {
                   val args: Map[Expr, Expr] = fncCall.funDef.args.map(decl => decl.toVariable).zip(fncCall.args).toMap
                   val postcondition = replace(args, roundoffRemover.transform(p))
                   constraints = constraints :+ Constraint(
-                      And(vcPrecondition, path.condition), And(pathToFncCall), postcondition, "pre of call " + fncCall.toString, merging)
+                      And(vcPrecondition, path.condition), And(pathToFncCall), postcondition, "pre of call " + fncCall.toString, merging, z3only)
                 case None => ;
               }
             }

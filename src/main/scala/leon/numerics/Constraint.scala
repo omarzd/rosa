@@ -37,7 +37,7 @@ case class ConstraintApproximation(pre: Expr, paths: Set[APath], post: Expr, var
 }
 
 // An original (unapproximated constraint) derived from somewhere in the program.
-case class Constraint(pre: Expr, body: Expr, post: Expr, description: String, merging: Boolean) {
+case class Constraint(pre: Expr, body: Expr, post: Expr, description: String, merging: Boolean, z3only: Boolean) {
   var status: Option[Valid] = None
   var model: Option[Map[Identifier, Expr]] = None
   var strategy: String = ""
@@ -57,20 +57,20 @@ case class Constraint(pre: Expr, body: Expr, post: Expr, description: String, me
   val hasFunctionCalls = (containsFunctionCalls(body) || containsFunctionCalls(pre) || containsFunctionCalls(post))
 
   // TODO: fix this (merging or not?)
-  var approxStrategy =
-    if (hasFunctionCalls) {
+  var approxStrategy = Seq[ApproximationType]()
+
+  if (hasFunctionCalls) {
+    if (z3only) approxStrategy :+= Uninterpreted_None
       //Seq(Uninterpreted_None) ++
       //Seq(PostInlining_None, PostInlining_AA, PostInlining_AAPathSensitive, FullInlining_None, FullInlining_AA, FullInlining_AAPathSensitive)
       //Seq(PostInlining_None, FullInlining_None, FullInlining_AA)
       //Seq(FullInlining_AA, FullInlining_AACompactOnFnc)
       Seq(FullInlining_AA)
-    } else if (merging) {
-      //Seq(Uninterpreted_None) ++
-      Seq(NoFncs_AAMerging)
-    } else {
-      //Seq(Uninterpreted_None) ++
-      Seq(NoFncs_AA)
-    }
+  } else {
+    if (z3only) approxStrategy :+= Uninterpreted_None
+    if (merging) approxStrategy :+= NoFncs_AAMerging
+    else approxStrategy :+= NoFncs_AA
+  }
 
   def hasNextApproximation = !approxStrategy.isEmpty
 

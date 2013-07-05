@@ -25,4 +25,5 @@ object Debug {
       2*x + 0.1
     }
   } ensuring(res => noise(res, 1e-8))
+
 }

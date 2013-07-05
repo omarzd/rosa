@@ -26,6 +26,7 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
   var specgen: Boolean = true
   var precision: Precision = Float64
   var merging: Boolean = true
+  var z3only: Boolean = false
   // default: try 'em all
   var precisionsToTry: List[Precision] = List(Float32, Float64, DoubleDouble, QuadDouble)
 
@@ -35,13 +36,14 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
     LeonFlagOptionDef("simulation", "--simulation", "Run a simulation instead of verification"),
     LeonFlagOptionDef("nospecgen", "--nospecgen", "Don't generate specs."),
     LeonFlagOptionDef("nomerging", "--nomerging", "Don't do merging on branches, but do it path by path."),
+    LeonFlagOptionDef("z3only", "--z3only", "Let Z3 loose on the full constraint - at your own risk."),
     LeonValueOptionDef("precision", "--precision=single:double", "Which precision to assume of the underlying floating-point arithmetic: single, double, doubledouble, quaddouble.")
   )
 
 
   def generateVCs(reporter: Reporter, functions: Seq[FunDef]): Seq[VerificationCondition] = {
     var allVCs: Seq[VerificationCondition] = Seq.empty
-    val analyser = new Analyser(reporter, merging)
+    val analyser = new Analyser(reporter, merging, z3only)
     for(funDef <- functions if (funDef.body.isDefined)) {
       allVCs = allVCs :+ analyser.analyzeThis(funDef)
     }
@@ -72,6 +74,7 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
       case LeonValueOption("functions", ListValue(fs)) => functionsToAnalyse = Set() ++ fs
       case LeonFlagOption("simulation") => simulation = true
       case LeonFlagOption("nomerging") => merging = false
+      case LeonFlagOption("z3only") => z3only = true
       case LeonValueOption("precision", ListValue(ps)) => precisionsToTry = ps.toList.map(p => p match {
         case "single" => Float32
         case "double" => Float64
@@ -110,8 +113,8 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
     while (!allProven && !precisionsToTry.isEmpty) {
       precision = precisionsToTry.head
       reporter.info("*** Verification with precision: " + precision + " ***")
-      var vcMap: Map[FunDef, VerificationCondition] = Map.empty //vcs.map { t => (t.funDef, t) }.toMap
-      val prover = new Prover(reporter, ctx, program, precision, specgen, merging)
+      var vcMap: Map[FunDef, VerificationCondition] = Map.empty
+      val prover = new Prover(reporter, ctx, program, precision, specgen, merging, z3only)
       for (vc <- sortedVCs) {
         val checkedVC = prover.check(vc, vcMap)
         vcMap = vcMap + (checkedVC.funDef -> checkedVC)

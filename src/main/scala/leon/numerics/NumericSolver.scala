@@ -40,8 +40,8 @@ class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3
   def getCounts: String = "timeouts: %d, tight: %d, hit precision: %d, hit iteration: %d".format(
     countTimeouts, countTightRanges, countHitPrecisionThreshold, countHitIterationThreshold)
 
-  var precision = Rational.rationalFromReal(1e-5) //0.0001
-  val maxIterationsBinary = 20
+  var precision = Rational.rationalFromReal(1e-16) //0.0001
+  val maxIterationsBinary = 50
 
   override protected[leon] val z3cfg = new Z3Config(
     "MODEL" -> true,
