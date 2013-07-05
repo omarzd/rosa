@@ -27,6 +27,7 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
   var precision: Precision = Float64
   var merging: Boolean = true
   var z3only: Boolean = false
+  var z3Timeout: Long = 500 //ms
   // default: try 'em all
   var precisionsToTry: List[Precision] = List(Float32, Float64, DoubleDouble, QuadDouble)
 
@@ -37,6 +38,7 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
     LeonFlagOptionDef("nospecgen", "--nospecgen", "Don't generate specs."),
     LeonFlagOptionDef("nomerging", "--nomerging", "Don't do merging on branches, but do it path by path."),
     LeonFlagOptionDef("z3only", "--z3only", "Let Z3 loose on the full constraint - at your own risk."),
+    LeonValueOptionDef("z3timeout", "--z3timeout=1000", "Timeout for Z3 in milliseconds."),
     LeonValueOptionDef("precision", "--precision=single:double", "Which precision to assume of the underlying floating-point arithmetic: single, double, doubledouble, quaddouble.")
   )
 
@@ -75,6 +77,7 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
       case LeonFlagOption("simulation") => simulation = true
       case LeonFlagOption("nomerging") => merging = false
       case LeonFlagOption("z3only") => z3only = true
+      case LeonValueOption("z3timeout", ListValue(tm)) => z3Timeout = tm.head.toLong
       case LeonValueOption("precision", ListValue(ps)) => precisionsToTry = ps.toList.map(p => p match {
         case "single" => Float32
         case "double" => Float64
@@ -114,7 +117,7 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
       precision = precisionsToTry.head
       reporter.info("*** Verification with precision: " + precision + " ***")
       var vcMap: Map[FunDef, VerificationCondition] = Map.empty
-      val prover = new Prover(reporter, ctx, program, precision, specgen, merging, z3only)
+      val prover = new Prover(reporter, ctx, program, precision, specgen, merging, z3only, z3Timeout)
       for (vc <- sortedVCs) {
         val checkedVC = prover.check(vc, vcMap)
         vcMap = vcMap + (checkedVC.funDef -> checkedVC)

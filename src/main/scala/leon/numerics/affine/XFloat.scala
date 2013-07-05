@@ -324,8 +324,8 @@ object XFloat {
     //println("massaged: " + massagedTree)
     //println("initial approx: " + approx)
 
-    val res = config.solver.tightenRange(massagedTree, condition, approx)
-
+    val res = config.solver.tightenRange(massagedTree, condition, approx, config.solverMaxIter, config.solverPrecision)
+    //println(tree + "  " + config.solverMaxIter)
     //val res = approx
     //println("after tightening: " + res)
 

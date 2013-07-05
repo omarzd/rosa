@@ -19,10 +19,11 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
   val printStats = true
   val unitRoundoff = getUnitRoundoff(precision)
   val unitRoundoffDefault = getUnitRoundoff(Float64)
+  val compactingThreshold = 100
 
 
   def evaluate(expr: Expr, precondition: Expr, inputs: Map[Variable, Record]): (Map[Expr, XFloat], Map[Int, Expr]) = {
-    val config = XFloatConfig(reporter, solver, precondition, precision, unitRoundoff)
+    val config = XFloatConfig(reporter, solver, precondition, precision, unitRoundoff, solverMaxIterMedium, solverPrecisionMedium)
     val (variables, indices) = variables2xfloats(inputs, config)
     solver.clearCounts
     val values = inXFloats(reporter, expr, variables, config)._1 -- inputs.keys
@@ -89,8 +90,7 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
             inXFloats(reporter, elze, addConditionToInputs(vars, negate(cond)), elzeConfig)
           else (vars, None)
         assert(thenValue.isEmpty && elzeValue.isEmpty)
-        //println("merged: " + mergeXFloat(thenMap.get(ResultVariable()), elzeMap.get(ResultVariable()), config))
-
+        
         val (flCond1, reCond1) = getDiffPathsConditions(cond, vars, config)
         val (flCond2, reCond2) = getDiffPathsConditions(negate(cond), vars, config)
         val pathErrorThen = getPathErrorForRes(elze, And(flCond1, negate(cond)), then, And(cond, reCond1), vars, config)
@@ -126,15 +126,15 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
     //val flCond = And(flCond1, negate(cond))
     if (sanityCheck(flCond)) {
       // execution taken by actual computation
-      val flConfig = config.addCondition(flCond)
+      val flConfig = config.addCondition(flCond).updatePrecision(solverMaxIterHigh, solverPrecisionHigh)
       val flVars = addConditionToInputsAndRemoveErrors(vars, flCond)
-      //println("fl vars:"); flVars.foreach {f => println(f); println(f._2.config.getCondition)}
+      //println("fl vars:"); flVars.foreach {f => println(f); println(f._2.config.solverMaxIter)}
       val (m, floatRange) = inXFloats(reporter, flExpr, flVars, flConfig)
       //println("floatRange: " + floatRange)
             
       val freshMap = getFreshMap(vars.keySet)
       val (freshThen, freshVars) = freshenUp(reExpr, freshMap, vars)
-      val reConfig = config.addCondition(reCond).freshenUp(freshMap)
+      val reConfig = config.addCondition(reCond).freshenUp(freshMap).updatePrecision(solverMaxIterHigh, solverPrecisionHigh)
       val reVars = addConditionToInputsAndRemoveErrors(freshVars, replace(freshMap, reCond))
       //println("re vars:"); reVars.foreach {f => println(f); println(f._2.config.getCondition)}
       val (mm, realRange) = inXFloats(reporter, freshThen, reVars, reConfig)
@@ -215,16 +215,13 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
       throw UnsupportedFragmentException("AA cannot handle: " + expr)
       null
     }
-    //TODO: compacting of floats also without functions
-    /*print(".("+formulaSize(xfloat.tree)+") ") // marking progress
-    if (formulaSize(xfloat.tree) > 70) {
-      println("compacting")
+    if (formulaSize(xfloat.tree) > compactingThreshold) {
+      reporter.warning("compacting, size: " + formulaSize(xfloat.tree))
       val fresh = getNewXFloatVar
       compactXFloat(xfloat, fresh)
     } else {
       xfloat
-    }*/
-    xfloat
+    }
   }
 
   private def getDiffPathsConditions(cond: Expr, inputs: Map[Expr, XFloat], config: XFloatConfig): (Expr, Expr) = cond match {
@@ -267,7 +264,8 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
   private def addConditionToInputsAndRemoveErrors(inputs: Map[Expr, XFloat], cond: Expr): Map[Expr, XFloat] = {
     inputs.map{
       case (k, x) =>
-       (k, new XFloat(x.tree, x.approxInterval, new XRationalForm(Rational.zero), x.config.addCondition(cond)))
+       (k, new XFloat(x.tree, x.approxInterval, new XRationalForm(Rational.zero),
+        x.config.addCondition(cond).updatePrecision(solverMaxIterHigh, solverPrecisionHigh)))
     }
   }
 

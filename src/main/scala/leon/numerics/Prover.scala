@@ -19,11 +19,12 @@ import ApproximationType._
 import Precision._
 
 
-class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: Precision, specgen: Boolean, merging: Boolean, z3only: Boolean) {
+class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: Precision, specgen: Boolean, merging: Boolean,
+  z3only: Boolean, timeout: Long) {
   val verbose = false
   val deltaRemover = new DeltaRemover
   val noiseRemover = new NoiseRemover
-  val solver = new NumericSolver(ctx, program)
+  val solver = new NumericSolver(ctx, program, timeout)
   var postInliner = new PostconditionInliner(reporter, Map.empty) // dummy
   var fullInliner = new FullInliner(reporter, Map.empty) //dummy
   val resultCollector = new ResultCollector
@@ -69,7 +70,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
 
     reporter.info("Now computing the postcondition.")
     //try {
-      /*if (specgen && !(vc.isInvariant || vc.nothingToCompute)) {
+      if (specgen && !(vc.isInvariant || vc.nothingToCompute)) {
         val mainCnstr = if(vc.allConstraints.size > 0) vc.allConstraints.head
           else Constraint(vc.precondition, vc.body, True, "wholebody", merging, z3only)
         vc.generatedPost = Some(getPost(mainCnstr, vc.inputs))
@@ -78,7 +79,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
       } else
         reporter.info("Skipping spec gen on this one")
     //} catch {case _=> ;}
-      */
+      
     val totalTime = (System.currentTimeMillis - start)
     vc.verificationTime = Some(totalTime)
     vc
@@ -421,8 +422,8 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
         case (None, _) => True
       }
 
-    case true =>
-      (findApproximation(c, inputs, List(FullInlining_AA, AdHocFullInlining_AAMerging)), c.status) match {
+    case true => //TODO: fix this
+      (findApproximation(c, inputs, List(FullInlining_AAMerging)), c.status) match {
         case (Some(approx), Some(VALID)) =>
           constraintFromResults(Map(ResultVariable() -> approx.actualXfloats(ResultVariable())))
           // TODO: getMostPrecise(c.post, approx.values)

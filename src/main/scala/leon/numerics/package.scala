@@ -23,6 +23,15 @@ package object numerics {
     case QuadDouble => Rational(new BigInt(new BigInteger("1")), new BigInt(new BigInteger("2")).pow(211))
   }
 
+  val solverPrecisionHigh = Rational.rationalFromReal(1e-16)
+  val solverPrecisionMedium = Rational.rationalFromReal(1e-10)
+  val solverPrecisionLow = Rational.rationalFromReal(1e-5)
+
+  val solverMaxIterHigh = 70
+  val solverMaxIterMedium = 50
+  val solverMaxIterLow = 20
+
+
   // Tests whether this rational can be represented without roundoff errors
   // Since we don't know which precision we may test, returns, for now, true only for integers
   def isExact(r: Rational): Boolean = {
