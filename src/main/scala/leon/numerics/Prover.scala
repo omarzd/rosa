@@ -408,8 +408,9 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
 
   private def filterPreconditionForBoundsIteration(expr: Expr): Expr = expr match {
     case And(args) => And(args.map(a => filterPreconditionForBoundsIteration(a)))
-    case Noise(e, f) => BooleanLiteral(true)
-    case Roundoff(e) => BooleanLiteral(true)
+    case Noise(_, _) => True
+    case Roundoff(_) => True
+    case RelError(_, _) => True
     case _ => expr
   }
 

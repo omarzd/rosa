@@ -14,7 +14,7 @@ import affine._
 
 class Analyser(reporter: Reporter, merging: Boolean, z3only: Boolean) {
 
-  val verbose = true
+  val verbose = false
   val assertionRemover = new AssertionRemover
 
 
@@ -33,7 +33,7 @@ class Analyser(reporter: Reporter, merging: Boolean, z3only: Boolean) {
       case Some(p) =>
         val inputs = getVariableRecords(p)
         if (verbose) reporter.info("inputs: " + inputs)
-        val impliedRndoff = inputs.collect { case (k, Record(_, _, None, None)) =>  Roundoff(k) }
+        val impliedRndoff = inputs.collect { case (k, Record(_, _, None, None, None)) =>  Roundoff(k) }
         allFncCalls ++= functionCallsOf(p).map(invc => invc.funDef.id.toString)
         (inputs, And(p, And(impliedRndoff.toSeq)))
       case None =>

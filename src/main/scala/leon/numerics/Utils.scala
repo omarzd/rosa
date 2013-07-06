@@ -2,7 +2,6 @@ package leon
 package numerics
 
 import affine._
-
 import purescala.Trees._
 import purescala.TypeTrees._
 import purescala.TreeOps._
@@ -20,7 +19,7 @@ object Utils {
     case None => " -- "
   }
 
-  val emptyRecord = Record(None, None, None, None)
+  val emptyRecord = Record(None, None, None, None, None)
 
   def getVariableRecords(expr: Expr): Map[Variable, Record] = {
     val collector = new VariableCollector
@@ -39,65 +38,71 @@ object Utils {
     override def rec(e: Expr, path: C) = e match {
       // a <= x
       case LessEquals(RationalLiteral(lwrBnd), x @ Variable(name)) =>
-        recordMap = recordMap + (x -> recordMap.getOrElse(x, emptyRecord).updateLo(lwrBnd)); e
+        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).updateLo(lwrBnd)); e
       // x <= b
       case LessEquals(x @ Variable(name), RationalLiteral(uprBnd)) =>
-        recordMap = recordMap + (x -> recordMap.getOrElse(x, emptyRecord).updateUp(uprBnd)); e
+        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).updateUp(uprBnd)); e
       // a <= x
       case LessEquals(IntLiteral(lwrBnd), x @ Variable(name)) =>
-        recordMap = recordMap + (x -> recordMap.getOrElse(x, emptyRecord).updateLo(Rational(lwrBnd))); e
+        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).updateLo(Rational(lwrBnd))); e
       // x <= b
       case LessEquals(x @ Variable(name), IntLiteral(uprBnd)) =>
-        recordMap = recordMap + (x -> recordMap.getOrElse(x, emptyRecord).updateUp(Rational(uprBnd))); e
+        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).updateUp(Rational(uprBnd))); e
 
       // a < x
       case LessThan(RationalLiteral(lwrBnd), x @ Variable(name)) =>
-        recordMap = recordMap + (x -> recordMap.getOrElse(x, emptyRecord).updateLo(lwrBnd)); e
+        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).updateLo(lwrBnd)); e
       // x < b
       case LessThan(x @ Variable(name), RationalLiteral(uprBnd)) =>
-        recordMap = recordMap + (x -> recordMap.getOrElse(x, emptyRecord).updateUp(uprBnd)); e
+        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).updateUp(uprBnd)); e
       // a < x
       case LessThan(IntLiteral(lwrBnd), x @ Variable(name)) =>
-        recordMap = recordMap + (x -> recordMap.getOrElse(x, emptyRecord).updateLo(Rational(lwrBnd))); e
+        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).updateLo(Rational(lwrBnd))); e
       // x < b
       case LessThan(x @ Variable(name), IntLiteral(uprBnd)) =>
-        recordMap = recordMap + (x -> recordMap.getOrElse(x, emptyRecord).updateUp(Rational(uprBnd))); e
+        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).updateUp(Rational(uprBnd))); e
 
       // b >= x
       case GreaterEquals(RationalLiteral(uprBnd), x @ Variable(name)) =>
-        recordMap = recordMap + (x -> recordMap.getOrElse(x, emptyRecord).updateUp(uprBnd)); e
+        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).updateUp(uprBnd)); e
       // x >= a
       case GreaterEquals(x @ Variable(name), RationalLiteral(lwrBnd)) =>
-        recordMap = recordMap + (x -> recordMap.getOrElse(x, emptyRecord).updateLo(lwrBnd)); e
+        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).updateLo(lwrBnd)); e
       // b >= x
       case GreaterEquals(IntLiteral(uprBnd), x @ Variable(name)) =>
-        recordMap = recordMap + (x -> recordMap.getOrElse(x, emptyRecord).updateUp(Rational(uprBnd))); e
+        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).updateUp(Rational(uprBnd))); e
       // x >= a
       case GreaterEquals(x @ Variable(name), IntLiteral(lwrBnd)) =>
-        recordMap = recordMap + (x -> recordMap.getOrElse(x, emptyRecord).updateLo(Rational(lwrBnd))); e
+        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).updateLo(Rational(lwrBnd))); e
 
       // b > x
       case GreaterThan(RationalLiteral(uprBnd), x @ Variable(name)) =>
-        recordMap = recordMap + (x -> recordMap.getOrElse(x, emptyRecord).updateUp(uprBnd)); e
+        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).updateUp(uprBnd)); e
       // x > a
       case GreaterThan(x @ Variable(name), RationalLiteral(lwrBnd)) =>
-        recordMap = recordMap + (x -> recordMap.getOrElse(x, emptyRecord).updateLo(lwrBnd)); e
+        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).updateLo(lwrBnd)); e
       // b > x
       case GreaterThan(IntLiteral(uprBnd), x @ Variable(name)) =>
-        recordMap = recordMap + (x -> recordMap.getOrElse(x, emptyRecord).updateUp(Rational(uprBnd))); e
+        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).updateUp(Rational(uprBnd))); e
       // x > a
       case GreaterThan(x @ Variable(name), IntLiteral(lwrBnd)) =>
-        recordMap = recordMap + (x -> recordMap.getOrElse(x, emptyRecord).updateLo(Rational(lwrBnd))); e
+        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).updateLo(Rational(lwrBnd))); e
 
 
       case Noise(x @ Variable(id), RationalLiteral(value)) =>
-        recordMap = recordMap + (x -> recordMap.getOrElse(x, emptyRecord).updateNoise(value)); e
+        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).updateAbsNoise(value)); e
 
       case Noise(x @ Variable(id), IntLiteral(value)) =>
-        recordMap = recordMap + (x -> recordMap.getOrElse(x, emptyRecord).updateNoise(Rational(value))); e
+        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).updateAbsNoise(Rational(value))); e
+
+      case Noise(_, _) =>
+        throw UnsupportedFragmentException(e.toString); e
+
+      case RelError(x @ Variable(id), RationalLiteral(value)) =>
+        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).updateRelNoise(value)); e 
 
       case Roundoff(x @ Variable(id)) =>
-        recordMap = recordMap + (x -> recordMap.getOrElse(x, emptyRecord).addRndoff); e
+        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).addRndoff); e
 
       case _ =>
         super.rec(e, path)

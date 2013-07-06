@@ -30,8 +30,8 @@ object XFloat {
 
     for((k, rec) <- vars) {
       if (rec.isComplete) {
-        rec.noise match {
-          case Some(n) =>
+        (rec.absNoise, rec.relNoise) match { // was already checked that only one is possible
+          case (Some(n), None) =>
             // index is the index of the main uncertainty, not the roundoff
             val (xfloat, index) = XFloat.xFloatWithUncertain(k,
                     RationalInterval(rec.lo.get, rec.up.get),
@@ -39,7 +39,16 @@ object XFloat {
             variableMap = variableMap + (k -> xfloat)
             indexMap = indexMap + (index -> k)
 
-          case None => // default roundoff
+          case (None, Some(factor)) =>
+            val maxError = factor * max(abs(rec.lo.get), abs(rec.up.get))
+            // index is the index of the main uncertainty, not the roundoff
+            val (xfloat, index) = XFloat.xFloatWithUncertain(k,
+                    RationalInterval(rec.lo.get, rec.up.get),
+                    config, maxError, withRoundoff)
+            variableMap = variableMap + (k -> xfloat)
+            indexMap = indexMap + (index -> k)
+
+          case (None, None) => // default roundoff
             val (xfloat, index) = XFloat.xFloatWithRoundoff(k,
                     RationalInterval(rec.lo.get, rec.up.get), config)
             variableMap = variableMap + (k -> xfloat)

@@ -85,7 +85,7 @@ class NumericConstraintTransformer(buddy: Map[Expr, Expr], ress: Variable, eps: 
         val freshErrorVar = getErrorVar(v)
         And(Seq(Equals(buddy(v), Plus(v, freshErrorVar)),
           LessEquals(RationalLiteral(-value), freshErrorVar), 
-          LessEquals(freshErrorVar, RationalLiteral(value))))
+          LessEquals(freshErrorVar, r)))
       }
     case Noise(ResultVariable(), r @ RationalLiteral(value)) =>
       if (value < Rational.zero) { errors = errors :+ "Noise must be positive."; Error("negative noise " + value).setType(BooleanType)
@@ -93,7 +93,7 @@ class NumericConstraintTransformer(buddy: Map[Expr, Expr], ress: Variable, eps: 
         val freshErrorVar = getErrorVar(ress)
         And(Seq(Equals(buddy(ress), Plus(ress, freshErrorVar)),
           LessEquals(RationalLiteral(-value), freshErrorVar), 
-          LessEquals(freshErrorVar, RationalLiteral(value))))
+          LessEquals(freshErrorVar, r)))
       }
 
     case Noise(v @ Variable(_), expr) =>
@@ -115,15 +115,26 @@ class NumericConstraintTransformer(buddy: Map[Expr, Expr], ress: Variable, eps: 
           )
         ))
 
-
     case RelError(v @ Variable(_), r @  RationalLiteral(value)) =>
+      if (value < Rational.zero) { errors = errors :+ "Relative error coefficient must be positive."; Error("negative rel error " + value).setType(BooleanType)
+      } else {
+        val freshErrorVar = getErrorVar(v)
+        And(Seq(Equals(buddy(v), Plus(v, freshErrorVar)),
+          Or(
+            And(LessEquals(UMinus(Times(r, v)), freshErrorVar),LessEquals(freshErrorVar, Times(r, v))),
+            And(LessEquals(Times(r, v), freshErrorVar),LessEquals(freshErrorVar, UMinus(Times(r, v))))
+          )
+        )) 
+      }
+
+    case RelError(ResultVariable(), r @ RationalLiteral(value)) =>
       if (value < Rational.zero) { errors = errors :+ "Relative error coefficient must be positive."; Error("negative rel error " + value).setType(BooleanType)
       } else {
         val freshErrorVar = getErrorVar(ress)
         And(Seq(Equals(buddy(ress), Plus(ress, freshErrorVar)),
           Or(
-            And(LessEquals(RationalLiteral(-value), freshErrorVar),LessEquals(freshErrorVar, RationalLiteral(value))),
-            And(LessEquals(RationalLiteral(value), freshErrorVar),LessEquals(freshErrorVar, RationalLiteral(-value)))
+            And(LessEquals(UMinus(Times(r, ress)), freshErrorVar),LessEquals(freshErrorVar, Times(r, ress))),
+            And(LessEquals(Times(r, ress), freshErrorVar),LessEquals(freshErrorVar, UMinus(Times(r, ress))))
           )
         )) 
       }

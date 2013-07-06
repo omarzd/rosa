@@ -21,7 +21,6 @@ import scala.math.{ScalaNumericConversions, ScalaNumber}
     def roundoff(x1: Real, x2: Real, x3: Real, x4: Real, x5: Real): Boolean = { throw new NotExecutableException(exMsg); false }
 
     def sqrt(x: Real): Real = { throw new NotExecutableException(exMsg); null }
-
   }
 
   class Real private(v: Double) extends ScalaNumber with ScalaNumericConversions with Ordered[Real] {
