@@ -20,6 +20,8 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
   val unitRoundoff = getUnitRoundoff(precision)
   val unitRoundoffDefault = getUnitRoundoff(Float64)
   val compactingThreshold = 100
+  val postComplete = new CompleteSpecChecker
+  val resultCollector = new Utils.ResultCollector
 
 
   def evaluate(expr: Expr, precondition: Expr, inputs: Map[Variable, Record]): (Map[Expr, XFloat], Map[Int, Expr]) = {
@@ -133,15 +135,53 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
     case Division(lhs, rhs) => eval(lhs, vars, config) / eval(rhs, vars, config)
     case Sqrt(t) => eval(t, vars, config).squareRoot
     case FunctionInvocation(funDef, args) =>
-      // EValuate the function, i.e. compute the postcondition and inline it
-      //println("function call: " + funDef.id.toString)
-      val fresh = getNewFncVariable(funDef.id.name)
+      // Evaluate the function, i.e. compute the postcondition and inline it
+      println("function call: " + funDef.id.toString)
+      /*val fresh = getNewFncVariable(funDef.id.name)
       val arguments: Map[Expr, Expr] = funDef.args.map(decl => decl.toVariable).zip(args).toMap
       val newBody = replace(arguments, vcMap(funDef).body)
       val vals = inXFloats(reporter, newBody, vars, config)
       val result = vals._1(ResultVariable())
       val newXFloat = compactXFloat(result, fresh)
-      newXFloat
+      newXFloat*/
+
+      //In this version we inline the postcondition instead
+      val fresh = getNewFncVariable(funDef.id.name)
+      val arguments: Map[Expr, Expr] = funDef.args.map(decl => decl.toVariable).zip(args).toMap
+
+      val firstChoice = funDef.postcondition
+      val secondChoice = vcMap(funDef).generatedPost
+      val post = firstChoice match {
+        case Some(post) if (postComplete.check(post)) => Some(post)
+        case _ => secondChoice match {
+          case Some(post) if (postComplete.check(post)) => Some(post)
+          case _ => None
+        }
+      }
+      println("post: " + post)
+      // there is no body to evaluate, but a new XFloat
+      // Basically, we have to construct the new XFloat from the postcondition
+      post match {
+        case Some(p) =>
+          val freshCondition = replace(arguments, p)
+          resultCollector.getResultWithExpr(freshCondition) match {
+            case Some((lo, hi, errorExpr)) =>
+              println("errorExpr found: " + errorExpr)
+              val newInt = RationalInterval(lo, hi)
+              val newError = evalErrorExpr(errorExpr, vars)
+              println("error evaluated: " + newError)
+              val newConfig = config.addCondition(rangeConstraint(fresh, newInt))
+              val xf = xFloatWithUncertain(fresh, newInt, newConfig, newError, false)._1
+              println("returning: " + xf)
+              xf
+            case None =>
+              throw UnsupportedFragmentException("Incomplete postcondition for: " + expr)
+              null
+          }
+        case None =>
+          throw UnsupportedFragmentException("Incomplete postcondition for: " + expr)
+          null
+      }
     case _ =>
       throw UnsupportedFragmentException("AA cannot handle: " + expr)
       null
@@ -153,6 +193,18 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
     } else {
       xfloat
     }
+  }
+
+  private def evalErrorExpr(expr: Expr, vars: Map[Expr, XFloat]): Rational = expr match {
+    case InitialNoise(v @ Variable(_)) => vars(v).maxError
+    case RationalLiteral(v) => v
+    case IntLiteral(v) => Rational(v)
+    case UMinus(rhs) => - evalErrorExpr(rhs, vars)
+    case Plus(lhs, rhs) => evalErrorExpr(lhs, vars) + evalErrorExpr(rhs, vars)
+    case Minus(lhs, rhs) => evalErrorExpr(lhs, vars) - evalErrorExpr(rhs, vars)
+    case Times(lhs, rhs) => evalErrorExpr(lhs, vars) * evalErrorExpr(rhs, vars)
+    case Division(lhs, rhs) => evalErrorExpr(lhs, vars) / evalErrorExpr(rhs, vars)
+    case Sqrt(t) => affine.Utils.sqrtUp(evalErrorExpr(t, vars))
   }
 
   private def getDiffPathsConditions(cond: Expr, inputs: Map[Expr, XFloat], config: XFloatConfig): (Expr, Expr) = cond match {
@@ -284,6 +336,34 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
       case _ =>
         reporter.info("Sanity check failed! ")// + sanityCondition)
         false
+    }
+  }
+
+  // Overkill?
+  class CompleteSpecChecker extends TransformerWithPC {
+    type C = Seq[Expr]
+    val initC = Nil
+
+    var lwrBound = false
+    var upBound = false
+    var noise = false
+
+    def register(e: Expr, path: C) = path :+ e
+
+    override def rec(e: Expr, path: C) = e match {
+      case LessEquals(RationalLiteral(lwrBnd), ResultVariable()) => lwrBound = true; e
+      case LessThan(RationalLiteral(lwrBnd), ResultVariable()) => lwrBound = true; e
+      case LessEquals(ResultVariable(), RationalLiteral(upBnd)) => upBound = true; e
+      case LessThan(ResultVariable(), RationalLiteral(upBnd)) => upBound = true; e
+      case Noise(ResultVariable(), _) => noise = true; e
+      case _ =>
+        super.rec(e, path)
+    }
+
+    def check(e: Expr): Boolean = {
+      lwrBound = false; upBound = false; noise = false
+      rec(e, initC)
+      lwrBound && upBound && noise
     }
   }
 }

@@ -44,20 +44,20 @@ object Mean {
   } holds
   */
   
-  def actualSpecIsAlwaysLess(y1: Real, y2: Real, y3: Real, y4: Real, y5: Real, y6: Real): Boolean = {
+  /*def actualSpecIsAlwaysLess(y1: Real, y2: Real, y3: Real, y4: Real, y5: Real, y6: Real): Boolean = {
     require(y1.in(-1200, 1200) && y2.in(-1200, 1200) && y3.in(-1200, 1200) &&
      y4.in(-1200, 1200) && y5.in(-1200, 1200) && y6.in(-1200, 1200) && roundoff(y1, y2, y3, y4, y5) && roundoff(y6))
 
     ~meanSpec(y1, y2, y3, y4, y5, y6) <= ~meanImpl(y1, y2, y3, y4, y5, y6)// + 1e-12
   } holds
-  
+  */
 
   def meanSpec(x1: Real, x2: Real, x3: Real, x4: Real, x5: Real, x6: Real): Real = {
     require(x1.in(-1200, 1200) && x2.in(-1200, 1200) && x3.in(-1200, 1200) &&
      x4.in(-1200, 1200) && x5.in(-1200, 1200) && x6.in(-1200, 1200))
 
     (x1 + x2 + x3 + x4 + x5 + x6) / 6.0
-  }// ensuring(res => res <= 1200.0 && -1200.0 <= res && noise(res, 1e-10))
+  } ensuring(res => res <= 1200.0 && -1200.0 <= res && res +/- 1e-10)
 
 
   def meanImpl(x1: Real, x2: Real, x3: Real, x4: Real, x5: Real, x6: Real): Real = {
@@ -71,7 +71,7 @@ object Mean {
     val i5 = (4*i4 + x5)/5.0
     val i6 = (5*i5 + x6)/6.0
     i6
-  }//  ensuring(res => res <= 1200.0 && -1200.0 <= res && noise(res, 1e-10))
+  } ensuring(res => res <= 1200.0 && -1200.0 <= res && res +/- 1e-10)
 
   /*def meanInlined(x1: Real, x2: Real, x3: Real, x4: Real, x5: Real, x6: Real): Boolean = {
     require(x1.in(-1200, 1200) && x2.in(-1200, 1200) && x3.in(-1200, 1200) &&
@@ -91,7 +91,7 @@ object Mean {
   } holds
   */
 
-  /*def invariant1(y1: Real, y2: Real, y3: Real, y4: Real, y5: Real, y6: Real): Boolean = {
+  def invariant1(y1: Real, y2: Real, y3: Real, y4: Real, y5: Real, y6: Real): Boolean = {
     require(y1.in(-1200, 1200) && y2.in(-1200, 1200) && y3.in(-1200, 1200) &&
      y4.in(-1200, 1200) && y5.in(-1200, 1200) && y6.in(-1200, 1200))
 
@@ -99,7 +99,7 @@ object Mean {
     val m2 = meanImpl(y1, y2, y3, y4, y5, y6)
     ~m1 <= ~m2 + 0.01
   } holds
-  */
+  
 
 
 }

@@ -326,11 +326,54 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
         }
       //} catch { case _ => ;}
       //None
+    /*
+    TODO: still doesn't work. The errors on the intial variables have to be written with err_sth
+    case PostInlining_AA =>
+      //try {
+        val paths = c.paths
+        val filteredPrecondition = filterPreconditionForBoundsIteration(c.pre)
+        var newVariables = Set[Variable]()
+        val apaths = paths.collect {
+          case path: Path if (sanityCheck(And(path.condition, filteredPrecondition), false)) =>
+            val fullPathCondition = And(path.condition, filteredPrecondition)
+            
+            val (resConstraint, xfloatMap) =
+              if(And(path.expression) == True) { (True, Map[Expr, XFloat]()) }
+              else {
+                val (xfloats, indices) = xevaluator.evaluate(And(path.expression), fullPathCondition, inputs)
+                (noiseConstraintFromXFloats(xfloats), xfloats)
+                // TODO: can we find out when we don't need the full constraint, only for res?
+                // Like when it's an invariant we need full, else only res?
+                //Noise(ResultVariable(), RationalLiteral(xfloats(ResultVariable()).maxError))
+              }
+            val (newBody, bodyCnstrs, vars) = postInliner.inlineFncPost(And(path.expression))
+            newVariables ++= vars
+            APath(path.condition,
+              True, And(bodyCnstrs :+ newBody),
+              True, resConstraint, xfloatMap)
+        }
+        // TODO: do we want to also collect those paths we skip? for info reasons?
+        if (apaths.size > 0) { // at least one feasible path
+          val (newPost, postCnstrs, vars) = postInliner.inlineFncPost(c.post)
+
+          val cApprox = ConstraintApproximation(And(c.pre, And(postCnstrs)), apaths, newPost, newVariables ++ vars, tpe)
+          cApprox.needEps = false
+          cApprox.addInitialVariableConnection = false
+          return Some(cApprox)
+        } else {
+          None
+        }
+      /*} catch {
+        case x =>
+          reporter.warning("PostInlining_AA throws: " + x)
+          reporter.warning(x.getStackTrace)
+      }
+      None*/
+    */
 
       // TODO: if Z3 still fails, do the full approximation, also for the range with AA
       // for this we should only reuse already computed approximations
 
-      // TODO: postinlining with AA?
   }
 
   /* *************************

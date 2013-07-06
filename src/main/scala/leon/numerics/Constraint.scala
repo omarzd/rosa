@@ -37,8 +37,8 @@ case class Constraint(pre: Expr, body: Expr, post: Expr, description: String, me
 
   if (hasFunctionCalls) {
     if (z3only) approxStrategy :+= Uninterpreted_None
-    if (merging) approxStrategy :+= FullInlining_AAMerging
-    else approxStrategy :+= FullInlining_AA
+    if (merging) approxStrategy :+= PostInlining_AAMerging //FullInlining_AAMerging
+    else approxStrategy :+= PostInlining_AA //FullInlining_AA
   } else {
     if (z3only) approxStrategy :+= Uninterpreted_None
     if (merging) approxStrategy :+= NoFncs_AAMerging

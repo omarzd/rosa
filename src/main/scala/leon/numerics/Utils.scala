@@ -116,6 +116,11 @@ object Utils {
     var lwrBound: Option[Rational] = None
     var upBound: Option[Rational] = None
     var error: Option[Rational] = None
+    var errorExpr: Option[Expr] = None
+
+    def initCollector = {
+      lwrBound = None; upBound = None; error = None; errorExpr = None
+    }
 
     def register(e: Expr, path: C) = path :+ e
 
@@ -140,15 +145,31 @@ object Utils {
       case Noise(ResultVariable(), RationalLiteral(value)) => error = Some(value); e
       case Noise(ResultVariable(), IntLiteral(value)) => error = Some(Rational(value)); e
 
+      case Noise(ResultVariable(), x) => errorExpr = Some(x); e
       case _ =>
         super.rec(e, path)
     }
 
+    def getResultWithExpr(e: Expr): Option[(Rational, Rational, Expr)] = {
+      initCollector
+      rec(e, initC)
+      println(lwrBound)
+      println(upBound)
+      println(error)
+      println(errorExpr)
+      if (!lwrBound.isEmpty && !upBound.isEmpty && (!error.isEmpty || !errorExpr.isEmpty)) {
+        if (errorExpr.isEmpty) Some(lwrBound.get, upBound.get, RationalLiteral(error.get))
+        else Some(lwrBound.get, upBound.get, errorExpr.get)
+      } else
+        None
+      
+    }
+
     def getResult(e: Expr): (Option[Rational], Option[Rational], Option[Rational]) = {
+      initCollector
       rec(e, initC)
       (lwrBound, upBound, error)
     }
-
   }
 
   def collectPaths(expr: Expr): Set[Path] = expr match {
