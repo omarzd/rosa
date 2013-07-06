@@ -19,8 +19,7 @@ import ApproximationType._
 import Precision._
 
 
-class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: Precision, specgen: Boolean, merging: Boolean,
-  z3only: Boolean, timeout: Long) {
+class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: Precision, specgen: Boolean, timeout: Long) {
   val verbose = false
   val deltaRemover = new DeltaRemover
   val noiseRemover = new NoiseRemover
@@ -69,18 +68,16 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
     }
 
     reporter.info("Now computing the postcondition.")
-    // TODO: fix this
     //try {
-      /*if (specgen && !(vc.isInvariant || vc.nothingToCompute)) {
-        val mainCnstr = if(vc.allConstraints.size > 0) vc.allConstraints.head
-          else Constraint(vc.precondition, vc.body, True, "wholebody", merging, z3only)
-        vc.generatedPost = Some(getPost(mainCnstr, vc.inputs))
-
-        reporter.info("Generated post: " + vc.generatedPost)
-      } else
-        reporter.info("Skipping spec gen on this one")
+      vc.specConstraint match {
+        case Some(sC) =>
+          vc.generatedPost = Some(getPost(sC, vc.inputs))
+          reporter.info("Generated post: " + vc.generatedPost)
+        case None =>
+          reporter.info("Skipping spec gen on this one")
+      }
     //} catch {case _=> ;}
-      */
+      
     val totalTime = (System.currentTimeMillis - start)
     vc.verificationTime = Some(totalTime)
     vc
@@ -122,9 +119,9 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
         case (SAT, model) =>
           //println("Model found: " + model)
           // TODO: print the models that are actually useful, once we figure out which ones those are
-          Some(NOT_SURE)
+          Some(UNKNOWN)
         case _ =>
-          Some(NOT_SURE)
+          Some(UNKNOWN)
       }
     else
       None
@@ -160,15 +157,15 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
             allProven = false
             //println("Model found: " + model)
             // TODO save this somewhere so we can emit the appropriate runtime checks
-            path.status = Some(NOT_SURE)
+            path.status = Some(UNKNOWN)
           case _ =>
-            path.status = Some(NOT_SURE)
+            path.status = Some(UNKNOWN)
             allProven = false
         }
       else allProven = false
     }
     if (allProven) Some(VALID)
-    else Some(NOT_SURE)
+    else Some(UNKNOWN)
   }
 
 
@@ -367,32 +364,28 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
   }
 
 
-  private def getPost(c: Constraint, inputs: Map[Variable, Record]): Expr = c.hasFunctionCalls match {
-    case false =>
-      (findApproximation(c, inputs, List(NoFncs_AAMerging)), c.status) match {
-        case (Some(approx), Some(VALID)) =>
-          constraintFromResults(Map(ResultVariable() -> approx.actualXfloats(ResultVariable())))
-          // TODO: getMostPrecise(c.post, approx.values)
-        case (Some(approx), _) => constraintFromResults(Map(ResultVariable() -> approx.actualXfloats(ResultVariable())))
-        case (None, Some(VALID)) => c.post
-        case (None, _) => True
-      }
+  private def getPost(c: Constraint, inputs: Map[Variable, Record]): Expr = {
+    val approxType = (c.hasFunctionCalls, c.merging) match {
+      case (false, true) => NoFncs_AAMerging
+      case (false, false) => NoFncs_AA
+      case (true, true) => FullInlining_AAMerging
+      case (true, false) => FullInlining_AA
+    }
 
-    case true => //TODO: fix this
-      (findApproximation(c, inputs, List(FullInlining_AAMerging)), c.status) match {
-        case (Some(approx), Some(VALID)) =>
-          constraintFromResults(Map(ResultVariable() -> approx.actualXfloats(ResultVariable())))
-          // TODO: getMostPrecise(c.post, approx.values)
-        case (Some(approx), _) => constraintFromResults(Map(ResultVariable() -> approx.actualXfloats(ResultVariable())))
-        case (None, Some(VALID)) => c.post
-        case (None, _) => True
-      }
+    (findApproximation(c, inputs, approxType), c.status) match {
+      case (Some(approx), Some(VALID)) =>
+        constraintFromResults(Map(ResultVariable() -> approx.actualXfloats(ResultVariable())))
+        // TODO: getMostPrecise(c.post, approx.values)
+      case (Some(approx), _) => constraintFromResults(Map(ResultVariable() -> approx.actualXfloats(ResultVariable())))
+      case (None, Some(VALID)) => c.post
+      case (None, _) => True
+    }
   }
 
-  private def findApproximation(c: Constraint, inputs: Map[Variable, Record], tpes: List[ApproximationType]): Option[ConstraintApproximation] = {
-    c.approximations.find(a => tpes.contains(a.tpe)) match {
+  private def findApproximation(c: Constraint, inputs: Map[Variable, Record], tpe: ApproximationType): Option[ConstraintApproximation] = {
+    c.approximations.find(a => tpe == a.tpe) match {
       case Some(app) => Some(app)
-      case None => getNextApproximation(tpes.head, c, inputs)
+      case None => getNextApproximation(tpe, c, inputs)
     }
   }
 
@@ -420,6 +413,34 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
     case _ => expr
   }
 
+  
+
+
+  /* 
+    
+    case PostInlining_AA =>
+      postInliner.inlinePostcondition(c.pre, c.body, c.post) match {
+        case Some((newPre, newBody, newPost, vars)) =>
+          val (newConstraint, apaths, values) = computeApproxForRes(collectPaths(newBody), newPre, getVariableRecords(newPre))
+          Some(ConstraintApproximation(And(newPre, newConstraint), apaths, newPost, vars, tpe, values))
+
+        case None => None
+      }
+
+
+    case PostInlining_AAPathSensitive =>
+      postInliner.inlinePostcondition(c.pre, c.body, c.post) match {
+        case Some((newPre, newBody, newPost, vars)) =>
+          val paths = collectPaths(newBody)
+          for (p <- paths) computeApproximation(p, newPre, getVariableRecords(newPre))
+          val apaths = paths.collect {
+            case p: Path if (p.feasible) => getAPath(p).updateNoisy(True, constraintFromXFloats(p.values))
+          }
+          Some(ConstraintApproximation(newPre, apaths, newPost, vars, tpe))
+
+        case None => None
+      }
+  }*/
   /*private def checkWithVariablePrecision(ca: ConstraintApproximation, parameters: Seq[Variable]): (Option[Valid], Option[Map[Identifier, Expr]]) = {
     val (resVar, eps, buddies) = getVariables(parameters ++ ca.vars)
     val trans = new NumericConstraintTransformer(buddies, resVar, eps, RoundoffType.RoundoffMultiplier, reporter)
@@ -475,153 +496,6 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
     (Some(VALID), None)
   }*/
 
-
-  /* def getNextApproximation(tpe: ApproximationType, c: Constraint, inputs: Map[Variable, Record]): Option[ConstraintApproximation] = tpe match {
-    /* ******************
-       NO APPROXIMATION
-    * ******************* */
-    case Uninterpreted_None =>
-      val paths = collectPaths(c.body).map(p => getAPath(p))
-      Some(ConstraintApproximation(c.pre, paths, c.post, Set.empty, tpe))
-
-    case PostInlining_None =>
-      postInliner.inlinePostcondition(c.pre, c.body, c.post) match {
-        case Some((newPre, newBody, newPost, vars)) =>
-          Some(ConstraintApproximation(newPre, collectPaths(newBody).map(p => getAPath(p)), newPost, vars, tpe))
-        case None => None
-      }
-
-    case FullInlining_None =>
-      val (newPre, newBody, newPost, vars) = fullInliner.inlineFunctions(c.pre, c.body, c.post)
-      val paths = collectPaths(newBody).map(p => getAPath(p))
-      Some(ConstraintApproximation(newPre, paths, newPost, vars, tpe))
-
-    /* ******************
-       Full APPROXIMATION
-    * ******************* */
-    case NoFncs_AA =>
-      val (newConstraint, apaths, values) = computeApproxForRes(c.paths, c.pre, inputs)
-      Some(ConstraintApproximation(And(c.pre, newConstraint), apaths, c.post, Set.empty, tpe, values))
-
-    case NoFncs_AAPathSensitive =>
-      val paths = c.paths
-      if (!c.pathsApproximated) for (p <- paths) computeApproximation(p, c.pre, inputs)
-      val apaths = paths.collect {
-        case p: Path if (p.feasible) => getAPath(p).updateNoisy(True, constraintFromXFloats(p.values))
-      }
-      Some(ConstraintApproximation(c.pre, apaths, c.post, Set.empty, tpe))
-
-    case PostInlining_AA =>
-      postInliner.inlinePostcondition(c.pre, c.body, c.post) match {
-        case Some((newPre, newBody, newPost, vars)) =>
-          val (newConstraint, apaths, values) = computeApproxForRes(collectPaths(newBody), newPre, getVariableRecords(newPre))
-          Some(ConstraintApproximation(And(newPre, newConstraint), apaths, newPost, vars, tpe, values))
-
-        case None => None
-      }
-
-
-    case PostInlining_AAPathSensitive =>
-      postInliner.inlinePostcondition(c.pre, c.body, c.post) match {
-        case Some((newPre, newBody, newPost, vars)) =>
-          val paths = collectPaths(newBody)
-          for (p <- paths) computeApproximation(p, newPre, getVariableRecords(newPre))
-          val apaths = paths.collect {
-            case p: Path if (p.feasible) => getAPath(p).updateNoisy(True, constraintFromXFloats(p.values))
-          }
-          Some(ConstraintApproximation(newPre, apaths, newPost, vars, tpe))
-
-        case None => None
-      }
-
-    case FullInlining_AA =>
-      try {
-        val (newPre, newBody, newPost, vars) = fullInliner.inlineFunctions(c.pre, c.body, c.post)
-        val (newConstraint, apaths, values) = computeApproxForRes(collectPaths(newBody), newPre, getVariableRecords(newPre))
-        return Some(ConstraintApproximation(And(newPre, newConstraint), apaths, newPost, vars, tpe, values))
-      } catch { case _ => ;}
-      None
-
-      try {
-        // TODO: inline pre and post
-        // TODO: this overwrites the path.values/indices that may have been computed before
-        val paths = c.paths
-        for (path <- paths) {
-          val pathCondition = And(path.condition, filterPreconditionForBoundsIteration(c.pre))
-          val (xfloats, indices) = xevaluator.evaluateWithFncCalls(path.expression, pathCondition, inputs)
-          path.values = xfloats
-          path.indices = indices
-        }
-        //val approxValues = mergeRealPathResults(paths)
-        //val newConstraint = constraintFromResults(approxValues)
-        val apaths = paths.collect {
-          case path: Path if (path.feasible) =>
-            val resNoise = Noise(ResultVariable(), RationalLiteral(path.values(ResultVariable()).maxError))
-
-            //ideal part, needs fncs inlined
-            println("path cond: " + path.condition)
-            println("body: " + path.expression)
-            val (newPre, newBody, newPost, vars) = fullInliner.inlineFunctions(path.condition, And(path.expression), True)
-
-            println("newPre: " + newPre)
-            println("newBody: " + newBody)
-            println("newPost: " + newPost)
-            APath(newPre,
-             True, newBody,
-             True, resNoise, path.values)
-          }
-
-        return Some(ConstraintApproximation(c.pre, apaths, c.post, Set.empty, tpe))
-
-      } catch { case _=> ;}
-      None
-
-
-
-    case FullInlining_AAPathSensitive =>
-      val (newPre, newBody, newPost, vars) = fullInliner.inlineFunctions(c.pre, c.body, c.post)
-      val paths = collectPaths(newBody)
-      for (p <- paths) computeApproximation(p, newPre, getVariableRecords(newPre))
-      val apaths = paths.collect {
-        case p: Path if (p.feasible) => getAPath(p).updateNoisy(True, constraintFromXFloats(p.values))
-      }
-      Some(ConstraintApproximation(newPre, apaths, newPost, vars, tpe))
-
-    case NoFncs_PartialAA =>
-      val paths = c.paths
-      if (!c.pathsApproximated) for (p <- paths) computeApproximation(p, c.pre, inputs)
-
-      val apaths = paths.collect {
-        case path: Path if (path.feasible) =>
-          val approx = path.expression.init.map(eq => eq match {
-            case Equals(v, expr) => Noise(v, RationalLiteral(path.values(v).maxError))
-            case _ => False
-            })
-
-          APath(path.condition,
-             path.expression.last, And(path.expression.init),
-             path.expression.last, And(approx), path.values)
-
-          /*  //Approximates only the first constraint
-          val firstExprConstraint = path.expression.head match {
-            case Equals(v @ Variable(id), expr) =>
-              //constraintFromXFloats(Map(v -> path.values(v)))
-              Noise(v, RationalLiteral(path.values(v).maxError))
-            case _ =>
-              reporter.error("UUUPS"); False
-          }
-
-          APath(path.condition,
-             And(path.expression.tail), path.expression.head,
-             And(path.expression.tail), firstExprConstraint, path.values)
-          */
-      }
-      Some(ConstraintApproximation(c.pre, apaths, c.post, Set.empty, tpe))
-
-
-      // TODO: If neither work, do partial approx.
-  }*/
-
 /*def generateSpecMoreInfo(vc: VerificationCondition) = {
     reporter.info("")
     reporter.info("----------> generating postcondition for: " + vc.funDef.id.name)
@@ -670,70 +544,5 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
     And(ratint2expr(restError, restErrorVar), cnstr)
   }*/
 
-  // TODO: SPLIT into one that does the full one and another one that goes path-by-path
- /* private def checkWithZ3(ca: ConstraintApproximation, parameters: Seq[Variable]): (Option[Valid], Option[Map[Identifier, Expr]]) = {
-    val (resVar, eps, buddies) = getVariables(parameters ++ ca.vars)
-    val trans = new NumericConstraintTransformer(buddies, resVar, eps, RoundoffType.RoundoffMultiplier, reporter)
-    // TODO: constraint.addInitialVariableConnection
-    //val precondition =  if (ca.addInitialVariableConnection) trans.transformCondition(ca.pre)
-    //                   else trans.transformCondition(noiseRemover.transform(ca.pre))
-    val precondition = trans.transformCondition(ca.pre)
-    val postcondition = trans.transformCondition(ca.post)
-
-    // TODO: errors on computing the path condition?
-
-    var (idealPart, actualPart) = (Seq[Expr](), Seq[Expr]())
-    for(path <- ca.paths) {
-      val aI = trans.transformIdealBlock(path.idealBody)
-      idealPart = idealPart :+ And(And(path.pathCondition, trans.transformCondition(path.idealCnst)), aI)
-      val nN = trans.transformNoisyBlock(path.actualBody)
-      actualPart = actualPart :+ And(And(trans.getNoisyCondition(path.pathCondition), trans.transformCondition(path.actualCnst)), nN)
-    }
-    val machineEpsilon = Equals(eps, RationalLiteral(unitRoundoff))
-
-    println("idealPart.size = " + idealPart.size)
-    val firstTry =
-      if(idealPart.size <= 1) {
-        val body =
-          if(ca.needEps) And(And(Or(idealPart), Or(actualPart)), machineEpsilon)
-          else And(Or(idealPart), Or(actualPart))
-
-          //TODO: somehow remove redundant definitions of errors? stuff like And(Or(idealPart), Or(actualPart))
-          var toCheck = ArithmeticOps.totalMakeover(And(And(precondition, body), Not(postcondition))) //has to be unsat
-          //println("toCheck: " + deltaRemover.transform(toCheck))
-
-          if (reporter.errorCount == 0 && sanityCheck(precondition, false, body))
-            solver.checkSat(toCheck)
-          else
-            (None, None)
-      } else {
-        println("Skipping all in.")
-        (None, None)
-      }
-    println("first try: " + firstTry._1)
-
-    firstTry match {
-      case (UNSAT, _) => (Some(VALID), None)
-      case _ => // try again for each part separately
-        if (ca.paths.size > 1) {
-          val paths = idealPart.zip(actualPart)
-          for ((i, a) <- paths) {
-            println("\n checking path: " )//+ deltaRemover.transform(And(i, a)))
-            val toCheck = ArithmeticOps.totalMakeover(And(Seq(precondition, i, a, machineEpsilon, Not(postcondition))))
-            println("toCheck:" + toCheck)
-            val (sat, model) = solver.checkSat(toCheck)
-            println("with result: " + sat)
-            // TODO: print the models that are actually useful, once we figure out which ones those are
-            if (sat != UNSAT) {
-              // TODO save this somewhere so we can emit the appropriate runtime checks
-              reporter.info("path could not be proven")
-              return (Some(NOT_SURE), None)
-            }
-          }
-        } else {
-          return (Some(NOT_SURE), None)
-        }
-    }
-    (Some(VALID), None)
-  }*/
+  
 }

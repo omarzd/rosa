@@ -31,7 +31,6 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
   // default: try 'em all
   var precisionsToTry: List[Precision] = List(Float32, Float64, DoubleDouble, QuadDouble)
 
-  // TODO: flag to switch off Z3 only versions, if Z3 hangs
   override val definedOptions: Set[LeonOptionDef] = Set(
     LeonValueOptionDef("functions", "--functions=f1:f2", "Limit verification to f1, f2,..."),
     LeonFlagOptionDef("simulation", "--simulation", "Run a simulation instead of verification"),
@@ -117,7 +116,7 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
       precision = precisionsToTry.head
       reporter.info("*** Verification with precision: " + precision + " ***")
       var vcMap: Map[FunDef, VerificationCondition] = Map.empty
-      val prover = new Prover(reporter, ctx, program, precision, specgen, merging, z3only, z3Timeout)
+      val prover = new Prover(reporter, ctx, program, precision, specgen, z3Timeout)
       for (vc <- sortedVCs) {
         val checkedVC = prover.check(vc, vcMap)
         vcMap = vcMap + (checkedVC.funDef -> checkedVC)

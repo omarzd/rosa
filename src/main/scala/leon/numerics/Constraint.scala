@@ -12,29 +12,6 @@ import ApproximationType._
 
 import affine._
 
-// ApproximationPath
-case class APath(pathCondition: Expr, idealBody: Expr, idealCnst: Expr, actualBody: Expr, actualCnst: Expr,
-  xfloats: Map[Expr, XFloat] = Map.empty) {
-  def updateNoisy(newBody: Expr, newCnst: Expr): APath = APath(pathCondition, idealBody, idealCnst, newBody, newCnst, xfloats)
-
-  var status: Option[Valid] = None
-}
-
-// This is an approximation of an constraint.
-// vars: additional free variables created
-case class ConstraintApproximation(pre: Expr, paths: Set[APath], post: Expr, vars: Set[Variable], tpe: ApproximationType,
-  values: Map[Expr, (RationalInterval, Rational)] = Map.empty) {
-
-  def actualXfloats: Map[Expr, (RationalInterval, Rational)] = {
-    mergeActualAPathResults(paths)
-  }
-
-  var addInitialVariableConnection = true
-  var needEps = true
-
-  //override def toString: String = "APP(%s && %s) ==> %s".format(pre.toString, paths.toString, post.toString)
-  //override def toString: String = tpe.toString
-}
 
 // An original (unapproximated constraint) derived from somewhere in the program.
 case class Constraint(pre: Expr, body: Expr, post: Expr, description: String, merging: Boolean, z3only: Boolean) {
@@ -81,12 +58,6 @@ case class Constraint(pre: Expr, body: Expr, post: Expr, description: String, me
 
   var approximations = Seq[ConstraintApproximation]()
 
-  // whether we already ran the AA approximation
-  def approximationForSpec: Option[ConstraintApproximation] = {
-    //approximations.find(a => a.tpe == PostInlining_AA)
-    None
-  }
-
   def overrideStatus(s: Option[Valid]) = {
     status = s
   }
@@ -99,5 +70,28 @@ case class Constraint(pre: Expr, body: Expr, post: Expr, description: String, me
   override def toString: String = "(%s && %s) ==> %s".format(pre.toString, body.toString, post.toString)
 
 }
+
+
+// ApproximationPath
+case class APath(pathCondition: Expr, idealBody: Expr, idealCnst: Expr, actualBody: Expr, actualCnst: Expr,
+  xfloats: Map[Expr, XFloat] = Map.empty) {
+  def updateNoisy(newBody: Expr, newCnst: Expr): APath = APath(pathCondition, idealBody, idealCnst, newBody, newCnst, xfloats)
+
+  var status: Option[Valid] = None
+}
+
+// This is an approximation of an constraint.
+// vars: additional free variables created
+case class ConstraintApproximation(pre: Expr, paths: Set[APath], post: Expr, vars: Set[Variable], tpe: ApproximationType,
+  values: Map[Expr, (RationalInterval, Rational)] = Map.empty) {
+
+  def actualXfloats: Map[Expr, (RationalInterval, Rational)] = {
+    mergeActualAPathResults(paths)
+  }
+
+  var addInitialVariableConnection = true
+  var needEps = true
+}
+
 
 

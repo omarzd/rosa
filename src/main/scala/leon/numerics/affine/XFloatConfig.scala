@@ -19,7 +19,6 @@ case class XFloatConfig(reporter: Reporter, solver: NumericSolver, precondition:
   def updatePrecision(newMaxIter: Int, newPrec: Rational): XFloatConfig =
     XFloatConfig(reporter, solver, precondition, precision, machineEps, newMaxIter, newPrec, additionalConstraints)
   
-  // TODO: this precondition business is not great  
   def and(other: XFloatConfig): XFloatConfig = {
     if (this.precondition == other.precondition)
       XFloatConfig(reporter, solver, precondition, precision, machineEps, solverMaxIter, solverPrecision,

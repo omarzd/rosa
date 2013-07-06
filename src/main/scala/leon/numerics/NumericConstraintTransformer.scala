@@ -94,18 +94,6 @@ class NumericConstraintTransformer(buddy: Map[Expr, Expr], ress: Variable, eps: 
           LessEquals(RationalLiteral(-value), freshErrorVar), 
           LessEquals(freshErrorVar, RationalLiteral(value))))
       }
-
-    /*case Noise(v @ Variable(id), r @ RationalLiteral(value)) =>
-      if (value < Rational.zero) { errors = errors :+ "Noise must be positive."; Error("negative noise " + value).setType(BooleanType)
-      } else {
-        And(LessEquals(RationalLiteral(-value), Minus(v, buddy(v))), LessEquals(Minus(v, buddy(v)), r))
-      }
-    case Noise(ResultVariable(), r @ RationalLiteral(value)) =>
-      if (value < Rational.zero) { errors = errors :+ "Noise must be positive."; Error("negative noise " + value).setType(BooleanType)
-      } else {
-        And(LessEquals(RationalLiteral(-value), Minus(ress, buddy(ress))), LessEquals(Minus(ress, buddy(ress)), r))
-      }
-    */
     case Roundoff(v @ Variable(id)) =>
       val delta = getNewDelta
       extraConstraints = extraConstraints :+ constrainDelta(delta)
@@ -370,111 +358,6 @@ class NumericConstraintTransformer(buddy: Map[Expr, Expr], ress: Variable, eps: 
     And(Seq(LessEquals(UMinus(eps), delta),
             LessEquals(delta, eps)))
   }
-
-   // @return (constraint, deltas) (the expression with added roundoff, the deltas used)
-  /*private def addRndoff(expr: Expr): (Expr, List[Variable]) = expr match {
-    case Plus(x, y) =>
-      val (xExpr, xDeltas) = addRndoff(x)
-      val (yExpr, yDeltas) = addRndoff(y)
-      val u = Plus(xExpr, yExpr)
-      val (rndoff, delta) = getRndoff(u)
-
-      (Plus(u, rndoff), xDeltas ++ yDeltas ++ List(delta))
-
-    case Minus(x, y) =>
-      val (xExpr, xDeltas) = addRndoff(x)
-      val (yExpr, yDeltas) = addRndoff(y)
-      val u = Minus(xExpr, yExpr)
-      val (rndoff, delta) = getRndoff(u)
-      (Plus(u, rndoff), xDeltas ++ yDeltas ++ List(delta))
-
-    case Times(x, y) =>
-      val (xExpr, xDeltas) = addRndoff(x)
-      val (yExpr, yDeltas) = addRndoff(y)
-      val u = Times(xExpr, yExpr)
-      val (rndoff, delta) = getRndoff(u)
-      (Plus(u, rndoff), xDeltas ++ yDeltas ++ List(delta))
-
-    case Division(x, y) =>
-      val (xExpr, xDeltas) = addRndoff(x)
-      val (yExpr, yDeltas) = addRndoff(y)
-      val u = Division(xExpr, yExpr)
-      val (rndoff, delta) = getRndoff(u)
-      (Plus(u, rndoff), xDeltas ++ yDeltas ++ List(delta))
-
-    case UMinus(x) =>
-      val (xExpr, xDeltas) = addRndoff(x)
-      (UMinus(xExpr), xDeltas)
-
-    case LessEquals(x, y) =>
-      val (xExpr, xDeltas) = addRndoff(x)
-      val (yExpr, yDeltas) = addRndoff(y)
-      (LessEquals(xExpr, yExpr), xDeltas ++ yDeltas)
-
-    case LessThan(x, y) =>
-      val (xExpr, xDeltas) = addRndoff(x)
-      val (yExpr, yDeltas) = addRndoff(y)
-      (LessEquals(xExpr, yExpr), xDeltas ++ yDeltas)
-
-    case GreaterEquals(x, y) =>
-      val (xExpr, xDeltas) = addRndoff(x)
-      val (yExpr, yDeltas) = addRndoff(y)
-      (LessEquals(xExpr, yExpr), xDeltas ++ yDeltas)
-
-    case GreaterThan(x, y) =>
-      val (xExpr, xDeltas) = addRndoff(x)
-      val (yExpr, yDeltas) = addRndoff(y)
-      (LessEquals(xExpr, yExpr), xDeltas ++ yDeltas)
-
-    case v: Variable => (v, List())
-
-    case r: RationalLiteral => (r, List())
-
-    case fnc: FunctionInvocation => (fnc, List())
-    case _=>
-      println("Cannot add roundoff to: " + expr)
-      (Error(""), List())
-
-  }*/
-
-    /*def transformBody(e: Expr): Expr = e match {
-
-      case Equals(v @ Variable(id), valueExpr) =>
-        val noisy = transformBody(valueExpr)
-        Equals(buddy(v), noisy)
-
-      case Equals(ResultVariable(), valueExpr) =>
-        val noisy = transformBody(valueExpr)
-        Equals(buddy(ress), noisy)
-
-
-      case IfExpr(cond, then, elze) =>
-        val thenNoisy = transformBody(then)
-        val elseNoisy = transformBody(elze)
-        val (noisyCond, dlts) = getNoisyExpr(cond, buddy, roundoffType)
-        deltas = deltas ++ dlts
-        IfExpr(noisyCond, thenNoisy, elseNoisy)
-
-      case And(args) =>
-        var esNoisy: Seq[Expr] = Seq.empty
-
-        for (arg <- args) {
-          val eNoisy = transformBody(arg)
-          esNoisy = esNoisy :+ eNoisy
-        }
-
-        And(esNoisy)
-
-      case UMinus(_) | Plus(_, _) | Minus(_, _) | Times(_, _) | Division(_, _) | FunctionInvocation(_, _) | Variable(_) =>
-        val (rndExpr, dlts) = getNoisyExpr(e, buddy, roundoffType)
-        deltas = deltas ++ dlts
-        rndExpr
-
-      case _ =>
-        errors = errors :+ ("Unknown body! " + e);
-        Error("unknown body: " + e).setType(BooleanType)
-    }*/
-
 }
 
 

@@ -40,9 +40,6 @@ class NumericSolver(context: LeonContext, prog: Program, timeout: Long) extends 
   def getCounts: String = "timeouts: %d, tight: %d, hit precision: %d, hit iteration: %d".format(
     countTimeouts, countTightRanges, countHitPrecisionThreshold, countHitIterationThreshold)
 
-  //var precision = Rational.rationalFromReal(1e-16) //0.0001
-  //val maxIterationsBinary = 50
-
   override protected[leon] val z3cfg = new Z3Config(
     "MODEL" -> true,
     "TIMEOUT" -> timeout,
@@ -69,10 +66,7 @@ class NumericSolver(context: LeonContext, prog: Program, timeout: Long) extends 
     solver.getNumScopes
   }
 
-  //private var variables = Set[Identifier]()
-
   def assertCnstr(expr: Expr) = {
-    //variables ++= variablesOf(expr)
     val exprInZ3 = toZ3Formula(expr).get
     solver.assertCnstr(exprInZ3)
     if (verbose) println("Added constraint: " + exprInZ3)
@@ -119,7 +113,7 @@ class NumericSolver(context: LeonContext, prog: Program, timeout: Long) extends 
       case None =>
         if (printWarnings) println("!!! WARNING: Z3 SOLVER FAILED")
         countTimeouts = countTimeouts + 1
-        (DUNNO, None)
+        (UNKNOWN, None)
     }
     solver.pop()
     res

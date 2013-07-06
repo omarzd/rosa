@@ -49,22 +49,9 @@ package object numerics {
     val NoFncs_AAMerging = Value("NoFncs_AAMerging")
     val FullInlining_AA = Value("FullInlining_AA")
     val FullInlining_AAMerging = Value("FullInlining_AAMerging")
+    //val PostInlining_AA = Value("PostInlining_AA")
+    //val PostInlining_AAMerging = Value("PostInlining_AAMerging")
   }
-
-  /*object ApproximationType extends Enumeration {
-    type ApproximationType = Value
-    val Uninterpreted_None = Value("Uninterpreted_None")
-    val NoFncs_AA = Value("NoFncs_AA")
-    val NoFncs_AAPathSensitive = Value("NoFncs_AAPathSensitive")
-    val PostInlining_None = Value("PostInlining_None")
-    val PostInlining_AA = Value("PostInlining_AA")
-    val FullInlining_None = Value("FullInlining_None")
-    val FullInlining_AA = Value("FullInlining_AA")
-    val PostInlining_AAPathSensitive = Value("PostInlining_AAPathSensitive")
-    val FullInlining_AAPathSensitive = Value("FullInlining_AAPathSensitive")
-
-    val NoFncs_PartialAA = Value("NoFncs_PartialAA")
-  }*/
 
   object RoundoffType extends Enumeration {
     type RoundoffType = Value
@@ -72,8 +59,6 @@ package object numerics {
     val RoundoffMultiplier = Value("RndoffMultiplier")
     val RoundoffAddition = Value("RndoffAddition")
   }
-
-
 
   object Sat extends Enumeration {
     type Sat = Value
@@ -86,8 +71,7 @@ package object numerics {
     type Valid = Value
     val VALID = Value("VALID")
     val INVALID = Value("INVALID")
-    val NOT_SURE = Value("Not sure")  //computed range may be too large
-    val DUNNO = Value("Unknown")  //Z3 failed or something like that
+    val UNKNOWN = Value("Not sure")
   }
 
 }

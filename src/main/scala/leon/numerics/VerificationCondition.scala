@@ -17,7 +17,7 @@ import affine._
 // It's one for each method, but may store several conditions to be proven.
 // The first constraint is the one corresponding to the whole function.
 case class VerificationCondition(funDef: FunDef, inputs: Map[Variable, Record], precondition: Expr, body: Expr,
-  allFncCalls: Set[String], allConstraints: List[Constraint]) {
+  allFncCalls: Set[String], allConstraints: List[Constraint], specConstraint: Option[Constraint]) {
 
   val id = funDef.id.toString
   val fncArgs: Seq[Variable] = funDef.args.map(v => Variable(v.id).setType(RealType))
@@ -32,9 +32,7 @@ case class VerificationCondition(funDef: FunDef, inputs: Map[Variable, Record], 
   /* Generated specification. */
   var generatedPost: Option[Expr] = None
   val isInvariant = funDef.returnType == BooleanType
-  // Not enough information provided to compute a postcondition
-  val nothingToCompute = (precondition == True && allConstraints.size == 0)
-
+  
   /* Simulation results. */
   var simulationRange: Option[Interval] = None
   var rndoff: Option[Double] = None

@@ -20,15 +20,14 @@ class Analyser(reporter: Reporter, merging: Boolean, z3only: Boolean) {
 
   def analyzeThis(funDef: FunDef): VerificationCondition = {
     if (verbose) reporter.info("")
-    //if (verbose) 
-    reporter.info("-----> Analysing function " + funDef.id.name + "...")
+    if (verbose) reporter.info("-----> Analysing function " + funDef.id.name + "...")
     if (verbose) println("pre: " + funDef.precondition)
-    //if (verbose) 
-    println("\nbody: " + funDef.body)
+    if (verbose) println("\nbody: " + funDef.body)
     if (verbose) println("\npost: " + funDef.postcondition)
 
     var allFncCalls = Set[String]()
     var constraints = List[Constraint]()
+    var specConstraint: Option[Constraint] = None
 
     val (inputVariables, vcPrecondition) = funDef.precondition match {
       case Some(p) =>
@@ -54,13 +53,16 @@ class Analyser(reporter: Reporter, merging: Boolean, z3only: Boolean) {
       // 'Normal' function R^n -> R
       case Some(post) =>
         val body = convertLetsToEquals(addResult(funDef.body.get))
-        constraints = constraints :+ Constraint(vcPrecondition, body, post, "wholeBody", merging, z3only)
+        val wholeBodyC = Constraint(vcPrecondition, body, post, "wholeBody", merging, z3only)
+        constraints = constraints :+ wholeBodyC
+        if (vcPrecondition != True) specConstraint = Some(wholeBodyC)
         allFncCalls ++= functionCallsOf(post).map(invc => invc.funDef.id.toString)
         (body, body)
       // Auxiliary function, nothing to prove
       case None =>
         if (funDef.returnType == BooleanType) reporter.warning("Forgotten holds on invariant " + funDef.id + "?")
         val body = convertLetsToEquals(addResult(funDef.body.get))
+        if (vcPrecondition != True) specConstraint = Some(Constraint(vcPrecondition, body, True, "wholebody", merging, z3only))
         (body, body)
     }
 
@@ -120,8 +122,7 @@ class Analyser(reporter: Reporter, merging: Boolean, z3only: Boolean) {
 
     //vc.funcArgs = vc.funDef.args.map(v => Variable(v.id).setType(RealType))
     //vc.localVars = allLetDefinitions(funDef.body.get).map(letDef => Variable(letDef._1).setType(RealType))
-    println("vcBody: " + vcBody)
-    val vc = VerificationCondition(funDef, inputVariables, vcPrecondition, vcBody, allFncCalls, constraints)
+    val vc = VerificationCondition(funDef, inputVariables, vcPrecondition, vcBody, allFncCalls, constraints, specConstraint)
     //println("vc: " + vc)
     vc
   }

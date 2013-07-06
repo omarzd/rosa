@@ -133,11 +133,7 @@ object XFloat {
   @param error various uncertainties, incl. roundoffs
   @param config solver, precondition, which precision to choose
  */
- class XFloat(val tree: Expr, val approxInterval: RationalInterval, val error: XRationalForm, val config: XFloatConfig) {
-
-  //println("new xfloat, tree: " + tree)
-  //println("condition: " + config.additionalConstraints)
-
+class XFloat(val tree: Expr, val approxInterval: RationalInterval, val error: XRationalForm, val config: XFloatConfig) {
   import XFloat._
 
   def realInterval: RationalInterval = {
