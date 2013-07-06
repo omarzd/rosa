@@ -56,12 +56,12 @@ case class Constraint(pre: Expr, body: Expr, post: Expr, description: String, me
 
   val hasFunctionCalls = (containsFunctionCalls(body) || containsFunctionCalls(pre) || containsFunctionCalls(post))
 
-  // TODO: fix this (merging or not?)
   var approxStrategy = Seq[ApproximationType]()
 
   if (hasFunctionCalls) {
     if (z3only) approxStrategy :+= Uninterpreted_None
-    approxStrategy :+= AdHocFullInlining_AAMerging
+    if (merging) approxStrategy :+= FullInlining_AAMerging
+    else approxStrategy :+= FullInlining_AA
   } else {
     if (z3only) approxStrategy :+= Uninterpreted_None
     if (merging) approxStrategy :+= NoFncs_AAMerging

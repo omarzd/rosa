@@ -20,9 +20,11 @@ class Analyser(reporter: Reporter, merging: Boolean, z3only: Boolean) {
 
   def analyzeThis(funDef: FunDef): VerificationCondition = {
     if (verbose) reporter.info("")
-    if (verbose) reporter.info("-----> Analysing function " + funDef.id.name + "...")
+    //if (verbose) 
+    reporter.info("-----> Analysing function " + funDef.id.name + "...")
     if (verbose) println("pre: " + funDef.precondition)
-    if (verbose) println("\nbody: " + funDef.body)
+    //if (verbose) 
+    println("\nbody: " + funDef.body)
     if (verbose) println("\npost: " + funDef.postcondition)
 
     var allFncCalls = Set[String]()
@@ -118,7 +120,7 @@ class Analyser(reporter: Reporter, merging: Boolean, z3only: Boolean) {
 
     //vc.funcArgs = vc.funDef.args.map(v => Variable(v.id).setType(RealType))
     //vc.localVars = allLetDefinitions(funDef.body.get).map(letDef => Variable(letDef._1).setType(RealType))
-
+    println("vcBody: " + vcBody)
     val vc = VerificationCondition(funDef, inputVariables, vcPrecondition, vcBody, allFncCalls, constraints)
     //println("vc: " + vc)
     vc
@@ -127,7 +129,7 @@ class Analyser(reporter: Reporter, merging: Boolean, z3only: Boolean) {
   // Has to run before we removed the lets!
   // Basically the first free expression that is not an if or a let is the result
   private def addResult(expr: Expr): Expr = expr match {
-    case IfExpr(cond, then, elze) => IfExpr(cond, addResult(then), addResult(elze))
+    case ifThen @ IfExpr(cond, then, elze) => Equals(ResultVariable(), ifThen)
     case Let(binder, value, body) => Let(binder, value, addResult(body))
     case UMinus(_) | Plus(_, _) | Minus(_, _) | Times(_, _) | Division(_, _) | Sqrt(_) | FunctionInvocation(_, _) | Variable(_) =>
       Equals(ResultVariable(), expr)

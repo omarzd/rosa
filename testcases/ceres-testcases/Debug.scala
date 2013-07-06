@@ -8,16 +8,35 @@ import leon.Utils._
 
 object Debug {
 
+  def invariant1(y1: Real, y2: Real, y3: Real, y4: Real, y5: Real, y6: Real): Boolean = {
+    require(y1.in(-1200, 1200) && y2.in(-1200, 1200) && y3.in(-1200, 1200) &&
+     y4.in(-1200, 1200) && y5.in(-1200, 1200) && y6.in(-1200, 1200))
+
+    val m1 = meanSpec(y1, y2, y3, y4, y5, y6)
+    val m2 = meanImpl(y1, y2, y3, y4, y5, y6)
+    ~m1 <= ~m2 + 0.01
+  } holds
+  
   /*def test(y1: Real, y2: Real, y3: Real, y4: Real, y5: Real, y6: Real): Real = {
     require(y1.in(-1200, 1200) && y2.in(-1200, 1200) && y3.in(-1200, 1200) &&
      y4.in(-1200, 1200) && y5.in(-1200, 1200) && y6.in(-1200, 1200))
 
+    meanChoose(y1, y2, y3, y4, y5, y6)
+    
+    
+  } ensuring (res => noise(res, 1e-7))
+  
+
+  def meanChoose(y1: Real, y2: Real, y3: Real, y4: Real, y5: Real, y6: Real): Real = {
+    require(y1.in(-1200, 1200) && y2.in(-1200, 1200) && y3.in(-1200, 1200) &&
+     y4.in(-1200, 1200) && y5.in(-1200, 1200) && y6.in(-1200, 1200))
+    
     if (y1 < 0) {
       meanSpec(y1, y2, y3, y4, y5, y6)  
     } else {
       meanImpl(y1, y2, y3, y4, y5, y6)
     }
-  } ensuring (res => noise(res, 1e-7))
+  }*/
 
   def meanSpec(x1: Real, x2: Real, x3: Real, x4: Real, x5: Real, x6: Real): Real = {
     require(x1.in(-1200, 1200) && x2.in(-1200, 1200) && x3.in(-1200, 1200) &&
@@ -39,9 +58,9 @@ object Debug {
     val i6 = (5*i5 + x6)/6.0
     i6
   }//  ensuring(res => res <= 1200.0 && -1200.0 <= res && noise(res, 1e-10))
-  */
+  
 
-  def test(x: Real): Real = {
+  /*def test(x: Real): Real = {
     require(x.in(-5.0, 5.0) && noise(x, 1e-10))
     val res = if(x < 0) {
         x*x
@@ -50,7 +69,7 @@ object Debug {
       }
     res
   } ensuring(res => noise(res, 1e-8))
-
+  */
 /*  def test2(x: Real): Real = {
     require(x.in(-5.0, 5.0) && noise(x, 1e-10))
     if(x < 0) {

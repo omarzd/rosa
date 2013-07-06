@@ -97,7 +97,7 @@ object Mean {
 
     val m1 = meanSpec(y1, y2, y3, y4, y5, y6)
     val m2 = meanImpl(y1, y2, y3, y4, y5, y6)
-    morePrecise(m1, m2)
+    ~m1 <= ~m2 + 0.01
   } holds
   */
 
