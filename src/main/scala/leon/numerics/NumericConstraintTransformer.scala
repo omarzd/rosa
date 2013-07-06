@@ -78,6 +78,7 @@ class NumericConstraintTransformer(buddy: Map[Expr, Expr], ress: Variable, eps: 
   }
 
   def transformPrePost(e: Expr): Expr = e match {
+    
     case Noise(v @ Variable(id), r @ RationalLiteral(value)) =>
       if (value < Rational.zero) { errors = errors :+ "Noise must be positive."; Error("negative noise " + value).setType(BooleanType)
       } else {
@@ -94,6 +95,39 @@ class NumericConstraintTransformer(buddy: Map[Expr, Expr], ress: Variable, eps: 
           LessEquals(RationalLiteral(-value), freshErrorVar), 
           LessEquals(freshErrorVar, RationalLiteral(value))))
       }
+
+    case Noise(v @ Variable(_), expr) =>
+      val freshErrorVar = getErrorVar(v)
+      val value = transformPrePost(expr)
+      And(Seq(Equals(buddy(v), Plus(v, freshErrorVar)),
+        Or(
+          And(LessEquals(UMinus(value), freshErrorVar), LessEquals(freshErrorVar, value)),
+          And(LessEquals(value, freshErrorVar), LessEquals(freshErrorVar, UMinus(value)))
+          )
+        ))
+    case Noise(ResultVariable(), expr) =>
+      val freshErrorVar = getErrorVar(ress)
+      val value = transformPrePost(expr)
+      And(Seq(Equals(buddy(ress), Plus(ress, freshErrorVar)),
+        Or(
+          And(LessEquals(UMinus(value), freshErrorVar), LessEquals(freshErrorVar, value)),
+          And(LessEquals(value, freshErrorVar), LessEquals(freshErrorVar, UMinus(value)))
+          )
+        ))
+
+
+    case RelError(v @ Variable(_), r @  RationalLiteral(value)) =>
+      if (value < Rational.zero) { errors = errors :+ "Relative error coefficient must be positive."; Error("negative rel error " + value).setType(BooleanType)
+      } else {
+        val freshErrorVar = getErrorVar(ress)
+        And(Seq(Equals(buddy(ress), Plus(ress, freshErrorVar)),
+          Or(
+            And(LessEquals(RationalLiteral(-value), freshErrorVar),LessEquals(freshErrorVar, RationalLiteral(value))),
+            And(LessEquals(RationalLiteral(value), freshErrorVar),LessEquals(freshErrorVar, RationalLiteral(-value)))
+          )
+        )) 
+      }
+
     case Roundoff(v @ Variable(id)) =>
       val delta = getNewDelta
       extraConstraints = extraConstraints :+ constrainDelta(delta)
@@ -130,8 +164,14 @@ class NumericConstraintTransformer(buddy: Map[Expr, Expr], ress: Variable, eps: 
     case Actual(ResultVariable()) => buddy(ress)
 
     case Actual(x) => reporter.error("Actual only allowed on variables, but not on: " + x.getClass); e
+
     case ResultVariable() => ress
-    case _ => e
+    case Variable(_) | RationalLiteral(_) | IntLiteral(_) => e
+    case BooleanLiteral(true) => e
+    case InitialNoise(v @ Variable(_)) => getErrorVar(v)
+    case _ =>
+      reporter.error("Not supported in pre/postcondition: " + e)
+      e
   }
   
   def transformIdealBody(e: Expr): Expr = e match {

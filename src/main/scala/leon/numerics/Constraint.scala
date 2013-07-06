@@ -41,8 +41,8 @@ case class Constraint(pre: Expr, body: Expr, post: Expr, description: String, me
     else approxStrategy :+= FullInlining_AA
   } else {
     if (z3only) approxStrategy :+= Uninterpreted_None
-    if (merging) approxStrategy :+= NoFncs_AAMerging
-    else approxStrategy :+= NoFncs_AA
+    //if (merging) approxStrategy :+= NoFncs_AAMerging
+    //else approxStrategy :+= NoFncs_AA
   }
 
   def hasNextApproximation = !approxStrategy.isEmpty

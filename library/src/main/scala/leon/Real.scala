@@ -10,7 +10,8 @@ import scala.math.{ScalaNumericConversions, ScalaNumber}
     implicit def int2real(i: Int): Real = new Real(i.toDouble)
 
     // This means |x - x0| <= n, note the less EQUALS.
-    def noise(x: Real, n: Double): Boolean = { throw new NotExecutableException(exMsg); false }
+    // Now handled with +/-
+    //def noise(x: Real, n: Double): Boolean = { throw new NotExecutableException(exMsg); false }
 
     // Short for saying only the regular roundoff
     def roundoff(x: Real): Boolean = { throw new NotExecutableException(exMsg); false }
@@ -37,7 +38,12 @@ import scala.math.{ScalaNumericConversions, ScalaNumber}
     // Convenience method to specify intervals
     def in(a: Real, b: Real): Boolean = { throw new NotExecutableException(exMsg); false }
 
+    // Uncertainty on this value
+    def +/-(x: Real): Boolean = { throw new NotExecutableException(exMsg); false }
+    // Error of this value
+    def unary_!(): Real = { throw new NotExecutableException(exMsg); null }
 
+      
     def compare(other: Real): Int = {
       throw new NotExecutableException(exMsg)
       0

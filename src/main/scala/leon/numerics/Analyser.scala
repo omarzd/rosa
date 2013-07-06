@@ -14,7 +14,7 @@ import affine._
 
 class Analyser(reporter: Reporter, merging: Boolean, z3only: Boolean) {
 
-  val verbose = false
+  val verbose = true
   val assertionRemover = new AssertionRemover
 
 
