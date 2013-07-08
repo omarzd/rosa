@@ -30,8 +30,8 @@ object XFloat {
 
     for((k, rec) <- vars) {
       if (rec.isComplete) {
-        rec.noise match {
-          case Some(n) =>
+        (rec.absNoise, rec.relNoise) match { // was already checked that only one is possible
+          case (Some(n), None) =>
             // index is the index of the main uncertainty, not the roundoff
             val (xfloat, index) = XFloat.xFloatWithUncertain(k,
                     RationalInterval(rec.lo.get, rec.up.get),
@@ -39,7 +39,16 @@ object XFloat {
             variableMap = variableMap + (k -> xfloat)
             indexMap = indexMap + (index -> k)
 
-          case None => // default roundoff
+          case (None, Some(factor)) =>
+            val maxError = factor * max(abs(rec.lo.get), abs(rec.up.get))
+            // index is the index of the main uncertainty, not the roundoff
+            val (xfloat, index) = XFloat.xFloatWithUncertain(k,
+                    RationalInterval(rec.lo.get, rec.up.get),
+                    config, maxError, withRoundoff)
+            variableMap = variableMap + (k -> xfloat)
+            indexMap = indexMap + (index -> k)
+
+          case (None, None) => // default roundoff
             val (xfloat, index) = XFloat.xFloatWithRoundoff(k,
                     RationalInterval(rec.lo.get, rec.up.get), config)
             variableMap = variableMap + (k -> xfloat)
@@ -125,18 +134,6 @@ object XFloat {
 
 }
 
-case class XFloatConfig(reporter: Reporter, solver: NumericSolver, precondition: Expr, precision: Precision,
-  machineEps: Rational, additionalConstraints: Set[Expr] = Set.empty) {
-
-  def getCondition: Expr = And(precondition, And(additionalConstraints.toSeq))
-
-  def addCondition(c: Expr): XFloatConfig =
-    XFloatConfig(reporter, solver, precondition, precision, machineEps, additionalConstraints + c)
-
-  def and(other: XFloatConfig): XFloatConfig = {
-    XFloatConfig(reporter, solver, precondition, precision, machineEps, this.additionalConstraints ++ other.additionalConstraints)
-  }
-}
 
 /**
   A datatype for range arithmetic that keeps track of floating-point roundoff errors.
@@ -145,19 +142,15 @@ case class XFloatConfig(reporter: Reporter, solver: NumericSolver, precondition:
   @param error various uncertainties, incl. roundoffs
   @param config solver, precondition, which precision to choose
  */
- class XFloat(val tree: Expr, val approxInterval: RationalInterval, val error: XRationalForm, val config: XFloatConfig) {
-
-  //println("new xfloat, tree: " + tree)
-  //println("condition: " + config.additionalConstraints)
-
+class XFloat(val tree: Expr, val approxInterval: RationalInterval, val error: XRationalForm, val config: XFloatConfig) {
   import XFloat._
 
-  lazy val realInterval: RationalInterval = {
+  def realInterval: RationalInterval = {
     getTightInterval(tree, approxInterval, config.getCondition)
   }
-  lazy val interval: RationalInterval = realInterval + error.interval
+  def interval: RationalInterval = realInterval + error.interval
 
-  lazy val maxError: Rational = {
+  def maxError: Rational = {
     val i = error.interval
     max(abs(i.xlo), abs(i.xhi))
   }
@@ -217,7 +210,7 @@ case class XFloatConfig(reporter: Reporter, solver: NumericSolver, precondition:
     val newConfig = config.and(y.config)
     val newTree = Minus(this.tree, y.tree)
     val newInterval = this.approxInterval - y.approxInterval
-
+    
     var newError = this.error - y.error
     val newRealRange = getTightInterval(newTree, newInterval, newConfig.getCondition)
     val rndoff = roundoff(newRealRange + newError.interval)
@@ -267,7 +260,7 @@ case class XFloatConfig(reporter: Reporter, solver: NumericSolver, precondition:
 
     val yInt = y.interval
     val a = min(abs(yInt.xlo), abs(yInt.xhi))
-    val errorMultiplier = negOne / (a*a)
+    val errorMultiplier = -one / (a*a)
     val gErr = y.error * new XRationalForm(errorMultiplier)
 
     // Now do the multiplication x * (1/y)
@@ -313,8 +306,8 @@ case class XFloatConfig(reporter: Reporter, solver: NumericSolver, precondition:
   }
 
 
-  override def toString: String = this.interval.toString + " - (" +
-    this.maxError + ")(abs)"
+  override def toString: String =
+    "%s - (%.16g)(%s)".format(this.interval.toString, this.maxError.toDouble, tree)
 
   // Always returns a positive number
   private def roundoff(range: RationalInterval): Rational = {
@@ -336,8 +329,8 @@ case class XFloatConfig(reporter: Reporter, solver: NumericSolver, precondition:
     //println("massaged: " + massagedTree)
     //println("initial approx: " + approx)
 
-    val res = config.solver.tightenRange(massagedTree, condition, approx)
-
+    val res = config.solver.tightenRange(massagedTree, condition, approx, config.solverMaxIter, config.solverPrecision)
+    //println(tree + "  " + config.solverMaxIter)
     //val res = approx
     //println("after tightening: " + res)
 

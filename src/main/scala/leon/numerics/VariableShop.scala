@@ -17,6 +17,7 @@ object VariableShop {
   private var fncCounter = 0
   private var resErrorCounter = 0
   private var xfloatCounter = 0
+  private var freshVarCounter = 0
 
   def getNewXFloatVar: Variable = { // used for compacting xfloats
     xfloatCounter = xfloatCounter + 1
@@ -62,5 +63,10 @@ object VariableShop {
   def getFreshRndoffMultiplier: (Expr, Variable) = {
     val delta = getNewDelta
     (Plus(new RationalLiteral(1), delta) , delta)
+  }
+
+  def getFreshVarOf(name: String): Variable = {
+    freshVarCounter = freshVarCounter + 1
+    Variable(FreshIdentifier("#" + name + freshVarCounter)).setType(RealType)
   }
 }

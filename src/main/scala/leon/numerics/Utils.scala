@@ -2,7 +2,6 @@ package leon
 package numerics
 
 import affine._
-
 import purescala.Trees._
 import purescala.TypeTrees._
 import purescala.TreeOps._
@@ -20,7 +19,7 @@ object Utils {
     case None => " -- "
   }
 
-  val emptyRecord = Record(None, None, None, None)
+  val emptyRecord = Record(None, None, None, None, None)
 
   def getVariableRecords(expr: Expr): Map[Variable, Record] = {
     val collector = new VariableCollector
@@ -39,65 +38,71 @@ object Utils {
     override def rec(e: Expr, path: C) = e match {
       // a <= x
       case LessEquals(RationalLiteral(lwrBnd), x @ Variable(name)) =>
-        recordMap = recordMap + (x -> recordMap.getOrElse(x, emptyRecord).updateLo(lwrBnd)); e
+        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).updateLo(lwrBnd)); e
       // x <= b
       case LessEquals(x @ Variable(name), RationalLiteral(uprBnd)) =>
-        recordMap = recordMap + (x -> recordMap.getOrElse(x, emptyRecord).updateUp(uprBnd)); e
+        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).updateUp(uprBnd)); e
       // a <= x
       case LessEquals(IntLiteral(lwrBnd), x @ Variable(name)) =>
-        recordMap = recordMap + (x -> recordMap.getOrElse(x, emptyRecord).updateLo(Rational(lwrBnd))); e
+        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).updateLo(Rational(lwrBnd))); e
       // x <= b
       case LessEquals(x @ Variable(name), IntLiteral(uprBnd)) =>
-        recordMap = recordMap + (x -> recordMap.getOrElse(x, emptyRecord).updateUp(Rational(uprBnd))); e
+        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).updateUp(Rational(uprBnd))); e
 
       // a < x
       case LessThan(RationalLiteral(lwrBnd), x @ Variable(name)) =>
-        recordMap = recordMap + (x -> recordMap.getOrElse(x, emptyRecord).updateLo(lwrBnd)); e
+        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).updateLo(lwrBnd)); e
       // x < b
       case LessThan(x @ Variable(name), RationalLiteral(uprBnd)) =>
-        recordMap = recordMap + (x -> recordMap.getOrElse(x, emptyRecord).updateUp(uprBnd)); e
+        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).updateUp(uprBnd)); e
       // a < x
       case LessThan(IntLiteral(lwrBnd), x @ Variable(name)) =>
-        recordMap = recordMap + (x -> recordMap.getOrElse(x, emptyRecord).updateLo(Rational(lwrBnd))); e
+        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).updateLo(Rational(lwrBnd))); e
       // x < b
       case LessThan(x @ Variable(name), IntLiteral(uprBnd)) =>
-        recordMap = recordMap + (x -> recordMap.getOrElse(x, emptyRecord).updateUp(Rational(uprBnd))); e
+        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).updateUp(Rational(uprBnd))); e
 
       // b >= x
       case GreaterEquals(RationalLiteral(uprBnd), x @ Variable(name)) =>
-        recordMap = recordMap + (x -> recordMap.getOrElse(x, emptyRecord).updateUp(uprBnd)); e
+        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).updateUp(uprBnd)); e
       // x >= a
       case GreaterEquals(x @ Variable(name), RationalLiteral(lwrBnd)) =>
-        recordMap = recordMap + (x -> recordMap.getOrElse(x, emptyRecord).updateLo(lwrBnd)); e
+        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).updateLo(lwrBnd)); e
       // b >= x
       case GreaterEquals(IntLiteral(uprBnd), x @ Variable(name)) =>
-        recordMap = recordMap + (x -> recordMap.getOrElse(x, emptyRecord).updateUp(Rational(uprBnd))); e
+        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).updateUp(Rational(uprBnd))); e
       // x >= a
       case GreaterEquals(x @ Variable(name), IntLiteral(lwrBnd)) =>
-        recordMap = recordMap + (x -> recordMap.getOrElse(x, emptyRecord).updateLo(Rational(lwrBnd))); e
+        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).updateLo(Rational(lwrBnd))); e
 
       // b > x
       case GreaterThan(RationalLiteral(uprBnd), x @ Variable(name)) =>
-        recordMap = recordMap + (x -> recordMap.getOrElse(x, emptyRecord).updateUp(uprBnd)); e
+        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).updateUp(uprBnd)); e
       // x > a
       case GreaterThan(x @ Variable(name), RationalLiteral(lwrBnd)) =>
-        recordMap = recordMap + (x -> recordMap.getOrElse(x, emptyRecord).updateLo(lwrBnd)); e
+        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).updateLo(lwrBnd)); e
       // b > x
       case GreaterThan(IntLiteral(uprBnd), x @ Variable(name)) =>
-        recordMap = recordMap + (x -> recordMap.getOrElse(x, emptyRecord).updateUp(Rational(uprBnd))); e
+        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).updateUp(Rational(uprBnd))); e
       // x > a
       case GreaterThan(x @ Variable(name), IntLiteral(lwrBnd)) =>
-        recordMap = recordMap + (x -> recordMap.getOrElse(x, emptyRecord).updateLo(Rational(lwrBnd))); e
+        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).updateLo(Rational(lwrBnd))); e
 
 
       case Noise(x @ Variable(id), RationalLiteral(value)) =>
-        recordMap = recordMap + (x -> recordMap.getOrElse(x, emptyRecord).updateNoise(value)); e
+        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).updateAbsNoise(value)); e
 
       case Noise(x @ Variable(id), IntLiteral(value)) =>
-        recordMap = recordMap + (x -> recordMap.getOrElse(x, emptyRecord).updateNoise(Rational(value))); e
+        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).updateAbsNoise(Rational(value))); e
+
+      case Noise(_, _) =>
+        throw UnsupportedFragmentException(e.toString); e
+
+      case RelError(x @ Variable(id), RationalLiteral(value)) =>
+        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).updateRelNoise(value)); e 
 
       case Roundoff(x @ Variable(id)) =>
-        recordMap = recordMap + (x -> recordMap.getOrElse(x, emptyRecord).addRndoff); e
+        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).addRndoff); e
 
       case _ =>
         super.rec(e, path)
@@ -111,6 +116,11 @@ object Utils {
     var lwrBound: Option[Rational] = None
     var upBound: Option[Rational] = None
     var error: Option[Rational] = None
+    var errorExpr: Option[Expr] = None
+
+    def initCollector = {
+      lwrBound = None; upBound = None; error = None; errorExpr = None
+    }
 
     def register(e: Expr, path: C) = path :+ e
 
@@ -135,53 +145,32 @@ object Utils {
       case Noise(ResultVariable(), RationalLiteral(value)) => error = Some(value); e
       case Noise(ResultVariable(), IntLiteral(value)) => error = Some(Rational(value)); e
 
+      case Noise(ResultVariable(), x) => errorExpr = Some(x); e
       case _ =>
         super.rec(e, path)
     }
 
+    def getResultWithExpr(e: Expr): Option[(Rational, Rational, Expr)] = {
+      initCollector
+      rec(e, initC)
+      println(lwrBound)
+      println(upBound)
+      println(error)
+      println(errorExpr)
+      if (!lwrBound.isEmpty && !upBound.isEmpty && (!error.isEmpty || !errorExpr.isEmpty)) {
+        if (errorExpr.isEmpty) Some(lwrBound.get, upBound.get, RationalLiteral(error.get))
+        else Some(lwrBound.get, upBound.get, errorExpr.get)
+      } else
+        None
+      
+    }
+
     def getResult(e: Expr): (Option[Rational], Option[Rational], Option[Rational]) = {
+      initCollector
       rec(e, initC)
       (lwrBound, upBound, error)
     }
-
   }
-
-   // Returns a map from all variables to their final value, including local vars
-  /*def inXFloats(reporter: Reporter, exprs: List[Expr], vars: Map[Expr, XFloat], config: XFloatConfig): Map[Expr, XFloat] = {
-    var currentVars: Map[Expr, XFloat] = vars
-
-    for (expr <- exprs) expr match {
-      case Equals(variable, value) =>
-        try {
-          val computedValue = eval(value, currentVars, config)
-          currentVars = currentVars + (variable -> computedValue)
-        } catch {
-          case UnsupportedFragmentException(msg) => reporter.error(msg)
-        }
-
-      case BooleanLiteral(true) => ;
-      case _ =>
-        reporter.error("AA cannot handle: " + expr)
-    }
-
-    currentVars
-  }
-
-  // Evaluates an arithmetic expression
-  private def eval(expr: Expr, vars: Map[Expr, XFloat], config: XFloatConfig): XFloat = expr match {
-    case v @ Variable(id) => vars(v)
-    case RationalLiteral(v) => XFloat(v, config)
-    case IntLiteral(v) => XFloat(v, config)
-    case UMinus(rhs) => - eval(rhs, vars, config)
-    case Plus(lhs, rhs) => eval(lhs, vars, config) + eval(rhs, vars, config)
-    case Minus(lhs, rhs) => eval(lhs, vars, config) - eval(rhs, vars, config)
-    case Times(lhs, rhs) => eval(lhs, vars, config) * eval(rhs, vars, config)
-    case Division(lhs, rhs) => eval(lhs, vars, config) / eval(rhs, vars, config)
-    case Sqrt(t) => eval(t, vars, config).squareRoot
-    case _ =>
-      throw UnsupportedFragmentException("AA cannot handle: " + expr)
-      null
-  }*/
 
   def collectPaths(expr: Expr): Set[Path] = expr match {
     case IfExpr(cond, then, elze) =>
@@ -338,6 +327,9 @@ object Utils {
     And(LessEquals(RationalLiteral(r.xlo), v),
         LessEquals(v, RationalLiteral(r.xhi)))
   }
+
+ 
+
 
   class NoiseRemover extends TransformerWithPC {
     type C = Seq[Expr]

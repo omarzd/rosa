@@ -30,21 +30,25 @@ class PostconditionInliner(reporter: Reporter, vcMap: Map[FunDef, VerificationCo
     case FunctionInvocation(funDef, args) =>
       val fresh = getNewFncVariable(funDef.id.name)
       vars = vars + fresh
+      val arguments: Map[Expr, Expr] = funDef.args.map(decl => decl.toVariable).zip(args).toMap
 
-      // The generated post is the most precise of computed and given
-      vcMap(funDef).generatedPost match {
-        case Some(post) =>
-          assert(postComplete.check(post))
-          constraints = constraints :+ replace(Map(ResultVariable() -> fresh), post)
-
+      val firstChoice = funDef.postcondition
+      val secondChoice = vcMap(funDef).generatedPost
+      val post = firstChoice match {
+        case Some(post) if (postComplete.check(post)) => Some(post)
+        case _ => secondChoice match {
+          case Some(post) if (postComplete.check(post)) => Some(post)
+          case _ => None
+        }
+      }
+      
+      post match {
+        case Some(p) =>
+          constraints = constraints :+ replace(arguments + (ResultVariable() -> fresh), p)
+          println("generated postcondition: " + constraints.last)
         case None =>
-          funDef.postcondition match {
-            case Some(post) if (postComplete.check(post)) =>
-              constraints = constraints :+ replace(Map(ResultVariable() -> fresh), post)
-            case _ =>
-              missingPost = true
-              reporter.warning("inlining postcondition, but none found or is incomplete for " + e)
-          }
+          missingPost = true
+          reporter.warning("inlining postcondition, but none found or is incomplete for " + e)
       }
       fresh
 
@@ -110,7 +114,7 @@ class PostconditionInliner(reporter: Reporter, vcMap: Map[FunDef, VerificationCo
       case LessThan(RationalLiteral(lwrBnd), ResultVariable()) => lwrBound = true; e
       case LessEquals(ResultVariable(), RationalLiteral(upBnd)) => upBound = true; e
       case LessThan(ResultVariable(), RationalLiteral(upBnd)) => upBound = true; e
-      case Noise(ResultVariable(), RationalLiteral(value)) => noise = true; e
+      case Noise(ResultVariable(), _) => noise = true; e
       case _ =>
         super.rec(e, path)
     }

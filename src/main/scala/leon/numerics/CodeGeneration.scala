@@ -11,20 +11,6 @@ import Precision._
 class CodeGeneration(reporter: Reporter, precision: Precision) {
   val specTransformer = new SpecTransformer
 
-
-  val noiseDefSingle = new FunDef(FreshIdentifier("noise"), BooleanType, Seq(VarDecl(FreshIdentifier("x"), Float32Type), VarDecl(FreshIdentifier("errBound"), Float32Type)))
-  noiseDefSingle.body = Some(BooleanLiteral(true))
-
-  val noiseDefDouble = new FunDef(FreshIdentifier("noise"), BooleanType, Seq(VarDecl(FreshIdentifier("x"), Float64Type), VarDecl(FreshIdentifier("errBound"), Float64Type)))
-  noiseDefDouble.body = Some(BooleanLiteral(true))
-
-  val noiseDefDDouble = new FunDef(FreshIdentifier("noise"), BooleanType, Seq(VarDecl(FreshIdentifier("x"), FloatDDType), VarDecl(FreshIdentifier("errBound"), FloatDDType)))
-  noiseDefDDouble.body = Some(BooleanLiteral(true))
-
-  val noiseDefQDouble = new FunDef(FreshIdentifier("noise"), BooleanType, Seq(VarDecl(FreshIdentifier("x"), FloatQDType), VarDecl(FreshIdentifier("errBound"), FloatQDType)))
-  noiseDefQDouble.body = Some(BooleanLiteral(true))
-
-
   def specToCode(programId: Identifier, objectId: Identifier, vcs: Seq[VerificationCondition], specgen: Boolean): Program = {
 
     var defs: Seq[Definition] = Seq.empty
@@ -52,13 +38,6 @@ class CodeGeneration(reporter: Reporter, precision: Precision) {
       defs = defs :+ funDef
     }
     val invariants: Seq[Expr] = Seq.empty
-
-    precision match {
-      case Float32 => defs = defs :+ noiseDefSingle
-      case Float64 => defs = defs :+ noiseDefDouble
-      case DoubleDouble => defs = defs :+ noiseDefDDouble
-      case QuadDouble => defs = defs :+ noiseDefQDouble
-    }
 
     val newProgram = Program(programId, ObjectDef(objectId, defs, invariants))
     newProgram

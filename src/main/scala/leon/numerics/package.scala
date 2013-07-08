@@ -23,6 +23,15 @@ package object numerics {
     case QuadDouble => Rational(new BigInt(new BigInteger("1")), new BigInt(new BigInteger("2")).pow(211))
   }
 
+  val solverPrecisionHigh = Rational.rationalFromReal(1e-16)
+  val solverPrecisionMedium = Rational.rationalFromReal(1e-10)
+  val solverPrecisionLow = Rational.rationalFromReal(1e-5)
+
+  val solverMaxIterHigh = 70
+  val solverMaxIterMedium = 50
+  val solverMaxIterLow = 20
+
+
   // Tests whether this rational can be represented without roundoff errors
   // Since we don't know which precision we may test, returns, for now, true only for integers
   def isExact(r: Rational): Boolean = {
@@ -37,24 +46,12 @@ package object numerics {
     val PostInlining_None = Value("PostInlining_None")
     val FullInlining_None = Value("FullInlining_None")
     val NoFncs_AA = Value("NoFncs_AA")
-    val FullInlining_AACompactOnFnc = Value("FullInlining_AACompactOnFnc")
+    val NoFncs_AAMerging = Value("NoFncs_AAMerging")
     val FullInlining_AA = Value("FullInlining_AA")
-  }
-
-  /*object ApproximationType extends Enumeration {
-    type ApproximationType = Value
-    val Uninterpreted_None = Value("Uninterpreted_None")
-    val NoFncs_AA = Value("NoFncs_AA")
-    val NoFncs_AAPathSensitive = Value("NoFncs_AAPathSensitive")
-    val PostInlining_None = Value("PostInlining_None")
+    val FullInlining_AAMerging = Value("FullInlining_AAMerging")
     val PostInlining_AA = Value("PostInlining_AA")
-    val FullInlining_None = Value("FullInlining_None")
-    val FullInlining_AA = Value("FullInlining_AA")
-    val PostInlining_AAPathSensitive = Value("PostInlining_AAPathSensitive")
-    val FullInlining_AAPathSensitive = Value("FullInlining_AAPathSensitive")
-
-    val NoFncs_PartialAA = Value("NoFncs_PartialAA")
-  }*/
+    val PostInlining_AAMerging = Value("PostInlining_AAMerging")
+  }
 
   object RoundoffType extends Enumeration {
     type RoundoffType = Value
@@ -62,8 +59,6 @@ package object numerics {
     val RoundoffMultiplier = Value("RndoffMultiplier")
     val RoundoffAddition = Value("RndoffAddition")
   }
-
-
 
   object Sat extends Enumeration {
     type Sat = Value
@@ -76,8 +71,7 @@ package object numerics {
     type Valid = Value
     val VALID = Value("VALID")
     val INVALID = Value("INVALID")
-    val NOT_SURE = Value("Not sure")  //computed range may be too large
-    val DUNNO = Value("Unknown")  //Z3 failed or something like that
+    val UNKNOWN = Value("Not sure")
   }
 
 }

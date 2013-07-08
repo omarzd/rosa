@@ -582,9 +582,9 @@ trait Extractors {
       }
     }
 
-    object ExNoise {
-      def unapply(tree: Apply): Option[(Tree, Tree)] = tree match {
-        case Apply(select, List(arg1, arg2)) if (select.toString == "leon.Real.noise") => Some((arg1, arg2))
+    object ExPlusMinus {
+      def unapply(tree: Apply): Option[(Tree,Tree)] = tree match {
+        case Apply(Select(lhs, n), List(rhs)) if (n.toString == "$plus$div$minus") => Some((lhs,rhs))
         case _ => None
       }
     }
@@ -599,6 +599,13 @@ trait Extractors {
     object ExActual {
       def unapply(tree: Apply): Option[Tree] = tree match {
         case Apply(Select(lhs, n), List()) if (n.toString == "unary_$tilde") => Some(lhs)
+        case _=> None
+      }
+    }
+
+    object ExInitialNoise {
+      def unapply(tree: Apply): Option[Tree] = tree match {
+        case Apply(Select(lhs, n), List()) if (n.toString == "unary_$bang") => Some(lhs)
         case _=> None
       }
     }

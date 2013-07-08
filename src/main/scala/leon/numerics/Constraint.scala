@@ -12,6 +12,66 @@ import ApproximationType._
 
 import affine._
 
+
+// An original (unapproximated constraint) derived from somewhere in the program.
+case class Constraint(pre: Expr, body: Expr, post: Expr, description: String, merging: Boolean, z3only: Boolean) {
+  var status: Option[Valid] = None
+  var model: Option[Map[Identifier, Expr]] = None
+  var strategy: String = ""
+
+  def numVariables: Int = variablesOf(pre).size + variablesOf(body).size
+  def size: Int = formulaSize(pre) + formulaSize(body)
+
+  def solved: Boolean = status match {
+    case Some(VALID) => true
+    case Some(INVALID) => false
+    case _ => false
+  }
+
+  lazy val paths = collectPaths(body)
+  var pathsApproximated = false
+
+  val hasFunctionCalls = (containsFunctionCalls(body) || containsFunctionCalls(pre) || containsFunctionCalls(post))
+
+  var approxStrategy = Seq[ApproximationType]()
+
+  if (hasFunctionCalls) {
+    if (z3only) approxStrategy :+= Uninterpreted_None
+    if (merging) approxStrategy :+= PostInlining_AAMerging //FullInlining_AAMerging
+    else approxStrategy :+= PostInlining_AA //FullInlining_AA
+  } else {
+    if (z3only) approxStrategy :+= Uninterpreted_None
+    if (merging) approxStrategy :+= NoFncs_AAMerging
+    else approxStrategy :+= NoFncs_AA
+  }
+
+  def hasNextApproximation = !approxStrategy.isEmpty
+
+  def getNextApproxType: Option[ApproximationType] = {
+    if (approxStrategy.isEmpty) None
+    else {
+      val s = approxStrategy.head
+      approxStrategy = approxStrategy.tail
+      Some(s)
+    }
+  }
+
+  var approximations = Seq[ConstraintApproximation]()
+
+  def overrideStatus(s: Option[Valid]) = {
+    status = s
+  }
+
+  def overrideStatus(s: (Option[Valid], Option[Map[Identifier, Expr]])) = {
+    status = s._1
+    model = s._2
+  }
+
+  override def toString: String = "(%s && %s) ==> %s".format(pre.toString, body.toString, post.toString)
+
+}
+
+
 // ApproximationPath
 case class APath(pathCondition: Expr, idealBody: Expr, idealCnst: Expr, actualBody: Expr, actualCnst: Expr,
   xfloats: Map[Expr, XFloat] = Map.empty) {
@@ -31,76 +91,7 @@ case class ConstraintApproximation(pre: Expr, paths: Set[APath], post: Expr, var
 
   var addInitialVariableConnection = true
   var needEps = true
-
-  //override def toString: String = "APP(%s && %s) ==> %s".format(pre.toString, paths.toString, post.toString)
-  //override def toString: String = tpe.toString
 }
 
-// An original (unapproximated constraint) derived from somewhere in the program.
-case class Constraint(pre: Expr, body: Expr, post: Expr, description: String) {
-  var status: Option[Valid] = None
-  var model: Option[Map[Identifier, Expr]] = None
-  var strategy: String = ""
-
-  def numVariables: Int = variablesOf(pre).size + variablesOf(body).size
-  def size: Int = formulaSize(pre) + formulaSize(body)
-
-  def solved: Boolean = status match {
-    case Some(VALID) => true
-    case Some(INVALID) => false
-    case _ => false
-  }
-
-  lazy val paths = collectPaths(body)
-  var pathsApproximated = false
-
-  val hasFunctionCalls = (containsFunctionCalls(body) || containsFunctionCalls(pre) || containsFunctionCalls(post))
-
-  // TODO: fix this
-  var approxStrategy =
-    if (hasFunctionCalls) {
-      //Seq(Uninterpreted_None) ++
-      //Seq(PostInlining_None, PostInlining_AA, PostInlining_AAPathSensitive, FullInlining_None, FullInlining_AA, FullInlining_AAPathSensitive)
-      //Seq(PostInlining_None, FullInlining_None, FullInlining_AA)
-      //Seq(FullInlining_AA, FullInlining_AACompactOnFnc)
-      Seq(FullInlining_AA)
-    } else {
-      //Seq(Uninterpreted_None) ++
-      //Seq(NoFncs_AA, NoFncs_AAPathSensitive)
-      //Seq(NoFncs_PartialAA)
-      Seq(NoFncs_AA)
-    }
-
-  def hasNextApproximation = !approxStrategy.isEmpty
-
-  def getNextApproxType: Option[ApproximationType] = {
-    if (approxStrategy.isEmpty) None
-    else {
-      val s = approxStrategy.head
-      approxStrategy = approxStrategy.tail
-      Some(s)
-    }
-  }
-
-  var approximations = Seq[ConstraintApproximation]()
-
-  // whether we already ran the AA approximation
-  def approximationForSpec: Option[ConstraintApproximation] = {
-    //approximations.find(a => a.tpe == PostInlining_AA)
-    None
-  }
-
-  def overrideStatus(s: Option[Valid]) = {
-    status = s
-  }
-
-  def overrideStatus(s: (Option[Valid], Option[Map[Identifier, Expr]])) = {
-    status = s._1
-    model = s._2
-  }
-
-  override def toString: String = "(%s && %s) ==> %s".format(pre.toString, body.toString, post.toString)
-
-}
 
 

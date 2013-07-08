@@ -17,6 +17,7 @@ derivation*.dot
 # jars
 unmanaged/64/ceres.jar
 unmanaged/64/scalaz3.jar
+lib-bin/64/libscalaz3.so
 
 #numerics
 generated/

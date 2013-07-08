@@ -270,7 +270,7 @@ class Simulator(reporter: Reporter) {
 
     for((k, rec) <- vars) {
       if (rec.isComplete) {
-        rec.noise match {
+        rec.absNoise match {
           case Some(n) =>
             val interval = RationalInterval(rec.lo.get, rec.up.get)
             variableMap = variableMap + (k -> (interval, n))

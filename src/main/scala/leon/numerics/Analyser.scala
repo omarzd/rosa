@@ -12,7 +12,7 @@ import xlang.Trees._
 
 import affine._
 
-class Analyser(reporter: Reporter) {
+class Analyser(reporter: Reporter, merging: Boolean, z3only: Boolean) {
 
   val verbose = false
   val assertionRemover = new AssertionRemover
@@ -27,12 +27,13 @@ class Analyser(reporter: Reporter) {
 
     var allFncCalls = Set[String]()
     var constraints = List[Constraint]()
+    var specConstraint: Option[Constraint] = None
 
     val (inputVariables, vcPrecondition) = funDef.precondition match {
       case Some(p) =>
         val inputs = getVariableRecords(p)
         if (verbose) reporter.info("inputs: " + inputs)
-        val impliedRndoff = inputs.collect { case (k, Record(_, _, None, None)) =>  Roundoff(k) }
+        val impliedRndoff = inputs.collect { case (k, Record(_, _, None, None, None)) =>  Roundoff(k) }
         allFncCalls ++= functionCallsOf(p).map(invc => invc.funDef.id.toString)
         (inputs, And(p, And(impliedRndoff.toSeq)))
       case None =>
@@ -47,18 +48,21 @@ class Analyser(reporter: Reporter) {
         val postConditions = getInvariantCondition(funDef.body.get)
         val bodyWOLets = convertLetsToEquals(funDef.body.get)
         val body = replace(postConditions.map(p => (p, True)).toMap, bodyWOLets)
-        constraints = constraints :+ Constraint(vcPrecondition, body, Or(postConditions), "wholebody")
+        constraints = constraints :+ Constraint(vcPrecondition, body, Or(postConditions), "wholebody", merging, z3only)
         (bodyWOLets, body)
       // 'Normal' function R^n -> R
       case Some(post) =>
         val body = convertLetsToEquals(addResult(funDef.body.get))
-        constraints = constraints :+ Constraint(vcPrecondition, body, post, "wholeBody")
+        val wholeBodyC = Constraint(vcPrecondition, body, post, "wholeBody", merging, z3only)
+        constraints = constraints :+ wholeBodyC
+        if (vcPrecondition != True) specConstraint = Some(wholeBodyC)
         allFncCalls ++= functionCallsOf(post).map(invc => invc.funDef.id.toString)
         (body, body)
       // Auxiliary function, nothing to prove
       case None =>
         if (funDef.returnType == BooleanType) reporter.warning("Forgotten holds on invariant " + funDef.id + "?")
         val body = convertLetsToEquals(addResult(funDef.body.get))
+        if (vcPrecondition != True) specConstraint = Some(Constraint(vcPrecondition, body, True, "wholebody", merging, z3only))
         (body, body)
     }
 
@@ -74,7 +78,7 @@ class Analyser(reporter: Reporter) {
             path.expression(j) match {
               case Assertion(expr) =>
                 constraints = constraints :+ Constraint(
-                      And(vcPrecondition, path.condition), And(pathToAssert), expr, "assertion")
+                      And(vcPrecondition, path.condition), And(pathToAssert), expr, "assertion", merging, z3only)
               case x =>
                 reporter.warning("This was supposed to be an assertion: " + x)
             }
@@ -83,7 +87,7 @@ class Analyser(reporter: Reporter) {
       }
     }
 
-    constraints = constraints.map(c => Constraint(c.pre, assertionRemover.transform(c.body), c.post, c.description))
+    constraints = constraints.map(c => Constraint(c.pre, assertionRemover.transform(c.body), c.post, c.description, merging, z3only))
 
     if (containsFunctionCalls(bodyProcessed)) {
       val roundoffRemover = new RoundoffRemover
@@ -102,7 +106,7 @@ class Analyser(reporter: Reporter) {
                   val args: Map[Expr, Expr] = fncCall.funDef.args.map(decl => decl.toVariable).zip(fncCall.args).toMap
                   val postcondition = replace(args, roundoffRemover.transform(p))
                   constraints = constraints :+ Constraint(
-                      And(vcPrecondition, path.condition), And(pathToFncCall), postcondition, "pre of call " + fncCall.toString)
+                      And(vcPrecondition, path.condition), And(pathToFncCall), postcondition, "pre of call " + fncCall.toString, merging, z3only)
                 case None => ;
               }
             }
@@ -118,8 +122,7 @@ class Analyser(reporter: Reporter) {
 
     //vc.funcArgs = vc.funDef.args.map(v => Variable(v.id).setType(RealType))
     //vc.localVars = allLetDefinitions(funDef.body.get).map(letDef => Variable(letDef._1).setType(RealType))
-
-    val vc = VerificationCondition(funDef, inputVariables, vcPrecondition, vcBody, allFncCalls, constraints)
+    val vc = VerificationCondition(funDef, inputVariables, vcPrecondition, vcBody, allFncCalls, constraints, specConstraint)
     //println("vc: " + vc)
     vc
   }
@@ -127,7 +130,7 @@ class Analyser(reporter: Reporter) {
   // Has to run before we removed the lets!
   // Basically the first free expression that is not an if or a let is the result
   private def addResult(expr: Expr): Expr = expr match {
-    case IfExpr(cond, then, elze) => IfExpr(cond, addResult(then), addResult(elze))
+    case ifThen @ IfExpr(cond, then, elze) => Equals(ResultVariable(), ifThen)
     case Let(binder, value, body) => Let(binder, value, addResult(body))
     case UMinus(_) | Plus(_, _) | Minus(_, _) | Times(_, _) | Division(_, _) | Sqrt(_) | FunctionInvocation(_, _) | Variable(_) =>
       Equals(ResultVariable(), expr)

@@ -517,11 +517,19 @@ object Trees {
     val fixedType = BooleanType
   }
 
+  case class RelError(expr: Expr, err: Expr) extends Expr with FixedType {
+    val fixedType = BooleanType
+  }  
+
   case class Roundoff(expr: Expr) extends Expr with FixedType {
     val fixedType = BooleanType
   }
 
   case class Actual(expr: Expr) extends Expr with FixedType {
+    val fixedType = RealType
+  }
+
+  case class InitialNoise(expr: Expr) extends Expr with FixedType {
     val fixedType = RealType
   }
 

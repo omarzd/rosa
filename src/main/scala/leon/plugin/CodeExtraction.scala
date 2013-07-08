@@ -925,12 +925,36 @@ trait CodeExtraction extends Extractors {
                 }
               case _ => LessEquals(rl, rr).setType(BooleanType)
             }
-          case ExNoise(t, n) => Noise(rec(t), rec(n)).setType(BooleanType)
+          case ExPlusMinus(t, n) =>
+            val v = rec(t) 
+            v match {
+              case Variable(_) | ResultVariable() =>
+                rec(n) match {
+                  case Times(r @ RationalLiteral(_), vv @ Variable(_)) if (v == vv) =>
+                    RelError(v, r).setType(BooleanType)
+                  case Times(IntLiteral(i), vv @ Variable(_)) if (v == vv) =>
+                    RelError(v, new RationalLiteral(i)).setType(BooleanType)
+                  case x =>
+                    Noise(v, x).setType(BooleanType)
+                }
+              case _ =>
+                unit.error(tree.pos, "uncertainty (+/-) only defined for variables")
+                throw ImpureCodeEncounteredException(tree)
+            }
+            
           case ExRoundoff(ts) => And(ts.map(t => Roundoff(rec(t)).setType(BooleanType)))
           case ExActual(e) =>
             val rTree = rec(e)
             assert(rTree.getType == RealType)
             Actual(rTree).setType(RealType)
+          case ExInitialNoise(e) =>
+            val rTree = rec(e)
+            rTree match {
+              case Variable(_) => InitialNoise(rTree).setType(RealType)
+              case _ =>
+                unit.error(tree.pos, "initial uncertainty (!) only defined for variables")
+                throw ImpureCodeEncounteredException(tree)
+            }
           case ExAssertion(e) => Assertion(rec(e)).setType(BooleanType)
           case ExIn(id, t1, t2) =>
             val v = rec(id)
