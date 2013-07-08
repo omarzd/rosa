@@ -99,7 +99,7 @@ object Utils {
         throw UnsupportedFragmentException(e.toString); e
 
       case RelError(x @ Variable(id), RationalLiteral(value)) =>
-        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).updateRelNoise(value)); e 
+        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).updateRelNoise(value)); e
 
       case Roundoff(x @ Variable(id)) =>
         recordMap += (x -> recordMap.getOrElse(x, emptyRecord).addRndoff); e
@@ -162,7 +162,7 @@ object Utils {
         else Some(lwrBound.get, upBound.get, errorExpr.get)
       } else
         None
-      
+
     }
 
     def getResult(e: Expr): (Option[Rational], Option[Rational], Option[Rational]) = {
@@ -296,7 +296,7 @@ object Utils {
       (seq, kv) => seq :+ Noise(kv._1, RationalLiteral(kv._2.maxError))))
   }
 
-  
+
 
   def constraintFromResults(results: Map[Expr, (RationalInterval, Rational)]): Expr = {
     And(results.foldLeft(Seq[Expr]())(
@@ -328,7 +328,7 @@ object Utils {
         LessEquals(v, RationalLiteral(r.xhi)))
   }
 
- 
+
 
 
   class NoiseRemover extends TransformerWithPC {
@@ -340,12 +340,13 @@ object Utils {
     override def rec(e: Expr, path: C) = e match {
       case Roundoff(_) => True
       case Noise(_, _) => True
+      case RelError(_, _) => True
       case _ =>
         super.rec(e, path)
     }
   }
 
-  
+
   class RoundoffRemover extends TransformerWithPC {
     type C = Seq[Expr]
     val initC = Nil

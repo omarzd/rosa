@@ -210,7 +210,7 @@ class XFloat(val tree: Expr, val approxInterval: RationalInterval, val error: XR
     val newConfig = config.and(y.config)
     val newTree = Minus(this.tree, y.tree)
     val newInterval = this.approxInterval - y.approxInterval
-    
+
     var newError = this.error - y.error
     val newRealRange = getTightInterval(newTree, newInterval, newConfig.getCondition)
     val rndoff = roundoff(newRealRange + newError.interval)

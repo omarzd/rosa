@@ -46,11 +46,15 @@ package object numerics {
     val PostInlining_None = Value("PostInlining_None")
     val FullInlining_None = Value("FullInlining_None")
     val NoFncs_AA = Value("NoFncs_AA")
-    val NoFncs_AAMerging = Value("NoFncs_AAMerging")
+    val NoFncs_AA_Merging = Value("NoFncs_AA_Merging")
+    val NoFncs_AAOnly = Value("NoFncs_AAOnly")
+    val NoFncs_AAOnly_Merging = Value("NoFncs_AAOnly_Merging")
     val FullInlining_AA = Value("FullInlining_AA")
-    val FullInlining_AAMerging = Value("FullInlining_AAMerging")
+    val FullInlining_AAOnly = Value("FullInlining_AAOnly")
+    val FullInlining_AA_Merging = Value("FullInlining_AA_Merging")
+    val FullInlining_AAOnly_Merging = Value("FullInlining_AAOnly_Merging")
     val PostInlining_AA = Value("PostInlining_AA")
-    val PostInlining_AAMerging = Value("PostInlining_AAMerging")
+    val PostInlining_AA_Merging = Value("PostInlining_AA_Merging")
   }
 
   object RoundoffType extends Enumeration {

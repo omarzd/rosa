@@ -33,8 +33,7 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
     (values, indices)
   }
 
-  private def inXFloats(reporter: Reporter, expr: Expr, vars: Map[Expr, XFloat],
-    config: XFloatConfig): (Map[Expr, XFloat], Option[XFloat]) = {
+  private def inXFloats(reporter: Reporter, expr: Expr, vars: Map[Expr, XFloat], config: XFloatConfig): (Map[Expr, XFloat], Option[XFloat]) = {
     expr match {
       case And(args) =>
         var currentVars: Map[Expr, XFloat] = vars
@@ -49,8 +48,7 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
         val thenConfig = config.addCondition(cond)
         val elzeConfig = config.addCondition(negate(cond))
         val (thenMap, thenValue) =
-          if (sanityCheck(thenConfig.getCondition))
-            inXFloats(reporter, then, addConditionToInputs(vars, cond), thenConfig)
+          if (sanityCheck(thenConfig.getCondition)) inXFloats(reporter, then, addConditionToInputs(vars, cond), thenConfig)
           else (vars, None)
         val (elzeMap, elzeValue) =
           if (sanityCheck(elzeConfig.getCondition))
@@ -62,21 +60,44 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
         // When the actual computation goes a different way than the real one
         val (flCond1, reCond1) = getDiffPathsConditions(cond, vars, config)
         val (flCond2, reCond2) = getDiffPathsConditions(negate(cond), vars, config)
-        //println("flCond1: " + flCond1); println("reCond1: " + reCond1); println("flCond2: " + flCond2);  println("reCond2: " + reCond2)
 
-        // TODO: for this we have to set the solver precision high!
-        val pathErrorThen =
-          getPathError(elze, And(flCond1, negate(cond)), then, And(cond, reCond1), vars, config)
+        val pathErrorThen = getPathError(elze, And(flCond1, negate(cond)), then, And(cond, reCond1), vars, config)
         println("pathError1: %.16g".format(pathErrorThen.toDouble))
 
-        val pathErrorElze =
-          getPathError(then, And(flCond2, cond), elze, And(negate(cond), reCond2), vars, config)
+        val pathErrorElze = getPathError(then, And(flCond2, cond), elze, And(negate(cond), reCond2), vars, config)
         println("pathError2: %.16g".format(pathErrorElze.toDouble))
-        // TODO: do we  also have to keep track of the flRange computed? I think so
+        // TODO: do we  also have to keep track of the flRange computed?
 
-        // TODO The merging has to remove the conditions again!
         (vars + (variable -> mergeXFloatWithExtraError(thenValue, elzeValue, config, max(pathErrorThen, pathErrorElze)).get), None)
-      
+
+      case IfExpr(cond, then, elze) =>
+        println("if: " + expr)
+        val thenConfig = config.addCondition(cond)
+        val elzeConfig = config.addCondition(negate(cond))
+
+        val (thenMap, thenValue) =
+          if (sanityCheck(thenConfig.getCondition)) inXFloats(reporter, then, addConditionToInputs(vars, cond), thenConfig)
+          else (vars, None)
+
+        val (elzeMap, elzeValue) =
+          if (sanityCheck(elzeConfig.getCondition)) inXFloats(reporter, elze, addConditionToInputs(vars, negate(cond)), elzeConfig)
+          else (vars, None)
+        assert(!thenValue.isEmpty || !elzeValue.isEmpty)
+        println("thenValue: " + thenValue)
+        println("elseValue: " + elzeValue)
+
+        // When the actual computation goes a different way than the real one
+        val (flCond1, reCond1) = getDiffPathsConditions(cond, vars, config)
+        val (flCond2, reCond2) = getDiffPathsConditions(negate(cond), vars, config)
+        val pathErrorThen = getPathError(elze, And(flCond1, negate(cond)), then, And(cond, reCond1), vars, config)
+        println("pathError1: %.16g".format(pathErrorThen.toDouble))
+
+        val pathErrorElze = getPathError(then, And(flCond2, cond), elze, And(negate(cond), reCond2), vars, config)
+        println("pathError2: %.16g".format(pathErrorElze.toDouble))
+
+
+        (vars, Some(mergeXFloatWithExtraError(thenValue, elzeValue, config, max(pathErrorThen, pathErrorElze)).get))
+
       case Equals(variable, value) =>
         val computedValue = eval(value, vars, config)
         (vars + (variable -> computedValue), None)
@@ -96,32 +117,36 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
   // TODO: this has a bug with function calls
   private def getPathError(flExpr: Expr, flCond: Expr, reExpr: Expr, reCond: Expr, vars: Map[Expr, XFloat],
     config: XFloatConfig): Rational = {
-    //val flCond = And(flCond1, negate(cond))
-    if (sanityCheck(flCond)) {
+    println("flCond: " + flCond)
+    println("config: " + config)
+    //TODO: check this
+    if (sanityCheck(And(config.getCondition, flCond)) && sanityCheck(And(config.getCondition, reCond))) {
       // execution taken by actual computation
       val flConfig = config.addCondition(flCond).updatePrecision(solverMaxIterHigh, solverPrecisionHigh)
+      println("flConfig: " + flConfig)
       val flVars = addConditionToInputsAndRemoveErrors(vars, flCond)
-      //println("fl vars:"); flVars.foreach {f => println(f); println(f._2.config.solverMaxIter)}
+      println("fl vars:"); flVars.foreach {f => println(f); println(f._2.config.solverMaxIter)}
       val (m, floatRange) = inXFloats(reporter, flExpr, flVars, flConfig)
-      //println("floatRange: " + floatRange)
-            
+      println("floatRange: " + floatRange)
+
       val freshMap = getFreshMap(vars.keySet)
       val (freshThen, freshVars) = freshenUp(reExpr, freshMap, vars)
       val reConfig = config.addCondition(reCond).freshenUp(freshMap).updatePrecision(solverMaxIterHigh, solverPrecisionHigh)
       val reVars = addConditionToInputsAndRemoveErrors(freshVars, replace(freshMap, reCond))
-      //println("re vars:"); reVars.foreach {f => println(f); println(f._2.config.getCondition)}
+      println("re vars:"); reVars.foreach {f => println(f); println(f._2.config.getCondition)}
       val (mm, realRange) = inXFloats(reporter, freshThen, reVars, reConfig)
-      //println("realRange: "+ removeErrors(realRange.get))
-      
+      println("realRange: "+ removeErrors(realRange.get))
+
       val diff = (floatRange.get - removeErrors(realRange.get)).interval
       val maxError = max(abs(diff.xlo), abs(diff.xhi))
       maxError
     } else {
+      println("Other path not feasible")
       Rational.zero
     }
   }
 
-  
+
   // Evaluates an arithmetic expression
   private def eval(expr: Expr, vars: Map[Expr, XFloat], config: XFloatConfig): XFloat = {
     val xfloat = expr match {
@@ -323,7 +348,7 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
     And(LessEquals(RationalLiteral(i.xlo), v), LessEquals(v, RationalLiteral(i.xhi)))
   }
 
-  private def sanityCheck(pre: Expr, silent: Boolean = true): Boolean = {
+  private def sanityCheck(pre: Expr, silent: Boolean = false): Boolean = {
     import Sat._
     solver.checkSat(pre) match {
       case (SAT, model) =>
