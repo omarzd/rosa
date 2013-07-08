@@ -154,7 +154,7 @@ class NumericSolver(context: LeonContext, prog: Program) extends UninterpretedZ3
         } else getLowerBound(a, b, exprInZ3, 0)
 
       if (verbose) println("\n============Looking for upperbound")
-
+      //TODO: we could actually start searching from the newLowerBound, no?
       val newUpperBound =
         if (upperBoundIsTight(exprInZ3, b)) {
           countTightRanges += 1
