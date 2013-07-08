@@ -145,12 +145,12 @@ object XFloat {
 class XFloat(val tree: Expr, val approxInterval: RationalInterval, val error: XRationalForm, val config: XFloatConfig) {
   import XFloat._
 
-  def realInterval: RationalInterval = {
+  lazy val realInterval: RationalInterval = {
     getTightInterval(tree, approxInterval, config.getCondition)
   }
-  def interval: RationalInterval = realInterval + error.interval
+  lazy val interval: RationalInterval = realInterval + error.interval
 
-  def maxError: Rational = {
+  lazy val maxError: Rational = {
     val i = error.interval
     max(abs(i.xlo), abs(i.xhi))
   }
