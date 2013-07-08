@@ -150,6 +150,7 @@ class Analyser(reporter: Reporter, merging: Boolean, z3only: Boolean) {
   }
 
   private def convertLetsToEquals(expr: Expr): Expr = expr match {
+    case Equals(l, r) => Equals(l, convertLetsToEquals(r))
     case IfExpr(cond, then, elze) =>
       IfExpr(cond, convertLetsToEquals(then), convertLetsToEquals(elze))
 
