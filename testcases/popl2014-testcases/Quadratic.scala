@@ -24,12 +24,11 @@ object Quadratic {
       b*b - a * c * 4.0 > 0.1)
 
     val discr = b*b - a * c * 4.0
-    if (b > 0) {
-      val q = -(b + sqrt(discr))/2.0
-      q/a
+    if (b*b - a*c > 10 && b > 0) {
+      (2.0 * c)/(-b + sqrt(discr))
     } else {
-      val q = -(b - sqrt(discr))/2.0
-      c/q
+      (-b - sqrt(discr))/(a * 2.0)
+
     }
   } ensuring (res => res +/- 1e-12)
 
@@ -38,12 +37,10 @@ object Quadratic {
       b*b - a * c * 4.0 > 0.1)
 
     val discr = b*b - a * c * 4.0
-    if (b > 0) {
-      val q = -(b + sqrt(discr))/2.0
-      c/q
+    if (b*b - a*c > 10 && b > 0) {
+      (2.0 * c)/(-b - sqrt(discr))
     } else {
-      val q = -(b - sqrt(discr))/2.0
-      q/a
+      (-b + sqrt(discr))/(2.0 * a)
     }
   } ensuring (res => res +/- 1e-12)
 
