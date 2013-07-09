@@ -109,7 +109,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
 
     //var toCheck = ArithmeticOps.totalMakeover(And(And(precondition, body), negate(postcondition) ))
     var toCheck = And(And(precondition, body), negate(postcondition))
-    println("\nTO CHECK:\n" + deltaRemover.transform(toCheck))
+    //println("\nTO CHECK:\n" + deltaRemover.transform(toCheck))
 
     if (reporter.errorCount == 0 && sanityCheck(precondition, false, body))
       solver.checkSat(toCheck) match {
@@ -146,7 +146,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
       var toCheck = ArithmeticOps.totalMakeover(And(And(precondition, body), negate(postcondition)))
 
       //var toCheck = And(And(precondition, body), negate(postcondition))
-      println("\nTO CHECK:\n" + deltaRemover.transform(toCheck))
+      //println("\nTO CHECK:\n" + deltaRemover.transform(toCheck))
       if (reporter.errorCount == 0 && sanityCheck(precondition, false, body))
         solver.checkSat(toCheck) match {
           case (UNSAT, _) => path.status = Some(VALID)
