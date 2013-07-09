@@ -1,8 +1,7 @@
 import leon.Real
 import Real._
-import leon.Utils._
 
-object Triangle {
+object TriangleProgression {
 
   def triangle1(a: Real, b: Real, c: Real): Real = {
     require(a.in(1.0, 9.0) && b.in(1.0, 9.0) && c.in(1.0, 9.0) &&
@@ -12,34 +11,90 @@ object Triangle {
     sqrt(s * (s - a) * (s - b) * (s - c))
   }
 
-  def triangle01(a: Real, b: Real, c: Real): Real = {
+  def triangle2(a: Real, b: Real, c: Real): Real = {
     require(a.in(1.0, 9.0) && b.in(1.0, 9.0) && c.in(1.0, 9.0) &&
-      a + b > c + 0.01 && a + c > b + 0.01 && b + c > a + 0.01)
+      a + b > c + 1e-2 && a + c > b + 1e-2 && b + c > a + 1e-2)
 
     val s = (a + b + c)/2.0
     sqrt(s * (s - a) * (s - b) * (s - c))
   }
 
-  def triangle001(a: Real, b: Real, c: Real): Real = {
+  def triangle3(a: Real, b: Real, c: Real): Real = {
     require(a.in(1.0, 9.0) && b.in(1.0, 9.0) && c.in(1.0, 9.0) &&
-      a + b > c + 0.001 && a + c > b + 0.001 && b + c > a + 0.001)
+      a + b > c + 1e-3 && a + c > b + 1e-3 && b + c > a + 1e-3)
 
     val s = (a + b + c)/2.0
     sqrt(s * (s - a) * (s - b) * (s - c))
   }
 
 
-  def triangle0001(a: Real, b: Real, c: Real): Real = {
+  def triangle4(a: Real, b: Real, c: Real): Real = {
     require(a.in(1.0, 9.0) && b.in(1.0, 9.0) && c.in(1.0, 9.0) &&
-      a + b > c + 0.0001 && a + c > b + 0.0001 && b + c > a + 0.0001)
+      a + b > c + 1e-4 && a + c > b + 1e-4 && b + c > a + 1e-4)
 
     val s = (a + b + c)/2.0
     sqrt(s * (s - a) * (s - b) * (s - c))
   }
 
-  def triangle00001(a: Real, b: Real, c: Real): Real = {
+  def triangle5(a: Real, b: Real, c: Real): Real = {
     require(a.in(1.0, 9.0) && b.in(1.0, 9.0) && c.in(1.0, 9.0) &&
-      a + b > c + 0.00001 && a + c > b + 0.00001 && b + c > a + 0.00001)
+      a + b > c + 1e-5 && a + c > b + 1e-5 && b + c > a + 1e-5)
+
+    val s = (a + b + c)/2.0
+    sqrt(s * (s - a) * (s - b) * (s - c))
+  }
+
+  def triangle6(a: Real, b: Real, c: Real): Real = {
+    require(a.in(1.0, 9.0) && b.in(1.0, 9.0) && c.in(1.0, 9.0) &&
+      a + b > c + 1e-6 && a + c > b + 1e-6 && b + c > a + 1e-6)
+
+    val s = (a + b + c)/2.0
+    sqrt(s * (s - a) * (s - b) * (s - c))
+  }
+
+  def triangle7(a: Real, b: Real, c: Real): Real = {
+    require(a.in(1.0, 9.0) && b.in(1.0, 9.0) && c.in(1.0, 9.0) &&
+      a + b > c + 1e-7 && a + c > b + 1e-7 && b + c > a + 1e-7)
+
+    val s = (a + b + c)/2.0
+    sqrt(s * (s - a) * (s - b) * (s - c))
+  }
+
+  def triangle8(a: Real, b: Real, c: Real): Real = {
+    require(a.in(1.0, 9.0) && b.in(1.0, 9.0) && c.in(1.0, 9.0) &&
+      a + b > c + 1e-8 && a + c > b + 1e-8 && b + c > a + 1e-8)
+
+    val s = (a + b + c)/2.0
+    sqrt(s * (s - a) * (s - b) * (s - c))
+  }
+
+  def triangle9(a: Real, b: Real, c: Real): Real = {
+    require(a.in(1.0, 9.0) && b.in(1.0, 9.0) && c.in(1.0, 9.0) &&
+      a + b > c + 1e-9 && a + c > b + 1e-9 && b + c > a + 1e-9)
+
+    val s = (a + b + c)/2.0
+    sqrt(s * (s - a) * (s - b) * (s - c))
+  }
+
+  def triangle10(a: Real, b: Real, c: Real): Real = {
+    require(a.in(1.0, 9.0) && b.in(1.0, 9.0) && c.in(1.0, 9.0) &&
+      a + b > c + 1e-10 && a + c > b + 1e-10 && b + c > a + 1e-10)
+
+    val s = (a + b + c)/2.0
+    sqrt(s * (s - a) * (s - b) * (s - c))
+  }
+
+  def triangle11(a: Real, b: Real, c: Real): Real = {
+    require(a.in(1.0, 9.0) && b.in(1.0, 9.0) && c.in(1.0, 9.0) &&
+      a + b > c + 1e-11 && a + c > b + 1e-11 && b + c > a + 1e-11)
+
+    val s = (a + b + c)/2.0
+    sqrt(s * (s - a) * (s - b) * (s - c))
+  }
+
+  def triangle12(a: Real, b: Real, c: Real): Real = {
+    require(a.in(1.0, 9.0) && b.in(1.0, 9.0) && c.in(1.0, 9.0) &&
+      a + b > c + 1e-12 && a + c > b + 1e-12 && b + c > a + 1e-12)
 
     val s = (a + b + c)/2.0
     sqrt(s * (s - a) * (s - b) * (s - c))

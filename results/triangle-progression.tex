@@ -1,0 +1,128 @@
+edarulov@larapc02:~/repos/leon$ ./leon --numerics --precision=double testcases/popl2014-testcases/TriangleProgression.scala 
+[ Info  ] Running Certification phase
+[ Info  ] Z3 version: Z3 4.3 (build 2, rev. 0)
+precisionsToTry: List(Float64)
+[ Info  ] *** Verification with precision: Float64 ***
+[ Info  ] 
+[ Info  ] ----------> checking VC of triangle9
+[ Info  ] Now computing the postcondition.
+[ Info  ] STAAATS: timeouts: 13, tight: 24, hit precision: 12, hit iteration: 0
+((3.051757813210542E-5 ≤ #res) ∧ (#res ≤ 35.07403446097323) ∧ noise(#res,2.6172603518727403E-7) ∧ (1.5 ≤ s) ∧ (s ≤ 13.5) ∧ noise(s,5.4956039942284014E-15))
+[ Info  ] Generated post: Some(true)
+[ Info  ] 
+[ Info  ] ----------> checking VC of triangle8
+[ Info  ] Now computing the postcondition.
+[ Info  ] STAAATS: timeouts: 12, tight: 24, hit precision: 12, hit iteration: 0
+((9.888825530878868E-5 ≤ #res) ∧ (#res ≤ 35.07403446097323) ∧ noise(#res,8.077041069471979E-8) ∧ (1.5 ≤ s) ∧ (s ≤ 13.5) ∧ noise(s,5.4956039942284014E-15))
+[ Info  ] Generated post: Some(true)
+[ Info  ] 
+[ Info  ] ----------> checking VC of triangle7
+[ Info  ] Now computing the postcondition.
+[ Info  ] STAAATS: timeouts: 12, tight: 24, hit precision: 12, hit iteration: 0
+((3.15676282812409E-4 ≤ #res) ∧ (#res ≤ 35.07403446097323) ∧ noise(#res,2.5302014349187842E-8) ∧ (1.5 ≤ s) ∧ (s ≤ 13.5) ∧ noise(s,5.4956039942284014E-15))
+[ Info  ] Generated post: Some(true)
+[ Info  ] 
+[ Info  ] ----------> checking VC of triangle6
+[ Info  ] Now computing the postcondition.
+[ Info  ] STAAATS: timeouts: 12, tight: 24, hit precision: 12, hit iteration: 0
+((1.5 ≤ s) ∧ (s ≤ 13.5) ∧ noise(s,5.4956039942284014E-15) ∧ (9.99887385816659E-4 ≤ #res) ∧ (#res ≤ 35.07403446097323) ∧ noise(#res,7.988148071205468E-9))
+[ Info  ] Generated post: Some(true)
+[ Info  ] 
+[ Info  ] ----------> checking VC of triangle5
+[ Info  ] Now computing the postcondition.
+[ Info  ] STAAATS: timeouts: 13, tight: 24, hit precision: 12, hit iteration: 0
+((0.0031622160723617262 ≤ #res) ∧ (#res ≤ 35.07403446097323) ∧ noise(#res,2.5258415733614037E-9) ∧ (1.5 ≤ s) ∧ (s ≤ 13.5) ∧ noise(s,5.4956039942284014E-15))
+[ Info  ] Generated post: Some(true)
+[ Info  ] 
+[ Info  ] ----------> checking VC of triangle4
+[ Info  ] Now computing the postcondition.
+[ Info  ] STAAATS: timeouts: 12, tight: 24, hit precision: 12, hit iteration: 0
+((0.009999362845629979 ≤ #res) ∧ (#res ≤ 35.07403446097323) ∧ noise(#res,7.987791458813445E-10) ∧ (1.5 ≤ s) ∧ (s ≤ 13.5) ∧ noise(s,5.4956039942284014E-15))
+[ Info  ] Generated post: Some(true)
+[ Info  ] 
+[ Info  ] ----------> checking VC of triangle3
+[ Info  ] Now computing the postcondition.
+[ Info  ] STAAATS: timeouts: 12, tight: 24, hit precision: 12, hit iteration: 0
+((0.031603011398958776 ≤ #res) ∧ (#res ≤ 35.07403446097323) ∧ noise(#res,2.527403871740527E-10) ∧ (1.5 ≤ s) ∧ (s ≤ 13.5) ∧ noise(s,5.4956039942284014E-15))
+[ Info  ] Generated post: Some(true)
+[ Info  ] 
+[ Info  ] ----------> checking VC of triangle2
+[ Info  ] Now computing the postcondition.
+[ Info  ] STAAATS: timeouts: 12, tight: 24, hit precision: 12, hit iteration: 0
+((0.09937554619886503 ≤ #res) ∧ (#res ≤ 35.07403446097323) ∧ noise(#res,8.03772017022626E-11) ∧ (1.5 ≤ s) ∧ (s ≤ 13.5) ∧ noise(s,5.4956039942284014E-15))
+[ Info  ] Generated post: Some(true)
+[ Info  ] 
+[ Info  ] ----------> checking VC of triangle12
+[ Info  ] Now computing the postcondition.
+[Warning] Potential square root of a negative number for: ((((((a + b) + c) / 2.0) * ((((a + b) + c) / 2.0) - a)) * ((((a + b) + c) / 2.0) - b)) * ((((a + b) + c) / 2.0) - c)),
+          with precondition ((1.0 < a) ∧ (a < 9.0) ∧ (1.0 < b) ∧ (b < 9.0) ∧ (1.0 < c) ∧ (c < 9.0) ∧ ((a + b) > (c + 1.0E-12)) ∧ ((a + c) > (b + 1.0E-12)) ∧ ((b + c) > (a + 1.0E-12)))
+[Warning] interval: [-1.597448921841347e-11, 1230.187500000041]
+[Warning] Exception: java.lang.Exception: Zero denominator is not allowed.
+[Warning] [Ljava.lang.StackTraceElement;@6d14693f
+[ Info  ] Generated post: Some(true)
+[ Info  ] 
+[ Info  ] ----------> checking VC of triangle11
+[ Info  ] Now computing the postcondition.
+[Warning] Potential square root of a negative number for: ((((((a + b) + c) / 2.0) * ((((a + b) + c) / 2.0) - a)) * ((((a + b) + c) / 2.0) - b)) * ((((a + b) + c) / 2.0) - c)),
+          with precondition ((1.0 < a) ∧ (a < 9.0) ∧ (1.0 < b) ∧ (b < 9.0) ∧ (1.0 < c) ∧ (c < 9.0) ∧ ((a + b) > (c + 1.0E-11)) ∧ ((a + c) > (b + 1.0E-11)) ∧ ((b + c) > (a + 1.0E-11)))
+[Warning] interval: [-1.597448921841347e-11, 1230.187500000041]
+[Warning] Exception: java.lang.Exception: Zero denominator is not allowed.
+[Warning] [Ljava.lang.StackTraceElement;@3bdac141
+[ Info  ] Generated post: Some(true)
+[ Info  ] 
+[ Info  ] ----------> checking VC of triangle10
+[ Info  ] Now computing the postcondition.
+[Warning] Potential square root of a negative number for: ((((((a + b) + c) / 2.0) * ((((a + b) + c) / 2.0) - a)) * ((((a + b) + c) / 2.0) - b)) * ((((a + b) + c) / 2.0) - c)),
+          with precondition ((1.0 < a) ∧ (a < 9.0) ∧ (1.0 < b) ∧ (b < 9.0) ∧ (1.0 < c) ∧ (c < 9.0) ∧ ((a + b) > (c + 1.0E-10)) ∧ ((a + c) > (b + 1.0E-10)) ∧ ((b + c) > (a + 1.0E-10)))
+[Warning] interval: [-1.597448921841347e-11, 1230.187500000041]
+[Warning] Exception: java.lang.Exception: Zero denominator is not allowed.
+[Warning] [Ljava.lang.StackTraceElement;@4317343f
+[ Info  ] Generated post: Some(true)
+[ Info  ] 
+[ Info  ] ----------> checking VC of triangle1
+[ Info  ] Now computing the postcondition.
+[ Info  ] STAAATS: timeouts: 14, tight: 23, hit precision: 11, hit iteration: 0
+((0.2943205846569768 ≤ #res) ∧ (#res ≤ 35.07403446097323) ∧ noise(#res,2.7138322517649915E-11) ∧ (1.5 ≤ s) ∧ (s ≤ 13.5) ∧ noise(s,5.4956039942284014E-15))
+[ Info  ] Generated post: Some(true)
+[ Info  ] *** Verification with precision Float64 succeeded: true ***
+[ Info  ] Generated program with 109 lines.
+[ Info  ] . ┌─────────┐
+          ╔═╡ Summary ╞═══════════════════════════════════════════════════════════════════════╗
+          ║ └─────────┘                                                                       ║
+          ║ triangle1                       -- ms     26739ms                                 ║
+          
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ triangle10                      -- ms     8261ms                                  ║
+          
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ triangle11                      -- ms     7794ms                                  ║
+          
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ triangle12                      -- ms     8045ms                                  ║
+          
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ triangle2                       -- ms     33944ms                                 ║
+          
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ triangle3                       -- ms     32238ms                                 ║
+          
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ triangle4                       -- ms     30394ms                                 ║
+          
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ triangle5                       -- ms     28806ms                                 ║
+          
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ triangle6                       -- ms     25329ms                                 ║
+          
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ triangle7                       -- ms     25196ms                                 ║
+          
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ triangle8                       -- ms     24149ms                                 ║
+          
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ║ triangle9                       -- ms     24288ms                                 ║
+          
+          ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+          ╚═══════════════════════════════════════════════════════════════════════════════════╝

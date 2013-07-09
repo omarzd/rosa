@@ -225,18 +225,25 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
        With APPROXIMATION
     * ******************* */
     case NoFncs_AA_Merging =>
-      val body = c.body
-      val filteredPrecondition = filterPreconditionForBoundsIteration(c.pre)
-      //println("body: " + body)
-      val (xfloats, indices) = xevaluator.evaluate(body, filteredPrecondition, inputs)
-      //println("xfloats: " + xfloats)
-      // TODO: fix the body
-      val apaths = Set(APath(True, True, True, True, constraintFromXFloats(xfloats), xfloats))
-      println(constraintFromXFloats(xfloats))
-      val cApprox = ConstraintApproximation(c.pre, apaths, c.post, Set.empty, tpe)
-      cApprox.needEps = false
-      cApprox.addInitialVariableConnection = false
-      Some(cApprox)
+      try {
+        val body = c.body
+        val filteredPrecondition = filterPreconditionForBoundsIteration(c.pre)
+        //println("body: " + body)
+        val (xfloats, indices) = xevaluator.evaluate(body, filteredPrecondition, inputs)
+        //println("xfloats: " + xfloats)
+        // TODO: fix the body
+        val apaths = Set(APath(True, True, body, True, constraintFromXFloats(xfloats), xfloats))
+        println(constraintFromXFloats(xfloats))
+        val cApprox = ConstraintApproximation(c.pre, apaths, c.post, Set.empty, tpe)
+        cApprox.needEps = false
+        cApprox.addInitialVariableConnection = false
+        Some(cApprox)
+      }  catch {
+        case x =>
+          reporter.warning("Exception: " + x)
+          reporter.warning(x.getStackTrace)
+      }
+      None
 
     // Fallback
     case NoFncs_AAOnly_Merging =>
@@ -291,7 +298,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
         }
       } catch {
         case x =>
-          reporter.warning("NoFncs_AA throws: " + x)
+          reporter.warning("Exception: " + x)
           reporter.warning(x.getStackTrace)
       }
       None
@@ -314,15 +321,22 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
 
 
     case FullInlining_AA_Merging =>
-      val (newPre, newBody, newPost, vars) = fullInliner.inlineFunctions(c.pre, c.body, c.post)
-      val filteredPrecondition = filterPreconditionForBoundsIteration(newPre)
-      val (xfloats, indices) = xevaluator.evaluate(newBody, filteredPrecondition, inputs)
+      try {
+        val (newPre, newBody, newPost, vars) = fullInliner.inlineFunctions(c.pre, c.body, c.post)
+        val filteredPrecondition = filterPreconditionForBoundsIteration(newPre)
+        val (xfloats, indices) = xevaluator.evaluate(newBody, filteredPrecondition, inputs)
 
-      val apaths = Set(APath(True, newBody, True, True, noiseConstraintFromXFloats(xfloats), xfloats))
-      val cApprox = ConstraintApproximation(newPre, apaths, newPost, vars, tpe)
-      cApprox.needEps = false
-      cApprox.addInitialVariableConnection = false
-      Some(cApprox)
+        val apaths = Set(APath(True, newBody, True, True, noiseConstraintFromXFloats(xfloats), xfloats))
+        val cApprox = ConstraintApproximation(newPre, apaths, newPost, vars, tpe)
+        cApprox.needEps = false
+        cApprox.addInitialVariableConnection = false
+        Some(cApprox)
+      } catch {
+        case x =>
+          reporter.warning("Exception: " + x)
+          reporter.warning(x.getStackTrace)
+      }
+      None
 
     case FullInlining_AAOnly_Merging =>
       findApproximation(c, inputs, FullInlining_AA_Merging) match {
@@ -338,7 +352,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
 
 
     case FullInlining_AA =>
-      //try {
+      try {
         val (newPre, newBody, newPost, vars) = fullInliner.inlineFunctions(c.pre, c.body, c.post)
 
         val paths = collectPaths(newBody)
@@ -370,11 +384,14 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
           cApprox.addInitialVariableConnection = false
           return Some(cApprox)
         } else {
-
           None
         }
-      //} catch { case _ => ;}
-      //None
+      } catch {
+        case x =>
+          reporter.warning("Exception: " + x)
+          reporter.warning(x.getStackTrace)
+      }
+      None
 
     case FullInlining_AAOnly =>
       findApproximation(c, inputs, FullInlining_AA) match {

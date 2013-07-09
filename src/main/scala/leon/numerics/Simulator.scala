@@ -187,6 +187,10 @@ class Simulator(reporter: Reporter) {
       val (rhsDbl, rhsRat) = eval(rhs, vars)
       (lhsDbl / rhsDbl, lhsRat / rhsRat)
 
+    case Sqrt(e) =>
+      val (eDbl, eRat) = eval(e, vars)
+      (math.sqrt(eDbl), Rational(math.sqrt(eRat.toDouble)))
+
     case _ =>
       throw UnsupportedFragmentException("Can't handle: " + tree.getClass)
       (Double.NaN, Rational(0))
