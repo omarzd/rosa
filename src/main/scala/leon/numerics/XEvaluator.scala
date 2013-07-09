@@ -15,7 +15,8 @@ import RoundoffType._
 import Precision._
 import VariableShop._
 
-class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision, vcMap: Map[FunDef, VerificationCondition]) {
+class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision, vcMap: Map[FunDef, VerificationCondition],
+  checkPathError: Boolean = false) {
   val printStats = true
   val unitRoundoff = getUnitRoundoff(precision)
   val unitRoundoffDefault = getUnitRoundoff(Float64)
@@ -44,7 +45,7 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
           currentVars = map
           (currentVars, lastXf)
         }
-        (currentVars, None)
+        (currentVars, lastXf)
 
       case Equals(variable, value) =>
         val (map, computedValue) = inXFloats(reporter, value, vars, config)
@@ -62,22 +63,22 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
             inXFloats(reporter, elze, addConditionToInputs(vars, negate(cond)), elzeConfig)
           else (vars, None)
         assert(!thenValue.isEmpty || !elzeValue.isEmpty)
-        println("thenValue: " + thenValue)
-        println("elseValue: " + elzeValue)
-        // When the actual computation goes a different way than the real one
-        /*val (flCond1, reCond1) = getDiffPathsConditions(cond, vars, config)
-        val (flCond2, reCond2) = getDiffPathsConditions(negate(cond), vars, config)
+        
+        val pathError = if (checkPathError) {
+          // When the actual computation goes a different way than the real one
+          val (flCond1, reCond1) = getDiffPathsConditions(cond, vars, config)
+          val (flCond2, reCond2) = getDiffPathsConditions(negate(cond), vars, config)
 
-        val pathErrorThen = getPathError(elze, And(flCond1, negate(cond)), then, And(cond, reCond1), vars, config)
-        println("pathError1: %.16g".format(pathErrorThen.toDouble))
+          val pathErrorThen = getPathError(elze, And(flCond1, negate(cond)), then, And(cond, reCond1), vars, config)
+          println("pathError1: %.16g".format(pathErrorThen.toDouble))
 
-        val pathErrorElze = getPathError(then, And(flCond2, cond), elze, And(negate(cond), reCond2), vars, config)
-        println("pathError2: %.16g".format(pathErrorElze.toDouble))
-        // TODO: do we  also have to keep track of the flRange computed?
-        */
-        val pathErrorThen = zero
-        val pathErrorElze = zero
-        (vars, Some(mergeXFloatWithExtraError(thenValue, elzeValue, config, max(pathErrorThen, pathErrorElze)).get))     
+          val pathErrorElze = getPathError(then, And(flCond2, cond), elze, And(negate(cond), reCond2), vars, config)
+          println("pathError2: %.16g".format(pathErrorElze.toDouble))
+          max(pathErrorThen, pathErrorElze)
+        } else {
+          zero
+        }
+        (vars, Some(mergeXFloatWithExtraError(thenValue, elzeValue, config, pathError)).get)     
 
       case Variable(_) | RationalLiteral(_) | IntLiteral(_) | UMinus(_) | Plus(_, _) | Minus(_, _) | Times(_, _) |
         Division(_, _) | Sqrt(_) | FunctionInvocation(_, _) =>
@@ -94,27 +95,59 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
   // TODO: this has a bug with function calls
   private def getPathError(flExpr: Expr, flCond: Expr, reExpr: Expr, reCond: Expr, vars: Map[Expr, XFloat],
     config: XFloatConfig): Rational = {
-    println("flCond: " + flCond)
-    println("config: " + config)
+    //println("flCond: " + flCond)
+    //println("config: " + config)
     //TODO: check this
     if (sanityCheck(And(config.getCondition, flCond)) && sanityCheck(And(config.getCondition, reCond))) {
       // execution taken by actual computation
       val flConfig = config.addCondition(flCond).updatePrecision(solverMaxIterHigh, solverPrecisionHigh)
-      println("flConfig: " + flConfig)
+      println("flConfig: " + flConfig.getCondition)
+      println("flExpr: " + flExpr)
       val flVars = addConditionToInputsAndRemoveErrors(vars, flCond)
-      println("fl vars:"); flVars.foreach {f => println(f); println(f._2.config.solverMaxIter)}
+      //println("fl vars:"); flVars.foreach {f => println(f); println(f._2.config.solverMaxIter)}
+      solver.clearCounts
       val (m, floatRange) = inXFloats(reporter, flExpr, flVars, flConfig)
+      reporter.info("STATS for floatRange: " + solver.getCounts)
       println("floatRange: " + floatRange)
+
+
+      
 
       val freshMap = getFreshMap(vars.keySet)
       val (freshThen, freshVars) = freshenUp(reExpr, freshMap, vars)
       val reConfig = config.addCondition(reCond).freshenUp(freshMap).updatePrecision(solverMaxIterHigh, solverPrecisionHigh)
       val reVars = addConditionToInputsAndRemoveErrors(freshVars, replace(freshMap, reCond))
-      println("re vars:"); reVars.foreach {f => println(f); println(f._2.config.getCondition)}
+      //println("re vars:"); reVars.foreach {f => println(f._1 + "  " + f._2.config.getCondition)}
+      solver.clearCounts
       val (mm, realRange) = inXFloats(reporter, freshThen, reVars, reConfig)
+      reporter.info("STATS for realRange: " + solver.getCounts)
       println("realRange: "+ removeErrors(realRange.get))
+      println("realRange cond: " + realRange.get.config.getCondition)
 
-      val diff = (floatRange.get - removeErrors(realRange.get)).interval
+      val correlation = vars.map {
+        case (k, xf) =>
+          val freshErrorVar = getNewErrorVar
+          And(Seq(Equals(freshMap(k), Plus(k, freshErrorVar)),
+          LessEquals(RationalLiteral(-xf.maxError), freshErrorVar),
+          LessEquals(freshErrorVar, RationalLiteral(xf.maxError))))
+        }
+        println("\ncorrelation cond:  " + And(correlation.toSeq))
+      
+      val xfc = realRange.get.config
+      //val newConfig = xfc
+      val newConfig = xfc.addCondition(And(correlation.toSeq)) 
+        //new XFloatConfig(xfc.reporter, xfc.solver, BooleanLiteral(true), xfc.precision, xfc.machineEps, xfc.solverMaxIter,
+        //xfc.solverPrecision, xfc.additionalConstraints ++ correlation.toSeq)
+
+      val realRangeWithCorrelation = new XFloat(realRange.get.tree, realRange.get.approxInterval,
+        realRange.get.error, newConfig)
+      println("\n" + realRangeWithCorrelation.config.getCondition)
+
+
+      solver.clearCounts
+      val diff = (floatRange.get - removeErrors(realRangeWithCorrelation)).interval
+      reporter.info("STATS for diff: " + solver.getCounts)
+
       val maxError = max(abs(diff.xlo), abs(diff.xhi))
       maxError
     } else {

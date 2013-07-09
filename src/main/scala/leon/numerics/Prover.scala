@@ -69,13 +69,13 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
 
     reporter.info("Now computing the postcondition.")
     //try {
-      /*vc.specConstraint match {
+      vc.specConstraint match {
         case Some(sC) =>
           vc.generatedPost = Some(getPost(sC, vc.inputs))
           reporter.info("Generated post: " + vc.generatedPost)
         case None =>
           reporter.info("Skipping spec gen on this one")
-      }*/
+      }
     //} catch {case _=> ;}
 
     val totalTime = (System.currentTimeMillis - start)
@@ -144,6 +144,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
           else And(idealPart, actualPart)
 
       var toCheck = ArithmeticOps.totalMakeover(And(And(precondition, body), negate(postcondition)))
+
       //var toCheck = And(And(precondition, body), negate(postcondition))
       println("\nTO CHECK:\n" + deltaRemover.transform(toCheck))
       if (reporter.errorCount == 0 && sanityCheck(precondition, false, body))
@@ -226,11 +227,12 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
     case NoFncs_AA_Merging =>
       val body = c.body
       val filteredPrecondition = filterPreconditionForBoundsIteration(c.pre)
-      println("body: " + body)
+      //println("body: " + body)
       val (xfloats, indices) = xevaluator.evaluate(body, filteredPrecondition, inputs)
-      println("xfloats: " + xfloats)
+      //println("xfloats: " + xfloats)
       // TODO: fix the body
       val apaths = Set(APath(True, True, True, True, constraintFromXFloats(xfloats), xfloats))
+      println(constraintFromXFloats(xfloats))
       val cApprox = ConstraintApproximation(c.pre, apaths, c.post, Set.empty, tpe)
       cApprox.needEps = false
       cApprox.addInitialVariableConnection = false
@@ -253,14 +255,22 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
       try {
         val paths = c.paths
         val filteredPrecondition = filterPreconditionForBoundsIteration(c.pre)
+        
         val apaths = paths.collect {
           case path: Path if (sanityCheck(And(path.condition, filteredPrecondition), false)) =>
             val fullPathCondition = And(path.condition, filteredPrecondition)
 
+            //println("fullPathCondition: " + fullPathCondition)
+            val eps2 = Variable(FreshIdentifier("#eps2")).setType(RealType)
+            val boundsConverter = new BoundsConverter(eps2, eps2)
+            val newPathCond = boundsConverter.transform(fullPathCondition)
+            //println("\n new cond: " + newPre)
+
             val (resConstraint, xfloatMap) =
               if(And(path.expression) == True) { (True, Map[Expr, XFloat]()) }
               else {
-                val (xfloats, indices) = xevaluator.evaluate(And(path.expression), fullPathCondition, inputs)
+                val (xfloats, indices) = xevaluator.evaluate(And(path.expression), newPathCond, inputs)
+                println(noiseConstraintFromXFloats(xfloats))
                 (noiseConstraintFromXFloats(xfloats), xfloats)
                 // TODO: can we find out when we don't need the full constraint, only for res?
                 // Like when it's an invariant we need full, else only res?

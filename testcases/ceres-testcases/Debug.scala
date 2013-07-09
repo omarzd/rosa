@@ -8,17 +8,28 @@ import leon.Utils._
 
 object Debug {
 
-  def triangleStable(a: Real, b: Real, c: Real): Real = {
-    require(1.0 <= a && a <= 9.0 && 4.0 <= b && b <= 4.0 && 5.0 <= c && c <= 5.0 &&
+  def test(x: Real, y: Real): Real = {
+    require(x.in(-5.0, 5.0) && x +/- 1e-10 && y.in(-5.0, 5.0) && y +/- 1e-12)
+    val res = if(x < 0) {
+        x*y
+      } else {
+        2*x + y
+      }
+    res
+  } ensuring(res => res +/- 1e-8)
+
+  /*def triangleStable(a: Real, b: Real, c: Real): Real = {
+    require(1.0 <= a && a <= 9.0 && 4.0 <= b && b <= 4.0 && 5.0 <= c && c <= 6.0 &&
       a + b > c + 0.1 && a + c > b + 0.1 && b + c > a + 0.1 && a < c && b < c)
 
     if (a < b) { // a < b < c
-      ((c+(b+a)) * (a-(c-b)) * (a+(c-b)) * (c+(b-a))) / 4.0
+      sqrt((c+(b+a)) * (a-(c-b)) * (a+(c-b)) * (c+(b-a))) / 4.0
     } else {
       val s = ((a + b + c)/2.0)
-      (s * (s - a) * (s - b) * (s - c))
+      sqrt(s * (s - a) * (s - b) * (s - c))
     }
   } ensuring (res => res +/- 1e-10)
+  */
 
   /*def triangleStable(a: Real, b: Real, c: Real): Real = {
     require(1.0 <= a && a <= 9.0 && 1.0 <= b && b <= 9.0 && 1.0 <= c && c <= 9.0 &&

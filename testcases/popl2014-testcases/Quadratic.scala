@@ -28,7 +28,6 @@ object Quadratic {
       (2.0 * c)/(-b + sqrt(discr))
     } else {
       (-b - sqrt(discr))/(a * 2.0)
-
     }
   } ensuring (res => res +/- 1e-12)
 

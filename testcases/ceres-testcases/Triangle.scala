@@ -28,10 +28,10 @@ object Triangle {
       }
     }
     else if(c < b) {
-      if (a < c) sqrt(b+(c+a)) * (a-(b-c)) * (a+(b-c)) * (b+(c-a)) / 4.0  // a < c < b
-      else sqrt(b+(a+c)) * (c-(b-a)) * (c+(b-a)) * (b+(a-c)) / 4.0  // c < a < b
+      if (a < c) sqrt((b+(c+a)) * (a-(b-c)) * (a+(b-c)) * (b+(c-a))) / 4.0  // a < c < b
+      else sqrt((b+(a+c)) * (c-(b-a)) * (c+(b-a)) * (b+(a-c))) / 4.0  // c < a < b
     } else { 
-      sqrt(c+(b+a)) * (a-(c-b)) * (a+(c-b)) * (c+(b-a)) / 4.0  // a < b < c
+      sqrt((c+(b+a)) * (a-(c-b)) * (a+(c-b)) * (c+(b-a))) / 4.0  // a < b < c
     }
   } ensuring (res => noise(res, 1e-13))
   

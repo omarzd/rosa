@@ -8,54 +8,46 @@ object Triangle {
   // a=9.0, b= SmartFloat(4.8, 0.09), c= SmartFloat(4.8, 0.09)
   def triangleUnstable(a: Real, b: Real, c: Real): Real = {
     require(a.in(1.0, 9.0) && b.in(1.0, 9.0) && c.in(1.0, 9.0) &&
-      a + b > c + 0.1 && a + c > b + 0.1 && b + c > a + 0.1)
+      a + b > c + 0.1 && a + c > b + 0.0001 && b + c > a + 0.1)
 
     val s = (a + b + c)/2.0
     sqrt(s * (s - a) * (s - b) * (s - c))
-  } ensuring (res => res +/- 1e-10)
+  } ensuring (res => 0.0 <= ~res && ~res <= 35.1 && res +/- 8e-10)
 
-
-  def triangleStable(a: Real, b: Real, c: Real): Real = {
+  def triangleSorted(a: Real, b: Real, c: Real): Real = {
     require(a.in(1.0, 9.0) && b.in(1.0, 9.0) && c.in(1.0, 9.0) &&
-      a + b > c + 0.1 && a + c > b + 0.1 && b + c > a + 0.1)
+      a + b > c + 0.1 && a + c > b + 0.0001 && b + c > a + 0.1 &&
+      a < c && b < c)
 
-    // for a >= b >= c  c <= b <= a, (a+(b+c)) * (c-(a-b)) * (c+(a-b)) * (a+(b-c))
-    val discr = if(b < a) {
-      if(c < b) ((a+(b+c)) * (c-(a-b)) * (c+(a-b)) * (a+(b-c))) / 4.0 //c < b < a
-      else {
-        if(c < a) ((a+(c+b)) * (b-(a-c)) * (b+(a-c)) * (a+(c-b))) / 4.0 // b < c < a
-        else ((c+(a+b)) * (b-(c-a)) * (b+(c-a)) * (c+(a-b))) / 4.0  // b < a < c
+    val discr =
+      if (a < b) {
+        (c+(b+a)) * (a-(c-b)) * (a+(c-b)) * (c+(b-a))
+      } else {
+        (c+(a+b)) * (b-(c-a)) * (b+(c-a)) * (c+(a-b))      
       }
-    }
-    else if(c < b) {
-      if (a < c) (b+(c+a)) * (a-(b-c)) * (a+(b-c)) * (b+(c-a)) / 4.0  // a < c < b
-      else (b+(a+c)) * (c-(b-a)) * (c+(b-a)) * (b+(a-c)) / 4.0  // c < a < b
-    } else {
-      (c+(b+a)) * (a-(c-b)) * (a+(c-b)) * (c+(b-a)) / 4.0  // a < b < c
-    }
-    sqrt(discr)
-  } ensuring (res => res +/- 1e-10)
+    sqrt(discr) / 4.0
+  } ensuring (res => 0.29 <= ~res && ~res <= 35.1 && res +/- 2e-11)
 
+/*
   def triangleStable2(a: Real, b: Real, c: Real): Real = {
     require(a.in(1.0, 9.0) && b.in(1.0, 9.0) && c.in(1.0, 9.0) &&
       a + b > c + 0.1 && a + c > b + 0.1 && b + c > a + 0.1)
 
-    // for a >= b >= c  c <= b <= a, (a+(b+c)) * (c-(a-b)) * (c+(a-b)) * (a+(b-c))
     if(b < a) {
-      if(c < b) sqrt((a+(b+c)) * (c-(a-b)) * (c+(a-b)) * (a+(b-c))) / 4.0 //c < b < a
+      if(c < b) sqrt((a+(b+c)) * (c-(a-b)) * (c+(a-b)) * (a+(b-c))) / 4.0
       else {
-        if(c < a) sqrt((a+(c+b)) * (b-(a-c)) * (b+(a-c)) * (a+(c-b))) / 4.0 // b < c < a
-        else sqrt((c+(a+b)) * (b-(c-a)) * (b+(c-a)) * (c+(a-b))) / 4.0  // b < a < c
+        if(c < a) sqrt((a+(c+b)) * (b-(a-c)) * (b+(a-c)) * (a+(c-b))) / 4.0
+        else sqrt((c+(a+b)) * (b-(c-a)) * (b+(c-a)) * (c+(a-b))) / 4.0
       }
     }
     else if(c < b) {
-      if (a < c) sqrt(b+(c+a)) * (a-(b-c)) * (a+(b-c)) * (b+(c-a)) / 4.0  // a < c < b
-      else sqrt(b+(a+c)) * (c-(b-a)) * (c+(b-a)) * (b+(a-c)) / 4.0  // c < a < b
+      if (a < c) sqrt(b+(c+a)) * (a-(b-c)) * (a+(b-c)) * (b+(c-a)) / 4.0
+      else sqrt(b+(a+c)) * (c-(b-a)) * (c+(b-a)) * (b+(a-c)) / 4.0
     } else {
-      sqrt(c+(b+a)) * (a-(c-b)) * (a+(c-b)) * (c+(b-a)) / 4.0  // a < b < c
+      sqrt(c+(b+a)) * (a-(c-b)) * (a+(c-b)) * (c+(b-a)) / 4.0
     }
-  } ensuring (res => res +/- 1e-10)
-
+  }// ensuring (res => res +/- 1e-10)
+*/
   /*def invariant(a: Real, b: Real, c: Real): Boolean = {
     require(a.in(1.0, 9.0) && b.in(1.0, 9.0) && c.in(1.0, 9.0) &&
       a + b > c + 0.1 && a + c > b + 0.1 && b + c > a + 0.1)
