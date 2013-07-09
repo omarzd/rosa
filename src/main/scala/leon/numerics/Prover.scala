@@ -69,13 +69,13 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
 
     reporter.info("Now computing the postcondition.")
     //try {
-      vc.specConstraint match {
+    /*  vc.specConstraint match {
         case Some(sC) =>
           vc.generatedPost = Some(getPost(sC, vc.inputs))
           reporter.info("Generated post: " + vc.generatedPost)
         case None =>
           reporter.info("Skipping spec gen on this one")
-      }
+      }*/
     //} catch {case _=> ;}
 
     val totalTime = (System.currentTimeMillis - start)

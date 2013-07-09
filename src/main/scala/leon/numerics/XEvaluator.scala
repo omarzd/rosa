@@ -20,7 +20,7 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
   val printStats = true
   val unitRoundoff = getUnitRoundoff(precision)
   val unitRoundoffDefault = getUnitRoundoff(Float64)
-  val compactingThreshold = 100
+  val compactingThreshold = 150
   val postComplete = new CompleteSpecChecker
   val resultCollector = new Utils.ResultCollector
 

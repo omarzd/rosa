@@ -92,9 +92,39 @@ carbonGas       timeouts: 0, tight: 40, hit precision: 0, hit iteration: 8
 
 Newtons
 
-newton 1_1      timeouts: 0, tight: 122, hit precision: 20, hit iteration: 0
+newton 1_1  valid    timeouts: 0, tight: 122, hit precision: 20, hit iteration: 0
 [-0.0027101782578642496, 0.0027101782578642496]     1.7423649043562817E-7
 
-newton 1_2      a lot of compacting, STAAATS: timeouts: 16, tight: 280, hit precision: 28, hit iteration: 0
+newton 2_1 valid
+Some(((-0.022789106160295416 ≤ #res) ∧ (#res ≤ 0.022789106160295416) ∧ noise(#res,3.975454257491898E-7)))
+
+newton 3_1 valid
+Some(((-0.08404391490999137 ≤ #res) ∧ (#res ≤ 0.08404391490999137) ∧ noise(#res,7.499946261361435E-7)))
+
+newton 4_1
+Some(((-0.2286898358571584 ≤ #res) ∧ (#res ≤ 0.2286898358571584) ∧ noise(#res,1.413696244764346E-6)))
+
+newton 5_1
+ Some(((-0.5502404119726857 ≤ #res) ∧ (#res ≤ 0.5502404119726857) ∧ noise(#res,2.9256478491364687E-6)))
+
+newton 6_1
+ Some(((-1.319111533489668 ≤ #res) ∧ (#res ≤ 1.319111533489668) ∧ noise(#res,7.493328486094852E-6)))
+
+newton 7_1
+ Some(((-3.7939975879319103 ≤ #res) ∧ (#res ≤ 3.7939975879319103) ∧ noise(#res,3.2395226342928474E-5)))
+
+newton 8_1
+division by zero (as to be expected)
+
+
+newton 1_2  valid    a lot of compacting, STAAATS: timeouts: 16, tight: 280, hit precision: 28, hit iteration: 0
 [-0.002710352818668408, 0.002710352818668408]   3.48797293375787E-7
 
+newton 2_2  valid
+ Some(((-0.022789506646811557 ≤ #res) ∧ (#res ≤ 0.022789506646811557) ∧ noise(#res,7.979807105773228E-7)))
+
+newton 3_2 valid
+(-0.08404319998572807 ≤ #res) ∧ (#res ≤ 0.08404319998572807) ∧ noise(#res,1.5144761341325425E-6)
+
+newton 4_2 valid
+(-0.4655974291591512 ≤ #res) ∧ (#res ≤ 0.4655974291591512) ∧ noise(#res,3.240745902373274E-6)
