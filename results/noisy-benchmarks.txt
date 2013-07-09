@@ -1,0 +1,100 @@
+Timeout: 1000ms, solver precision: 1e-10, max interations: 50
+
+
+doppler1        timeouts: 4, tight: 44, hit precision: 2, hit iteration: 0
+[-137.63857182641192, -0.03395181242240948]     2.3547846085787666E-6
+
+doppler1_roundoff   timeouts: 4, tight: 28, hit precision: 2, hit iteration: 0
+[-137.63857182641192, -0.03395181242240948]  4.919051403462895E-13
+
+doppler2        timeouts: 4, tight: 44, hit precision: 2, hit iteration: 0
+[-230.99054516777983, -0.022729732373760164]    6.201846474832462E-5
+
+doppler2_roundoff timeouts: 4, tight: 28, hit precision: 2, hit iteration: 0
+[-230.99054516777983, -0.022729732373760164]    1.2850339484026521E-12)
+
+doppler3        timeouts: 4, tight: 44, hit precision: 2, hit iteration: 0
+[-83.06529260386105, -0.5074423485717938]       1.2277909167147998E-4
+
+doppler3_roundoff   timeouts: 4, tight: 28, hit precision: 2, hit iteration: 0
+[-83.06529260386105, -0.5074423485717938]   2.027445074107615E-13
+
+
+
+rigidBody2            timeouts: 0, tight: 51, hit precision: 5, hit iteration: 0
+[-56010.00000000002, 58740.0]     1.5031006489643083E-4
+
+rigidBody2_roundoff   timeouts: 0, tight: 51, hit precision: 5, hit iteration: 0
+[-56010.00000000002, 58740.0]     6.475183068501535E-11
+
+
+rigidBody1            timeouts: 0, tight: 26, hit precision: 0, hit iteration: 0
+[-705.0, 705.0]                   9.200005082270577E-7
+
+rigidBody1_roundoff   timeouts: 0, tight: 26, hit precision: 0, hit iteration: 0
+[-705.0, 705.0]                   5.079270570002227E-13
+
+jetEngine_roundoff    compacting, size: 103   timeouts: 28, tight: 159, hit precision: 39, hit iteration: 0
+[-1987.0212917857762, 5099.242640454032]      1.6170396533067135E-8
+
+
+jetEngine             compacting, size: 103    timeouts: 28, tight: 159, hit precision: 39, hit iteration: 0
+[-1987.0212917857762, 5099.242640454032]    0.14001734780741598
+
+turbine3_roundoff     timeouts: 0, tight: 58, hit precision: 2, hit iteration: 0
+[0.5717268901333166, 11.427199617502868]    8.499251393741566E-14
+
+turbine3              timeouts: 0, tight: 58, hit precision: 2, hit iteration: 0
+[0.5717268901333166, 11.427199617502868]      3.349163958987156E-6
+
+
+turbine2_roundoff     timeouts: 1, tight: 38, hit precision: 4, hit iteration: 0
+[-28.554836363678742, 3.8222066617337993]     1.7570403939339235E-13
+
+
+turbine2              timeouts: 0, tight: 38, hit precision: 4, hit iteration: 0
+[-28.554836363678742, 3.8222066617337993]     8.048656487109301E-6
+
+turbine1_roundoff     timeouts: 0, tight: 58, hit precision: 2, hit iteration: 0
+[-18.525726890232423, -1.9916049357749812]    1.241619549734591E-13
+
+turbine1              timeouts: 0, tight: 58, hit precision: 2, hit iteration: 0
+[-18.525726890232423, -1.9916049357749812]    4.8558063462257556E-6
+
+
+Sine (single precision) timeouts: 0, tight: 62, hit precision: 10, hit iteration: 0
+[-1.009206609694219, 1.009206609694219]   1.0275402115774312E-6
+
+
+Sqrt (single precision) timeouts: 0, tight: 52, hit precision: 4, hit iteration: 0
+[0.9999999999565679, 1.3984375000434321]    9.024518254364367E-7
+
+
+verhulst_roundoff     timeouts: 4, tight: 16, hit precision: 0, hit iteration: 0
+[0.3148936170212766, 1.1008264462809918]      6.817850705948431E-16
+
+
+verhulst              timeouts: 4, tight: 16, hit precision: 0, hit iteration: 0
+[0.3148936170212766, 1.1008264462809918]      2.8103345997834977E-4
+
+predatorPrey_roundoff   timeouts: 0, tight: 32, hit precision: 2, hit iteration: 0
+[0.039677964689276764, 0.33549353307408963]   2.935312367610471E-16
+
+predatorPrey          timeouts: 0, tight: 32, hit precision: 2, hit iteration: 0
+[0.039677964689276764, 0.33549353307408963]   9.216781163753263E-5
+
+carbonGas_roundoff    timeouts: 0, tight: 40, hit precision: 0, hit iteration: 8
+[4303229.999999996, 1.67390092E7]       4.6347106030860936E-8
+
+
+carbonGas       timeouts: 0, tight: 40, hit precision: 0, hit iteration: 8
+[4303229.999999996, 1.67390092E7]       2114297.8359521786
+
+Newtons
+
+newton 1_1      timeouts: 0, tight: 122, hit precision: 20, hit iteration: 0
+[-0.0027101782578642496, 0.0027101782578642496]     1.7423649043562817E-7
+
+newton 1_2      a lot of compacting, STAAATS: timeouts: 16, tight: 280, hit precision: 28, hit iteration: 0
+[-0.002710352818668408, 0.002710352818668408]   3.48797293375787E-7
+

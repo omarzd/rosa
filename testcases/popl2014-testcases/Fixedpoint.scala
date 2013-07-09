@@ -15,8 +15,8 @@ object Fixedpoint {
 
   }
 
-  def rigidBody1_1(x1: Real, x2: Real, x3: Real): Real = {
-    require(x1.in(-15, 15) && x2.in(-15, 15) && x3.in(-15, 15) && x1 +/- 1e-5 && x2 +/- 1e-7 && x3 +/- 1e-6)
+  def rigidBody1_roundoff(x1: Real, x2: Real, x3: Real): Real = {
+    require(x1.in(-15, 15) && x2.in(-15, 15) && x3.in(-15, 15))
 
     -x1*x2 - 2*x2*x3 - x1 - x3
 
@@ -29,8 +29,8 @@ object Fixedpoint {
 
   }
 
-  def rigidBody2_1(x1: Real, x2: Real, x3: Real): Real = {
-    require(x1.in(-15, 15) && x2.in(-15, 15) && x3.in(-15, 15) && x1 +/- 1e-5 && x2 +/- 1e-7 && x3 +/- 1e-6)
+  def rigidBody2_roundoff(x1: Real, x2: Real, x3: Real): Real = {
+    require(x1.in(-15, 15) && x2.in(-15, 15) && x3.in(-15, 15))
 
     2*x1*x2*x3 + 3*x3*x3 - x2*x1*x2*x3 + 3*x3*x3 - x2
 
@@ -48,8 +48,8 @@ object Fixedpoint {
 
   }
 
-  def jetEngine_1(x1: Real, x2: Real): Real = {
-    require(x1.in(-5, 5) && x2.in(-20, 5) && x1 +/- 1e-10 && x2 +/- 1e-9)
+  def jetEngine_roundoff(x1: Real, x2: Real): Real = {
+    require(x1.in(-5, 5) && x2.in(-20, 5))
 
     val t = (3*x1*x1 + 2*x2 - x1)
 

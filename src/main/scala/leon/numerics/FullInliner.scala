@@ -57,15 +57,42 @@ class FullInliner(reporter: Reporter, vcMap: Map[FunDef, VerificationCondition])
       val (newElze, elzeCnsts) = rec(elze)
       (IfExpr(newCond, newThen, newElze), condCnsts ++ thenCnsts ++ elzeCnsts)
 
-    case Variable(_) | RationalLiteral(_) | IntLiteral(_) | UMinus(_) | Plus(_, _) | Minus(_, _) | Times(_, _) |
-      Division(_, _) | Sqrt(_) => (e, emptySeq)
+    case Variable(_) | RationalLiteral(_) | IntLiteral(_) => (e, emptySeq)
+
+    case UMinus(expr) =>
+      val (exprIn, constr) = rec(expr)
+      (UMinus(exprIn), constr)
+
+    case Sqrt(expr) =>
+      val (exprIn, constr) = rec(expr)
+      (Sqrt(exprIn), constr)
+
+    case Plus(lhs, rhs) =>
+      val (lhsIn, lhsCns) = rec(lhs)
+      val (rhsIn, rhsCns) = rec(rhs)
+      (Plus(lhsIn, rhsIn), lhsCns ++ rhsCns)
+
+    case Minus(lhs, rhs) =>
+      val (lhsIn, lhsCns) = rec(lhs)
+      val (rhsIn, rhsCns) = rec(rhs)
+      (Minus(lhsIn, rhsIn), lhsCns ++ rhsCns)
+
+    case Times(lhs, rhs) =>
+      val (lhsIn, lhsCns) = rec(lhs)
+      val (rhsIn, rhsCns) = rec(rhs)
+      (Times(lhsIn, rhsIn), lhsCns ++ rhsCns)
+
+    case Division(lhs, rhs) =>
+      val (lhsIn, lhsCns) = rec(lhs)
+      val (rhsIn, rhsCns) = rec(rhs)
+      (Division(lhsIn, rhsIn), lhsCns ++ rhsCns)
+
     case LessThan(_, _) | LessEquals(_, _) | GreaterThan(_, _) | GreaterEquals(_, _) => (e, emptySeq)    
     case Roundoff(_) | Noise(_, _) => (e, emptySeq)
     case BooleanLiteral(true) => (e, emptySeq)
     case _ =>
       reporter.error("AA cannot handle: " + e)
       (e, emptySeq)
-    
   }
 
   def inlineFunctions(pre: Expr, body: Expr, post: Expr): (Expr, Expr, Expr, Set[Variable]) = {

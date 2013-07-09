@@ -237,7 +237,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
         val cApprox = ConstraintApproximation(c.pre, apaths, c.post, Set.empty, tpe)
         cApprox.needEps = false
         cApprox.addInitialVariableConnection = false
-        Some(cApprox)
+        return Some(cApprox)
       }  catch {
         case x =>
           reporter.warning("Exception: " + x)
@@ -330,7 +330,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
         val cApprox = ConstraintApproximation(newPre, apaths, newPost, vars, tpe)
         cApprox.needEps = false
         cApprox.addInitialVariableConnection = false
-        Some(cApprox)
+        return Some(cApprox)
       } catch {
         case x =>
           reporter.warning("Exception: " + x)
@@ -346,7 +346,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
           val cApprox = ConstraintApproximation(pre, apathsNew, post, vars, tpe)
           cApprox.needEps = false
           cApprox.addInitialVariableConnection = false
-          Some(cApprox)
+          return Some(cApprox)
         case None => None
       }
 
@@ -358,10 +358,10 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
         val paths = collectPaths(newBody)
         val newInputs = getVariableRecords(newPre)
         val filteredPrecondition = filterPreconditionForBoundsIteration(newPre)
-        println("paths: " + paths.mkString("\n"))
+        //println("paths: " + paths.mkString("\n"))
         val apaths = paths.collect {
           case path: Path if (sanityCheck(And(path.condition, filteredPrecondition))) =>
-            println("Computing for path: " )//+ path)
+            //println("Computing for path: " )//+ path)
             val fullPathCondition = And(path.condition, filteredPrecondition)
             //println("fullPathCondition: " + fullPathCondition)
 
@@ -369,11 +369,12 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
               if(And(path.expression) == True) { (True, Map[Expr, XFloat]()) }
               else {
                 val (xfloats, indices) = xevaluator.evaluate(And(path.expression), fullPathCondition, newInputs)
+                println("resConstraint: " + constraintFromXFloats(xfloats))
+                
                 (noiseConstraintFromXFloats(xfloats), xfloats)
                 //TODO: see above
                 //Noise(ResultVariable(), RationalLiteral(xfloats(ResultVariable()).maxError))
               }
-            println("resConstraint: " + resConstraint)
             APath(path.condition,
               True, And(path.expression),
               True, resConstraint, xfloatMap)

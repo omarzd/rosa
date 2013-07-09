@@ -27,7 +27,7 @@ object CertificationPhase extends LeonPhase[Program,CertificationReport] {
   var precision: Precision = Float64
   var merging: Boolean = true
   var z3only: Boolean = false
-  var z3Timeout: Long = 500 //ms
+  var z3Timeout: Long = 1000 //ms
   // default: try 'em all
   var precisionsToTry: List[Precision] = List(Float32, Float64, DoubleDouble, QuadDouble)
 
