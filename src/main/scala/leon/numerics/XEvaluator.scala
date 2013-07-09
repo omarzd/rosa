@@ -37,13 +37,20 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
     expr match {
       case And(args) =>
         var currentVars: Map[Expr, XFloat] = vars
+        var lastXf: Option[XFloat] = None
         for (arg <- args) {
           val (map, xf) = inXFloats(reporter, arg, currentVars, config)
+          lastXf = xf
           currentVars = map
+          (currentVars, lastXf)
         }
         (currentVars, None)
 
-      case Equals(variable, IfExpr(cond, then, elze)) =>
+      case Equals(variable, value) =>
+        val (map, computedValue) = inXFloats(reporter, value, vars, config)
+        (vars + (variable -> computedValue.get), None)
+
+      case IfExpr(cond, then, elze) =>
         // Errors and ranges from the two branches
         val thenConfig = config.addCondition(cond)
         val elzeConfig = config.addCondition(negate(cond))
@@ -58,7 +65,7 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
         println("thenValue: " + thenValue)
         println("elseValue: " + elzeValue)
         // When the actual computation goes a different way than the real one
-        val (flCond1, reCond1) = getDiffPathsConditions(cond, vars, config)
+        /*val (flCond1, reCond1) = getDiffPathsConditions(cond, vars, config)
         val (flCond2, reCond2) = getDiffPathsConditions(negate(cond), vars, config)
 
         val pathErrorThen = getPathError(elze, And(flCond1, negate(cond)), then, And(cond, reCond1), vars, config)
@@ -67,40 +74,10 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
         val pathErrorElze = getPathError(then, And(flCond2, cond), elze, And(negate(cond), reCond2), vars, config)
         println("pathError2: %.16g".format(pathErrorElze.toDouble))
         // TODO: do we  also have to keep track of the flRange computed?
-
-        (vars + (variable -> mergeXFloatWithExtraError(thenValue, elzeValue, config, max(pathErrorThen, pathErrorElze)).get), None)
-
-      case IfExpr(cond, then, elze) =>
-        println("if: " + expr)
-        val thenConfig = config.addCondition(cond)
-        val elzeConfig = config.addCondition(negate(cond))
-
-        val (thenMap, thenValue) =
-          if (sanityCheck(thenConfig.getCondition)) inXFloats(reporter, then, addConditionToInputs(vars, cond), thenConfig)
-          else (vars, None)
-
-        val (elzeMap, elzeValue) =
-          if (sanityCheck(elzeConfig.getCondition)) inXFloats(reporter, elze, addConditionToInputs(vars, negate(cond)), elzeConfig)
-          else (vars, None)
-        assert(!thenValue.isEmpty || !elzeValue.isEmpty)
-        println("thenValue: " + thenValue)
-        println("elseValue: " + elzeValue)
-
-        // When the actual computation goes a different way than the real one
-        val (flCond1, reCond1) = getDiffPathsConditions(cond, vars, config)
-        val (flCond2, reCond2) = getDiffPathsConditions(negate(cond), vars, config)
-        val pathErrorThen = getPathError(elze, And(flCond1, negate(cond)), then, And(cond, reCond1), vars, config)
-        println("pathError1: %.16g".format(pathErrorThen.toDouble))
-
-        val pathErrorElze = getPathError(then, And(flCond2, cond), elze, And(negate(cond), reCond2), vars, config)
-        println("pathError2: %.16g".format(pathErrorElze.toDouble))
-
-
-        (vars, Some(mergeXFloatWithExtraError(thenValue, elzeValue, config, max(pathErrorThen, pathErrorElze)).get))
-
-      case Equals(variable, value) =>
-        val computedValue = eval(value, vars, config)
-        (vars + (variable -> computedValue), None)
+        */
+        val pathErrorThen = zero
+        val pathErrorElze = zero
+        (vars, Some(mergeXFloatWithExtraError(thenValue, elzeValue, config, max(pathErrorThen, pathErrorElze)).get))     
 
       case Variable(_) | RationalLiteral(_) | IntLiteral(_) | UMinus(_) | Plus(_, _) | Minus(_, _) | Times(_, _) |
         Division(_, _) | Sqrt(_) | FunctionInvocation(_, _) =>

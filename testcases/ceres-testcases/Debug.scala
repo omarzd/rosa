@@ -8,7 +8,39 @@ import leon.Utils._
 
 object Debug {
 
-  def invariant1(y1: Real, y2: Real, y3: Real, y4: Real, y5: Real, y6: Real): Boolean = {
+  def triangleStable(a: Real, b: Real, c: Real): Real = {
+    require(1.0 <= a && a <= 9.0 && 4.0 <= b && b <= 4.0 && 5.0 <= c && c <= 5.0 &&
+      a + b > c + 0.1 && a + c > b + 0.1 && b + c > a + 0.1 && a < c && b < c)
+
+    if (a < b) { // a < b < c
+      ((c+(b+a)) * (a-(c-b)) * (a+(c-b)) * (c+(b-a))) / 4.0
+    } else {
+      val s = ((a + b + c)/2.0)
+      (s * (s - a) * (s - b) * (s - c))
+    }
+  } ensuring (res => res +/- 1e-10)
+
+  /*def triangleStable(a: Real, b: Real, c: Real): Real = {
+    require(1.0 <= a && a <= 9.0 && 1.0 <= b && b <= 9.0 && 1.0 <= c && c <= 9.0 &&
+      a + b > c + 0.1 && a + c > b + 0.1 && b + c > a + 0.1)
+
+    if(b < a) {
+      if(c < b) sqrt((a+(b+c)) * (c-(a-b)) * (c+(a-b)) * (a+(b-c))) / 4.0
+      else {
+        if(c < a) sqrt((a+(c+b)) * (b-(a-c)) * (b+(a-c)) * (a+(c-b))) / 4.0
+        else sqrt((c+(a+b)) * (b-(c-a)) * (b+(c-a)) * (c+(a-b))) / 4.0
+      }
+    }
+    else if(c < b) {
+      if (a < c) sqrt(b+(c+a)) * (a-(b-c)) * (a+(b-c)) * (b+(c-a)) / 4.0
+      else sqrt(b+(a+c)) * (c-(b-a)) * (c+(b-a)) * (b+(a-c)) / 4.0
+    } else {
+      sqrt(c+(b+a)) * (a-(c-b)) * (a+(c-b)) * (c+(b-a)) / 4.0
+    }
+  } ensuring (res => res +/- 1e-10)
+  */
+
+/*  def invariant1(y1: Real, y2: Real, y3: Real, y4: Real, y5: Real, y6: Real): Boolean = {
     require(y1.in(-1200, 1200) && y2.in(-1200, 1200) && y3.in(-1200, 1200) &&
      y4.in(-1200, 1200) && y5.in(-1200, 1200) && y6.in(-1200, 1200))
 
@@ -38,7 +70,7 @@ object Debug {
     val i6 = (5*i5 + x6)/6.0
     i6
   } ensuring(res => res <= 1200.0 && -1200.0 <= res && res +/- 1e-10)
-
+  */
 
   
   /*def turbine1(v: Real, w: Real, r: Real): Real = {

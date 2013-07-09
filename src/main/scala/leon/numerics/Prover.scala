@@ -69,13 +69,13 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
 
     reporter.info("Now computing the postcondition.")
     //try {
-      vc.specConstraint match {
+      /*vc.specConstraint match {
         case Some(sC) =>
           vc.generatedPost = Some(getPost(sC, vc.inputs))
           reporter.info("Generated post: " + vc.generatedPost)
         case None =>
           reporter.info("Skipping spec gen on this one")
-      }
+      }*/
     //} catch {case _=> ;}
 
     val totalTime = (System.currentTimeMillis - start)
@@ -228,8 +228,9 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
       val filteredPrecondition = filterPreconditionForBoundsIteration(c.pre)
       println("body: " + body)
       val (xfloats, indices) = xevaluator.evaluate(body, filteredPrecondition, inputs)
-
-      val apaths = Set(APath(True, body, True, True, noiseConstraintFromXFloats(xfloats), xfloats))
+      println("xfloats: " + xfloats)
+      // TODO: fix the body
+      val apaths = Set(APath(True, True, True, True, constraintFromXFloats(xfloats), xfloats))
       val cApprox = ConstraintApproximation(c.pre, apaths, c.post, Set.empty, tpe)
       cApprox.needEps = false
       cApprox.addInitialVariableConnection = false
