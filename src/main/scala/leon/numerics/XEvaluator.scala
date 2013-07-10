@@ -63,6 +63,8 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
             inXFloats(reporter, elze, addConditionToInputs(vars, negate(cond)), elzeConfig)
           else (vars, None)
         assert(!thenValue.isEmpty || !elzeValue.isEmpty)
+        println("thenValue: " + thenValue)
+        println("elzeValue: " + elzeValue)
         
         val pathError = if (checkPathError) {
           // When the actual computation goes a different way than the real one

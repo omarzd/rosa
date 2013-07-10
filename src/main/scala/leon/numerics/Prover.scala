@@ -115,7 +115,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
       solver.checkSat(toCheck) match {
         case (UNSAT, _) => Some(VALID)
         case (SAT, model) =>
-          //println("Model found: " + model)
+          println("Model found: " + model)
           // TODO: print the models that are actually useful, once we figure out which ones those are
           Some(UNKNOWN)
         case _ =>
