@@ -1,12 +1,9 @@
 
-
-
 import leon.Real
 import Real._
 
-import leon.Utils._
 
-object Debug {
+object InitialExample {
 
   def mainFunction(a: Real, b: Real, c: Real): Real = {
     require(a.in(1.0, 9.0) && 4.0 <= b && b <= 4.0 && 5.0 <= c && c <= 5.0 &&
@@ -21,10 +18,7 @@ object Debug {
   
   def triangleSorted(a: Real, b: Real, c: Real): Real = {
     require(a < c && b < c)
-    //require(a.in(1.0, 9.0) && b.in(1.0, 9.0) && c.in(1.0, 9.0) &&
-    //  a + b > c + 0.1 && a + c > b + 0.0001 && b + c > a + 0.1 &&
-    //  a < c && b < c)
-
+    
     val discr =
       if (a < b) {
         (c+(b+a)) * (a-(c-b)) * (a+(c-b)) * (c+(b-a))
@@ -32,5 +26,5 @@ object Debug {
         (c+(a+b)) * (b-(c-a)) * (b+(c-a)) * (c+(a-b))      
       }
     sqrt(discr) / 4.0
-  }// ensuring (res => 0.29 <= ~res && ~res <= 35.1 && res +/- 2e-11)
+  }
 }
