@@ -27,28 +27,35 @@ object Robustness {
   
 
   def squareRoot1(x: Real): Real = {
-    require( x.in(0,10) )
-    if (x < 0.01) 1 + 0.5 * x
+    require( x.in(0,5))
+    if (x < 0.001) 1 + 0.5 * x - x*x/8
     else sqrt(1 + x)
   } ensuring( res => res +/- 1e-10) //not valid
 
   def squareRoot2(x: Real): Real = {
-    require( x.in(0,10) && x +/- 1e-10)
-    if (x < 1e-5) 1 + 0.5 * x
+    require( x.in(0,5) && x +/- 1e-13)
+    if (x < 0.3) 1 + 0.5 * x - x*x/8
     else sqrt(1 + x)
-  } ensuring( res => res +/- 1e-10) //valid
+  } ensuring( res => res +/- 1e-10) //not valid
   
 
+  def squareRoot3(x: Real): Real = {
+    require( x.in(0,10) && x +/- 1e-10 )
+    if (x < 1e-5) 1 + 0.5 * x
+    else sqrt(1 + x)
+  } ensuring( res => res +/- 1e-10) 
+  
+  
   def poly(x: Real): Real = {
     require(x.in(-5.0, 5.0) && x +/- 1e-10)
     if(x < 1) x*x + 4*x + 3
     else (x+1)*(x+1)*(x+1)
-  } ensuring(res => res +/- 1.2e-8) //valid
-  
-  def poly2(x: Real): Real = {
+  } ensuring(res => res +/- 1.2e-8) 
+
+  /*def poly2(x: Real): Real = {
     require(x.in(-5.0, 5.0) && x +/- 1e-9)
     if(x < 1) x*x + 4*x + 3
     else (x+1)*(x+1)*(x+1)
-  } ensuring(res => res +/- 1.2e-8) //valid
-  
+  } ensuring(res => res +/- 1.2e-8) //not valid
+  */
 }
