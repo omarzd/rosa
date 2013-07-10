@@ -333,7 +333,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
         val (newPre, newBody, newPost, vars) = fullInliner.inlineFunctions(c.pre, c.body, c.post)
         val filteredPrecondition = filterPreconditionForBoundsIteration(newPre)
         val (xfloats, indices) = xevaluator.evaluate(newBody, filteredPrecondition, inputs)
-
+        println("full constraint: " + constraintFromXFloats(xfloats))
         val apaths = Set(APath(True, newBody, True, True, noiseConstraintFromXFloats(xfloats), xfloats))
         val cApprox = ConstraintApproximation(newPre, apaths, newPost, vars, tpe)
         cApprox.needEps = false
