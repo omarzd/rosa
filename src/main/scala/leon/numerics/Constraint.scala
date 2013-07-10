@@ -37,8 +37,10 @@ case class Constraint(pre: Expr, body: Expr, post: Expr, description: String, me
 
   if (hasFunctionCalls) {
     if (z3only) approxStrategy :+= Uninterpreted_None
-    if (merging) approxStrategy ++= Seq(FullInlining_AA_Merging, FullInlining_AAOnly_Merging) //PostInlining_AA_Merging
-    else approxStrategy ++= Seq(FullInlining_AA, FullInlining_AAOnly) //PostInlining_AA
+    //if (merging) approxStrategy ++= Seq(FullInlining_AA_Merging, FullInlining_AAOnly_Merging) //PostInlining_AA_Merging
+    //else approxStrategy ++= Seq(FullInlining_AA, FullInlining_AAOnly) //PostInlining_AA
+    if (merging) approxStrategy ++= Seq(PostInlining_AA_Merging)
+    else approxStrategy ++= Seq(PostInlining_AA)
   } else {
     if (z3only) approxStrategy :+= Uninterpreted_None
     if (merging) approxStrategy ++= Seq(NoFncs_AA_Merging, NoFncs_AAOnly_Merging)

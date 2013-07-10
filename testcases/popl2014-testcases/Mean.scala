@@ -36,13 +36,13 @@ object Mean {
   */
 
 
-  /*def aspecIsAlwaysLess(y1: Real, y2: Real, y3: Real, y4: Real, y5: Real, y6: Real): Boolean = {
+  def aspecIsAlwaysLess(y1: Real, y2: Real, y3: Real, y4: Real, y5: Real, y6: Real): Real = {
     require(y1.in(-1200, 1200) && y2.in(-1200, 1200) && y3.in(-1200, 1200) &&
      y4.in(-1200, 1200) && y5.in(-1200, 1200) && y6.in(-1200, 1200))
 
-    meanSpec(y1, y2, y3, y4, y5, y6) <= meanImpl(y1, y2, y3, y4, y5, y6)
-  } holds
-  */
+    meanSpec(y1, y2, y3, y4, y5, y6) - meanImpl(y1, y2, y3, y4, y5, y6)
+  } ensuring(res => res <= 0.0001)
+  
   
   /*def actualSpecIsAlwaysLess(y1: Real, y2: Real, y3: Real, y4: Real, y5: Real, y6: Real): Boolean = {
     require(y1.in(-1200, 1200) && y2.in(-1200, 1200) && y3.in(-1200, 1200) &&
@@ -91,7 +91,7 @@ object Mean {
   } holds
   */
 
-  def invariant1(y1: Real, y2: Real, y3: Real, y4: Real, y5: Real, y6: Real): Boolean = {
+  /*def invariant1(y1: Real, y2: Real, y3: Real, y4: Real, y5: Real, y6: Real): Boolean = {
     require(y1.in(-1200, 1200) && y2.in(-1200, 1200) && y3.in(-1200, 1200) &&
      y4.in(-1200, 1200) && y5.in(-1200, 1200) && y6.in(-1200, 1200))
 
@@ -99,7 +99,7 @@ object Mean {
     val m2 = meanImpl(y1, y2, y3, y4, y5, y6)
     ~m1 <= ~m2 + 0.01
   } holds
-  
+*/
 
 
 }

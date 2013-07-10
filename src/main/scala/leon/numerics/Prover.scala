@@ -115,7 +115,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
       solver.checkSat(toCheck) match {
         case (UNSAT, _) => Some(VALID)
         case (SAT, model) =>
-          println("Model found: " + model)
+          //println("Model found: " + model)
           // TODO: print the models that are actually useful, once we figure out which ones those are
           Some(UNKNOWN)
         case _ =>
@@ -230,6 +230,8 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
         val filteredPrecondition = filterPreconditionForBoundsIteration(c.pre)
         //println("body: " + body)
         val (xfloats, indices) = xevaluator.evaluate(body, filteredPrecondition, inputs)
+
+        //println("error expression: " + getErrorExpression(xfloats(ResultVariable()).error, indices))
         //println("xfloats: " + xfloats)
         val apaths = Set(APath(True, True, body, True, constraintFromXFloats(xfloats), xfloats))
         println("computed constraint: " + constraintFromXFloats(xfloats))
@@ -304,19 +306,26 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
 
     // Fallback
     case NoFncs_AAOnly =>
-      findApproximation(c, inputs, NoFncs_AA) match {
-        case Some(ConstraintApproximation(pre, apaths, post, vars, typpe, values)) =>
-          val apathsNew = apaths.map {
-            case APath(pathCondition, idealBody, idealCnst, actualBody, actualCnst, xfloats) =>
-              val resConstraint = constraintFromXFloats(Map(ResultVariable() -> xfloats(ResultVariable())))
-              APath(pathCondition, True, True, True, resConstraint, xfloats)
-          }
-          val cApprox = ConstraintApproximation(pre, apathsNew, post, vars, tpe)
-          cApprox.needEps = false
-          cApprox.addInitialVariableConnection = false
-          return Some(cApprox)
-        case None => None
+      try {
+        findApproximation(c, inputs, NoFncs_AA) match {
+          case Some(ConstraintApproximation(pre, apaths, post, vars, typpe, values)) =>
+            val apathsNew = apaths.map {
+              case APath(pathCondition, idealBody, idealCnst, actualBody, actualCnst, xfloats) =>
+                val resConstraint = constraintFromXFloats(Map(ResultVariable() -> xfloats(ResultVariable())))
+                APath(pathCondition, True, True, True, resConstraint, xfloats)
+            }
+            val cApprox = ConstraintApproximation(pre, apathsNew, post, vars, tpe)
+            cApprox.needEps = false
+            cApprox.addInitialVariableConnection = false
+            return Some(cApprox)
+          case None => None
+        }
+      } catch {
+          case x =>
+          reporter.warning("Exception: " + x)
+          reporter.warning(x.getStackTrace)
       }
+      None
 
 
     case FullInlining_AA_Merging =>
@@ -338,6 +347,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
       None
 
     case FullInlining_AAOnly_Merging =>
+      try{
       findApproximation(c, inputs, FullInlining_AA_Merging) match {
         case Some(ConstraintApproximation(pre, apaths, post, vars, typpe, values)) =>
           val resConstraint = constraintFromXFloats(Map(ResultVariable() -> apaths.head.xfloats(ResultVariable())))
@@ -348,6 +358,12 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
           return Some(cApprox)
         case None => None
       }
+      } catch {
+          case x =>
+          reporter.warning("Exception: " + x)
+          reporter.warning(x.getStackTrace)
+      }
+      None
 
 
     case FullInlining_AA =>
@@ -394,6 +410,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
       None
 
     case FullInlining_AAOnly =>
+      try{
       findApproximation(c, inputs, FullInlining_AA) match {
         case Some(ConstraintApproximation(pre, apaths, post, vars, typpe, values)) =>
           val apathsNew = apaths.map {
@@ -407,9 +424,14 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
           return Some(cApprox)
         case None => None
       }
+      } catch {
+          case x =>
+          reporter.warning("Exception: " + x)
+          reporter.warning(x.getStackTrace)
+      }
+      None
 
-    /*
-    TODO: still doesn't work. The errors on the intial variables have to be written with err_sth
+    
     case PostInlining_AA =>
       //try {
         val paths = c.paths
@@ -451,11 +473,27 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
           reporter.warning(x.getStackTrace)
       }
       None*/
-    */
 
-      // TODO: if Z3 still fails, do the full approximation, also for the range with AA
-      // for this we should only reuse already computed approximations
+      /*case PostInlining_AA_Merging =>
+        try {
+        val (newPre, newBody, newPost, vars) = postInliner.inlineFunctions(c.pre, c.body, c.post)
+        val filteredPrecondition = filterPreconditionForBoundsIteration(newPre)
+        val (xfloats, indices) = xevaluator.evaluate(c.body, filteredPrecondition, inputs)
 
+        val apaths = Set(APath(True, newBody, True, True, noiseConstraintFromXFloats(xfloats), xfloats))
+        val cApprox = ConstraintApproximation(newPre, apaths, newPost, vars, tpe)
+        cApprox.needEps = false
+        cApprox.addInitialVariableConnection = false
+        return Some(cApprox)
+      } catch {
+        case x =>
+          reporter.warning("Exception: " + x)
+          reporter.warning(x.getStackTrace)
+      }
+      None*/
+    
+
+      
   }
 
   /* *************************
@@ -539,7 +577,22 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
     case _ => expr
   }
 
+  /*def getErrorExpression(a: XRationalForm, indices: Map[Int, Expr]): Expr = {
+    val indexSet: Set[Int] = indices.keys.toSet
+    val (lin, rest) = a.noise.partition(d => indexSet(d.index))
 
+    val maxError = affine.Utils.sumSeq(rest)
+    val restError = RationalInterval(-maxError, maxError) + RationalInterval(a.x0, a.x0)
+
+    val restErrorVar = getNewErrorVar
+    var cnstr: Expr = restErrorVar
+
+    for (dev <- lin) {
+      // TODO: not quite right! it should be the error on variable, or rather whether it was there or not...
+      cnstr = Plus(cnstr, Times(RationalLiteral(dev.value), getNamedError(indices(dev.index))))
+    }
+    And(cnstr, ratint2expr(restError, restErrorVar))
+  }*/
 
 
   /*
@@ -653,22 +706,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
     }
   }
 
-  def getErrorExpression(a: XRationalForm, indices: Map[Int, Expr]): Expr = {
-    val indexSet: Set[Int] = indices.keys.toSet
-    val (lin, rest) = a.noise.partition(d => indexSet(d.index))
-
-    val maxError = affine.Utils.sumSeq(rest)
-    val restError = RationalInterval(-maxError, maxError) + RationalInterval(a.x0, a.x0)
-
-    val restErrorVar = getNewErrorVar
-    var cnstr: Expr = restErrorVar
-
-    for (dev <- lin) {
-      // TODO: not quite right! it should be the error on variable, or rather whether it was there or not...
-      cnstr = Plus(cnstr, Times(RationalLiteral(dev.value), getNamedError(indices(dev.index))))
-    }
-    And(ratint2expr(restError, restErrorVar), cnstr)
-  }*/
+  */
 
 
 }

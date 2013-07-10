@@ -23,7 +23,7 @@ object XFloat {
     @param config solver, precondition, which precision to choose
     @param withRoundoff whether the initial XFloat should also get an roundoff error, additionally to the noise
    */
-  def variables2xfloats(vars: Map[Variable, Record], config: XFloatConfig, withRoundoff: Boolean = true):
+  def variables2xfloats(vars: Map[Variable, Record], config: XFloatConfig, withRoundoff: Boolean = false):
     (Map[Expr, XFloat], Map[Int, Expr]) = {
     var variableMap: Map[Expr, XFloat] = Map.empty
     var indexMap: Map[Int, Expr] = Map.empty
