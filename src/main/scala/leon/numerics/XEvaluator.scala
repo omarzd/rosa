@@ -16,7 +16,7 @@ import Precision._
 import VariableShop._
 
 class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision, vcMap: Map[FunDef, VerificationCondition],
-  checkPathError: Boolean = false) {
+  checkPathError: Boolean = true) {
   val printStats = true
   val unitRoundoff = getUnitRoundoff(precision)
   val unitRoundoffDefault = getUnitRoundoff(Float64)
@@ -93,6 +93,7 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
 
   // The conditions are not fresh, we do that here automatically
   // TODO: this has a bug with function calls
+  // TODO: this also has a bug if having local vars, the condition computation doesn't quite work
   private def getPathError(flExpr: Expr, flCond: Expr, reExpr: Expr, reCond: Expr, vars: Map[Expr, XFloat],
     config: XFloatConfig): Rational = {
     //println("flCond: " + flCond)
@@ -101,17 +102,14 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
     if (sanityCheck(And(config.getCondition, flCond)) && sanityCheck(And(config.getCondition, reCond))) {
       // execution taken by actual computation
       val flConfig = config.addCondition(flCond).updatePrecision(solverMaxIterHigh, solverPrecisionHigh)
-      println("flConfig: " + flConfig.getCondition)
-      println("flExpr: " + flExpr)
+      //println("flConfig: " + flConfig.getCondition)
+      //println("flExpr: " + flExpr)
       val flVars = addConditionToInputsAndRemoveErrors(vars, flCond)
       //println("fl vars:"); flVars.foreach {f => println(f); println(f._2.config.solverMaxIter)}
       solver.clearCounts
       val (m, floatRange) = inXFloats(reporter, flExpr, flVars, flConfig)
-      reporter.info("STATS for floatRange: " + solver.getCounts)
-      println("floatRange: " + floatRange)
-
-
-      
+      //reporter.info("STATS for floatRange: " + solver.getCounts)
+      //println("floatRange: " + floatRange)
 
       val freshMap = getFreshMap(vars.keySet)
       val (freshThen, freshVars) = freshenUp(reExpr, freshMap, vars)
@@ -120,9 +118,9 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
       //println("re vars:"); reVars.foreach {f => println(f._1 + "  " + f._2.config.getCondition)}
       solver.clearCounts
       val (mm, realRange) = inXFloats(reporter, freshThen, reVars, reConfig)
-      reporter.info("STATS for realRange: " + solver.getCounts)
-      println("realRange: "+ removeErrors(realRange.get))
-      println("realRange cond: " + realRange.get.config.getCondition)
+      //reporter.info("STATS for realRange: " + solver.getCounts)
+      //println("realRange: "+ removeErrors(realRange.get))
+      //println("realRange cond: " + realRange.get.config.getCondition)
 
       val correlation = vars.map {
         case (k, xf) =>
@@ -131,7 +129,7 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
           LessEquals(RationalLiteral(-xf.maxError), freshErrorVar),
           LessEquals(freshErrorVar, RationalLiteral(xf.maxError))))
         }
-        println("\ncorrelation cond:  " + And(correlation.toSeq))
+        //println("\ncorrelation cond:  " + And(correlation.toSeq))
       
       val xfc = realRange.get.config
       //val newConfig = xfc
@@ -141,7 +139,7 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
 
       val realRangeWithCorrelation = new XFloat(realRange.get.tree, realRange.get.approxInterval,
         realRange.get.error, newConfig)
-      println("\n" + realRangeWithCorrelation.config.getCondition)
+      //println("\n" + realRangeWithCorrelation.config.getCondition)
 
 
       solver.clearCounts
@@ -358,7 +356,7 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
     And(LessEquals(RationalLiteral(i.xlo), v), LessEquals(v, RationalLiteral(i.xhi)))
   }
 
-  private def sanityCheck(pre: Expr, silent: Boolean = false): Boolean = {
+  private def sanityCheck(pre: Expr, silent: Boolean = true): Boolean = {
     import Sat._
     solver.checkSat(pre) match {
       case (SAT, model) =>

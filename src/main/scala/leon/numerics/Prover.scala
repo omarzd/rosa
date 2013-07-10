@@ -69,13 +69,13 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
 
     reporter.info("Now computing the postcondition.")
     //try {
-    /*  vc.specConstraint match {
+      vc.specConstraint match {
         case Some(sC) =>
           vc.generatedPost = Some(getPost(sC, vc.inputs))
           reporter.info("Generated post: " + vc.generatedPost)
         case None =>
           reporter.info("Skipping spec gen on this one")
-      }*/
+      }
     //} catch {case _=> ;}
 
     val totalTime = (System.currentTimeMillis - start)
@@ -107,9 +107,9 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
       if(ca.needEps) And(And(Or(idealPart), Or(actualPart)), machineEpsilon)
       else And(Or(idealPart), Or(actualPart))
 
-    //var toCheck = ArithmeticOps.totalMakeover(And(And(precondition, body), negate(postcondition) ))
-    var toCheck = And(And(precondition, body), negate(postcondition))
-    //println("\nTO CHECK:\n" + deltaRemover.transform(toCheck))
+    var toCheck = ArithmeticOps.totalMakeover(And(And(precondition, body), negate(postcondition) ))
+    //var toCheck = And(And(precondition, body), negate(postcondition))
+    println("\nTO CHECK:\n" + deltaRemover.transform(toCheck))
 
     if (reporter.errorCount == 0 && sanityCheck(precondition, false, body))
       solver.checkSat(toCheck) match {
@@ -231,9 +231,8 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
         //println("body: " + body)
         val (xfloats, indices) = xevaluator.evaluate(body, filteredPrecondition, inputs)
         //println("xfloats: " + xfloats)
-        // TODO: fix the body
         val apaths = Set(APath(True, True, body, True, constraintFromXFloats(xfloats), xfloats))
-        println(constraintFromXFloats(xfloats))
+        println("computed constraint: " + constraintFromXFloats(xfloats))
         val cApprox = ConstraintApproximation(c.pre, apaths, c.post, Set.empty, tpe)
         cApprox.needEps = false
         cApprox.addInitialVariableConnection = false

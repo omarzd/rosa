@@ -190,6 +190,7 @@ class NumericConstraintTransformer(buddy: Map[Expr, Expr], ress: Variable, eps: 
     case Variable(_) | RationalLiteral(_) | IntLiteral(_) => e
     case BooleanLiteral(true) => e
     case InitialNoise(v @ Variable(_)) => getErrorVar(v)
+    case IfExpr(cond, then, elze) => IfExpr(transformPrePost(cond), transformPrePost(then), transformPrePost(elze))
     case _ =>
       reporter.error("Not supported in pre/postcondition: " + e)
       e
