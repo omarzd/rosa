@@ -78,6 +78,18 @@ class NumericConstraintTransformer(buddy: Map[Expr, Expr], ress: Variable, eps: 
   }
 
   def transformPrePost(e: Expr): Expr = e match {
+    // For bspline 3 to work, we need this:
+    /*case Noise(v @ Variable(id), r @ RationalLiteral(value)) =>
+      if (value < Rational.zero) { errors = errors :+ "Noise must be positive."; Error("negative noise " + value).setType(BooleanType)
+      } else {
+        And(LessEquals(RationalLiteral(-value), Minus(v, buddy(v))), LessEquals(Minus(v, buddy(v)), r))
+      }
+    case Noise(ResultVariable(), r @ RationalLiteral(value)) =>
+      if (value < Rational.zero) { errors = errors :+ "Noise must be positive."; Error("negative noise " + value).setType(BooleanType)
+      } else {
+        And(LessEquals(RationalLiteral(-value), Minus(ress, buddy(ress))), LessEquals(Minus(ress, buddy(ress)), r))
+      }
+    */
 
     case Noise(v @ Variable(id), r @ RationalLiteral(value)) =>
       if (value < Rational.zero) { errors = errors :+ "Noise must be positive."; Error("negative noise " + value).setType(BooleanType)
@@ -95,7 +107,7 @@ class NumericConstraintTransformer(buddy: Map[Expr, Expr], ress: Variable, eps: 
           LessEquals(RationalLiteral(-value), freshErrorVar),
           LessEquals(freshErrorVar, r)))
       }
-
+    
     case Noise(v @ Variable(_), expr) =>
       val freshErrorVar = getErrorVar(v)
       val value = transformPrePost(expr)
@@ -148,10 +160,10 @@ class NumericConstraintTransformer(buddy: Map[Expr, Expr], ress: Variable, eps: 
         ))
       }
 
-    case Roundoff(v @ Variable(id)) => transformPrePost(RelError(v, eps))
-      /*val delta = getNewDelta
+    case Roundoff(v @ Variable(id)) => //transformPrePost(RelError(v, eps))
+      val delta = getNewDelta
       extraConstraints = extraConstraints :+ constrainDelta(delta)
-      Equals(buddy(v), Times(Plus(new RationalLiteral(1), delta), v))*/
+      Equals(buddy(v), Times(Plus(new RationalLiteral(1), delta), v))
 
 
     case LessThan(ResultVariable(), RationalLiteral(_)) | LessThan(RationalLiteral(_), ResultVariable()) =>

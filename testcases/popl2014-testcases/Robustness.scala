@@ -5,7 +5,7 @@ import leon.Utils._
 
 object Robustness {
 
-  def triangleSorted(a: Real, b: Real, c: Real): Real = {
+  /*def triangleSorted(a: Real, b: Real, c: Real): Real = {
     require(a.in(1.0, 9.0) && 4.0 <= b && b <= 4.0 && 5.0 <= c && c <= 5.0 &&
       a + b > c + 0.1 && a + c > b + 0.0001 && b + c > a + 0.1 &&
       a < c && b < c && a +/- 1e-13)
@@ -44,10 +44,10 @@ object Robustness {
     if (x < 1e-5) 1 + 0.5 * x
     else sqrt(1 + x)
   } ensuring( res => res +/- 1e-10) 
-  
+  */
   
   def poly(x: Real): Real = {
-    require(x.in(-5.0, 5.0) && x +/- 1e-10)
+    require(-5.0 <= x && x <= 5.0 && x +/- 1e-10)
     if(x < 1) x*x + 4*x + 3
     else (x+1)*(x+1)*(x+1)
   } ensuring(res => res +/- 1.2e-8) 
