@@ -39,16 +39,16 @@ object Robustness {
   } ensuring( res => res +/- 1e-10) //valid
   
 
-  def continuos(x: Real): Real = {
+  def poly(x: Real): Real = {
     require(x.in(-5.0, 5.0) && x +/- 1e-10)
-    if(x < 0) x*x
-    else 2*x
-  } ensuring(res => res +/- 1e-8) //valid
+    if(x < 1) x*x + 4*x + 3
+    else (x+1)*(x+1)*(x+1)
+  } ensuring(res => res +/- 1.2e-8) //valid
   
-  def nonContinuous(x: Real): Real = {
-    require(x.in(-5.0, 5.0) && x +/- 1e-10)
-    if(x < 0) x*x
-    else 2*x + 0.1
-  } ensuring(res => res +/- 1e-8) //not valid
+  def poly2(x: Real): Real = {
+    require(x.in(-5.0, 5.0) && x +/- 1e-9)
+    if(x < 1) x*x + 4*x + 3
+    else (x+1)*(x+1)*(x+1)
+  } ensuring(res => res +/- 1.2e-8) //valid
   
 }
