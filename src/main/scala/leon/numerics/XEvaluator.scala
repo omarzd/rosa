@@ -20,13 +20,13 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
   val printStats = true
   val unitRoundoff = getUnitRoundoff(precision)
   val unitRoundoffDefault = getUnitRoundoff(Float64)
-  val compactingThreshold = 150
+  val compactingThreshold = 100
   val postComplete = new CompleteSpecChecker
   val resultCollector = new Utils.ResultCollector
 
 
   def evaluate(expr: Expr, precondition: Expr, inputs: Map[Variable, Record]): (Map[Expr, XFloat], Map[Int, Expr]) = {
-    val config = XFloatConfig(reporter, solver, precondition, precision, unitRoundoff, solverMaxIterHigh, solverPrecisionHigh)
+    val config = XFloatConfig(reporter, solver, precondition, precision, unitRoundoff, solverMaxIterMedium, solverPrecisionMedium)
     val (variables, indices) = variables2xfloats(inputs, config)
     solver.clearCounts
     val values = inXFloats(reporter, expr, variables, config)._1 -- inputs.keys
