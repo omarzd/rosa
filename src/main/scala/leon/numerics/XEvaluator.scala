@@ -26,7 +26,7 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
 
 
   def evaluate(expr: Expr, precondition: Expr, inputs: Map[Variable, Record]): (Map[Expr, XFloat], Map[Int, Expr]) = {
-    val config = XFloatConfig(reporter, solver, precondition, precision, unitRoundoff, solverMaxIterMedium, solverPrecisionMedium)
+    val config = XFloatConfig(reporter, solver, precondition, precision, unitRoundoff, solverMaxIterHigh, solverPrecisionHigh)
     val (variables, indices) = variables2xfloats(inputs, config)
     solver.clearCounts
     val values = inXFloats(reporter, expr, variables, config)._1 -- inputs.keys

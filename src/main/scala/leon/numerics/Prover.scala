@@ -225,7 +225,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
        With APPROXIMATION
     * ******************* */
     case NoFncs_AA_Merging =>
-      try {
+      //try {
         val body = c.body
         val filteredPrecondition = filterPreconditionForBoundsIteration(c.pre)
         //println("body: " + body)
@@ -239,12 +239,12 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
         cApprox.needEps = false
         cApprox.addInitialVariableConnection = false
         return Some(cApprox)
-      }  catch {
+      /*}  catch {
         case x =>
           reporter.warning("Exception: " + x)
           reporter.warning(x.getStackTrace)
       }
-      None
+      None*/
 
     // Fallback
     case NoFncs_AAOnly_Merging =>
@@ -334,6 +334,7 @@ class Prover(reporter: Reporter, ctx: LeonContext, program: Program, precision: 
         val filteredPrecondition = filterPreconditionForBoundsIteration(newPre)
         val (xfloats, indices) = xevaluator.evaluate(newBody, filteredPrecondition, inputs)
         println("full constraint: " + constraintFromXFloats(xfloats))
+        println("postcondition: " + actualConstraintFromXFloats(xfloats))
         val apaths = Set(APath(True, newBody, True, True, noiseConstraintFromXFloats(xfloats), xfloats))
         val cApprox = ConstraintApproximation(newPre, apaths, newPost, vars, tpe)
         cApprox.needEps = false

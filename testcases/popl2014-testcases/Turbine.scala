@@ -3,6 +3,9 @@
 import leon.Real
 import Real._
 
+/* From:
+  Numerical Methods with Worked Examples, C. Woodford and C. Phillips, 2012
+*/
 object Turbine {
 
   def turbine1(v: Real, w: Real, r: Real): Real = {

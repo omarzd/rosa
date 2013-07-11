@@ -3,6 +3,10 @@
 import leon.Real
 import Real._
 
+/*From:
+  - Mathematical Biology, An Introduction, Murray, 2002
+  - Scientific Computing with Matlab, A. Quarteroni, F. Saleri and P. Gervasio, 2010
+*/
 object Physics {
 
   def verhulst(r: Real, K: Real, x: Real): Real = {

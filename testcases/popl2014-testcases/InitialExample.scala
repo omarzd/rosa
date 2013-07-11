@@ -28,12 +28,10 @@ object InitialExample {
       a + b > c + 0.000001 && a + c > b + 0.000001 && b + c > a + 0.000001 &&
       a < c && b < c)
 
-    val discr =
       if (a < b) {
-        (c+(b+a)) * (a-(c-b)) * (a+(c-b)) * (c+(b-a))
+        sqrt((c+(b+a)) * (a-(c-b)) * (a+(c-b)) * (c+(b-a)))/4.0
       } else {
-        (c+(a+b)) * (b-(c-a)) * (b+(c-a)) * (c+(a-b))      
+        sqrt((c+(a+b)) * (b-(c-a)) * (b+(c-a)) * (c+(a-b)))/4.0
       }
-    sqrt(discr) / 4.0
   }
 }

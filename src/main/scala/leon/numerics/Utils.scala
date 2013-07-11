@@ -316,6 +316,13 @@ object Utils {
     And(results.foldLeft(Seq[Expr]()) ((seq, kv) =>  interval2constraint(kv._1, kv._2._1, kv._2._2)))
   }
 
+  def actualConstraintFromXFloats(results: Map[Expr, XFloat]): Expr = {
+    And(results.foldLeft(Seq[Expr]())(
+      (seq, kv) => seq ++ Seq(LessEquals(RationalLiteral(kv._2.interval.xlo), kv._1),
+                                  LessEquals(kv._1, RationalLiteral(kv._2.interval.xhi)),
+                                  Noise(kv._1, RationalLiteral(kv._2.maxError)))))
+  }
+
   private def interval2constraint(v: Expr, i: RationalInterval, e: Rational): Seq[Expr] = {
     val actualInterval = i + RationalInterval(-e, e)
     Seq(LessEquals(RationalLiteral(actualInterval.xlo), v),
