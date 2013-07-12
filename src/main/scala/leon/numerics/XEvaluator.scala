@@ -69,7 +69,9 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
         val pathError = if (checkPathError) {
           // When the actual computation goes a different way than the real one
           val (flCond1, reCond1) = getDiffPathsConditions(cond, vars, config)
+          println("cond1: " + flCond1)
           val (flCond2, reCond2) = getDiffPathsConditions(negate(cond), vars, config)
+          println("cond2: " + flCond2)
 
           val pathErrorThen = getPathError(elze, And(flCond1, negate(cond)), then, And(cond, reCond1), vars, config)
           println("pathError1: %.16g".format(pathErrorThen.toDouble))
@@ -107,7 +109,7 @@ class XEvaluator(reporter: Reporter, solver: NumericSolver, precision: Precision
       //println("flConfig: " + flConfig.getCondition)
       //println("flExpr: " + flExpr)
       val flVars = addConditionToInputsAndRemoveErrors(vars, flCond)
-      //println("fl vars:"); flVars.foreach {f => println(f); println(f._2.config.solverMaxIter)}
+      //println("fl vars:"); flVars.foreach {f => println(f)}
       solver.clearCounts
       val (m, floatRange) = inXFloats(reporter, flExpr, flVars, flConfig)
       //reporter.info("STATS for floatRange: " + solver.getCounts)
