@@ -28,10 +28,10 @@ object InitialExample {
       a + b > c + 0.000001 && a + c > b + 0.000001 && b + c > a + 0.000001 &&
       a < c && b < c)
 
-      if (a < b) {
-        sqrt((c+(b+a)) * (a-(c-b)) * (a+(c-b)) * (c+(b-a)))/4.0
-      } else {
-        sqrt((c+(a+b)) * (b-(c-a)) * (b+(c-a)) * (c+(a-b)))/4.0
-      }
+    if (a < b) {
+      sqrt((c+(b+a)) * (a-(c-b)) * (a+(c-b)) * (c+(b-a)))/4.0
+    } else {
+      sqrt((c+(a+b)) * (b-(c-a)) * (b+(c-a)) * (c+(a-b)))/4.0
+    }
   }
 }

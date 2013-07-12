@@ -336,9 +336,9 @@ class XFloat(val tree: Expr, val approxInterval: RationalInterval, val error: XR
     println(toCheck2)
     //toCheck = toCheck2*/
 
-    //val res = config.solver.tightenRange(massagedTree, condition, approx, config.solverMaxIter, config.solverPrecision)
+    val res = config.solver.tightenRange(massagedTree, condition, approx, config.solverMaxIter, config.solverPrecision)
     //println(tree + "  " + config.solverMaxIter)
-    val res = approx
+    //val res = approx
     //println("after tightening: " + res)
 
     return res
