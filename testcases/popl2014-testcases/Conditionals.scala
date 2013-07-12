@@ -1,7 +1,7 @@
 import leon.Real
 import Real._
 
-object Robustness {
+object Conditionals {
 
   def smartRoot(a: Real, b: Real, c: Real): Real = {
     require(3 <= a && a <= 3 && 3.5 <= b && b <= 3.5 && c.in(-2, 2) &&
