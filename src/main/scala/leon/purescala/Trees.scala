@@ -3,7 +3,7 @@
 package leon
 package purescala
 
-import numerics.affine.Rational
+import ceres.common.Rational
 
 /** AST definitions for Pure Scala. */
 object Trees {

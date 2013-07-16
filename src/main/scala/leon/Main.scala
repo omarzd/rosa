@@ -15,8 +15,8 @@ object Main {
       xlang.XlangAnalysisPhase,
       synthesis.SynthesisPhase,
       termination.TerminationPhase,
-      verification.AnalysisPhase,
-      numerics.CertificationPhase
+      verification.AnalysisPhase//,
+      //numerics.CertificationPhase
     )
   }
 
@@ -146,8 +146,8 @@ object Main {
         xlang.XlangAnalysisPhase
       } else if (settings.verify) {
         verification.AnalysisPhase
-      } else if (settings.numerics) {
-        numerics.CertificationPhase
+      //} else if (settings.numerics) {
+        //numerics.CertificationPhase
       } else {
         NoopPhase()
       }
@@ -175,8 +175,8 @@ object Main {
         case report: termination.TerminationReport =>
           reporter.info(report.summaryString)
 
-        case report: numerics.CertificationReport =>
-          reporter.info(report.summaryString)
+        //case report: numerics.CertificationReport =>
+        //  reporter.info(report.summaryString)
 
 
 
