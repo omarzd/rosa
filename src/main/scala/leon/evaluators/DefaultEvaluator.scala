@@ -58,10 +58,10 @@ class DefaultEvaluator(ctx : LeonContext, prog : Program) extends Evaluator(ctx,
           rec(ctx + ((i -> first)), b)
         }
         case Error(desc) => throw RuntimeError("Error reached in evaluation: " + desc)
-        case IfExpr(cond, then, elze) => {
+        case IfExpr(cond, thenn, elze) => {
           val first = rec(ctx, cond)
           first match {
-            case BooleanLiteral(true) => rec(ctx, then)
+            case BooleanLiteral(true) => rec(ctx, thenn)
             case BooleanLiteral(false) => rec(ctx, elze)
             case _ => throw EvalError(typeErrorMsg(first, BooleanType))
           }
@@ -233,6 +233,10 @@ class DefaultEvaluator(ctx : LeonContext, prog : Program) extends Evaluator(ctx,
         case ElementOfSet(el,s) => (rec(ctx,el), rec(ctx,s)) match {
           case (e, f @ FiniteSet(els)) => BooleanLiteral(els.contains(e))
           case (l,r) => throw EvalError(typeErrorMsg(r, SetType(l.getType)))
+        }
+        case SubsetOf(s1,s2) => (rec(ctx,s1), rec(ctx,s2)) match {
+          case (f@FiniteSet(els1),FiniteSet(els2)) => BooleanLiteral(els1.toSet.subsetOf(els2.toSet))
+          case (le,re) => throw EvalError(typeErrorMsg(le, s1.getType))
         }
         case SetCardinality(s) => {
           val sr = rec(ctx, s)

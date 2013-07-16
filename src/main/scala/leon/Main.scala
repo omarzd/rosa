@@ -80,7 +80,7 @@ object Main {
       val leonOpt: LeonOption = opt.substring(2, opt.length).split("=", 2).toList match {
         case List(name, value) =>
           LeonValueOption(name, value)
-        case List(name) => name
+        case List(name) =>
           LeonFlagOption(name)
         case _ =>
           reporter.fatalError("Woot?")
@@ -117,9 +117,9 @@ object Main {
         settings = settings.copy(synthesis = false, xlang = false, verify = false)
       case LeonFlagOption("help") =>
         displayHelp(reporter)
-      case LeonFlagOption("numerics") =>
-        settings = settings.copy(termination = false, xlang = false, verify = false,
-          synthesis = false, numerics = true)
+      //case LeonFlagOption("numerics") =>
+      //  settings = settings.copy(termination = false, xlang = false, verify = false,
+      //    synthesis = false, numerics = true)
       case _ =>
     }
 
