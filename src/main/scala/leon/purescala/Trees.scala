@@ -3,8 +3,6 @@
 package leon
 package purescala
 
-import ceres.common.Rational
-
 /** AST definitions for Pure Scala. */
 object Trees {
   import Common._
@@ -395,12 +393,6 @@ object Trees {
     val fixedType = Int32Type
   }
 
-  case class RationalLiteral(value: Rational) extends Literal[Rational] with FixedType {
-    def this(d: Double) = this(Rational(d))
-    def this(i: Int) = this(Rational(i))
-    val fixedType = RealType
-  }
-
   case class BooleanLiteral(value: Boolean) extends Literal[Boolean] with FixedType {
     val fixedType = BooleanType
   }
@@ -445,59 +437,21 @@ object Trees {
 
   /* Arithmetic */
   case class Plus(lhs: Expr, rhs: Expr) extends Expr with FixedType {
-    val fixedType =
-      if (lhs.getType == RealType || rhs.getType == RealType) RealType
-      else Int32Type
+    val fixedType = Int32Type
   }
-  case class Minus(lhs: Expr, rhs: Expr) extends Expr with FixedType {
-    val fixedType =
-      if (lhs.getType == RealType || rhs.getType == RealType) RealType
-      else Int32Type
+  case class Minus(lhs: Expr, rhs: Expr) extends Expr with FixedType { 
+    val fixedType = Int32Type
   }
-  case class UMinus(expr: Expr) extends Expr with FixedType {
-    val fixedType =
-      if (expr.getType == RealType) RealType
-      else Int32Type
+  case class UMinus(expr: Expr) extends Expr with FixedType { 
+    val fixedType = Int32Type
   }
-  case class Times(lhs: Expr, rhs: Expr) extends Expr with FixedType {
-    val fixedType =
-      if (lhs.getType == RealType || rhs.getType == RealType) RealType
-      else Int32Type
+  case class Times(lhs: Expr, rhs: Expr) extends Expr with FixedType { 
+    val fixedType = Int32Type
   }
-  case class Division(lhs: Expr, rhs: Expr) extends Expr with FixedType {
-    val fixedType =
-      if (lhs.getType == RealType || rhs.getType == RealType) RealType
-      else Int32Type
+  case class Division(lhs: Expr, rhs: Expr) extends Expr with FixedType { 
+    val fixedType = Int32Type
   }
-
-  object Product {
-    def apply(l: Expr, r: Expr) : Expr = Product(Seq(l, r))
-    def apply(exprs: Seq[Expr]) : Expr = {
-      val flat = exprs.flatMap(_ match {
-        case Product(es) => es
-        case o => Seq(o)
-      }) 
-      new Product(flat)   
-    }
-    def unapply(prod: Product) : Option[Seq[Expr]] =
-      if(prod == null) None else Some(prod.exprs)
-  }
-  class Product private (val exprs: Seq[Expr]) extends Expr with FixedType {
-    val fixedType = RealType
-    assert(exprs.size >= 2)
-    override def equals(that: Any): Boolean = (that != null) && (that match {
-      case t: Product => t.exprs == exprs
-      case _ => false
-    })
-
-    override def hashCode: Int = exprs.hashCode
-  }
-
-  case class Power(lhs: Expr, rhs: Expr) extends Expr with FixedType {
-    val fixedType = RealType
-  }
- 
-  case class Modulo(lhs: Expr, rhs: Expr) extends Expr with FixedType {
+  case class Modulo(lhs: Expr, rhs: Expr) extends Expr with FixedType { 
     val fixedType = Int32Type
   }
   case class LessThan(lhs: Expr, rhs: Expr) extends Expr with FixedType {
@@ -510,34 +464,6 @@ object Trees {
     val fixedType = BooleanType
   }
   case class GreaterEquals(lhs: Expr, rhs: Expr) extends Expr with FixedType {
-    val fixedType = BooleanType
-  }
-
-  case class Noise(expr: Expr, err: Expr) extends Expr with FixedType {
-    val fixedType = BooleanType
-  }
-
-  case class RelError(expr: Expr, err: Expr) extends Expr with FixedType {
-    val fixedType = BooleanType
-  }  
-
-  case class Roundoff(expr: Expr) extends Expr with FixedType {
-    val fixedType = BooleanType
-  }
-
-  case class Actual(expr: Expr) extends Expr with FixedType {
-    val fixedType = RealType
-  }
-
-  case class InitialNoise(expr: Expr) extends Expr with FixedType {
-    val fixedType = RealType
-  }
-
-  case class Sqrt(expr: Expr) extends Expr with FixedType {
-    val fixedType = RealType
-  }
-
-  case class Assertion(expr: Expr) extends Expr with FixedType {
     val fixedType = BooleanType
   }
 

@@ -15,8 +15,8 @@ object Main {
       xlang.XlangAnalysisPhase,
       synthesis.SynthesisPhase,
       termination.TerminationPhase,
-      verification.AnalysisPhase//,
-      //numerics.CertificationPhase
+      verification.AnalysisPhase,
+      real.CompilationPhase
     )
   }
 
@@ -33,8 +33,7 @@ object Main {
       LeonFlagOptionDef ("parse",        "--parse",       "Checks only whether the program is valid PureScala"),
       LeonValueOptionDef("debug",        "--debug=[1-5]", "Debug level"),
       LeonFlagOptionDef ("help",         "--help",        "Show help"),
-  
-      LeonFlagOptionDef ("numerics",       "--numerics",      "Check floating-point constraints")
+      LeonFlagOptionDef ("real",         "--real",        "Compilation of programs over reals")
       //  Unimplemented Options:
       //
       //  LeonFlagOptionDef("uniqid",        "--uniqid",             "When pretty-printing purescala trees, show identifiers IDs"),
@@ -117,9 +116,9 @@ object Main {
         settings = settings.copy(synthesis = false, xlang = false, verify = false)
       case LeonFlagOption("help") =>
         displayHelp(reporter)
-      //case LeonFlagOption("numerics") =>
-      //  settings = settings.copy(termination = false, xlang = false, verify = false,
-      //    synthesis = false, numerics = true)
+      case LeonFlagOption("real") =>
+        settings = settings.copy(termination = false, xlang = false, verify = false, synthesis = false,
+          real = true)
       case _ =>
     }
 
@@ -146,8 +145,8 @@ object Main {
         xlang.XlangAnalysisPhase
       } else if (settings.verify) {
         verification.AnalysisPhase
-      //} else if (settings.numerics) {
-        //numerics.CertificationPhase
+      } else if (settings.real) {
+        real.CompilationPhase
       } else {
         NoopPhase()
       }
@@ -175,10 +174,8 @@ object Main {
         case report: termination.TerminationReport =>
           reporter.info(report.summaryString)
 
-        //case report: numerics.CertificationReport =>
-        //  reporter.info(report.summaryString)
-
-
+        case report: real.CompilationReport =>
+          reporter.info(report.summaryString)
 
         case _ =>
       }

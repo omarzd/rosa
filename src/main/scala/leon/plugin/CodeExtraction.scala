@@ -12,6 +12,7 @@ import purescala.Definitions._
 import purescala.Trees.{Expr => LeonExpr, _}
 import xlang.Trees.{Block => LeonBlock, _}
 import xlang.TreeOps._
+import real.Trees._
 import purescala.TypeTrees.{TypeTree => LeonType, _}
 import purescala.Common._
 import purescala.TreeOps._
@@ -633,11 +634,42 @@ trait CodeExtraction extends Extractors {
         case ExAnd(l, r)           => And(extractTree(l), extractTree(r))
         case ExOr(l, r)            => Or(extractTree(l), extractTree(r))
         case ExNot(e)              => Not(extractTree(e))
-        case ExUMinus(e)           => UMinus(extractTree(e))
-        case ExPlus(l, r)          => Plus(extractTree(l), extractTree(r))
-        case ExMinus(l, r)         => Minus(extractTree(l), extractTree(r))
-        case ExTimes(l, r)         => Times(extractTree(l), extractTree(r))
-        case ExDiv(l, r)           => Division(extractTree(l), extractTree(r))
+        case ExUMinus(e)           =>
+          val re = extractTree(e)
+          re.getType match {
+            case RealType => UMinusR(re)
+            case _ => UMinus(re)
+          }
+        case ExPlus(l, r)          =>
+          println("extracting: " + l)
+          val rl = extractTree(l)
+          println("extracting: " + r)
+          val rr = extractTree(r)
+          (rl.getType, rr.getType) match {
+            case (RealType, _) | (_, RealType) => PlusR(rl, rr)
+            case _ => Plus(rl, rr)
+          }
+        case ExMinus(l, r)         =>
+          val rl = extractTree(l)
+          val rr = extractTree(r)
+          (rl.getType, rr.getType) match {
+            case (RealType, _) | (_, RealType) => MinusR(rl, rr)
+            case _ => Minus(rl, rr)
+          }
+        case ExTimes(l, r)         =>
+          val rl = extractTree(l)
+          val rr = extractTree(r)
+          (rl.getType, rr.getType) match {
+            case (RealType, _) | (_, RealType) => TimesR(rl, rr)
+            case _ => Times(rl, rr)
+          }
+        case ExDiv(l, r)           =>
+          val rl = extractTree(l)
+          val rr = extractTree(r)
+          (rl.getType, rr.getType) match {
+            case (RealType, _) | (_, RealType) => DivisionR(rl, rr)
+            case _ => Division(rl, rr)
+          }
         case ExMod(l, r)           => Modulo(extractTree(l), extractTree(r))
         case ExNotEquals(l, r)     => Not(Equals(extractTree(l), extractTree(r)))
         case ExGreaterThan(l, r)   => GreaterThan(extractTree(l), extractTree(r))
@@ -662,6 +694,55 @@ trait CodeExtraction extends Extractors {
               unsupported(tr, "Invalid comparison: (_: "+rt+") == (_: "+lt+")")
           }
 
+        case ExFloat64Literal(v) => new RationalLiteral(v)
+        case ExImplicitDouble2Real(dbl) => new RationalLiteral(dbl)
+        case ExImplicitInt2Real(i) => new RationalLiteral(i)
+        case ExImplicitDouble2RealVar(sym,tpt) => varSubsts.get(sym) match {
+          case Some(fun) => fun()
+          case None => mutableVarSubsts.get(sym) match {
+            case Some(fun) => fun()
+            case None =>
+              unsupported(tr, "Unidentified variable.")
+          }
+        }
+        case ExSqrt(e) => SqrtR(extractTree(e))
+        case ExPlusMinus(l, r) =>
+          val rl = extractTree(l)
+          rl match {
+            case Variable(_) | ResultVariable() => Noise(rl, extractTree(r))
+            case _ =>
+              unsupported(tr, "+/- only supported for variables")
+          }
+        case ExActual(e) =>
+          val re = extractTree(e)
+          re match {
+            case Variable(_) | ResultVariable() => Actual(re)
+            case _ =>
+              unsupported(tr, "~ only supported for variables")
+          }
+        case ExAssertion(e) => Assertion(extractTree(e))
+        /*case ExIn(v, l, u) =>
+          val rv = extractTree(v)
+          val rl = extractTree(l)
+          val ru = extractTree(u)
+          (rv, rl, ru) match {
+            case (Variable(_), RationalLiteral(lwr), RationalLiteral(upr)) =>
+              In(rv, lwr, upr)
+            case _ =>
+              unsupported(tr, "in() only supported for variables")
+          }*/
+        case ExIn2(v, tpl) =>
+          println("v: " + extractTree(v))
+          println("tpl: " + extractTree(tpl).getClass)
+          val rv = extractTree(v)
+          val tuple = extractTree(tpl)
+          (rv, tuple) match {
+            case (Variable(_), Tuple(Seq(RationalLiteral(lwr), RationalLiteral(upr)))) if (lwr <= upr) =>
+              WithIn(rv, lwr, upr)
+            case _ =>
+              unsupported(tr, "invalid use of ><")    
+          }
+          
         case ExFiniteSet(tt, args)  =>
           val underlying = extractType(tt.tpe)
           FiniteSet(args.map(extractTree(_))).setType(SetType(underlying))
@@ -933,6 +1014,7 @@ trait CodeExtraction extends Extractors {
 
         // default behaviour is to complain :)
         case _ =>
+          println("gotten to the end " + current + "   " + current.getClass)
           unsupported(tr, "Could not extract as PureScala")
       }
 
@@ -986,6 +1068,12 @@ trait CodeExtraction extends Extractors {
 
       case SingleType(_, sym) if classesToClasses contains sym.moduleClass=>
         classDefToClassType(classesToClasses(sym.moduleClass))
+
+      case TypeRef(pkg, sym, Nil) if (isReal(sym)) =>
+        RealType
+
+      case tpe if tpe == DoubleClass.tpe =>
+        RealType
 
       case _ =>
         unsupported("Could not extract type as PureScala: "+tpt+" ("+tpt.getClass+")")

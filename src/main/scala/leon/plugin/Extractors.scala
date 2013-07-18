@@ -29,11 +29,13 @@ trait Extractors {
   protected lazy val arraySym           = classFromName("scala.Array")
   protected lazy val someClassSym       = classFromName("scala.Some")
   protected lazy val function1TraitSym  = classFromName("scala.Function1")
+  protected lazy val realSym            = classFromName("leon.Real")
 
   def isTuple2(sym : Symbol) : Boolean = sym == tuple2Sym
   def isTuple3(sym : Symbol) : Boolean = sym == tuple3Sym
   def isTuple4(sym : Symbol) : Boolean = sym == tuple4Sym
   def isTuple5(sym : Symbol) : Boolean = sym == tuple5Sym
+  def isReal(sym : Symbol) : Boolean = sym == realSym
 
 
   // Resolve type aliases
@@ -529,13 +531,6 @@ trait Extractors {
       }
     }
 
-    object ExUMinusReal {
-      def unapply(tree: Apply): Option[Tree] = tree match {
-        case Apply(Select(lhs, n), args) if (n == nme.UNARY_-) => Some(lhs)
-        case _=> None
-      }
-    }
-
     object ExPlus {
       def unapply(tree: Apply): Option[(Tree,Tree)] = tree match {
         case Apply(Select(lhs, n), List(rhs)) if (n == nme.ADD) => Some((lhs,rhs))
@@ -587,10 +582,17 @@ trait Extractors {
       }
     }
 
+    object ExSqrt {
+      def unapply(tree: Apply): Option[Tree] = tree match {
+        case Apply(select, List(arg)) if (select.toString == "leon.Real.sqrt") => Some(arg)
+        case _ => None
+      }
+    }
+
     object ExImplicitInt2Real {
       def unapply(tree: Apply): Option[Int] = tree match {
         case Apply(select, List(Literal(c @ Constant(i))))
-          if (select.toString == "leon.this.Real.int2real") =>
+          if (select.toString == "leon.Real.int2real") =>
           assert(c.tpe == IntClass.tpe)
           Some(c.intValue)
         case _ => None
@@ -600,32 +602,25 @@ trait Extractors {
     object ExImplicitDouble2Real {
       def unapply(tree: Apply): Option[Double] = tree match {
         case Apply(select, List(Literal(c @ Constant(i))))
-          if (select.toString == "leon.this.Real.double2real") =>
+          if (select.toString == "leon.Real.double2real") =>
           assert(c.tpe == DoubleClass.tpe)
           Some(c.doubleValue)
         case _ => None
       }
     }
-
+    
     object ExImplicitDouble2RealVar {
       def unapply(tree: Apply): Option[(Symbol, Tree)] = tree match {
         case Apply(select, List(i @ Ident(s)))
-          if (select.toString == "leon.this.Real.double2real") =>
+          if (select.toString == "leon.Real.double2real") =>
           Some((i.symbol, i))
         case _ => None
       }
     }
-
+    
     object ExPlusMinus {
       def unapply(tree: Apply): Option[(Tree,Tree)] = tree match {
         case Apply(Select(lhs, n), List(rhs)) if (n.toString == "$plus$div$minus") => Some((lhs,rhs))
-        case _ => None
-      }
-    }
-
-    object ExRoundoff {
-      def unapply(tree: Apply): Option[List[Tree]] = tree match {
-        case Apply(select, args) if (select.toString == "leon.Real.roundoff") => Some(args)
         case _ => None
       }
     }
@@ -634,20 +629,6 @@ trait Extractors {
       def unapply(tree: Apply): Option[Tree] = tree match {
         case Apply(Select(lhs, n), List()) if (n.toString == "unary_$tilde") => Some(lhs)
         case _=> None
-      }
-    }
-
-    object ExInitialNoise {
-      def unapply(tree: Apply): Option[Tree] = tree match {
-        case Apply(Select(lhs, n), List()) if (n.toString == "unary_$bang") => Some(lhs)
-        case _=> None
-      }
-    }
-
-    object ExSqrt {
-      def unapply(tree: Apply): Option[Tree] = tree match {
-        case Apply(select, List(arg)) if (select.toString == "leon.Real.sqrt") => Some(arg)
-        case _ => None
       }
     }
 
@@ -665,6 +646,24 @@ trait Extractors {
         case _ => None
       }
     }
+
+    object ExIn2 {
+      def unapply(tree: Apply): Option[(Tree, Tree)] = tree match {
+        case Apply(Select(lhs, n), List(arg)) => // if (n.toString == "in") =>
+          println("arg1: " + arg + "   " + arg.getClass)
+          //Some((lhs, arg1, arg2))
+          Some((lhs, arg))
+        case _ => None
+      }
+    }    
+    /*
+    object ExInitialNoise {
+      def unapply(tree: Apply): Option[Tree] = tree match {
+        case Apply(Select(lhs, n), List()) if (n.toString == "unary_$bang") => Some(lhs)
+        case _=> None
+      }
+    }
+    */
 
     object ExPatternMatching {
       def unapply(tree: Match): Option[(Tree,List[CaseDef])] =

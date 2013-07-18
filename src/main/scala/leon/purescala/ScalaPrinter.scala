@@ -64,8 +64,7 @@ class ScalaPrinter(sb: StringBuffer = new StringBuffer) extends PrettyPrinter(sb
     case BooleanLiteral(v) => sb.append(v)
     case StringLiteral(s) => sb.append("\"" + s + "\"")
     case UnitLiteral => sb.append("()")
-    case RationalLiteral(v) => sb.append(v)
-
+    
     /* These two aren't really supported in Scala, but we know how to encode them. */
     case Implies(l,r) => pp(Or(Not(l), r), lvl)
     case Iff(l,r) => ppBinary(l, r, " == ", lvl)

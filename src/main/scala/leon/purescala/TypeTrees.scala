@@ -141,6 +141,7 @@ object TypeTrees {
     case UnitType => FiniteSize(1)
     case Int32Type => InfiniteSize
     case RealType => InfiniteSize
+    
     case ListType(_) => InfiniteSize
     case ArrayType(_) => InfiniteSize
     case TupleType(bases) => {
