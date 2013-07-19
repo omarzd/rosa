@@ -641,9 +641,7 @@ trait CodeExtraction extends Extractors {
             case _ => UMinus(re)
           }
         case ExPlus(l, r)          =>
-          println("extracting: " + l)
           val rl = extractTree(l)
-          println("extracting: " + r)
           val rr = extractTree(r)
           (rl.getType, rr.getType) match {
             case (RealType, _) | (_, RealType) => PlusR(rl, rr)
@@ -706,34 +704,22 @@ trait CodeExtraction extends Extractors {
           }
         }
         case ExSqrt(e) => SqrtR(extractTree(e))
-        case ExPlusMinus(l, r) =>
-          val rl = extractTree(l)
+        case ExPlusMinus(l, r) => Noise(extractTree(l), extractTree(r))
+          /*val rl = extractTree(l)
           rl match {
             case Variable(_) | ResultVariable() => Noise(rl, extractTree(r))
             case _ =>
               unsupported(tr, "+/- only supported for variables")
-          }
-        case ExActual(e) =>
-          val re = extractTree(e)
+          }*/
+        case ExActual(e) => Actual(extractTree(e))
+          /*val re = extractTree(e)
           re match {
             case Variable(_) | ResultVariable() => Actual(re)
             case _ =>
               unsupported(tr, "~ only supported for variables")
-          }
-        case ExAssertion(e) => Assertion(extractTree(e))
-        /*case ExIn(v, l, u) =>
-          val rv = extractTree(v)
-          val rl = extractTree(l)
-          val ru = extractTree(u)
-          (rv, rl, ru) match {
-            case (Variable(_), RationalLiteral(lwr), RationalLiteral(upr)) =>
-              In(rv, lwr, upr)
-            case _ =>
-              unsupported(tr, "in() only supported for variables")
           }*/
-        case ExIn2(v, tpl) =>
-          println("v: " + extractTree(v))
-          println("tpl: " + extractTree(tpl).getClass)
+        case ExAssertion(e) => Assertion(extractTree(e))
+        case ExWithin(v, tpl) =>
           val rv = extractTree(v)
           val tuple = extractTree(tpl)
           (rv, tuple) match {

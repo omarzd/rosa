@@ -639,32 +639,14 @@ trait Extractors {
       }
     }
 
-    object ExIn {
-      def unapply(tree: Apply): Option[(Tree, Tree, Tree)] = tree match {
-        case Apply(Select(lhs, n), List(arg1, arg2)) if (n.toString == "in") =>
-          Some((lhs, arg1, arg2))
-        case _ => None
-      }
-    }
-
-    object ExIn2 {
+    object ExWithin {
       def unapply(tree: Apply): Option[(Tree, Tree)] = tree match {
-        case Apply(Select(lhs, n), List(arg)) => // if (n.toString == "in") =>
-          println("arg1: " + arg + "   " + arg.getClass)
-          //Some((lhs, arg1, arg2))
+        case Apply(Select(lhs, n), List(arg)) if (n.toString == "$greater$less") =>
           Some((lhs, arg))
         case _ => None
       }
     }    
-    /*
-    object ExInitialNoise {
-      def unapply(tree: Apply): Option[Tree] = tree match {
-        case Apply(Select(lhs, n), List()) if (n.toString == "unary_$bang") => Some(lhs)
-        case _=> None
-      }
-    }
-    */
-
+  
     object ExPatternMatching {
       def unapply(tree: Match): Option[(Tree,List[CaseDef])] =
         if(tree != null) Some((tree.selector, tree.cases)) else None

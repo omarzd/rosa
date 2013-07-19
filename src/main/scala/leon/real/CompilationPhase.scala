@@ -16,6 +16,10 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
 
     println("Program: ")
     println(program)
+
+    // Generate VCs (separate, but mark those that are for spec gen)
+
+    // Verification
    
     new CompilationReport()
   }
