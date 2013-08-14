@@ -18,10 +18,11 @@ object Trees {
     val fixedType = RealType
 
     def printWith(lvl: Int, printer: PrettyPrinter) {
-      printer.append(value.toString + "!")
+      printer.append(value.toString)
     }
   }
 
+  /* Adds an uncertainty of absolute magnitude error to the expression varr. */
   case class Noise(varr: Expr, error: Expr) extends Expr with FixedType with BinaryExtractable with PrettyPrintable {
     val fixedType = BooleanType
     def extract: Option[(Expr, Expr, (Expr, Expr)=>Expr)] = {
@@ -37,6 +38,7 @@ object Trees {
     }
   }
 
+  /* Reference to the actually computed floating-point (or other) value (as opposed to the ideal real one). */
   case class Actual(expr: Expr) extends Expr with FixedType with UnaryExtractable with PrettyPrintable {
     val fixedType = RealType
     def extract: Option[(Expr, (Expr)=>Expr)] = {
@@ -48,6 +50,7 @@ object Trees {
     }
   }
 
+  /* Bounds of the expression varr. */
   case class WithIn(varr: Expr, lwrBnd: Rational, upBnd: Rational) extends Expr with FixedType with UnaryExtractable with PrettyPrintable {
     val fixedType = BooleanType
     def extract: Option[(Expr, (Expr)=>Expr)] = {
@@ -84,7 +87,7 @@ object Trees {
     }
   }
 
-  /* Arithmetic on reals*/
+  /* Arithmetic on reals */
   case class PlusR(lhs: Expr, rhs: Expr) extends Expr with FixedType with BinaryExtractable with PrettyPrintable {
     val fixedType = RealType
     def extract: Option[(Expr, Expr, (Expr, Expr)=>Expr)] = {
@@ -174,7 +177,7 @@ object Trees {
     }
   }
 
-
+  // Only use Product for ideal/real values, as for actual values the order of computation matters.
   object Product {
     def apply(l: Expr, r: Expr) : Expr = Product(Seq(l, r))
     def apply(exprs: Seq[Expr]) : Expr = {
@@ -212,4 +215,7 @@ object Trees {
   }
 
   
+
+  /* Arithmetic on floats */
+
 }
