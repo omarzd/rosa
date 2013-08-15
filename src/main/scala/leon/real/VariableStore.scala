@@ -3,17 +3,25 @@
 package leon
 package real
 
+import leon.purescala.Definitions._
 import leon.purescala.Common._
 import leon.purescala.TypeTrees._
 import leon.purescala.Trees._
 import purescala.TreeOps._
 
 import real.Trees._
+import Utils._
 
+// TODO: deal with roundoff, do we always add it, or just of no uncertainty is specified?
 case class Record(ideal: Variable, actual: Variable, lo: Option[Rational], up: Option[Rational], uncertainty: Option[Rational]) {
   def newLo(n: Rational): Record = Record(ideal, actual, Some(n), up, uncertainty)
   def newUp(n: Rational): Record = Record(ideal, actual, lo, Some(n), uncertainty)
   def newUncert(n: Rational): Record = Record(ideal, actual, lo, up, Some(n))
+
+  def isBoundedValid: Boolean = !lo.isEmpty && !up.isEmpty && lo.get <= up.get
+
+  override def toString: String = "%s = %s (%s, %s) +/- %s".format(ideal, actual,
+    formatOption(lo), formatOption(up), formatOption(uncertainty))
 }
 
 /*
@@ -21,13 +29,36 @@ case class Record(ideal: Variable, actual: Variable, lo: Option[Rational], up: O
   and such things.
 @param map indexed by ideal variable
 */
-class VariableStore(map: Map[Variable, Record]) {
+class VariableStore {
+  import VariableStore._
+  private var map = Map[Variable, Record]()
 
+  def this(m: Map[Variable, Record]) = {
+    this()
+    map = m
+  }
+
+  def buddy(v: Variable): Variable = {
+    if (map.contains(v)) map(v).actual
+    else {
+      val newRecord = emptyRecord(v)
+      map += (v -> newRecord)
+      newRecord.actual
+    }
+  }
+
+  def isValid(varDecl: Seq[VarDecl]): Boolean = {
+    val params = varDecl.map(vd => vd.id)
+    if (map.size != params.size) false
+    else map.forall(v => params.contains(v._1.id) && v._2.isBoundedValid)
+  }
   override def toString: String = map.toString
 }
 
 
 object VariableStore {
+  def emptyRecord(ideal: Variable) =
+      Record(ideal, Variable(FreshIdentifier("#" + ideal.id.name)).setType(RealType), None, None, None)
 
   def apply(expr: Expr): VariableStore = {
     val collector = new VariableCollector
@@ -39,10 +70,6 @@ object VariableStore {
     type C = Seq[Expr]
     val initC = Nil
     var recordMap = Map[Variable, Record]()
-
-    def emptyRecord(ideal: Variable) =
-      Record(ideal, Variable(FreshIdentifier("#" + ideal.id.name + "-r")).setType(RealType), None, None, None)
-
 
     def register(e: Expr, path: C) = path :+ e
 
@@ -76,6 +103,12 @@ object VariableStore {
         recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newUncert(value)); e
 
       case Noise(_, _) =>
+        throw UnsupportedRealFragmentException(e.toString); e
+
+      case WithIn(x @ Variable(_), lwrBnd, upBnd) =>
+        recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newLo(lwrBnd).newUp(upBnd)); e
+
+      case WithIn(e, lwrBnd, upBnd) =>
         throw UnsupportedRealFragmentException(e.toString); e
 
       case _ =>

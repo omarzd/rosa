@@ -4,8 +4,17 @@ package leon
 package real
 
 import purescala.Definitions._
+import purescala.Trees._
+import purescala.TreeOps._
+
+import xlang.Trees._
+
+import real.Trees._
+import real.TreeOps._
+import real.ArithmeticOps._
 
 import Precision._
+import VCKind._
 
 
 object CompilationPhase extends LeonPhase[Program,CompilationReport] {
@@ -13,6 +22,7 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
   val description = "compilation of real programs"
 
   var verbose = true
+  var reporter: Reporter = null
 
   override val definedOptions: Set[LeonOptionDef] = Set(
     LeonValueOptionDef("functions", "--functions=f1:f2", "Limit verification to f1, f2,..."),
@@ -25,8 +35,9 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
     LeonFlagOptionDef("nospecgen", "--nospecgen", "Don't generate specs.")
   )
 
-  def run(ctx: LeonContext)(program: Program): CompilationReport = {
-    val reporter = ctx.reporter
+
+  def run(ctx: LeonContext)(program: Program): CompilationReport = { 
+    reporter = ctx.reporter
     reporter.info("Running Compilation phase")
 
     var functionsToAnalyse = Set[String]()
@@ -51,32 +62,73 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
       case _ =>
     }
     if (verbose) println("real options: " + options.toString)
-
-    // TODO: sorting by function calls
-    val sortedFncs =
-      if(functionsToAnalyse.isEmpty)
-        program.definedFunctions.toList.sortWith((f1, f2) => f1.id.name < f2.id.name)
-      else {
-        val toAnalyze = program.definedFunctions.filter(
-          f => functionsToAnalyse.contains(f.id.name)).sortWith(
-          (f1, f2) => f1.id.name < f2.id.name)
-        val notFound = functionsToAnalyse -- toAnalyze.map(fncDef => fncDef.id.name).toSet
-        notFound.foreach(fn => reporter.error("Did not find function \"" + fn + "\" though it was marked for analysis."))
-        toAnalyze
-      }
-
+    
+    // TODO: do we need to sort them at all, since we sort the vcs again?
+    val sortedFncs = sortFunctions(program.definedFunctions, functionsToAnalyse)
     if (verbose) println("functions to analyze: " + sortedFncs.map(f => f.id.name))
 
     
     /*
       Analysis
      */
-    // extract range bounds from specs and replace by WithIn
-    // Generate a map from real to actual variables, incl. the noises, roundoff etc. (previously Record and getVariables)
+    var vcs: Seq[VerificationCondition] = Seq.empty
+    
+    for (funDef <- sortedFncs if (funDef.body.isDefined)) {
+      if (verbose) println("\n***\nanalysing fnc: " + funDef.id.name)
+      println(funDef.body.get)
+      //val analyser = new Analyser(reporter, merging, z3only)
+      //allVCs = allVCs :+ analyser.analyzeThis(funDef)
 
+      //class VerificationCondition(val funDef: FunDef, val kind: VCKind.Value, val pre: Expr, 
+        //val post: Expr) extends ScalacPositional {
+
+      funDef.precondition match {
+        case Some(precondition) =>
+          val parameters = VariableStore(precondition)
+          println("parameters: " + parameters)
+          if (parameters.isValid(funDef.args)) {
+            println("prec. is complete, continuing")
+
+            println("pre: " + precondition)
+            val allFncCalls = functionCallsOf(precondition).map(invc => invc.funDef.id.toString) ++
+              functionCallsOf(funDef.body.get).map(invc => invc.funDef.id.toString)
+
+            val (fncBody, postcondition) = funDef.postcondition match {
+              case Some(ResultVariable()) =>
+                val posts = getInvariantCondition(funDef.body.get)
+                val bodyWOLets = convertLetsToEquals(funDef.body.get)
+                val body = replace(posts.map(p => (p, True)).toMap, bodyWOLets)
+                (body, Or(posts))
+              case Some(p) => (convertLetsToEquals(addResult(funDef.body.get)), p)
+
+              case None => (convertLetsToEquals(addResult(funDef.body.get)), BooleanLiteral(true))
+            }
+
+            println("\nfncBody: " + fncBody)
+            println("\npost: " + postcondition)
+
+            println("\n body real : " + fncBody)
+            println("\n body float: " + idealToActual(fncBody, parameters))
+
+            // add floating-point "track"
+            val body = And(fncBody, idealToActual(fncBody, parameters))
+
+            vcs :+= new VerificationCondition(funDef, Postcondition, precondition, body, postcondition, allFncCalls)
+            
+            
+
+            // TODO: vcs from assertions
+            // TODO: vcs checking precondition of function calls
+
+          } else {
+            reporter.warning("Incomplete precondition! Skipping...")
+          }
+        case None =>
+      }
+    }
     
     if (reporter.errorCount > 0) throw LeonFatalError()
-
+    
 
     /* 
       VC generation
@@ -107,4 +159,23 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
     */
     new CompilationReport()
   }
+
+  // TODO: sorting by function calls
+  private def sortFunctions(definedFunctions: Seq[FunDef], fncsToAnalyse: Set[String]): Seq[FunDef] = {
+    if(fncsToAnalyse.isEmpty)
+      definedFunctions.toList.sortWith((f1, f2) => f1.id.name < f2.id.name)
+    else {
+      val toAnalyze = definedFunctions.filter(
+        f => fncsToAnalyse.contains(f.id.name)).sortWith(
+          (f1, f2) => f1.id.name < f2.id.name)
+      val notFound = fncsToAnalyse -- toAnalyze.map(fncDef => fncDef.id.name).toSet
+      notFound.foreach(fn => reporter.error("Did not find function \"" + fn + "\" though it was marked for analysis."))
+      toAnalyze
+    }
+  }
+
+
+  
+
 }
+

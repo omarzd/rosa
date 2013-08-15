@@ -12,6 +12,14 @@ import leon.purescala.{PrettyPrinter, PrettyPrintable, ScalaPrinter}
 
 object Trees {
 
+  // represents the actual result in post-conditions
+  case class FResVariable() extends Expr with Terminal with FixedType with PrettyPrintable {
+    val fixedType = RealType
+    def printWith(lvl: Int, printer: PrettyPrinter) {
+      printer.append("#fres")
+    }
+  }
+
   case class RationalLiteral(value: Rational) extends Expr with Terminal with FixedType with PrettyPrintable {
     def this(d: Double) = this(Rational(d))
     def this(i: Int) = this(Rational(i))
@@ -217,5 +225,80 @@ object Trees {
   
 
   /* Arithmetic on floats */
+  case class PlusF(lhs: Expr, rhs: Expr) extends Expr with FixedType with BinaryExtractable with PrettyPrintable {
+    val fixedType = RealType
+    def extract: Option[(Expr, Expr, (Expr, Expr)=>Expr)] = {
+      Some((lhs, rhs, (t1, t2) => PlusF(t1, t2)))
+    }
+
+    def printWith(lvl: Int, printer: PrettyPrinter) {
+      printer.append("(")
+      printer.pp(lhs,lvl)
+      printer.append(" \u2295 ")
+      printer.pp(rhs,lvl)
+      printer.append(")")
+    }
+  }
+  case class MinusF(lhs: Expr, rhs: Expr) extends Expr with FixedType with BinaryExtractable with PrettyPrintable {
+    val fixedType = RealType
+    def extract: Option[(Expr, Expr, (Expr, Expr)=>Expr)] = {
+      Some((lhs, rhs, (t1, t2) => MinusF(t1, t2)))
+    }
+    def printWith(lvl: Int, printer: PrettyPrinter) {
+      printer.append("(")
+      printer.pp(lhs,lvl)
+      printer.append(" \u2296 ")
+      printer.pp(rhs,lvl)
+      printer.append(")")
+    }
+  }
+  case class UMinusF(expr: Expr) extends Expr with FixedType with UnaryExtractable with PrettyPrintable {
+    val fixedType = RealType
+    def extract: Option[(Expr, (Expr)=>Expr)] = {
+      Some((expr, (e) => UMinusF(e)))
+    }
+    def printWith(lvl: Int, printer: PrettyPrinter) {
+      printer.append("(\u2296")
+      printer.pp(expr,lvl)
+      printer.append(")")
+    }
+  }
+  case class TimesF(lhs: Expr, rhs: Expr) extends Expr with FixedType with BinaryExtractable with PrettyPrintable {
+    val fixedType = RealType
+    def extract: Option[(Expr, Expr, (Expr, Expr)=>Expr)] = {
+      Some((lhs, rhs, (t1, t2) => TimesF(t1, t2)))
+    }
+    def printWith(lvl: Int, printer: PrettyPrinter) {
+      printer.append("(")
+      printer.pp(lhs,lvl)
+      printer.append(" \u2297 ")
+      printer.pp(rhs,lvl)
+      printer.append(")")
+    }
+  }
+  case class DivisionF(lhs: Expr, rhs: Expr) extends Expr with FixedType with BinaryExtractable with PrettyPrintable {
+    val fixedType = RealType
+    def extract: Option[(Expr, Expr, (Expr, Expr)=>Expr)] = {
+      Some((lhs, rhs, (t1, t2) => DivisionF(t1, t2)))
+    }
+    def printWith(lvl: Int, printer: PrettyPrinter) {
+      printer.append("(")
+      printer.pp(lhs,lvl)
+      printer.append(" \u2298 ")
+      printer.pp(rhs,lvl)
+      printer.append(")")
+    }
+  }
+  case class SqrtF(expr: Expr) extends Expr with FixedType with UnaryExtractable with PrettyPrintable {
+    val fixedType = RealType
+    def extract: Option[(Expr, (Expr)=>Expr)] = {
+      Some((expr, (e) => SqrtF(e)))
+    }
+    def printWith(lvl: Int, printer: PrettyPrinter) {
+      printer.append("sqrtF(")
+      printer.pp(expr,lvl)
+      printer.append(")")
+    }
+  }
 
 }
