@@ -531,6 +531,13 @@ trait Extractors {
       }
     }
 
+    object ExUMinusR {
+      def unapply(tree: Apply): Option[Tree] = tree match {
+        case Apply(Select(t, n), List()) if (n == nme.UNARY_-) => Some(t)
+        case _ => None
+      }
+    }
+
     object ExPlus {
       def unapply(tree: Apply): Option[(Tree,Tree)] = tree match {
         case Apply(Select(lhs, n), List(rhs)) if (n == nme.ADD) => Some((lhs,rhs))

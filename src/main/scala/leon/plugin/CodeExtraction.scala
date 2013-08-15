@@ -636,6 +636,14 @@ trait CodeExtraction extends Extractors {
         case ExNot(e)              => Not(extractTree(e))
         case ExUMinus(e)           =>
           val re = extractTree(e)
+          assert(re.getType != RealType) // TODO: remove assert if always holds
+          re.getType match {
+            case RealType => UMinusR(re)
+            case _ => UMinus(re)
+          }
+        case ExUMinusR(e)           =>
+          val re = extractTree(e)
+          assert(re.getType == RealType)  // TODO: remove assert if always holds
           re.getType match {
             case RealType => UMinusR(re)
             case _ => UMinus(re)
@@ -996,7 +1004,6 @@ trait CodeExtraction extends Extractors {
           val rc = cses.map(extractMatchCase(_))
           val rt: LeonType = rc.map(_.rhs.getType).reduceLeft(leastUpperBound(_,_).get)
           MatchExpr(rs, rc).setType(rt).setPosInfo(pm.pos.line,pm.pos.column)
-
 
         // default behaviour is to complain :)
         case _ =>
