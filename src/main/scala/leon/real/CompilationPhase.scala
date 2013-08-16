@@ -68,20 +68,62 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
     if (verbose) println("functions to analyze: " + sortedFncs.map(f => f.id.name))
 
     
+    /* VC generation */
+    val vcs = analyzeThis(sortedFncs)
+    if (reporter.errorCount > 0) throw LeonFatalError()
+    
+    
+    // this needs to handle the path-sensitivity and how methods are handled
+
     /*
-      Analysis
+      VC check
      */
+    val prover = new Prover(reporter, options)
+    prover.check(vcs)
+    /*
+      Then we need
+      - evaluate the float arithmetic in xfloats
+      - translate to Z3 (with all that (1 + delta) business) 
+      - stand-alone fnc to approximate ideal and actual expressions
+      - an algorithm to cycle through different approximations
+    */
+
+    // Spec generation. Ideally we search through what we have proven so far, and use that, 
+    // or take this into account already at analysis phase   
+
+
+    /* Wishlist:
+      - real part has products (instead of the times trees) and the compiler is free to choose any order for the actual part
+    
+  
+    */
+    new CompilationReport(vcs)
+
+    // TODO: simulation
+  }
+
+  // TODO: sorting by function calls
+  private def sortFunctions(definedFunctions: Seq[FunDef], fncsToAnalyse: Set[String]): Seq[FunDef] = {
+    if(fncsToAnalyse.isEmpty)
+      definedFunctions.toList.sortWith((f1, f2) => f1.id.name < f2.id.name)
+    else {
+      val toAnalyze = definedFunctions.filter(
+        f => fncsToAnalyse.contains(f.id.name)).sortWith(
+          (f1, f2) => f1.id.name < f2.id.name)
+      val notFound = fncsToAnalyse -- toAnalyze.map(fncDef => fncDef.id.name).toSet
+      notFound.foreach(fn => reporter.error("Did not find function \"" + fn + "\" though it was marked for analysis."))
+      toAnalyze
+    }
+  }
+
+
+  private def analyzeThis(sortedFncs: Seq[FunDef]): Seq[VerificationCondition] = {
     var vcs: Seq[VerificationCondition] = Seq.empty
     
     for (funDef <- sortedFncs if (funDef.body.isDefined)) {
       if (verbose) println("\n***\nanalysing fnc: " + funDef.id.name)
       println(funDef.body.get)
-      //val analyser = new Analyser(reporter, merging, z3only)
-      //allVCs = allVCs :+ analyser.analyzeThis(funDef)
-
-      //class VerificationCondition(val funDef: FunDef, val kind: VCKind.Value, val pre: Expr, 
-        //val post: Expr) extends ScalacPositional {
-
+      
       funDef.precondition match {
         case Some(precondition) =>
           val parameters = VariableStore(precondition)
@@ -126,56 +168,16 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
         case None =>
       }
     }
-    
-    if (reporter.errorCount > 0) throw LeonFatalError()
-    
-
-    /* 
-      VC generation
-     */
-    // Generate VCs (separate, but mark those that are for spec gen)
-    // If the postcondition mentions the actual values, generate float arithmetic trees of the expression of the least possible precision
-    // this needs to handle the path-sensitivity and how methods are handled
-
-    /*
-      VC check
-     */
-    /*
-      Then we need
-      - evaluate the float arithmetic in xfloats
-      - translate to Z3 (with all that (1 + delta) business) 
-      - stand-alone fnc to approximate ideal and actual expressions
-      - an algorithm to cycle through different approximations
-    */
-
-    // Spec generation. Ideally we search through what we have proven so far, and use that, 
-    // or take this into account already at analysis phase   
-
-
-    /* Wishlist:
-      - real part has products (instead of the times trees) and the compiler is free to choose any order for the actual part
-    
-  
-    */
-    new CompilationReport()
+    vcs.sortWith((vc1, vc2) => lt(vc1, vc2))
   }
 
-  // TODO: sorting by function calls
-  private def sortFunctions(definedFunctions: Seq[FunDef], fncsToAnalyse: Set[String]): Seq[FunDef] = {
-    if(fncsToAnalyse.isEmpty)
-      definedFunctions.toList.sortWith((f1, f2) => f1.id.name < f2.id.name)
-    else {
-      val toAnalyze = definedFunctions.filter(
-        f => fncsToAnalyse.contains(f.id.name)).sortWith(
-          (f1, f2) => f1.id.name < f2.id.name)
-      val notFound = fncsToAnalyse -- toAnalyze.map(fncDef => fncDef.id.name).toSet
-      notFound.foreach(fn => reporter.error("Did not find function \"" + fn + "\" though it was marked for analysis."))
-      toAnalyze
-    }
+  private def lt(vc1: VerificationCondition, vc2: VerificationCondition): Boolean = {
+    if (vc1.allFncCalls.isEmpty) true
+    else if (vc2.allFncCalls.isEmpty) false
+    else if (vc2.allFncCalls.contains(vc1.id)) true
+    else if (vc1.allFncCalls.contains(vc2.id)) false
+    else true
   }
-
-
-  
 
 }
 

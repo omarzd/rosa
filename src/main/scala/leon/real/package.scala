@@ -42,7 +42,21 @@ package object real {
     r.isWhole
   }
 
-  /*object Sat extends Enumeration {
+  class RealOptions {
+    var simulation = false
+    var z3Timeout = 1000l
+    var precision: List[Precision] = List(Float64)
+    var z3Only = false
+    var pathSensitive = false
+    var specGen = true
+    var solverMaxIter = solverMaxIterMedium
+    var solverPrecision = solverPrecisionMedium
+
+    override def toString: String = "simulation: %s,\nz3 timeout: %s,\nprecision: %s,\nz3Only: %s,\npathSensitive: %s,\nspecGen: %s".format(
+      simulation, z3Timeout, precision, z3Only, pathSensitive, specGen) 
+  }
+
+  object Sat extends Enumeration {
     type Sat = Value
     val SAT = Value("SAT")
     val UNSAT = Value("UNSAT")
@@ -54,19 +68,5 @@ package object real {
     val VALID = Value("VALID")
     val INVALID = Value("INVALID")
     val UNKNOWN = Value("Not sure")
-  }*/
-
-  class RealOptions {
-    var simulation = false
-    var z3Timeout = 1000l
-    var precision: List[Precision] = List(Float64)
-    var z3Only = false
-    var pathSensitive = false
-    var specGen = true
-
-    override def toString: String = "simulation: %s,\nz3 timeout: %s,\nprecision: %s,\nz3Only: %s,\npathSensitive: %s,\nspecGen: %s".format(
-      simulation, z3Timeout, precision, z3Only, pathSensitive, specGen) 
   }
-
-  
 }

@@ -12,6 +12,8 @@ class VerificationCondition(val funDef: FunDef, val kind: VCKind.Value, val pre:
   val post: Expr) extends ScalacPositional {
   var allFncCalls = Set[String]()
 
+  val id = funDef.id.toString
+
   // None = still unknown
   // Some(true) = valid
   // Some(false) = valid
@@ -21,6 +23,8 @@ class VerificationCondition(val funDef: FunDef, val kind: VCKind.Value, val pre:
     this(fD, k, pe, b, po)
     allFncCalls = fncCalls
   }
+
+  
   def status : String = value match {
     case None => "unknown"
     case Some(true) => "valid"

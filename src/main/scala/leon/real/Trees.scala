@@ -32,6 +32,7 @@ object Trees {
 
   /* Adds an uncertainty of absolute magnitude error to the expression varr. */
   case class Noise(varr: Expr, error: Expr) extends Expr with FixedType with BinaryExtractable with PrettyPrintable {
+    // TODO: check that error is positive
     val fixedType = BooleanType
     def extract: Option[(Expr, Expr, (Expr, Expr)=>Expr)] = {
       Some((varr, error, (t1, t2) => Noise(t1, t2)))

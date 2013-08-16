@@ -10,7 +10,7 @@ import leon.purescala.Trees._
 import purescala.TreeOps._
 
 import real.Trees._
-import Utils._
+import real.Utils._
 
 // TODO: deal with roundoff, do we always add it, or just of no uncertainty is specified?
 case class Record(ideal: Variable, actual: Variable, lo: Option[Rational], up: Option[Rational], uncertainty: Option[Rational]) {
@@ -45,6 +45,11 @@ class VariableStore {
       map += (v -> newRecord)
       newRecord.actual
     }
+  }
+
+  def getInterval(v: Variable): RationalInterval = {
+    val rec = map(v)
+    RationalInterval(rec.lo.get, rec.up.get)
   }
 
   def isValid(varDecl: Seq[VarDecl]): Boolean = {

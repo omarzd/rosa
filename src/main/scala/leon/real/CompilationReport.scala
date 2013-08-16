@@ -4,7 +4,7 @@ package leon
 package real
 
 
-class CompilationReport {
+class CompilationReport(vcs: Seq[VerificationCondition]) {
 
   def summaryString: String = "huhu"
 

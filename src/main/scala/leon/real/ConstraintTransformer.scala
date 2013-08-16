@@ -1,0 +1,153 @@
+/* Copyright 2013 EPFL, Lausanne */
+
+package leon
+package real
+
+import purescala.Common._
+import purescala.Trees._
+import purescala.TreeOps._
+import purescala.TypeTrees._
+
+import real.Trees._
+import VariableShop._
+import Rational._
+
+/*class ConstraintTransformer {
+
+  // Transforms a Leon constraint into one suitable for Z3.
+  // Translates for example Noise and floating-point constraints.
+  def transform(expr: Expr): Expr = {
+    val transformer = new LeonToZ3Transformer
+
+  }
+
+}*/
+
+class LeonToZ3Transformer(variables: VariableStore) extends TransformerWithPC {
+    type C = Seq[Expr]
+    val initC = Nil
+
+    // TODO Make sure this is unique, i.e. we don't create it twice in the same constraint
+    val machineEps = Variable(FreshIdentifier("#eps")).setType(RealType)
+
+    var extraConstraints = Seq[Expr]()
+    def addExtra(e: Expr) = extraConstraints = extraConstraints :+ e
+
+    var errorVars: Map[Expr, Expr] = Map.empty
+    def getErrorVar(e: Expr): Expr = {
+      errorVars.get(e) match {
+        case Some(errorVar) => errorVar
+        case None =>
+          val freshErrorVar = getNewErrorVar
+          errorVars = errorVars + (e -> freshErrorVar)
+          freshErrorVar
+      }
+    }
+    
+    def register(e: Expr, path: C) = path :+ e
+
+    private def constrainDelta(delta: Variable): Expr = {
+      And(Seq(LessEquals(UMinus(machineEps), delta), LessEquals(delta, machineEps)))
+    }
+
+    // TODO: does not include initial roundoff
+    override def rec(e: Expr, path: C) = e match {
+      case Noise(v @ Variable(_), r @ RationalLiteral(value)) =>
+        val freshErrorVar = getErrorVar(v)
+        And(Seq(Equals(variables.buddy(v), Plus(v, freshErrorVar)),
+          LessEquals(RationalLiteral(-value), freshErrorVar),
+          LessEquals(freshErrorVar, r)))
+      
+      case Noise(res @ ResultVariable(), r @ RationalLiteral(value)) =>
+        val freshErrorVar = getErrorVar(res)
+        And(Seq(Equals(FResVariable(), Plus(res, freshErrorVar)),
+          LessEquals(RationalLiteral(-value), freshErrorVar),
+          LessEquals(freshErrorVar, r)))
+    
+      case Noise(v @ Variable(_), expr) =>
+        val freshErrorVar = getErrorVar(v)
+        val value = rec(expr, path)
+        And(Seq(Equals(variables.buddy(v), Plus(v, freshErrorVar)),
+          Or(
+            And(LessEquals(UMinus(value), freshErrorVar), LessEquals(freshErrorVar, value)),
+            And(LessEquals(value, freshErrorVar), LessEquals(freshErrorVar, UMinus(value)))
+          )
+        ))
+      case Noise(res @ ResultVariable(), expr) =>
+        val freshErrorVar = getErrorVar(res)
+        val value = rec(expr, path)
+        And(Seq(Equals(FResVariable(), Plus(res, freshErrorVar)),
+          Or(
+            And(LessEquals(UMinus(value), freshErrorVar), LessEquals(freshErrorVar, value)),
+            And(LessEquals(value, freshErrorVar), LessEquals(freshErrorVar, UMinus(value)))
+          )
+        ))
+
+      // translate real-valued arithmetic (makes the trees not typecheck, but we don't need to modify AbstractSolver)
+      case UMinusR(t) => UMinus(rec(e, path))
+      case PlusR(l, r) => Plus(rec(l, path), rec(r, path))
+      case MinusR(l, r) => Minus(rec(l, path), rec(r, path))
+      case TimesR(l, r) => Times(rec(l, path), rec(r, path))
+      case DivisionR(l, r) => Division(rec(l, path), rec(r, path))
+      case SqrtR(x) =>
+        val r = getNewSqrtVariable
+        val xR = rec(x, path)
+        extraConstraints ++= Seq(Equals(Times(r, r), xR), LessEquals(RationalLiteral(zero), r))
+        r
+
+      // floating-point arithmetic
+      case UMinusF(x) => UMinus(rec(x, path))
+
+      case PlusF(x, y) =>
+        val (mult, dlt) = getFreshRndoffMultiplier
+        addExtra(constrainDelta(dlt))
+        Times(Plus(rec(x, path), rec(y, path)), mult)
+
+      case MinusF(x, y) =>
+        val (mult, dlt) = getFreshRndoffMultiplier
+        addExtra(constrainDelta(dlt))
+        Times(Minus(rec(x, path), rec(y, path)), mult)
+
+      case TimesF(x, y) =>
+        val (mult, dlt) = getFreshRndoffMultiplier
+        addExtra(constrainDelta(dlt))
+        Times(Times(rec(x, path), rec(y, path)), mult)
+
+      case DivisionF(x, y) =>
+        val (mult, dlt) = getFreshRndoffMultiplier
+        addExtra(constrainDelta(dlt))
+        Times(Division(rec(x, path), rec(y, path)), mult)
+
+      case SqrtF(x) =>
+        val n = getNewSqrtVariable
+        val (mult, dlt) = getFreshRndoffMultiplier
+        addExtra(constrainDelta(dlt))
+        val xN = rec(x, path)
+        extraConstraints ++= Seq(Equals(Times(n, n), xN), LessEquals(RationalLiteral(zero), n))
+        Times(n, mult)
+
+      case r @ RationalLiteral(v) =>
+        if (isExact(v)) r
+        else {
+          val (mult, dlt) = getFreshRndoffMultiplier
+          addExtra(constrainDelta(dlt))
+          Times(r, mult)
+        }
+
+      // actual
+      case Actual(v @ Variable(_)) => variables.buddy(v)
+      case Actual(ResultVariable()) => FResVariable()
+
+      //within
+      case WithIn(v @ Variable(_), lwrBnd, upBnd) =>
+        And(LessThan(RationalLiteral(lwrBnd), v), LessThan(v, RationalLiteral(upBnd))) 
+
+      case _ =>
+        super.rec(e, path)
+    }
+
+    def getZ3Expr(e: Expr): Expr = {
+      extraConstraints = Seq[Expr]()
+      And(this.transform(e), And(extraConstraints))
+    }
+  }
