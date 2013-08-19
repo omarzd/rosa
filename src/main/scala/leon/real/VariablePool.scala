@@ -13,7 +13,7 @@ import real.Trees._
 import real.Utils._
 
 // TODO: deal with roundoff, do we always add it, or just of no uncertainty is specified?
-case class Record(ideal: Variable, actual: Variable, lo: Option[Rational], up: Option[Rational], uncertainty: Option[Rational]) {
+case class Record(ideal: Expr, actual: Expr, lo: Option[Rational], up: Option[Rational], uncertainty: Option[Rational]) {
   def newLo(n: Rational): Record = Record(ideal, actual, Some(n), up, uncertainty)
   def newUp(n: Rational): Record = Record(ideal, actual, lo, Some(n), uncertainty)
   def newUncert(n: Rational): Record = Record(ideal, actual, lo, up, Some(n))
@@ -27,54 +27,71 @@ case class Record(ideal: Variable, actual: Variable, lo: Option[Rational], up: O
 /*
   Keeps track of ideal and the corresponding actual values, the associated uncertainties
   and such things.
-@param map indexed by ideal variable
+  @param map indexed by ideal variable
 */
-class VariableStore {
-  import VariableStore._
-  private var map = Map[Variable, Record]()
+class VariablePool(inputs: Map[Expr, Record]) {
+  import VariablePool._
+  private var allVars = inputs
 
-  def this(m: Map[Variable, Record]) = {
-    this()
-    map = m
+  allVars += (ResultVariable() -> Record(ResultVariable(), FResVariable(), None, None, None))
+
+  def add(idSet: Set[Identifier]) = {
+    for (i <- idSet) {
+      val v = Variable(i)
+      if (! inputs.contains(v))
+        allVars += (v -> emptyRecord(v))
+    }
   }
 
-  def buddy(v: Variable): Variable = {
-    if (map.contains(v)) map(v).actual
+  def buddy(v: Expr): Expr = {
+    if (allVars.contains(v)) allVars(v).actual
     else {
       val newRecord = emptyRecord(v)
-      map += (v -> newRecord)
+      allVars += (v -> newRecord)
       newRecord.actual
     }
   }
 
-  def getInterval(v: Variable): RationalInterval = {
-    val rec = map(v)
+  def getIdeal(v: Expr): Expr = {
+    allVars.find(x => x._2.actual == v) match {
+      case Some((_, Record(i, a, _, _, _))) => i
+    }
+  }
+
+  def getValidRecords = allVars.values.filter(r => r.isBoundedValid)
+
+  def actualVariables: Set[Expr] = allVars.values.map(rec => rec.actual).toSet
+
+  def getInterval(v: Expr): RationalInterval = {
+    val rec = allVars(v)
     RationalInterval(rec.lo.get, rec.up.get)
   }
 
-  def isValid(varDecl: Seq[VarDecl]): Boolean = {
-    val params = varDecl.map(vd => vd.id)
-    if (map.size != params.size) false
-    else map.forall(v => params.contains(v._1.id) && v._2.isBoundedValid)
+  def hasValidInput(varDecl: Seq[VarDecl]): Boolean = {
+    val params: Seq[Expr] = varDecl.map(vd => Variable(vd.id))
+    if (inputs.size != params.size) false
+    else inputs.forall(v => params.contains(v._1) && v._2.isBoundedValid)
   }
-  override def toString: String = map.toString
+  override def toString: String = allVars.toString
 }
 
 
-object VariableStore {
-  def emptyRecord(ideal: Variable) =
-      Record(ideal, Variable(FreshIdentifier("#" + ideal.id.name)).setType(RealType), None, None, None)
+object VariablePool {
+  def emptyRecord(ideal: Expr): Record = ideal match {
+    case Variable(id) => Record(ideal, Variable(FreshIdentifier("#" + id.name)).setType(RealType), None, None, None)
+    case _ => new Exception("bug!"); null
+  }
 
-  def apply(expr: Expr): VariableStore = {
+  def apply(expr: Expr): VariablePool = {
     val collector = new VariableCollector
     collector.transform(expr)
-    new VariableStore(collector.recordMap)
+    new VariablePool(collector.recordMap)
   }
 
   private class VariableCollector extends TransformerWithPC {
     type C = Seq[Expr]
     val initC = Nil
-    var recordMap = Map[Variable, Record]()
+    var recordMap = Map[Expr, Record]()
 
     def register(e: Expr, path: C) = path :+ e
 

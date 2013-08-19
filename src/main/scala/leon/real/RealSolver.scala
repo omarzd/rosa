@@ -20,7 +20,7 @@ import Valid._
 import Rational._
 
 
-class NumericSolver(context: LeonContext, prog: Program, timeout: Long) extends UninterpretedZ3Solver(context) {
+class RealSolver(context: LeonContext, prog: Program, timeout: Long) extends UninterpretedZ3Solver(context) {
 
   override val name = "numeric solver"
   override val description = "Z3 solver with some numeric convenience methods"

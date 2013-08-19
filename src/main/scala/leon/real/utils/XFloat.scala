@@ -21,18 +21,32 @@ object XFloat {
   /**
     Converts variable-record pairs into XFloats.
     Discards all variables for which neither rndoff nor noise has been specified.
+    Index is the index of the main uncertainty, not the roundoff.
     @param vars what we want to convert
     @param config solver, precondition, which precision to choose
     @param withRoundoff whether the initial XFloat should also get an roundoff error, additionally to the noise
    */
-  /*def variables2xfloats(vars: Map[Variable, Record], config: XFloatConfig, withRoundoff: Boolean = false):
-    (Map[Expr, XFloat], Map[Int, Expr]) = {
+  def variables2xfloats(vars: VariablePool, config: XFloatConfig, withRoundoff: Boolean = false): (Map[Expr, XFloat], Map[Int, Expr]) = {
     var variableMap: Map[Expr, XFloat] = Map.empty
     var indexMap: Map[Int, Expr] = Map.empty
 
-    for((k, rec) <- vars) {
-      if (rec.isComplete) {
-        (rec.absNoise, rec.relNoise) match { // was already checked that only one is possible
+    for(rec <- vars.getValidRecords) {
+      rec match {
+        case Record(v @ Variable(_), a @ Variable(_), Some(lo), Some(up), Some(unc)) =>
+          val (xfloat, index) = XFloat.xFloatWithUncertain(v, RationalInterval(lo, up), config, unc, withRoundoff)
+          variableMap = variableMap + (a -> xfloat)
+          indexMap = indexMap + (index -> a)
+
+        case Record(v @ Variable(_), a @ Variable(_), Some(lo), Some(up), None) =>
+          val (xfloat, index) = XFloat.xFloatWithRoundoff(v, RationalInterval(lo, up), config)
+          variableMap = variableMap + (a -> xfloat)
+          indexMap = indexMap + (index -> a)
+
+        case _ =>
+          throw new Exception("bug!")
+      }
+
+        /*(rec.absNoise, rec.relNoise) match { // was already checked that only one is possible
           case (Some(n), None) =>
             // index is the index of the main uncertainty, not the roundoff
             val (xfloat, index) = XFloat.xFloatWithUncertain(k,
@@ -55,12 +69,10 @@ object XFloat {
                     RationalInterval(rec.lo.get, rec.up.get), config)
             variableMap = variableMap + (k -> xfloat)
             indexMap = indexMap + (index -> k)
-        }
-
-      }
+        }*/
     }
     (variableMap, indexMap)
-  }*/
+  }
 
 
   // double constant (we include rdoff error)

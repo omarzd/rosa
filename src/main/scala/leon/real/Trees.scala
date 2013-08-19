@@ -21,6 +21,12 @@ object Trees {
   }
 
   case class RationalLiteral(value: Rational) extends Expr with Terminal with FixedType with PrettyPrintable {
+    var exact = isExact(value)
+
+    def this(r: Rational, e: Boolean) = {
+      this(r)
+      exact = e
+    }
     def this(d: Double) = this(Rational(d))
     def this(i: Int) = this(Rational(i))
     val fixedType = RealType
@@ -227,7 +233,7 @@ object Trees {
 
   /* Arithmetic on floats */
   case class PlusF(lhs: Expr, rhs: Expr) extends Expr with FixedType with BinaryExtractable with PrettyPrintable {
-    val fixedType = RealType
+    val fixedType = FloatType
     def extract: Option[(Expr, Expr, (Expr, Expr)=>Expr)] = {
       Some((lhs, rhs, (t1, t2) => PlusF(t1, t2)))
     }
@@ -241,7 +247,7 @@ object Trees {
     }
   }
   case class MinusF(lhs: Expr, rhs: Expr) extends Expr with FixedType with BinaryExtractable with PrettyPrintable {
-    val fixedType = RealType
+    val fixedType = FloatType
     def extract: Option[(Expr, Expr, (Expr, Expr)=>Expr)] = {
       Some((lhs, rhs, (t1, t2) => MinusF(t1, t2)))
     }
@@ -254,7 +260,7 @@ object Trees {
     }
   }
   case class UMinusF(expr: Expr) extends Expr with FixedType with UnaryExtractable with PrettyPrintable {
-    val fixedType = RealType
+    val fixedType = FloatType
     def extract: Option[(Expr, (Expr)=>Expr)] = {
       Some((expr, (e) => UMinusF(e)))
     }
@@ -265,7 +271,7 @@ object Trees {
     }
   }
   case class TimesF(lhs: Expr, rhs: Expr) extends Expr with FixedType with BinaryExtractable with PrettyPrintable {
-    val fixedType = RealType
+    val fixedType = FloatType
     def extract: Option[(Expr, Expr, (Expr, Expr)=>Expr)] = {
       Some((lhs, rhs, (t1, t2) => TimesF(t1, t2)))
     }
@@ -278,7 +284,7 @@ object Trees {
     }
   }
   case class DivisionF(lhs: Expr, rhs: Expr) extends Expr with FixedType with BinaryExtractable with PrettyPrintable {
-    val fixedType = RealType
+    val fixedType = FloatType
     def extract: Option[(Expr, Expr, (Expr, Expr)=>Expr)] = {
       Some((lhs, rhs, (t1, t2) => DivisionF(t1, t2)))
     }
@@ -291,7 +297,7 @@ object Trees {
     }
   }
   case class SqrtF(expr: Expr) extends Expr with FixedType with UnaryExtractable with PrettyPrintable {
-    val fixedType = RealType
+    val fixedType = FloatType
     def extract: Option[(Expr, (Expr)=>Expr)] = {
       Some((expr, (e) => SqrtF(e)))
     }

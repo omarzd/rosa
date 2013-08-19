@@ -11,6 +11,7 @@ import purescala.TypeTrees._
 import real.Trees._
 import VariableShop._
 import Rational._
+import Precision._
 
 /*class ConstraintTransformer {
 
@@ -23,7 +24,7 @@ import Rational._
 
 }*/
 
-class LeonToZ3Transformer(variables: VariableStore) extends TransformerWithPC {
+class LeonToZ3Transformer(variables: VariablePool) extends TransformerWithPC {
     type C = Seq[Expr]
     val initC = Nil
 
@@ -63,6 +64,11 @@ class LeonToZ3Transformer(variables: VariableStore) extends TransformerWithPC {
         And(Seq(Equals(FResVariable(), Plus(res, freshErrorVar)),
           LessEquals(RationalLiteral(-value), freshErrorVar),
           LessEquals(freshErrorVar, r)))
+      case Noise(res @ FResVariable(), r @ RationalLiteral(value)) =>
+        val freshErrorVar = getErrorVar(res)
+        And(Seq(Equals(FResVariable(), Plus(res, freshErrorVar)),
+          LessEquals(RationalLiteral(-value), freshErrorVar),
+          LessEquals(freshErrorVar, r)))
     
       case Noise(v @ Variable(_), expr) =>
         val freshErrorVar = getErrorVar(v)
@@ -82,7 +88,16 @@ class LeonToZ3Transformer(variables: VariableStore) extends TransformerWithPC {
             And(LessEquals(value, freshErrorVar), LessEquals(freshErrorVar, UMinus(value)))
           )
         ))
-
+      case Noise(res @ FResVariable(), expr) =>
+        val freshErrorVar = getErrorVar(res)
+        val value = rec(expr, path)
+        And(Seq(Equals(FResVariable(), Plus(res, freshErrorVar)),
+          Or(
+            And(LessEquals(UMinus(value), freshErrorVar), LessEquals(freshErrorVar, value)),
+            And(LessEquals(value, freshErrorVar), LessEquals(freshErrorVar, UMinus(value)))
+          )
+        ))
+      
       // translate real-valued arithmetic (makes the trees not typecheck, but we don't need to modify AbstractSolver)
       case UMinusR(t) => UMinus(rec(e, path))
       case PlusR(l, r) => Plus(rec(l, path), rec(r, path))
@@ -127,7 +142,7 @@ class LeonToZ3Transformer(variables: VariableStore) extends TransformerWithPC {
         Times(n, mult)
 
       case r @ RationalLiteral(v) =>
-        if (isExact(v)) r
+        if (r.exact) r
         else {
           val (mult, dlt) = getFreshRndoffMultiplier
           addExtra(constrainDelta(dlt))
@@ -146,8 +161,11 @@ class LeonToZ3Transformer(variables: VariableStore) extends TransformerWithPC {
         super.rec(e, path)
     }
 
-    def getZ3Expr(e: Expr): Expr = {
+    def getZ3Expr(e: Expr, precision: Precision): Expr = {
       extraConstraints = Seq[Expr]()
-      And(this.transform(e), And(extraConstraints))
+      val res = Variable(FreshIdentifier("#res")).setType(RealType)
+      val fres = Variable(FreshIdentifier("#fres")).setType(RealType)
+      val z3Expr = replace(Map(ResultVariable() -> res, FResVariable() -> fres), this.transform(e)) 
+      And(And(extraConstraints :+ Equals(machineEps, RationalLiteral(getUnitRoundoff(precision)))), z3Expr)
     }
   }

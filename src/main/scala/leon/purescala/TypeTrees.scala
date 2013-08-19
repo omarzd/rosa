@@ -170,10 +170,12 @@ object TypeTrees {
   case object BooleanType extends TypeTree
   case object Int32Type extends TypeTree
   case object RealType extends TypeTree
-  case object Float64Type extends TypeTree
+  case object FloatType extends TypeTree
+  // FIXME: what did we need this for?
+  /*case object Float64Type extends TypeTree
   case object Float32Type extends TypeTree
   case object FloatDDType extends TypeTree
-  case object FloatQDType extends TypeTree
+  case object FloatQDType extends TypeTree*/
   case object UnitType extends TypeTree
 
   class TupleType private (val bases: Seq[TypeTree]) extends TypeTree {

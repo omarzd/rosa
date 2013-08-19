@@ -12,12 +12,12 @@ import real.Trees._
 
 object ArithmeticOps {
 
-  def idealToActual(expr: Expr, vars: VariableStore): Expr = {
+  def idealToActual(expr: Expr, vars: VariablePool): Expr = {
     val transformer = new RealToFloatTransformer(vars)
     transformer.transform(expr) 
   }
 
-  private class RealToFloatTransformer(variables: VariableStore) extends TransformerWithPC {
+  private class RealToFloatTransformer(variables: VariablePool) extends TransformerWithPC {
     type C = Seq[Expr]
     val initC = Nil
     

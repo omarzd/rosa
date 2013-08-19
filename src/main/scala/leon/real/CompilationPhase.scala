@@ -49,7 +49,7 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
       case LeonFlagOption("pathSensitive") => options.pathSensitive = true
       case LeonFlagOption("z3only") => options.z3Only = true
       case LeonValueOption("z3timeout", ListValue(tm)) => options.z3Timeout = tm.head.toLong
-      case LeonValueOption("precision", ListValue(ps)) => options.precision = ps.toList.map(p => p match {
+      case LeonValueOption("precision", ListValue(ps)) => options.precisions = ps.toList.map(p => p match {
         case "single" => Float32
         case "double" => Float64
         case "doubledouble" => DoubleDouble
@@ -78,7 +78,7 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
     /*
       VC check
      */
-    val prover = new Prover(reporter, options)
+    val prover = new Prover(ctx, options, program)
     prover.check(vcs)
     /*
       Then we need
@@ -121,14 +121,15 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
     var vcs: Seq[VerificationCondition] = Seq.empty
     
     for (funDef <- sortedFncs if (funDef.body.isDefined)) {
-      if (verbose) println("\n***\nanalysing fnc: " + funDef.id.name)
+      reporter.info("Analysing fnc  ==== %s ====".format(funDef.id.name))
       println(funDef.body.get)
       
       funDef.precondition match {
         case Some(precondition) =>
-          val parameters = VariableStore(precondition)
-          println("parameters: " + parameters)
-          if (parameters.isValid(funDef.args)) {
+          val variables = VariablePool(precondition)
+          println("parameters: " + variables)
+          // TODO: fix this (result variable messing this up)
+          //if (variables.isValid(funDef.args)) {
             println("prec. is complete, continuing")
 
             println("pre: " + precondition)
@@ -150,21 +151,27 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
             println("\npost: " + postcondition)
 
             println("\n body real : " + fncBody)
-            println("\n body float: " + idealToActual(fncBody, parameters))
+            println("\n body float: " + idealToActual(fncBody, variables))
 
             // add floating-point "track"
-            val body = And(fncBody, idealToActual(fncBody, parameters))
+            val body = And(fncBody, idealToActual(fncBody, variables))
 
-            vcs :+= new VerificationCondition(funDef, Postcondition, precondition, body, postcondition, allFncCalls)
+            // add all local variables to the variable store
+            // TODO: does not work with blocks (xlang extension)
+            variables.add(variablesOf(fncBody))
+            println("all variables: " + variables)
+
+
+            vcs :+= new VerificationCondition(funDef, Postcondition, precondition, body, postcondition, allFncCalls, variables)
             
             
 
             // TODO: vcs from assertions
             // TODO: vcs checking precondition of function calls
 
-          } else {
-            reporter.warning("Incomplete precondition! Skipping...")
-          }
+          //} else {
+          //  reporter.warning("Incomplete precondition! Skipping...")
+          //}
         case None =>
       }
     }

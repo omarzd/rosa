@@ -9,7 +9,7 @@ import Precision._
 
 
 
-case class XFloatConfig(reporter: Reporter, solver: NumericSolver, precondition: Expr, precision: Precision,
+case class XFloatConfig(reporter: Reporter, solver: RealSolver, precondition: Expr, precision: Precision,
   machineEps: Rational, solverMaxIter: Int, solverPrecision: Rational, additionalConstraints: Set[Expr] = Set.empty) {
 
   def getCondition: Expr = And(precondition, And(additionalConstraints.toSeq))

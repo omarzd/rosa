@@ -6,6 +6,8 @@ package real
 import purescala.Trees._
 import purescala.TreeOps.negate
 
+import real.Trees._
+
 object Utils {
 
   def formatOption[T](o: Option[T]): String = o match {
@@ -41,6 +43,7 @@ object Utils {
       Set(Path(BooleanLiteral(true), List(expr)))
   }
 
+  
   /*
 
    class ResultCollector extends TransformerWithPC {
@@ -211,12 +214,7 @@ object Utils {
                                   Noise(kv._1, RationalLiteral(kv._2._2)))))
   }
 
-  def constraintFromXFloats(results: Map[Expr, XFloat]): Expr = {
-    And(results.foldLeft(Seq[Expr]())(
-      (seq, kv) => seq ++ Seq(LessEquals(RationalLiteral(kv._2.realInterval.xlo), kv._1),
-                                  LessEquals(kv._1, RationalLiteral(kv._2.realInterval.xhi)),
-                                  Noise(kv._1, RationalLiteral(kv._2.maxError)))))
-  }
+  
 
   def actualConstraintFromResults(results: Map[Expr, (RationalInterval, Rational)]): Expr = {
     And(results.foldLeft(Seq[Expr]()) ((seq, kv) =>  interval2constraint(kv._1, kv._2._1, kv._2._2)))
