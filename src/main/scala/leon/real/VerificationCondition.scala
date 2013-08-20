@@ -15,6 +15,8 @@ class VerificationCondition(val funDef: FunDef, val kind: VCKind.Value, val pre:
   // FIXME: id is bad here, not unique
   val id = funDef.id.toString
 
+  var realFncBody: Expr = True
+
   // None = still unknown
   // Some(true) = valid
   // Some(false) = invalid

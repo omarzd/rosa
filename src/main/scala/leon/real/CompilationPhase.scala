@@ -74,8 +74,13 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
     val vcs = analyzeThis(fncsToAnalyse).sortWith((vc1, vc2) => lt(vc1, vc2))
     if (reporter.errorCount > 0) throw LeonFatalError()
     
-    val prover = new Prover(ctx, options, program)
-    prover.check(vcs)
+    if (options.simulation) {
+      val simulator = new Simulator(reporter)
+      for(vc <- vcs) simulator.simulateThis(vc, options.defaultPrecision)
+    } else {
+      val prover = new Prover(ctx, options, program)
+      prover.check(vcs)
+    }
     
     // Spec generation. Ideally we search through what we have proven so far, and use that, 
     // or take this into account already at analysis phase   
@@ -103,8 +108,7 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
         case Some(precondition) =>
           val variables = VariablePool(precondition)
           println("parameters: " + variables)
-          // TODO: fix this (result variable messing this up)
-          //if (variables.isValid(funDef.args)) {
+          if (variables.hasValidInput(funDef.args)) {
             println("prec. is complete, continuing")
 
             println("pre: " + precondition)
@@ -139,14 +143,14 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
 
             vcs :+= new VerificationCondition(funDef, Postcondition, precondition, body, postcondition, allFncCalls, variables)
             
-            
+            vcs.last.realFncBody = fncBody // this is clearly a hack (only for simulation)
 
             // TODO: vcs from assertions
             // TODO: vcs checking precondition of function calls
 
-          //} else {
-          //  reporter.warning("Incomplete precondition! Skipping...")
-          //}
+          } else {
+            reporter.warning("Incomplete precondition! Skipping...")
+          }
         case None =>
       }
     }

@@ -48,11 +48,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program) {
     val z3constraint = transformer.getZ3Expr(app.cnstrs.head, options.defaultPrecision)
     println("\n z3constraint: " + z3constraint)
 
-    // FIXME: delta constraints are missing
-
     // TODO: arithmetic simplification
-
-    // TODO: probably have to also replace ResultVariable and FResVariable
 
     // TODO: if (reporter.errorCount == 0 && sanityCheck(precondition, false, body))
       solver.checkSat(z3constraint) match {

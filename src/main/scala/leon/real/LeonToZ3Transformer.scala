@@ -13,17 +13,6 @@ import VariableShop._
 import Rational._
 import Precision._
 
-/*class ConstraintTransformer {
-
-  // Transforms a Leon constraint into one suitable for Z3.
-  // Translates for example Noise and floating-point constraints.
-  def transform(expr: Expr): Expr = {
-    val transformer = new LeonToZ3Transformer
-
-  }
-
-}*/
-
 class LeonToZ3Transformer(variables: VariablePool) extends TransformerWithPC {
     type C = Seq[Expr]
     val initC = Nil
