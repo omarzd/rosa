@@ -91,8 +91,8 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
     
   
     */
-    // TODO sortWith((f1, f2) => f1.id.name < f2.id.name)
-    new CompilationReport(vcs)
+
+    new CompilationReport(vcs.sortWith((vc1, vc2) => vc1.id < vc2.id))
 
     // TODO: simulation
   }

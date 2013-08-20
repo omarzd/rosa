@@ -30,7 +30,9 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program) {
       reporter.info("  - " + currentApprox.kind)
       println(currentApprox.cnstrs)
       checkValid(currentApprox, vc.variables) match {
-        case Some(true) => reporter.info("==== VALID ====")
+        case Some(true) =>
+          reporter.info("==== VALID ====")
+          vc.value = Some(true)
         case Some(false) => reporter.info("---- Unknown ----")
         case None => reporter.info("---- Unknown ----")
       }
