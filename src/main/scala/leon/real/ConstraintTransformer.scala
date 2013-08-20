@@ -166,6 +166,7 @@ class LeonToZ3Transformer(variables: VariablePool) extends TransformerWithPC {
       val res = Variable(FreshIdentifier("#res")).setType(RealType)
       val fres = Variable(FreshIdentifier("#fres")).setType(RealType)
       val z3Expr = replace(Map(ResultVariable() -> res, FResVariable() -> fres), this.transform(e)) 
+      // TODO: don't add eps if not needed
       And(And(extraConstraints :+ Equals(machineEps, RationalLiteral(getUnitRoundoff(precision)))), z3Expr)
     }
   }

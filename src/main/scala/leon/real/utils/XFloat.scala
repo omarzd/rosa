@@ -169,29 +169,6 @@ class XFloat(val tree: Expr, val approxInterval: RationalInterval, val error: XR
     max(abs(i.xlo), abs(i.xhi))
   }
 
-  // Check for potential overflow
-  config.precision match {
-    case Float32 =>
-      if (interval.xlo < -MaxFloat || MaxFloat < interval.xhi) {
-        config.reporter.warning("Potential overflow detected for: %s,\nwith precondition %s".format(tree, config.precondition))
-      }
-    case Float64 =>
-      if (interval.xlo < -MaxDouble || MaxDouble < interval.xhi) {
-        config.reporter.warning("Potential overflow detected for: %s,\nwith precondition %s".format(tree, config.precondition))
-        config.reporter.info(interval)
-      }
-    case DoubleDouble => // same range as Double
-      if (interval.xlo < -MaxDouble || MaxDouble < interval.xhi) {
-        config.reporter.warning("Potential overflow detected for: %s,\nwith precondition %s".format(tree, config.precondition))
-        config.reporter.info(interval)
-      }
-    case QuadDouble => // same range as Double
-      if (interval.xlo < -MaxDouble || MaxDouble < interval.xhi) {
-        config.reporter.warning("Potential overflow detected for: %s,\nwith precondition %s".format(tree, config.precondition))
-        config.reporter.info(interval)
-      }
-  }
-
   /*def errorString(variables: Iterable[Int]): String = {
     val (varErrors, otherErrors): (Queue[Deviation], Queue[Deviation]) =
       error.noise.partition(
@@ -256,12 +233,6 @@ class XFloat(val tree: Expr, val approxInterval: RationalInterval, val error: XR
   }
 
   def /(y: XFloat): XFloat = {
-    if (y.interval.xlo < Rational.zero && y.interval.xhi > Rational.zero) {
-      config.reporter.warning("Potential division by zero detected for: %s/%s,\nwith precondition %s".format(
-        this.tree, y.tree, config.precondition))
-      config.reporter.warning("y.interval: " + y.interval)
-    }
-
     //if (y.isExact) {
 
 
@@ -292,11 +263,6 @@ class XFloat(val tree: Expr, val approxInterval: RationalInterval, val error: XR
   }
 
   def squareRoot: XFloat = {
-    if (interval.xlo < Rational.zero || interval.xhi < Rational.zero) {
-      config.reporter.warning("Potential square root of a negative number for: %s,\nwith precondition %s".format(
-        this.tree, config.precondition))
-      config.reporter.warning("interval: " + this.interval)
-    }
     // if this.isExact
 
     val int = this.interval

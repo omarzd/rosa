@@ -52,6 +52,7 @@ class VariablePool(inputs: Map[Expr, Record]) {
     }
   }
 
+  // not exhaustive, but if we don't find the variable, we have a bug
   def getIdeal(v: Expr): Expr = {
     allVars.find(x => x._2.actual == v) match {
       case Some((_, Record(i, a, _, _, _))) => i

@@ -40,11 +40,11 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
     reporter = ctx.reporter
     reporter.info("Running Compilation phase")
 
-    var functionsToAnalyse = Set[String]()
+    var fncNamesToAnalyse = Set[String]()
     val options = new RealOptions
 
     for (opt <- ctx.options) opt match {
-      case LeonValueOption("functions", ListValue(fs)) => functionsToAnalyse = Set() ++ fs
+      case LeonValueOption("functions", ListValue(fs)) => fncNamesToAnalyse = Set() ++ fs
       case LeonFlagOption("simulation") => options.simulation = true
       case LeonFlagOption("pathSensitive") => options.pathSensitive = true
       case LeonFlagOption("z3only") => options.z3Only = true
@@ -61,33 +61,22 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
       case LeonFlagOption("nospecgen") => options.specGen = false
       case _ =>
     }
-    if (verbose) println("real options: " + options.toString)
     
-    // TODO: do we need to sort them at all, since we sort the vcs again?
-    val sortedFncs = sortFunctions(program.definedFunctions, functionsToAnalyse)
-    if (verbose) println("functions to analyze: " + sortedFncs.map(f => f.id.name))
-
-    
-    /* VC generation */
-    val vcs = analyzeThis(sortedFncs)
+    val fncsToAnalyse  = 
+      if(fncNamesToAnalyse.isEmpty) program.definedFunctions
+      else {
+        val toAnalyze = program.definedFunctions.filter(f => fncNamesToAnalyse.contains(f.id.name))
+        val notFound = fncNamesToAnalyse -- toAnalyze.map(fncDef => fncDef.id.name).toSet
+        notFound.foreach(fn => reporter.error("Did not find function \"" + fn + "\" though it was marked for analysis."))
+        toAnalyze
+      }
+        
+    val vcs = analyzeThis(fncsToAnalyse).sortWith((vc1, vc2) => lt(vc1, vc2))
     if (reporter.errorCount > 0) throw LeonFatalError()
     
-    
-    // this needs to handle the path-sensitivity and how methods are handled
-
-    /*
-      VC check
-     */
     val prover = new Prover(ctx, options, program)
     prover.check(vcs)
-    /*
-      Then we need
-      - evaluate the float arithmetic in xfloats
-      - translate to Z3 (with all that (1 + delta) business) 
-      - stand-alone fnc to approximate ideal and actual expressions
-      - an algorithm to cycle through different approximations
-    */
-
+    
     // Spec generation. Ideally we search through what we have proven so far, and use that, 
     // or take this into account already at analysis phase   
 
@@ -97,25 +86,11 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
     
   
     */
+    // TODO sortWith((f1, f2) => f1.id.name < f2.id.name)
     new CompilationReport(vcs)
 
     // TODO: simulation
   }
-
-  // TODO: sorting by function calls
-  private def sortFunctions(definedFunctions: Seq[FunDef], fncsToAnalyse: Set[String]): Seq[FunDef] = {
-    if(fncsToAnalyse.isEmpty)
-      definedFunctions.toList.sortWith((f1, f2) => f1.id.name < f2.id.name)
-    else {
-      val toAnalyze = definedFunctions.filter(
-        f => fncsToAnalyse.contains(f.id.name)).sortWith(
-          (f1, f2) => f1.id.name < f2.id.name)
-      val notFound = fncsToAnalyse -- toAnalyze.map(fncDef => fncDef.id.name).toSet
-      notFound.foreach(fn => reporter.error("Did not find function \"" + fn + "\" though it was marked for analysis."))
-      toAnalyze
-    }
-  }
-
 
   private def analyzeThis(sortedFncs: Seq[FunDef]): Seq[VerificationCondition] = {
     var vcs: Seq[VerificationCondition] = Seq.empty
@@ -175,7 +150,7 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
         case None =>
       }
     }
-    vcs.sortWith((vc1, vc2) => lt(vc1, vc2))
+    vcs
   }
 
   private def lt(vc1: VerificationCondition, vc2: VerificationCondition): Boolean = {

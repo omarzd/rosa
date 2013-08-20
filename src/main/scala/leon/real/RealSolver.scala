@@ -14,6 +14,7 @@ import purescala.Definitions._
 import solvers.z3._
 import solvers._
 
+import real.TreeOps._
 import real.Trees.RationalLiteral
 import Sat._
 import Valid._
@@ -122,6 +123,12 @@ class RealSolver(context: LeonContext, prog: Program, timeout: Long) extends Uni
     res
   }
 
+  // Just so we have it
+  def getRange(precond: Expr, expr: Expr, variables: VariablePool, maxIter: Int, prec: Rational) = {
+    // TODO: pre-process the expr (arithmetic ops)
+    val approx = inIntervals(expr, variables)
+    tightenRange(expr, precond, approx, maxIter, prec)
+  }
 
   def tightenRange(tree: Expr, precondition: Expr, initialBound: RationalInterval, maxIter: Int, prec: Rational):
     RationalInterval = tree match {

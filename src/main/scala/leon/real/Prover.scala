@@ -9,20 +9,25 @@ import purescala.TreeOps._
 
 import Precision._
 import Sat._
+import FncHandling._
+import ArithmApprox._
+import PathHandling._
+
+
+case class Approximation(kind: ApproxKind, cnstrs: Seq[Expr])
 
 class Prover(ctx: LeonContext, options: RealOptions, prog: Program) {
   val reporter = ctx.reporter
   val solver = new RealSolver(ctx, prog, options.z3Timeout)
-  //val approx = new Approximator(reporter, solver, options)
-
+  
   def check(vcs: Seq[VerificationCondition]) = {
     for (vc <- vcs) {
       reporter.info("Verification condition (%s) ==== %s ====".format(vc.kind, vc.id))
       reporter.info("Trying with approximation")
       val start = System.currentTimeMillis
 
-      val currentApprox = getApproximation(vc)
-      reporter.info("  - " + currentApprox.name)
+      val currentApprox = getApproximation(vc, ApproxKind(Uninterpreted, Merging, JustFloat))
+      reporter.info("  - " + currentApprox.kind)
       println(currentApprox.cnstrs)
       checkValid(currentApprox, vc.variables) match {
         case Some(true) => reporter.info("==== VALID ====")
@@ -64,19 +69,51 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program) {
      // None
   }
 
-  case class Approximation(name: String, cnstrs: List[Expr])
+  def getApproximation(vc: VerificationCondition, kind: ApproxKind): Approximation = {
 
-  def getApproximation(vc: VerificationCondition): Approximation = {
-    // Step one: full constraint, i.e. translation from ArithF into the (1 + delta) stuff
-    //Approximation("z3Only", List(And(And(vc.pre, vc.body), negate(vc.post))))// Implies(And(vc.pre, vc.body), vc.post)))
+    val (preTmp, bodyTmp, postTmp) = kind.fncHandling match {
+      case Uninterpreted => (vc.pre, vc.body, vc.post)
+
+      case Postcondition =>
+        throw new Exception("Ups, not yet implemented.")
+        (True, True, True)
+      case Inlining =>
+        throw new Exception("Ups, not yet implemented.")
+        (True, True, True)
+    }
+
+    val paths: List[(Expr, Expr, Expr)] = kind.pathHandling match {
+      case Pathwise =>
+        throw new Exception("Ups, not yet implemented.")
+        List((True, True, True))
+      case Merging =>
+        List( (preTmp, bodyTmp, postTmp) )
+    }
+
     
+    kind.arithmApprox match {
+      case Z3Only =>
+        var approx = Seq[Expr]()
+        for ( (pre, body, post) <- paths) {
+          approx :+= And(And(vc.pre, vc.body), negate(vc.post))  // Implies(And(vc.pre, vc.body), vc.post)))
+        }
+        Approximation(kind, approx)
+      case JustFloat =>
+        var approx = Seq[Expr]()
+  
+        for ( (pre, body, post) <- paths) {
+          println("before: " + body)
+          // Hmm, this uses the same solver as the check...
+          val transformer = new FloatApproximator(solver, options, pre, vc.variables)
+          val newBody = transformer.transform(body)
 
-    println("before: " + vc.body)
-    val transformer = new FloatApproximator(reporter, solver, options, vc.pre, vc.variables)
-    val newBody = transformer.transform(vc.body)
-
-    println("after: " + newBody)
-    Approximation("xfloat", List(And(And(vc.pre, newBody), negate(vc.post))))
+          println("after: " + newBody)
+          approx :+= And(And(pre, newBody), negate(post))
+        }
+        Approximation(kind, approx)
+      case FloatNRange =>
+        Approximation(kind, List())
+    }
   }
 
 }

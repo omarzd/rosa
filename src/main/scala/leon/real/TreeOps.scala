@@ -9,11 +9,24 @@ import purescala.Trees._
 import purescala.TreeOps._
 import purescala.TypeTrees._
 
-
 import xlang.Trees._
 import real.Trees._
+import real.RationalAffineUtils._
 
 object TreeOps {
+
+  def inIntervals(expr: Expr, vars: VariablePool): RationalInterval = expr match {
+    case RationalLiteral(r) => RationalInterval(r, r)
+    case v @ Variable(_) => vars.getInterval(v)
+    case UMinusR(t) => - inIntervals(t, vars)
+    case PlusR(l, r) => inIntervals(l, vars) + inIntervals(r, vars)
+    case MinusR(l, r) => inIntervals(l, vars) - inIntervals(r, vars)
+    case TimesR(l, r) => inIntervals(l, vars) * inIntervals(r, vars)
+    case DivisionR(l, r) => inIntervals(l, vars) / inIntervals(r, vars)
+    case SqrtR(t) =>
+      val tt = inIntervals(t, vars)
+      RationalInterval(sqrtDown(tt.xlo), sqrtUp(tt.xhi))     
+  }
   
   // can return several, as we may have an if-statement
   def getInvariantCondition(expr: Expr): List[Expr] = expr match {

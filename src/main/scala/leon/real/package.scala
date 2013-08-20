@@ -58,6 +58,31 @@ package object real {
       simulation, z3Timeout, precisions, z3Only, pathSensitive, specGen) 
   }
 
+  object FncHandling extends Enumeration {
+    type FncHandling = Value
+    val Uninterpreted = Value("Uninterpreted")
+    val Postcondition = Value("Postcondition")
+    val Inlining = Value("Inlining")
+  }
+
+  object PathHandling extends Enumeration {
+    type PathHandling = Value
+    val Pathwise = Value("Pathwise")
+    val Merging = Value("Merging")
+  }
+
+  object ArithmApprox extends Enumeration {
+    type ArithmApprox = Value
+    val Z3Only = Value("Z3Only")
+    val JustFloat = Value("JustFloat") // evaluate the float. part with xfloat
+    val FloatNRange = Value("Float'n'Range") // also replace the real with an approx. of the range
+  }
+
+  case class ApproxKind(fncHandling: FncHandling.Value, pathHandling: PathHandling.Value, arithmApprox: ArithmApprox.Value)
+
+
+
+  // TODO: remove these?
   object Sat extends Enumeration {
     type Sat = Value
     val SAT = Value("SAT")
@@ -71,4 +96,6 @@ package object real {
     val INVALID = Value("INVALID")
     val UNKNOWN = Value("Not sure")
   }
+
+
 }
