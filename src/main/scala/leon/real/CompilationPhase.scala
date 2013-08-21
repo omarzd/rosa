@@ -3,9 +3,14 @@
 package leon
 package real
 
+import java.io.{PrintWriter, File}
+
 import purescala.Definitions._
 import purescala.Trees._
 import purescala.TreeOps._
+import purescala.TypeTrees._
+import purescala.Common._
+import purescala.ScalaPrinter
 
 import xlang.Trees._
 
@@ -80,6 +85,17 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
     } else {
       val prover = new Prover(ctx, options, program)
       prover.check(vcs)
+
+      // TODO: fix the precision thing
+      val newProgram = specToCode(program.id, program.mainObject.id, vcs, options.defaultPrecision) 
+      val newProgramAsString = ScalaPrinter(newProgram)
+      reporter.info("Generated program with %d lines.".format(newProgramAsString.lines.length))
+      //reporter.info(newProgramAsString)
+
+      val writer = new PrintWriter(new File("generated/" + newProgram.mainObject.id +".scala"))
+      writer.write(newProgramAsString)
+      writer.close()
+      
     }
     
     // Spec generation. Ideally we search through what we have proven so far, and use that, 
@@ -165,5 +181,43 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
     else true
   }
 
+
+  private def specToCode(programId: Identifier, objectId: Identifier, vcs: Seq[VerificationCondition], precision: Precision): Program = {
+    var defs: Seq[Definition] = Seq.empty
+
+    for (vc <- vcs) {
+      val f = vc.funDef
+      val id = f.id
+      val floatType = getNonRealType(precision)
+      val returnType = floatType // FIXME: check that this is actually RealType
+      val args: Seq[VarDecl] = f.args.map(decl => VarDecl(decl.id, floatType))
+
+      val funDef = new FunDef(id, returnType, args)
+      funDef.body = f.body
+
+      funDef.precondition = f.precondition
+
+      vc.spec match {
+        case Some(Spec(int, err)) =>
+          funDef.postcondition = Some(And(And(LessEquals(RationalLiteral(int.xlo), ResultVariable()),
+            LessEquals(ResultVariable(), RationalLiteral(int.xhi))),
+            Noise(ResultVariable(), RationalLiteral(err))))
+        case _ =>
+      }
+      
+      defs = defs :+ funDef
+    }
+    val invariants: Seq[Expr] = Seq.empty
+
+    val newProgram = Program(programId, ObjectDef(objectId, defs, invariants))
+    newProgram
+  }
+
+  def getNonRealType(precision: Precision): TypeTree = precision match {
+    case Float64 => Float64Type
+    case Float32 => Float32Type
+    case DoubleDouble => FloatDDType
+    case QuadDouble => FloatQDType
+  }
 }
 

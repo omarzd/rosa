@@ -40,6 +40,13 @@ class FloatApproximator(solver: RealSolver, options: RealOptions,
   var variables: Map[Expr, XFloat] = variables2xfloats(inputs, config)._1
   def register(e: Expr, path: C) = path :+ e
 
+  def transformWithSpec(e: Expr): (Expr, Spec) = {
+    val exprTransformed = this.transform(e)
+    val resXFloat = variables(FResVariable())
+    val spec = Spec(RationalInterval(resXFloat.realInterval.xlo, resXFloat.realInterval.xhi), resXFloat.maxError)
+    (exprTransformed, spec)
+  }
+
   override def rec(e: Expr, path: C) = e match {
     case Equals(lhs, rhs) if (rhs.getType == FloatType) =>
       // evaluate the rhs

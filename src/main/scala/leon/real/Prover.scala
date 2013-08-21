@@ -12,9 +12,9 @@ import Sat._
 import FncHandling._
 import ArithmApprox._
 import PathHandling._
+import Rational._
 
-
-case class Approximation(kind: ApproxKind, cnstrs: Seq[Expr])
+case class Approximation(kind: ApproxKind, cnstrs: Seq[Expr], spec: Option[Spec])
 
 class Prover(ctx: LeonContext, options: RealOptions, prog: Program) {
   val reporter = ctx.reporter
@@ -26,18 +26,38 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program) {
       reporter.info("Trying with approximation")
       val start = System.currentTimeMillis
 
-      val currentApprox = getApproximation(vc, ApproxKind(Uninterpreted, Merging, JustFloat))
-      reporter.info("  - " + currentApprox.kind)
-      println(currentApprox.cnstrs)
-      checkValid(currentApprox, vc.variables) match {
-        case Some(true) =>
-          reporter.info("==== VALID ====")
-          vc.value = Some(true)
-        case Some(false) => reporter.info("---- Unknown ----")
-        case None => reporter.info("---- Unknown ----")
-      }
-      
+      // TODO: filter out those that are not applicable
+      val approximations = List(ApproxKind(Uninterpreted, Merging, JustFloat))
+      var spec: Option[Spec] = None
 
+      approximations.find(aKind => {
+        val currentApprox = getApproximation(vc, aKind)
+        spec = merge(spec, currentApprox.spec)
+        reporter.info("  - " + currentApprox.kind)
+        println(currentApprox.cnstrs)
+        checkValid(currentApprox, vc.variables) match {
+          case Some(true) =>
+            reporter.info("==== VALID ====")
+            vc.value = Some(true)
+            true
+          case Some(false) =>
+            reporter.info("=== INVALID ===")
+            true
+          case None =>
+            reporter.info("---- Unknown ----")
+            false
+        }
+
+      }) match {
+        case None => {
+          //vcInfo.hasValue = true
+          //reporter.warning("No solver could prove or disprove the verification condition.")
+        }
+        case _ =>
+      }
+      println("generated spec: " + spec)
+      vc.spec = spec
+      
       val end = System.currentTimeMillis
       vc.time = Some(end - start)
     }
@@ -95,23 +115,34 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program) {
         for ( (pre, body, post) <- paths) {
           approx :+= And(And(vc.pre, vc.body), negate(vc.post))  // Implies(And(vc.pre, vc.body), vc.post)))
         }
-        Approximation(kind, approx)
+        Approximation(kind, approx, None)
       case JustFloat =>
         var approx = Seq[Expr]()
+        var spec: Option[Spec] = None
   
         for ( (pre, body, post) <- paths) {
           println("before: " + body)
           // Hmm, this uses the same solver as the check...
           val transformer = new FloatApproximator(solver, options, pre, vc.variables)
-          val newBody = transformer.transform(body)
-
+          val (newBody, newSpec) = transformer.transformWithSpec(body)
+          spec = merge(spec, Option(newSpec))
           println("after: " + newBody)
           approx :+= And(And(pre, newBody), negate(post))
         }
-        Approximation(kind, approx)
+        Approximation(kind, approx, spec)
       case FloatNRange =>
-        Approximation(kind, List())
+        Approximation(kind, List(), None)
     }
+  }
+
+  private def merge(currentSpec: Option[Spec], newSpec: Option[Spec]): Option[Spec] = (currentSpec, newSpec) match {
+    case (Some(s1), Some(s2)) =>
+      val lowerBnd = max(s1.bounds.xlo, s2.bounds.xlo)
+      val upperBnd = min(s1.bounds.xhi, s2.bounds.xhi)
+      val err = min(s1.absError, s2.absError)
+      Some(Spec(RationalInterval(lowerBnd, upperBnd), err))
+    case (None, Some(s)) => newSpec
+    case _ => currentSpec
   }
 
 }

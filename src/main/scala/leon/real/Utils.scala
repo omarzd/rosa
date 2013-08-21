@@ -15,7 +15,7 @@ object Utils {
     case None => " -- "
   }
 
-  def collectPaths(expr: Expr): Set[Path] = expr match {
+  /*def collectPaths(expr: Expr): Set[Path] = expr match {
     case IfExpr(cond, thenn, elze) =>
       val thenPaths = collectPaths(thenn).map(p => p.addCondition(cond))
       val elzePaths = collectPaths(elze).map(p => p.addCondition(negate(cond)))
@@ -41,7 +41,7 @@ object Utils {
 
     case _ =>
       Set(Path(BooleanLiteral(true), List(expr)))
-  }
+  }*/
 
   
   /*

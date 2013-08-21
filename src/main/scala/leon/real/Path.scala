@@ -5,7 +5,7 @@ package real
 
 import purescala.Trees._
 
-case class Path(condition: Expr, expression: List[Expr]) {
+/*case class Path(condition: Expr, expression: List[Expr]) {
   // Map of all variables to their values
   var values: Map[Expr, XFloat] = Map.empty
   var indices: Map[Int, Expr] = Map.empty
@@ -22,5 +22,5 @@ case class Path(condition: Expr, expression: List[Expr]) {
   def addEqualsToLast(e: Expr): Path = {
     Path(condition, expression.init ++ List(Equals(e, expression.last)))
   }
-}
+}*/
 

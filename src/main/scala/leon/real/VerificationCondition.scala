@@ -7,6 +7,9 @@ import leon.purescala.Trees._
 import leon.purescala.Definitions._
 import leon.purescala.Common._
 
+
+case class Spec(bounds: RationalInterval, absError: Rational)
+
 // The condition is pre => post
 class VerificationCondition(val funDef: FunDef, val kind: VCKind.Value, val pre: Expr, val body: Expr,
   val post: Expr, val variables: VariablePool) extends ScalacPositional {
@@ -16,6 +19,9 @@ class VerificationCondition(val funDef: FunDef, val kind: VCKind.Value, val pre:
   val id = funDef.id.toString
 
   var realFncBody: Expr = True
+
+  // (lowerBnd, upperBnd) absError
+  var spec: Option[Spec] = None
 
   // None = still unknown
   // Some(true) = valid
