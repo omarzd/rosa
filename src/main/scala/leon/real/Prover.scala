@@ -7,6 +7,7 @@ import purescala.Trees._
 import purescala.Definitions._
 import purescala.TreeOps._
 
+import real.TreeOps._
 import Precision._
 import Sat._
 import FncHandling._
@@ -14,80 +15,98 @@ import ArithmApprox._
 import PathHandling._
 import Rational._
 
-case class Approximation(kind: ApproxKind, cnstrs: Seq[Expr], spec: Option[Spec])
+case class Approximation(kind: ApproxKind, cnstrs: Seq[Expr], sanityChecks: Seq[Expr], spec: Option[Spec])
 
-class Prover(ctx: LeonContext, options: RealOptions, prog: Program) {
+class Prover(ctx: LeonContext, options: RealOptions, prog: Program, verbose: Boolean = false) {
   val reporter = ctx.reporter
   val solver = new RealSolver(ctx, prog, options.z3Timeout)
   
-  def check(vcs: Seq[VerificationCondition]) = {
-    for (vc <- vcs) {
-      reporter.info("Verification condition (%s) ==== %s ====".format(vc.kind, vc.id))
-      reporter.info("Trying with approximation")
-      val start = System.currentTimeMillis
+  def check(vcs: Seq[VerificationCondition]): Precision = {
+    options.precision.find( precision => {
+      reporter.info("******** precision: %s *************".format(precision))
 
-      // TODO: filter out those that are not applicable
-      val approximations = List(ApproxKind(Uninterpreted, Merging, JustFloat))
-      var spec: Option[Spec] = None
+      for (vc <- vcs) {
+        reporter.info("Verification condition (%s) ==== %s ====".format(vc.kind, vc.id))
+        reporter.info("Trying with approximation")
+        val start = System.currentTimeMillis
+        var spec: Option[Spec] = None
 
-      approximations.find(aKind => {
-        val currentApprox = getApproximation(vc, aKind)
-        spec = merge(spec, currentApprox.spec)
-        reporter.info("  - " + currentApprox.kind)
-        println(currentApprox.cnstrs)
-        checkValid(currentApprox, vc.variables) match {
-          case Some(true) =>
-            reporter.info("==== VALID ====")
-            vc.value = Some(true)
-            true
-          case Some(false) =>
-            reporter.info("=== INVALID ===")
-            true
+        // TODO: filter out those that are not applicable
+        // TODO: this we also don't need to do for all precisions each time
+        val approximations = List(ApproxKind(Uninterpreted, Merging, JustFloat))
+        
+        // TODO: re-use some of the approximation work across precision?
+        approximations.find(aKind => {
+          val currentApprox = getApproximation(vc, aKind, precision)
+          spec = merge(spec, currentApprox.spec)
+          reporter.info("  - " + currentApprox.kind)
+          if (verbose) println(currentApprox.cnstrs)
+          checkValid(currentApprox, vc.variables, precision) match {
+            case Some(true) =>
+              reporter.info("==== VALID ====")
+              vc.value += (precision -> Some(true))
+              true
+            case Some(false) =>
+              // TODO: figure out if we can find invalid
+              reporter.info("=== INVALID ===")
+              true
+            case None =>
+              reporter.info("---- Unknown ----")
+              false
+          }
+
+        }) match {
           case None =>
-            reporter.info("---- Unknown ----")
-            false
+          case _ =>
         }
-
-      }) match {
-        case None => {
-          //vcInfo.hasValue = true
-          //reporter.warning("No solver could prove or disprove the verification condition.")
-        }
-        case _ =>
-      }
-      println("generated spec: " + spec)
-      vc.spec = spec
+        if (verbose) println("generated spec: " + spec)
+        vc.spec += (precision -> spec)
       
-      val end = System.currentTimeMillis
-      vc.time = Some(end - start)
-    }
-  }
-
-  def checkValid(app: Approximation, variables: VariablePool): Option[Boolean] = {
-
-    val transformer = new LeonToZ3Transformer(variables)
-    // FIXME: precision!
-    val z3constraint = transformer.getZ3Expr(app.cnstrs.head, options.defaultPrecision)
-    println("\n z3constraint: " + z3constraint)
-
-    // TODO: arithmetic simplification
-
-    // TODO: if (reporter.errorCount == 0 && sanityCheck(precondition, false, body))
-      solver.checkSat(z3constraint) match {
-        case (UNSAT, _) => Some(true)
-        case (SAT, model) =>
-          //println("Model found: " + model)
-          // TODO: print the models that are actually useful, once we figure out which ones those are
-          // Return Some(false) if we have a valid model
-          None
-        case _ =>
-          None
+        val end = System.currentTimeMillis
+        vc.time = Some(end - start)
       }
-    //else
-     // None
+      vcs.forall( vc => {
+        vc.value(precision) match {
+          case None => false 
+          case _ => true
+        }
+      })
+
+    }) match {
+      case Some(p) => p
+      case None => options.precision.last
+    }
+    
   }
 
-  def getApproximation(vc: VerificationCondition, kind: ApproxKind): Approximation = {
+  def checkValid(app: Approximation, variables: VariablePool, precision: Precision): Option[Boolean] = {
+    // I think we can keep one
+    val transformer = new LeonToZ3Transformer(variables)
+    var valid: Option[Boolean] = Some(true)
+
+    for ((constraint, sanityExpr) <- app.cnstrs.zip(app.sanityChecks)) {
+
+      val z3constraint = massageArithmetic(transformer.getZ3Expr(constraint, precision))
+      if (verbose) println("\n z3constraint: " + z3constraint)
+
+      if (reporter.errorCount == 0 && sanityCheck(transformer.getZ3Expr(sanityExpr, precision)))
+        solver.checkSat(z3constraint) match {
+          case (UNSAT, _) =>;
+          case (SAT, model) =>
+            //println("Model found: " + model)
+            // TODO: print the models that are actually useful, once we figure out which ones those are
+            // Return Some(false) if we have a valid model
+            valid = None
+          case _ =>
+            valid = None
+        }
+      else
+        valid = None
+    }
+    valid
+  }
+
+  def getApproximation(vc: VerificationCondition, kind: ApproxKind, precision: Precision): Approximation = {
 
     val (preTmp, bodyTmp, postTmp) = kind.fncHandling match {
       case Uninterpreted => (vc.pre, vc.body, vc.post)
@@ -112,26 +131,30 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program) {
     kind.arithmApprox match {
       case Z3Only =>
         var approx = Seq[Expr]()
+        var sanity = Seq[Expr]()
         for ( (pre, body, post) <- paths) {
           approx :+= And(And(vc.pre, vc.body), negate(vc.post))  // Implies(And(vc.pre, vc.body), vc.post)))
+          sanity :+= And(vc.pre, vc.body)
         }
-        Approximation(kind, approx, None)
+        Approximation(kind, approx, sanity, None)
       case JustFloat =>
         var approx = Seq[Expr]()
+        var sanity = Seq[Expr]()
         var spec: Option[Spec] = None
   
         for ( (pre, body, post) <- paths) {
-          println("before: " + body)
+          if (verbose) println("before: " + body)
           // Hmm, this uses the same solver as the check...
-          val transformer = new FloatApproximator(solver, options, pre, vc.variables)
+          val transformer = new FloatApproximator(reporter, solver, precision, pre, vc.variables)
           val (newBody, newSpec) = transformer.transformWithSpec(body)
           spec = merge(spec, Option(newSpec))
-          println("after: " + newBody)
+          if (verbose) println("after: " + newBody)
           approx :+= And(And(pre, newBody), negate(post))
+          sanity :+= And(pre, newBody)
         }
-        Approximation(kind, approx, spec)
+        Approximation(kind, approx, sanity, spec)
       case FloatNRange =>
-        Approximation(kind, List(), None)
+        Approximation(kind, List(), List(), None)
     }
   }
 
@@ -145,4 +168,17 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program) {
     case _ => currentSpec
   }
 
+  // if true, we're sane
+  private def sanityCheck(pre: Expr, body: Expr = BooleanLiteral(true)): Boolean = {
+    val sanityCondition = And(pre, body)
+    solver.checkSat(sanityCondition) match {
+      case (SAT, model) => true
+      case (UNSAT, model) =>
+        reporter.warning("Not sane! " + sanityCondition)
+        false
+      case _ =>
+        reporter.info("Sanity check failed! ")// + sanityCondition)
+        false
+    }
+  }
 }

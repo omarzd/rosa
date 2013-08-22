@@ -10,15 +10,16 @@ import purescala.TypeTrees._
 import real.Trees._
 import real.TreeOps._
 import XFloat._
+import Precision._
 
 object FloatApproximator {
 
   // Just so we have it somewhere, not tested
-  def evalWithError(solver: RealSolver, options: RealOptions, expr: Expr, precondition: Expr, inputs: VariablePool): Map[Expr, XFloat] = {
+  def evalWithError(reporter: Reporter, solver: RealSolver, precision: Precision, expr: Expr, precondition: Expr, inputs: VariablePool): Map[Expr, XFloat] = {
     //val config = XFloatConfig(reporter, solver, precondition, options.defaultPrecision, getUnitRoundoff(options.defaultPrecision),
     //  solverMaxIterMedium, solverPrecisionMedium)
 
-    val transformer = new FloatApproximator(solver, options, precondition, inputs)
+    val transformer = new FloatApproximator(reporter, solver, precision, precondition, inputs)
     transformer.transform(expr)
 
     transformer.variables -- inputs.actualVariables
@@ -26,16 +27,20 @@ object FloatApproximator {
 
 }
 
-class FloatApproximator(solver: RealSolver, options: RealOptions,
-  precondition: Expr, inputs: VariablePool) extends TransformerWithPC {
+class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Precision, precondition: Expr, inputs: VariablePool) extends TransformerWithPC {
   type C = Seq[Expr]
   val initC = Nil
 
   val leonToZ3 = new LeonToZ3Transformer(inputs)
+  val (minVal, maxVal) = precision match { // TODO: alright, this is not exact
+    case Float32 => (-Rational(Float.MaxValue), Rational(Float.MaxValue))
+    case Float64 => (-Rational(Double.MaxValue), Rational(Double.MaxValue))
+    case DoubleDouble => (-Rational(Double.MaxValue), Rational(Double.MaxValue))  // same range as Double
+    case QuadDouble => (-Rational(Double.MaxValue), Rational(Double.MaxValue)) // same range as Double
+  }
     
-  val config = XFloatConfig(solver, leonToZ3.getZ3Expr(precondition, options.defaultPrecision), 
-    options.defaultPrecision, getUnitRoundoff(options.defaultPrecision),
-    solverMaxIterMedium, solverPrecisionMedium)
+  val config = XFloatConfig(solver, leonToZ3.getZ3Expr(precondition, precision), 
+    precision, getUnitRoundoff(precision), solverMaxIterMedium, solverPrecisionMedium)
 
   var variables: Map[Expr, XFloat] = variables2xfloats(inputs, config)._1
   def register(e: Expr, path: C) = path :+ e
@@ -49,58 +54,50 @@ class FloatApproximator(solver: RealSolver, options: RealOptions,
 
   override def rec(e: Expr, path: C) = e match {
     case Equals(lhs, rhs) if (rhs.getType == FloatType) =>
-      // evaluate the rhs
+      //println("path: " + path)
       val evalRhs = evalArith(rhs)
       variables = variables + (lhs -> evalRhs)
-      println("evaluating: " + e)
-      println("with result: " + evalRhs)
       constraintFromXFloats(Map(lhs -> evalRhs))
 
-    // TODO: If-then-else
+    /*case ifThen @ IfExpr(cond, then, elze) if (ifThen.getType == FloatType) =>
+      // Errors and ranges from the two branches
+      val thenConfig = config.addCondition(cond)
+      val elzeConfig = config.addCondition(negate(cond))
+      val (thenMap, thenValue) =
+        if (sanityCheck(thenConfig.getCondition)) inXFloats(reporter, then, addConditionToInputs(vars, cond), thenConfig)
+        else (vars, None)
+      val (elzeMap, elzeValue) =
+        if (sanityCheck(elzeConfig.getCondition))
+          inXFloats(reporter, elze, addConditionToInputs(vars, negate(cond)), elzeConfig)
+        else (vars, None)
+      assert(!thenValue.isEmpty || !elzeValue.isEmpty)
+      println("thenValue: " + thenValue)
+      println("elzeValue: " + elzeValue)
+        
+        val pathError = if (checkPathError) {
+          // When the actual computation goes a different way than the real one
+          val (flCond1, reCond1) = getDiffPathsConditions(cond, vars, config)
+          println("cond1: " + flCond1)
+          val (flCond2, reCond2) = getDiffPathsConditions(negate(cond), vars, config)
+          println("cond2: " + flCond2)
 
+          val pathErrorThen = getPathError(elze, And(flCond1, negate(cond)), then, And(cond, reCond1), vars, config)
+          println("pathError1: %.16g".format(pathErrorThen.toDouble))
+
+          val pathErrorElze = getPathError(then, And(flCond2, cond), elze, And(negate(cond), reCond2), vars, config)
+          println("pathError2: %.16g".format(pathErrorElze.toDouble))
+          max(pathErrorThen, pathErrorElze)
+        } else {
+          zero
+        }
+        (vars, Some(mergeXFloatWithExtraError(thenValue, elzeValue, config, pathError)).get)
+    // TODO: If-then-else
+    */
     case _ =>
       super.rec(e, path)
   }
 
-    // Evaluates an arithmetic expression
-    //TODO: checks for overflow and such here
-    /*
-// Check for potential overflow
-  config.precision match {
-    case Float32 =>
-      if (interval.xlo < -MaxFloat || MaxFloat < interval.xhi) {
-        config.reporter.warning("Potential overflow detected for: %s,\nwith precondition %s".format(tree, config.precondition))
-      }
-    case Float64 =>
-      if (interval.xlo < -MaxDouble || MaxDouble < interval.xhi) {
-        config.reporter.warning("Potential overflow detected for: %s,\nwith precondition %s".format(tree, config.precondition))
-        config.reporter.info(interval)
-      }
-    case DoubleDouble => // same range as Double
-      if (interval.xlo < -MaxDouble || MaxDouble < interval.xhi) {
-        config.reporter.warning("Potential overflow detected for: %s,\nwith precondition %s".format(tree, config.precondition))
-        config.reporter.info(interval)
-      }
-    case QuadDouble => // same range as Double
-      if (interval.xlo < -MaxDouble || MaxDouble < interval.xhi) {
-        config.reporter.warning("Potential overflow detected for: %s,\nwith precondition %s".format(tree, config.precondition))
-        config.reporter.info(interval)
-      }
-  }
-
-  if (y.interval.xlo < Rational.zero && y.interval.xhi > Rational.zero) {
-      config.reporter.warning("Potential division by zero detected for: %s/%s,\nwith precondition %s".format(
-        this.tree, y.tree, config.precondition))
-      config.reporter.warning("y.interval: " + y.interval)
-    }
-
-    if (interval.xlo < Rational.zero || interval.xhi < Rational.zero) {
-      config.reporter.warning("Potential square root of a negative number for: %s,\nwith precondition %s".format(
-        this.tree, config.precondition))
-      config.reporter.warning("interval: " + this.interval)
-    }
-    */
-
+  
   private def evalArith(expr: Expr): XFloat = {
     val xfloat = expr match {
     case v @ Variable(id) => variables(v)
@@ -110,8 +107,14 @@ class FloatApproximator(solver: RealSolver, options: RealOptions,
     case PlusF(lhs, rhs) => evalArith(lhs) + evalArith(rhs)
     case MinusF(lhs, rhs) => evalArith(lhs) - evalArith(rhs)
     case TimesF(lhs, rhs) => evalArith(lhs) * evalArith(rhs)
-    case DivisionF(lhs, rhs) => evalArith(lhs) / evalArith(rhs)
-    case SqrtF(t) => evalArith(t).squareRoot
+    case DivisionF(lhs, rhs) =>
+      val div = evalArith(rhs)
+      if (possiblyZero(div.interval)) reporter.warning("Potential div-by-zero detected: " + expr)
+      evalArith(lhs) / div
+    case SqrtF(t) =>
+      val tEval = evalArith(t)
+      if (possiblyNegative(tEval.interval)) reporter.warning("Potential sqrt of negative detected: " + expr)
+      tEval.squareRoot
     /*case FunctionInvocation(funDef, args) =>
         // Evaluate the function, i.e. compute the postcondition and inline it
       println("function call: " + funDef.id.toString)
@@ -165,6 +168,9 @@ class FloatApproximator(solver: RealSolver, options: RealOptions,
       throw UnsupportedRealFragmentException("XFloat cannot handle: " + expr)
       null
     }
+    if (overflowPossible(xfloat.interval))
+      reporter.warning("Possible overflow detected at: " + expr)
+
       /*if (formulaSize(xfloat.tree) > compactingThreshold) {
         reporter.warning("compacting, size: " + formulaSize(xfloat.tree))
         val fresh = getNewXFloatVar
@@ -180,6 +186,16 @@ class FloatApproximator(solver: RealSolver, options: RealOptions,
                                 LessEquals(kv._1, new RationalLiteral(kv._2.interval.xhi, true)),
                                 Noise(inputs.getIdeal(kv._1), RationalLiteral(kv._2.maxError)))))
   }
+
+  private def overflowPossible(interval: RationalInterval): Boolean =
+    if (interval.xlo < minVal || maxVal < interval.xhi) true else false
+  
+  private def possiblyZero(interval: RationalInterval): Boolean =
+    if (interval.xlo < Rational.zero && interval.xhi > Rational.zero) true else false
+
+  private def possiblyNegative(interval: RationalInterval): Boolean =
+    if (interval.xlo < Rational.zero || interval.xhi < Rational.zero) true else false
+
 }
 
 

@@ -16,7 +16,6 @@ import xlang.Trees._
 
 import real.Trees._
 import real.TreeOps._
-import real.ArithmeticOps._
 
 import Precision._
 import VCKind._
@@ -35,8 +34,8 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
     LeonFlagOptionDef("pathSensitive", "--pathSensitive", "Do a path sensitive analysis."),
     LeonFlagOptionDef("z3only", "--z3only", "Let Z3 loose on the full constraint - at your own risk."),
     LeonValueOptionDef("z3timeout", "--z3timeout=1000", "Timeout for Z3 in milliseconds."),
-    LeonValueOptionDef("precision", "--precision=single:double", "Which precision to assume of the underlying"+
-      "floating-point arithmetic: single, double, doubledouble, quaddouble."),
+    LeonValueOptionDef("precision", "--precision=single", "Which precision to assume of the underlying"+
+      "floating-point arithmetic: single, double, doubledouble, quaddouble or all (finds the best one)."),
     LeonFlagOptionDef("nospecgen", "--nospecgen", "Don't generate specs.")
   )
 
@@ -54,15 +53,14 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
       case LeonFlagOption("pathSensitive") => options.pathSensitive = true
       case LeonFlagOption("z3only") => options.z3Only = true
       case LeonValueOption("z3timeout", ListValue(tm)) => options.z3Timeout = tm.head.toLong
-      case LeonValueOption("precision", ListValue(ps)) => options.precisions = ps.toList.map(p => p match {
-        case "single" => Float32
-        case "double" => Float64
-        case "doubledouble" => DoubleDouble
-        case "quaddouble" => QuadDouble
-        case _=>
-          reporter.warning("Unknown precision: " + p)
-          Float64
-      })
+      case LeonValueOption("precision", ListValue(ps)) => options.precision = ps.head match {
+        case "single" => List(Float32)
+        case "double" => List(Float64)
+        case "doubledouble" => List(DoubleDouble)
+        case "quaddouble" => List(QuadDouble)
+        case "all" => List(Float32, Float64, DoubleDouble, QuadDouble)
+      }
+      // TODO: enable this
       case LeonFlagOption("nospecgen") => options.specGen = false
       case _ =>
     }
@@ -81,13 +79,14 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
     
     if (options.simulation) {
       val simulator = new Simulator(reporter)
-      for(vc <- vcs) simulator.simulateThis(vc, options.defaultPrecision)
+      val prec = if (options.precision.size == 1) options.precision.head else Float64
+      for(vc <- vcs) simulator.simulateThis(vc, prec)
+      new CompilationReport(List())
     } else {
-      val prover = new Prover(ctx, options, program)
-      prover.check(vcs)
+      val prover = new Prover(ctx, options, program, verbose)
+      val finalPrecision = prover.check(vcs)
 
-      // TODO: fix the precision thing
-      val newProgram = specToCode(program.id, program.mainObject.id, vcs, options.defaultPrecision) 
+      val newProgram = specToCode(program.id, program.mainObject.id, vcs, finalPrecision) 
       val newProgramAsString = ScalaPrinter(newProgram)
       reporter.info("Generated program with %d lines.".format(newProgramAsString.lines.length))
       //reporter.info(newProgramAsString)
@@ -95,39 +94,27 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
       val writer = new PrintWriter(new File("generated/" + newProgram.mainObject.id +".scala"))
       writer.write(newProgramAsString)
       writer.close()
-      
+    
+      new CompilationReport(vcs.sortWith((vc1, vc2) => vc1.id < vc2.id))
     }
     
-    // Spec generation. Ideally we search through what we have proven so far, and use that, 
-    // or take this into account already at analysis phase   
-
-
-    /* Wishlist:
-      - real part has products (instead of the times trees) and the compiler is free to choose any order for the actual part
-    
-  
-    */
-
-    new CompilationReport(vcs.sortWith((vc1, vc2) => vc1.id < vc2.id))
-
-    // TODO: simulation
   }
 
   private def analyzeThis(sortedFncs: Seq[FunDef]): Seq[VerificationCondition] = {
     var vcs: Seq[VerificationCondition] = Seq.empty
     
     for (funDef <- sortedFncs if (funDef.body.isDefined)) {
-      reporter.info("Analysing fnc  ==== %s ====".format(funDef.id.name))
-      println(funDef.body.get)
+      reporter.info("Analysing fnc:  %s".format(funDef.id.name))
+      if (verbose) println(funDef.body.get)
       
       funDef.precondition match {
         case Some(precondition) =>
           val variables = VariablePool(precondition)
-          println("parameters: " + variables)
+          if (verbose) println("parameters: " + variables)
           if (variables.hasValidInput(funDef.args)) {
-            println("prec. is complete, continuing")
+            if (verbose) println("prec. is complete, continuing")
 
-            println("pre: " + precondition)
+            if (verbose) println("pre: " + precondition)
             val allFncCalls = functionCallsOf(precondition).map(invc => invc.funDef.id.toString) ++
               functionCallsOf(funDef.body.get).map(invc => invc.funDef.id.toString)
 
@@ -142,19 +129,18 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
               case None => (convertLetsToEquals(addResult(funDef.body.get)), BooleanLiteral(true))
             }
 
-            println("\nfncBody: " + fncBody)
+            /*println("\nfncBody: " + fncBody)
             println("\npost: " + postcondition)
-
             println("\n body real : " + fncBody)
             println("\n body float: " + idealToActual(fncBody, variables))
-
+            */
             // add floating-point "track"
             val body = And(fncBody, idealToActual(fncBody, variables))
 
             // add all local variables to the variable store
             // TODO: does not work with blocks (xlang extension)
             variables.add(variablesOf(fncBody))
-            println("all variables: " + variables)
+            if (verbose) println("all variables: " + variables)
 
 
             vcs :+= new VerificationCondition(funDef, Postcondition, precondition, body, postcondition, allFncCalls, variables)
@@ -197,7 +183,7 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
 
       funDef.precondition = f.precondition
 
-      vc.spec match {
+      vc.spec(precision) match {
         case Some(Spec(int, err)) =>
           funDef.postcondition = Some(And(And(LessEquals(RationalLiteral(int.xlo), ResultVariable()),
             LessEquals(ResultVariable(), RationalLiteral(int.xhi))),
@@ -213,7 +199,7 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
     newProgram
   }
 
-  def getNonRealType(precision: Precision): TypeTree = precision match {
+  private def getNonRealType(precision: Precision): TypeTree = precision match {
     case Float64 => Float64Type
     case Float32 => Float32Type
     case DoubleDouble => FloatDDType

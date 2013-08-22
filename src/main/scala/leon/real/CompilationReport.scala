@@ -3,8 +3,11 @@
 package leon
 package real
 
+import Precision._
 
-class CompilationReport(vcs: Seq[VerificationCondition]) {
+// @param precision the precision that we were able to prove stuff with (or not)
+// TODO: write the precision in the report
+class CompilationReport(vcs: Seq[VerificationCondition], precision: Precision = Float64) {
 
   lazy val totalConditions : Int = vcs.size
 
@@ -18,7 +21,7 @@ class CompilationReport(vcs: Seq[VerificationCondition]) {
 
   def summaryString : String = if(totalConditions >= 0) {
     CompilationReport.infoHeader +
-    vcs.map(CompilationReport.infoLine).mkString("\n", "\n", "\n") +
+    vcs.map(CompilationReport.infoLine(precision)).mkString("\n", "\n", "\n") +
     CompilationReport.infoSep +
     ("║ total: %-4d   valid: %-4d   invalid: %-4d   unknown %-4d " +
       (" " * 16) +
@@ -47,7 +50,7 @@ object CompilationReport {
                                     "╔═╡ Summary ╞" + ("═" * 71) + "╗\n" +
                                     "║ └─────────┘" + (" " * 71) + "║"
 
-  private def infoLine(vc : VerificationCondition) : String = {
+  private def infoLine(precision: Precision)(vc : VerificationCondition) : String = {
     val timeStr = vc.time match {
       case Some(t) => "%-3.3f".format(t / 1000)
       case None => ""
@@ -57,7 +60,7 @@ object CompilationReport {
       fit(vc.funDef.id.toString, 25),
       vc.kind,
       "",
-      vc.status,
+      vc.status(precision),
       "",
       "",
       timeStr)

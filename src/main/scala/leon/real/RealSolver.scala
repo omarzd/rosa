@@ -17,7 +17,6 @@ import solvers._
 import real.TreeOps._
 import real.Trees.RationalLiteral
 import Sat._
-import Valid._
 import Rational._
 
 
@@ -100,7 +99,7 @@ class RealSolver(context: LeonContext, prog: Program, timeout: Long) extends Uni
   }
 
 
-  def checkValid(expr: Expr): (Valid, Option[Map[Identifier, Expr]]) = {
+  def checkValid(expr: Expr): (Option[Boolean], Option[Map[Identifier, Expr]]) = {
     solver.push
     val variables = variablesOf(expr)
     val cnstr = toZ3Formula(Not(expr)).get
@@ -110,14 +109,14 @@ class RealSolver(context: LeonContext, prog: Program, timeout: Long) extends Uni
       case Some(true) =>
         if (verbose) println("--> cond: SAT")
         val model = solver.getModel
-        (INVALID, Some(modelToMap(model, variables)))
+        (Some(false), Some(modelToMap(model, variables)))
       case Some(false) =>
         if (verbose) println("--> cond: UNSAT")
-        (VALID, None)
+        (Some(true), None)
       case None =>
         if (printWarnings) println("!!! WARNING: Z3 SOLVER FAILED")
         countTimeouts = countTimeouts + 1
-        (UNKNOWN, None)
+        (None, None)
     }
     solver.pop()
     res

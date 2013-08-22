@@ -9,7 +9,7 @@ object Z3Test {
     require(x >< (1.0, 2.0) && x +/- 1e-9)
 
     x * x
-  }// ensuring (res => res <= 5.0 && res +/- 1e-8)
+  } ensuring (res => res <= 5.0 && res +/- 1e-8)
 
   def f1False(x: Real): Real = {
     require(x >< (1.0, 2.0))

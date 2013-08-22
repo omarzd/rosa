@@ -142,10 +142,6 @@ object XFloat {
   }
 
   val verbose = false
-  // TODO: alright, this is not exact
-  val MaxDouble = Rational(Double.MaxValue)
-  val MaxFloat = Rational(Float.MaxValue)
-
 }
 
 
@@ -305,7 +301,7 @@ class XFloat(val tree: Expr, val approxInterval: RationalInterval, val error: XR
   private def getTightInterval(tree: Expr, approx: RationalInterval, condition: Expr): RationalInterval = {
     //println("\n tightening: " + tree)
     //println("with pre: " + condition)
-    val massagedTree = ArithmeticOps.totalMakeover(tree)
+    val massagedTree = TreeOps.massageArithmetic(tree)
     //println("massaged: " + massagedTree)
     //println("initial approx: " + approx)
 
