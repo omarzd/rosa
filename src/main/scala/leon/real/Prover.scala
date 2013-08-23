@@ -33,7 +33,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, verbose: Boo
 
         // TODO: filter out those that are not applicable
         // TODO: this we also don't need to do for all precisions each time
-        val approximations = List(ApproxKind(Uninterpreted, Merging, JustFloat))
+        val approximations = List(ApproxKind(Uninterpreted, Pathwise, JustFloat))
         
         // TODO: re-use some of the approximation work across precision?
         approximations.find(aKind => {
@@ -85,6 +85,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, verbose: Boo
     var valid: Option[Boolean] = Some(true)
 
     for ((constraint, sanityExpr) <- app.cnstrs.zip(app.sanityChecks)) {
+      //println("constraint: " + constraint)
 
       val z3constraint = massageArithmetic(transformer.getZ3Expr(constraint, precision))
       if (verbose) println("\n z3constraint: " + z3constraint)
@@ -119,40 +120,45 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, verbose: Boo
         (True, True, True)
     }
 
-    val paths: List[(Expr, Expr, Expr)] = kind.pathHandling match {
+    val (pre, body, post): (Expr, Set[Path], Expr) = kind.pathHandling match {
       case Pathwise =>
-        throw new Exception("Ups, not yet implemented.")
-        List((True, True, True))
+        ( preTmp,
+          getPaths(bodyTmp).map(p => Path(p.condition, And(p.body, idealToActual(p.body, vc.variables)))), 
+          postTmp )
       case Merging =>
-        List( (preTmp, bodyTmp, postTmp) )
+        ( preTmp,
+          Set(Path(True, And(bodyTmp, idealToActual(bodyTmp, vc.variables)))),
+          postTmp )
     }
-
+    println("body: " + body)
     
     kind.arithmApprox match {
       case Z3Only =>
         var approx = Seq[Expr]()
         var sanity = Seq[Expr]()
-        for ( (pre, body, post) <- paths) {
-          approx :+= And(And(vc.pre, vc.body), negate(vc.post))  // Implies(And(vc.pre, vc.body), vc.post)))
-          sanity :+= And(vc.pre, vc.body)
+        for (path <- body) {
+          approx :+= And(And(pre, And(path.condition, path.body)), negate(post))  // Implies(And(vc.pre, vc.body), vc.post)))
+          sanity :+= And(pre, And(path.condition, path.body))
         }
         Approximation(kind, approx, sanity, None)
+
       case JustFloat =>
         var approx = Seq[Expr]()
         var sanity = Seq[Expr]()
         var spec: Option[Spec] = None
   
-        for ( (pre, body, post) <- paths) {
-          if (verbose) println("before: " + body)
+        for ( path <- body ) {
+          if (verbose) println("before: " + path)
           // Hmm, this uses the same solver as the check...
-          val transformer = new FloatApproximator(reporter, solver, precision, pre, vc.variables)
-          val (newBody, newSpec) = transformer.transformWithSpec(body)
+          val transformer = new FloatApproximator(reporter, solver, precision, And(pre, path.condition), vc.variables)
+          val (newBody, newSpec) = transformer.transformWithSpec(path.body)
           spec = merge(spec, Option(newSpec))
           if (verbose) println("after: " + newBody)
-          approx :+= And(And(pre, newBody), negate(post))
+          approx :+= And(And(pre, And(path.condition, newBody)), negate(post))
           sanity :+= And(pre, newBody)
         }
         Approximation(kind, approx, sanity, spec)
+
       case FloatNRange =>
         Approximation(kind, List(), List(), None)
     }
@@ -160,9 +166,9 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, verbose: Boo
 
   private def merge(currentSpec: Option[Spec], newSpec: Option[Spec]): Option[Spec] = (currentSpec, newSpec) match {
     case (Some(s1), Some(s2)) =>
-      val lowerBnd = max(s1.bounds.xlo, s2.bounds.xlo)
-      val upperBnd = min(s1.bounds.xhi, s2.bounds.xhi)
-      val err = min(s1.absError, s2.absError)
+      val lowerBnd = min(s1.bounds.xlo, s2.bounds.xlo)
+      val upperBnd = max(s1.bounds.xhi, s2.bounds.xhi)
+      val err = max(s1.absError, s2.absError)
       Some(Spec(RationalInterval(lowerBnd, upperBnd), err))
     case (None, Some(s)) => newSpec
     case _ => currentSpec

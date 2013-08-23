@@ -26,7 +26,7 @@ class VerificationCondition(val funDef: FunDef, val kind: VCKind.Value, val pre:
   // FIXME: id is bad here, not unique
   val id = funDef.id.toString
 
-  var realFncBody: Expr = True
+  //var realFncBody: Expr = True
 
   // (lowerBnd, upperBnd) absError
   var spec: Map[Precision, Option[Spec]] = initialValueMap

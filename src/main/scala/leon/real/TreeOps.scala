@@ -14,6 +14,55 @@ import real.Trees._
 import real.RationalAffineUtils._
 
 object TreeOps {
+  case class Path(condition: Expr, body: Expr)
+
+  def getPaths(expr: Expr): Set[Path] = {
+    val partialPaths = collectPaths(expr)
+    partialPaths.map(p => Path(p.condition, And(p.expression)))
+  }
+
+  case class PartialPath(condition: Expr, expression: Seq[Expr]) {
+    //var feasible = true //until further notice
+
+    def addCondition(c: Expr): PartialPath =
+      PartialPath(And(condition, c), expression)
+
+    def addPath(p: PartialPath): PartialPath = {
+      PartialPath(And(this.condition, p.condition), this.expression ++ p.expression)
+    }
+
+    def addEqualsToLast(e: Expr): PartialPath = {
+      PartialPath(condition, expression.init ++ List(Equals(e, expression.last)))
+    }
+  }
+
+  def collectPaths(expr: Expr): Set[PartialPath] = expr match {
+    case IfExpr(cond, thenn, elze) =>
+      val thenPaths = collectPaths(thenn).map(p => p.addCondition(cond))
+      val elzePaths = collectPaths(elze).map(p => p.addCondition(negate(cond)))
+
+      thenPaths ++ elzePaths
+
+    case And(args) =>
+      var currentPaths: Set[PartialPath] = collectPaths(args.head)
+
+      for (a <- args.tail) {
+        var newPaths: Set[PartialPath] = Set.empty
+        val nextPaths = collectPaths(a)
+
+        for (np <- nextPaths; cp <- currentPaths)
+          newPaths = newPaths + cp.addPath(np)
+
+        currentPaths = newPaths
+      }
+      currentPaths
+
+    case Equals(e, f) =>
+      collectPaths(f).map(p => p.addEqualsToLast(e))
+
+    case _ =>
+      Set(PartialPath(True, List(expr)))
+  }
 
   def inIntervals(expr: Expr, vars: VariablePool): RationalInterval = expr match {
     case RationalLiteral(r) => RationalInterval(r, r)

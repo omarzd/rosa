@@ -25,7 +25,7 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
   val name = "Real compilation"
   val description = "compilation of real programs"
 
-  var verbose = true
+  var verbose = false
   var reporter: Reporter = null
 
   override val definedOptions: Set[LeonOptionDef] = Set(
@@ -118,7 +118,7 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
             val allFncCalls = functionCallsOf(precondition).map(invc => invc.funDef.id.toString) ++
               functionCallsOf(funDef.body.get).map(invc => invc.funDef.id.toString)
 
-            val (fncBody, postcondition) = funDef.postcondition match {
+            val (body, postcondition) = funDef.postcondition match {
               case Some(ResultVariable()) =>
                 val posts = getInvariantCondition(funDef.body.get)
                 val bodyWOLets = convertLetsToEquals(funDef.body.get)
@@ -128,19 +128,8 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
 
               case None => (convertLetsToEquals(addResult(funDef.body.get)), BooleanLiteral(true))
             }
-
-            /*println("\nfncBody: " + fncBody)
-            println("\npost: " + postcondition)
-            println("\n body real : " + fncBody)
-            println("\n body float: " + idealToActual(fncBody, variables))
-            */
-            // add floating-point "track"
-            val body = And(fncBody, idealToActual(fncBody, variables))
-            
             vcs :+= new VerificationCondition(funDef, Postcondition, precondition, body, postcondition, allFncCalls, variables)
             
-            vcs.last.realFncBody = fncBody // this is clearly a hack (only for simulation)
-
             // TODO: vcs from assertions
             // TODO: vcs checking precondition of function calls
 

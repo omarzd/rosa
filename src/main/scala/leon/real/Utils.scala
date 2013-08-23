@@ -15,34 +15,6 @@ object Utils {
     case None => " -- "
   }
 
-  /*def collectPaths(expr: Expr): Set[Path] = expr match {
-    case IfExpr(cond, thenn, elze) =>
-      val thenPaths = collectPaths(thenn).map(p => p.addCondition(cond))
-      val elzePaths = collectPaths(elze).map(p => p.addCondition(negate(cond)))
-
-      thenPaths ++ elzePaths
-
-    case And(args) =>
-      var currentPaths: Set[Path] = collectPaths(args.head)
-
-      for (a <- args.tail) {
-        var newPaths: Set[Path] = Set.empty
-        val nextPaths = collectPaths(a)
-
-        for (np <- nextPaths; cp <- currentPaths)
-          newPaths = newPaths + cp.addPath(np)
-
-        currentPaths = newPaths
-      }
-      currentPaths
-
-    case Equals(e, f) =>
-      collectPaths(f).map(p => p.addEqualsToLast(e))
-
-    case _ =>
-      Set(Path(BooleanLiteral(true), List(expr)))
-  }*/
-
   
   /*
 
