@@ -14,6 +14,13 @@ import real.Trees._
 import real.RationalAffineUtils._
 
 object TreeOps {
+
+  def specToExpr(s: Spec): Expr = {
+    And(And(LessEquals(RationalLiteral(s.bounds.xlo), ResultVariable()),
+            LessEquals(ResultVariable(), RationalLiteral(s.bounds.xhi))),
+            Noise(ResultVariable(), RationalLiteral(s.absError)))
+  }
+
   case class Path(condition: Expr, body: Expr)
 
   def getPaths(expr: Expr): Set[Path] = {

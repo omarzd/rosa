@@ -308,6 +308,20 @@ object Trees {
     }
   }
 
+  // A value returned from a function call desribed by it's specification
+  case class FncValue(spec: Expr) extends Expr with FixedType with UnaryExtractable with PrettyPrintable {
+    val fixedType = RealType
+    def extract: Option[(Expr, (Expr)=>Expr)] = {
+      Some((spec, (e) => FncValue(e)))
+    }
+    def printWith(lvl: Int, printer: PrettyPrinter) {
+      printer.append("fncVal(")
+      printer.pp(spec,lvl)
+      printer.append(")")
+    }
+  }
+
+
   // approximates some other expression
   case class ApproxNode(xfloat: XFloat) extends Expr with FixedType with Terminal with PrettyPrintable {
     val fixedType = FloatType

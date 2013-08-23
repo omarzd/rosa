@@ -33,13 +33,14 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, verbose: Boo
 
         // TODO: filter out those that are not applicable
         // TODO: this we also don't need to do for all precisions each time
-        val approximations = List(ApproxKind(Uninterpreted, Pathwise, JustFloat))
+        val approximations = List(ApproxKind(Postcondition, Pathwise, JustFloat))
         
         // TODO: re-use some of the approximation work across precision?
         approximations.find(aKind => {
+          reporter.info("  - " + aKind)
           val currentApprox = getApproximation(vc, aKind, precision)
           spec = merge(spec, currentApprox.spec)
-          reporter.info("  - " + currentApprox.kind)
+          
           if (verbose) println(currentApprox.cnstrs)
           checkValid(currentApprox, vc.variables, precision) match {
             case Some(true) =>
