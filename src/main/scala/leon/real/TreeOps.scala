@@ -62,8 +62,21 @@ object TreeOps {
       And(exprs.map(e => convertLetsToEquals(e)) :+ convertLetsToEquals(last))
 
     case _ => expr
-
   }
+
+  class NoiseRemover extends TransformerWithPC {
+    type C = Seq[Expr]
+    val initC = Nil
+
+    def register(e: Expr, path: C) = path :+ e
+
+    override def rec(e: Expr, path: C) = e match {
+      case Noise(_, _) => True
+      case _ =>
+        super.rec(e, path)
+    }
+  }
+
 
   def idealToActual(expr: Expr, vars: VariablePool): Expr = {
     val transformer = new RealToFloatTransformer(vars)
@@ -86,6 +99,9 @@ object TreeOps {
       case SqrtR(t) => SqrtF(rec(t, path))
       case v: Variable => variables.buddy(v)
       case ResultVariable() => FResVariable()
+
+      // leave conditions on if-then-else in reals
+      case LessEquals(_,_) | LessThan(_,_) | GreaterEquals(_,_) | GreaterThan(_,_) => e
 
       case _ =>
         super.rec(e, path)

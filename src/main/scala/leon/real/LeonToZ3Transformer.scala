@@ -18,7 +18,8 @@ class LeonToZ3Transformer(variables: VariablePool) extends TransformerWithPC {
     val initC = Nil
 
     // TODO Make sure this is unique, i.e. we don't create it twice in the same constraint
-    val machineEps = Variable(FreshIdentifier("#eps")).setType(RealType)
+    var epsUsed = false
+    lazy val machineEps = { epsUsed = true; Variable(FreshIdentifier("#eps")).setType(RealType) }
 
     var extraConstraints = Seq[Expr]()
     def addExtra(e: Expr) = extraConstraints = extraConstraints :+ e
@@ -133,6 +134,7 @@ class LeonToZ3Transformer(variables: VariablePool) extends TransformerWithPC {
       case r @ RationalLiteral(v) =>
         if (r.exact) r
         else {
+          // TODO: we don't want to do this for the ideal part!
           val (mult, dlt) = getFreshRndoffMultiplier
           addExtra(constrainDelta(dlt))
           Times(r, mult)
@@ -155,7 +157,10 @@ class LeonToZ3Transformer(variables: VariablePool) extends TransformerWithPC {
       val res = Variable(FreshIdentifier("#res")).setType(RealType)
       val fres = Variable(FreshIdentifier("#fres")).setType(RealType)
       val z3Expr = replace(Map(ResultVariable() -> res, FResVariable() -> fres), this.transform(e)) 
-      // TODO: don't add eps if not needed
-      And(And(extraConstraints :+ Equals(machineEps, RationalLiteral(getUnitRoundoff(precision)))), z3Expr)
+      
+      if (epsUsed)
+        And(And(extraConstraints :+ Equals(machineEps, RationalLiteral(getUnitRoundoff(precision)))), z3Expr)
+      else
+        And(And(extraConstraints), z3Expr)
     }
   }

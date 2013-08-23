@@ -6,15 +6,16 @@ object IfThenElse {
 
   def f1(x: Real): Real = {
     require(x >< (0, 5) && x +/- 1e-5)
-    if(x <= 0.2) x*x
+    if(x <= 0.2) x
     else 2.0 * x
   } ensuring( res => res <= 10.0 && res +/- 1e-4)
 
   def f2(x: Real): Real = {
-    require(x >< (0, 5) && x +/- 1e-5)
+    require(x >< (0, 5)) // && x +/- 1e-5)
     val z = if(x <= 0.2) x*x
     else 2.0 * x
-    z / 3.0
+    //z / 3.0
+    z
   } ensuring( res => res <= 3.5 && res +/- 1e-4)
 
   def f3(x: Real): Real = {

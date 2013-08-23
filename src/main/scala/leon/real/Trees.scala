@@ -14,7 +14,7 @@ object Trees {
 
   // represents the actual result in post-conditions
   case class FResVariable() extends Expr with Terminal with FixedType with PrettyPrintable {
-    val fixedType = RealType
+    val fixedType = FloatType
     def printWith(lvl: Int, printer: PrettyPrinter) {
       printer.append("#fres")
     }
@@ -304,6 +304,16 @@ object Trees {
     def printWith(lvl: Int, printer: PrettyPrinter) {
       printer.append("sqrtF(")
       printer.pp(expr,lvl)
+      printer.append(")")
+    }
+  }
+
+  // approximates some other expression
+  case class ApproxNode(xfloat: XFloat) extends Expr with FixedType with Terminal with PrettyPrintable {
+    val fixedType = FloatType
+    def printWith(lvl: Int, printer: PrettyPrinter) {
+      printer.append("approx(")
+      printer.append(xfloat.toString)
       printer.append(")")
     }
   }

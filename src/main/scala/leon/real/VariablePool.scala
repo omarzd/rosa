@@ -56,6 +56,7 @@ class VariablePool(inputs: Map[Expr, Record]) {
   def getIdeal(v: Expr): Expr = {
     allVars.find(x => x._2.actual == v) match {
       case Some((_, Record(i, a, _, _, _))) => i
+      case _ => throw new Exception("not found: " + v)
     }
   }
 
@@ -79,7 +80,7 @@ class VariablePool(inputs: Map[Expr, Record]) {
 
 object VariablePool {
   def emptyRecord(ideal: Expr): Record = ideal match {
-    case Variable(id) => Record(ideal, Variable(FreshIdentifier("#" + id.name)).setType(RealType), None, None, None)
+    case Variable(id) => Record(ideal, Variable(FreshIdentifier("#" + id.name)).setType(FloatType), None, None, None)
     case _ => new Exception("bug!"); null
   }
 

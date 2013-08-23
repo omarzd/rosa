@@ -11,6 +11,8 @@ import real.Trees._
 import real.TreeOps._
 import XFloat._
 import Precision._
+import Rational._
+import VariableShop._
 
 object FloatApproximator {
 
@@ -32,6 +34,7 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
   val initC = Nil
 
   val leonToZ3 = new LeonToZ3Transformer(inputs)
+  val noiseRemover = new NoiseRemover
   val (minVal, maxVal) = precision match { // TODO: alright, this is not exact
     case Float32 => (-Rational(Float.MaxValue), Rational(Float.MaxValue))
     case Float64 => (-Rational(Double.MaxValue), Rational(Double.MaxValue))
@@ -39,11 +42,17 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
     case QuadDouble => (-Rational(Double.MaxValue), Rational(Double.MaxValue)) // same range as Double
   }
     
-  val config = XFloatConfig(solver, leonToZ3.getZ3Expr(precondition, precision), 
+  val config = XFloatConfig(solver, leonToZ3.getZ3Expr(noiseRemover.transform(precondition), precision), 
     precision, getUnitRoundoff(precision), solverMaxIterMedium, solverPrecisionMedium)
 
   var variables: Map[Expr, XFloat] = variables2xfloats(inputs, config)._1
-  def register(e: Expr, path: C) = path :+ e
+  
+  def register(e: Expr, path: C) = e match {
+    // We allow only these conditions in if-then-else
+    case LessThan(_,_) | LessEquals(_,_) | GreaterThan(_,_) | GreaterEquals(_,_) =>
+      path :+ e
+    case _ => path
+  }
 
   def transformWithSpec(e: Expr): (Expr, Spec) = {
     val exprTransformed = this.transform(e)
@@ -52,70 +61,116 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
     (exprTransformed, spec)
   }
 
-  override def rec(e: Expr, path: C) = e match {
-    case Equals(lhs, rhs) if (rhs.getType == FloatType) =>
-      //println("path: " + path)
-      val evalRhs = evalArith(rhs)
-      variables = variables + (lhs -> evalRhs)
-      constraintFromXFloats(Map(lhs -> evalRhs))
+  // TODO: overflow check
+  override def rec(e: Expr, path: C) =  {
+    def getXFloat(e: Expr): XFloat = e match {
+      case ApproxNode(x) => x
+      case RationalLiteral(r) => addCondition(XFloat(r, config), path)
+      case v: Variable => addCondition(variables(v), path)
+    }
 
-    /*case ifThen @ IfExpr(cond, then, elze) if (ifThen.getType == FloatType) =>
-      // Errors and ranges from the two branches
-      val thenConfig = config.addCondition(cond)
-      val elzeConfig = config.addCondition(negate(cond))
-      val (thenMap, thenValue) =
-        if (sanityCheck(thenConfig.getCondition)) inXFloats(reporter, then, addConditionToInputs(vars, cond), thenConfig)
-        else (vars, None)
-      val (elzeMap, elzeValue) =
-        if (sanityCheck(elzeConfig.getCondition))
-          inXFloats(reporter, elze, addConditionToInputs(vars, negate(cond)), elzeConfig)
-        else (vars, None)
-      assert(!thenValue.isEmpty || !elzeValue.isEmpty)
-      println("thenValue: " + thenValue)
-      println("elzeValue: " + elzeValue)
-        
-        val pathError = if (checkPathError) {
-          // When the actual computation goes a different way than the real one
-          val (flCond1, reCond1) = getDiffPathsConditions(cond, vars, config)
-          println("cond1: " + flCond1)
-          val (flCond2, reCond2) = getDiffPathsConditions(negate(cond), vars, config)
-          println("cond2: " + flCond2)
-
-          val pathErrorThen = getPathError(elze, And(flCond1, negate(cond)), then, And(cond, reCond1), vars, config)
-          println("pathError1: %.16g".format(pathErrorThen.toDouble))
-
-          val pathErrorElze = getPathError(then, And(flCond2, cond), elze, And(negate(cond), reCond2), vars, config)
-          println("pathError2: %.16g".format(pathErrorElze.toDouble))
-          max(pathErrorThen, pathErrorElze)
+    //println("\n rec: " + e + "   with path: " + path)
+    e match {
+      case Equals(lhs, rhs) => 
+        if (rhs.getType == FloatType) {
+          val x = getXFloat(rec(rhs, path))
+          variables = variables + (lhs -> x)
+          constraintFromXFloats(Map(lhs -> x))
         } else {
-          zero
+          Equals(rec(lhs, path), rec(rhs, path))
         }
-        (vars, Some(mergeXFloatWithExtraError(thenValue, elzeValue, config, pathError)).get)
-    // TODO: If-then-else
-    */
-    case _ =>
-      super.rec(e, path)
+      
+      case UMinusF(t) => ApproxNode(-getXFloat(rec(t, path)))
+      case PlusF(lhs, rhs) =>
+        ApproxNode(getXFloat(rec(lhs, path)) + getXFloat(rec(rhs, path)))
+      case MinusF(lhs, rhs) =>
+        ApproxNode(getXFloat(rec(lhs, path)) - getXFloat(rec(rhs, path)))
+      case TimesF(lhs, rhs) =>
+        ApproxNode(getXFloat(rec(lhs, path)) * getXFloat(rec(rhs, path)))
+      case DivisionF(lhs, rhs) =>
+        val r = getXFloat(rec(rhs, path))
+        if (possiblyZero(r.interval)) reporter.warning("Potential div-by-zero detected: " + e)
+        ApproxNode(getXFloat(rec(lhs, path)) + r)
+        
+      case SqrtF(t) =>
+        val x = getXFloat(rec(t, path))
+        if (possiblyNegative(x.interval)) reporter.warning("Potential sqrt of negative detected: " + e)
+        ApproxNode(x.squareRoot)    
+        
+      case ifThen @ IfExpr(cond, den, elze) if (ifThen.getType == FloatType) =>
+        val thenBranch =
+          if (isFeasible(path :+ cond)) Some(getXFloat(rec(den, register(cond, path))))
+          else None
+
+        val elseBranch =
+          if (isFeasible(path :+ negate(cond))) Some(getXFloat(rec(elze, register(cond, path))))
+          else None
+        assert(!thenBranch.isEmpty || !elseBranch.isEmpty)
+        
+        // TODO: path error
+        /*val pathError = if (checkPathError) {
+            // When the actual computation goes a different way than the real one
+            val (flCond1, reCond1) = getDiffPathsConditions(cond, vars, config)
+            println("cond1: " + flCond1)
+            val (flCond2, reCond2) = getDiffPathsConditions(negate(cond), vars, config)
+            println("cond2: " + flCond2)
+
+            val pathErrorThen = getPathError(elze, And(flCond1, negate(cond)), then, And(cond, reCond1), vars, config)
+            println("pathError1: %.16g".format(pathErrorThen.toDouble))
+
+            val pathErrorElze = getPathError(then, And(flCond2, cond), elze, And(negate(cond), reCond2), vars, config)
+            println("pathError2: %.16g".format(pathErrorElze.toDouble))
+            max(pathErrorThen, pathErrorElze)
+        } else {*/
+        val pathError = zero
+          //}
+
+        ApproxNode(mergeXFloatWithExtraError(thenBranch, elseBranch, And(path), pathError))
+      
+      case _ =>
+        super.rec(e, path)
+    }
   }
 
+
   
-  private def evalArith(expr: Expr): XFloat = {
-    val xfloat = expr match {
-    case v @ Variable(id) => variables(v)
-    case RationalLiteral(v) => XFloat(v, config)
-    //case IntLiteral(v) => XFloat(v, config)
-    case UMinusF(rhs) => - evalArith(rhs)
-    case PlusF(lhs, rhs) => evalArith(lhs) + evalArith(rhs)
-    case MinusF(lhs, rhs) => evalArith(lhs) - evalArith(rhs)
-    case TimesF(lhs, rhs) => evalArith(lhs) * evalArith(rhs)
-    case DivisionF(lhs, rhs) =>
-      val div = evalArith(rhs)
-      if (possiblyZero(div.interval)) reporter.warning("Potential div-by-zero detected: " + expr)
-      evalArith(lhs) / div
-    case SqrtF(t) =>
-      val tEval = evalArith(t)
-      if (possiblyNegative(tEval.interval)) reporter.warning("Potential sqrt of negative detected: " + expr)
-      tEval.squareRoot
-    /*case FunctionInvocation(funDef, args) =>
+  private def mergeXFloatWithExtraError(one: Option[XFloat], two: Option[XFloat], condition: Expr,
+    pathError: Rational): XFloat = (one, two) match {
+    case (Some(x1), Some(x2)) =>
+      val newInt = x1.realInterval.union(x2.realInterval)
+      val newError = max(max(x1.maxError, x2.maxError), pathError)
+      val fresh = getNewXFloatVar
+      val newConfig = config.addCondition(And(condition, rangeConstraint(fresh, newInt)))
+      xFloatWithUncertain(fresh, newInt, newConfig, newError, false)._1
+    case (Some(x1), None) =>
+      if (pathError != zero) {
+        val newError = max(x1.maxError, pathError)
+        val newInt = x1.realInterval
+        val fresh = getNewXFloatVar
+        val newConfig = config.addCondition(And(condition, rangeConstraint(fresh, newInt)))
+        xFloatWithUncertain(fresh, newInt, newConfig, newError, false)._1
+      } else
+        x1
+    case (None, Some(x2)) =>
+      if (pathError != zero) {
+        val newError = max(x2.maxError, pathError)
+        val newInt = x2.realInterval
+        val fresh = getNewXFloatVar
+        val newConfig = config.addCondition(And(condition, rangeConstraint(fresh, newInt)))
+        xFloatWithUncertain(fresh, newInt, newConfig, newError, false)._1
+      } else
+        x2
+    // We assume that one of the two branches is feasible
+    case (None, None) =>
+      throw new Exception("One of the paths should be feasible")
+      null
+  }
+
+  private def rangeConstraint(v: Expr, i: RationalInterval): Expr = {
+    And(LessEquals(RationalLiteral(i.xlo), v), LessEquals(v, RationalLiteral(i.xhi)))
+  }
+  
+  /*case FunctionInvocation(funDef, args) =>
         // Evaluate the function, i.e. compute the postcondition and inline it
       println("function call: " + funDef.id.toString)
       /*val fresh = getNewFncVariable(funDef.id.name)
@@ -164,7 +219,7 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
           null
       }
     */
-    case _ => // FIXME: why don't we handle the two failures in the same way?
+   /* case _ => // FIXME: why don't we handle the two failures in the same way?
       throw UnsupportedRealFragmentException("XFloat cannot handle: " + expr)
       null
     }
@@ -178,7 +233,7 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
       } else {*/
         xfloat
       //}
-  }
+  }*/
 
   private def constraintFromXFloats(results: Map[Expr, XFloat]): Expr = {
     And(results.foldLeft(Seq[Expr]())(
@@ -196,7 +251,25 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
   private def possiblyNegative(interval: RationalInterval): Boolean =
     if (interval.xlo < Rational.zero || interval.xhi < Rational.zero) true else false
 
+  private def addCondition(v: XFloat, cond: Seq[Expr]): XFloat = {
+    if (cond.size > 0)
+      new XFloat(v.tree, v.approxInterval, v.error, v.config.addCondition(And(cond)))
+    else
+      v
+  }
+
+  private def isFeasible(pre: Seq[Expr]): Boolean = {
+    import Sat._
+    solver.checkSat(And(pre)) match {
+      case (SAT, model) => true
+      case (UNSAT, model) => false
+      case _ =>
+        reporter.info("Sanity check failed! ")// + sanityCondition)
+        false
+    }
+  }
 }
+
 
 
   /*private def inXFloats(expr: Expr, vars: Map[Expr, XFloat], config: XFloatConfig): (Map[Expr, XFloat], Option[XFloat]) = {

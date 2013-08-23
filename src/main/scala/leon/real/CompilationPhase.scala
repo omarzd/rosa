@@ -136,13 +136,7 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
             */
             // add floating-point "track"
             val body = And(fncBody, idealToActual(fncBody, variables))
-
-            // add all local variables to the variable store
-            // TODO: does not work with blocks (xlang extension)
-            variables.add(variablesOf(fncBody))
-            if (verbose) println("all variables: " + variables)
-
-
+            
             vcs :+= new VerificationCondition(funDef, Postcondition, precondition, body, postcondition, allFncCalls, variables)
             
             vcs.last.realFncBody = fncBody // this is clearly a hack (only for simulation)
