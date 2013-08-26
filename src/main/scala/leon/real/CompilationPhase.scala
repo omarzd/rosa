@@ -108,16 +108,19 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
       if (verbose) println(funDef.body.get)
       
       funDef.precondition match {
-        case Some(precondition) =>
-          val variables = VariablePool(precondition)
+        case Some(pre) =>
+          val variables = VariablePool(pre)
           if (verbose) println("parameters: " + variables)
           if (variables.hasValidInput(funDef.args)) {
             if (verbose) println("prec. is complete, continuing")
 
-            if (verbose) println("pre: " + precondition)
-            val allFncCalls = functionCallsOf(precondition).map(invc => invc.funDef.id.toString) ++
-              functionCallsOf(funDef.body.get).map(invc => invc.funDef.id.toString)
 
+            val allFncCalls = functionCallsOf(funDef.body.get).map(invc => invc.funDef.id.toString)
+              //functionCallsOf(pre).map(invc => invc.funDef.id.toString) ++
+
+            val precondition = And(pre, And(variables.inputsWithoutNoise.map(i => Roundoff(i))))
+            if (verbose) println("precondition: " + precondition)
+            
             val (body, bodyWORes, postcondition) = funDef.postcondition match {
               case Some(ResultVariable()) =>
                 val posts = getInvariantCondition(funDef.body.get)
@@ -170,13 +173,10 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
       funDef.precondition = f.precondition
 
       vc.spec(precision) match {
-        case Some(Spec(int, err)) =>
-          funDef.postcondition = Some(And(And(LessEquals(RationalLiteral(int.xlo), ResultVariable()),
-            LessEquals(ResultVariable(), RationalLiteral(int.xhi))),
-            Noise(ResultVariable(), RationalLiteral(err))))
+        case Some(spec) => funDef.postcondition = Some(specToExpr(spec))
         case _ =>
       }
-      
+
       defs = defs :+ funDef
     }
     val invariants: Seq[Expr] = Seq.empty

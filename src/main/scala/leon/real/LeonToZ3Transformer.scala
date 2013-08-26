@@ -43,6 +43,11 @@ class LeonToZ3Transformer(variables: VariablePool) extends TransformerWithPC {
 
     // TODO: does not include initial roundoff
     override def rec(e: Expr, path: C) = e match {
+      case Roundoff(v @ Variable(_)) =>
+        val delta = getNewDelta
+        addExtra(constrainDelta(delta))
+        Equals(variables.buddy(v), Times(Plus(new RationalLiteral(1), delta), v))
+
       case Noise(v @ Variable(_), r @ RationalLiteral(value)) =>
         val freshErrorVar = getErrorVar(v)
         And(Seq(Equals(variables.buddy(v), Plus(v, freshErrorVar)),

@@ -74,6 +74,11 @@ class VariablePool(inputs: Map[Expr, Record]) {
     if (inputs.size != params.size) false
     else inputs.forall(v => params.contains(v._1) && v._2.isBoundedValid)
   }
+
+  def inputsWithoutNoise: Seq[Expr] = {
+    inputs.filter(x => x._2.uncertainty.isEmpty).keySet.toSeq
+  }
+
   override def toString: String = allVars.toString
 }
 

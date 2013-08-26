@@ -275,6 +275,7 @@ object TreeOps {
 
     override def rec(e: Expr, path: C) = e match {
       case Noise(_, _) => True
+      case Roundoff(_) => True
       case _ =>
         super.rec(e, path)
     }

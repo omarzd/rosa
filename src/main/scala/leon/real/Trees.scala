@@ -30,7 +30,7 @@ object Trees {
     }
     def this(d: Double) = this(Rational(d))
     def this(i: Int) = this(Rational(i))
-    val fixedType = RealType
+    val fixedType = RealType // TODO: this should not be fixedType (mark as float those that should have rndoff error)
 
     def printWith(lvl: Int, printer: PrettyPrinter) {
       printer.append(value.toString)
@@ -49,6 +49,19 @@ object Trees {
       printer.pp(varr,lvl)
       printer.append(", ")
       printer.pp(error,lvl)
+      printer.append(")")
+    }
+  }
+
+  // Marks that a variable should have initial roundoff in translation to Z3.
+  case class Roundoff(expr: Expr) extends Expr with FixedType with UnaryExtractable with PrettyPrintable {
+    val fixedType = BooleanType
+    def extract: Option[(Expr, (Expr)=>Expr)] = {
+      Some((expr, (e) => Actual(e)))
+    }
+    def printWith(lvl: Int, printer: PrettyPrinter) {
+      printer.append("rndoof(")
+      printer.pp(expr,lvl)
       printer.append(")")
     }
   }

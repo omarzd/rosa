@@ -33,7 +33,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
         // TODO: filter out those that are not applicable
         // TODO: this we also don't need to do for all precisions each time
         // TODO: some combinations don't work: e.g. Uninterpreted & JustFloat
-        val approximations = List(ApproxKind(Inlining, Pathwise, JustFloat))
+        val approximations = List(ApproxKind(Inlining, Pathwise, Z3Only))
         
         // TODO: re-use some of the approximation work across precision?
         approximations.find(aKind => {
