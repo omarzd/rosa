@@ -130,7 +130,7 @@ object TreeOps {
   /* -----------------------
         Function calls
    ------------------------- */
-  class AssertionCollector(precondition: Expr, variables: VariablePool) extends TransformerWithPC {
+  class AssertionCollector(outerFunDef: FunDef, precondition: Expr, variables: VariablePool) extends TransformerWithPC {
     type C = Seq[Expr]
     val initC = Nil
 
@@ -142,20 +142,19 @@ object TreeOps {
 
     override def rec(e: Expr, path: C) = e match {
       case FunctionInvocation(funDef, args) if (funDef.precondition.isDefined) =>
-        println("fnc found: " + funDef.id.name)
-        println("with path: " + path)
-        
         val pathToFncCall = And(path)
-                  
         val arguments: Map[Expr, Expr] = funDef.args.map(decl => decl.toVariable).zip(args).toMap
         val toProve = replace(arguments, roundoffRemover.transform(funDef.precondition.get))
 
         val allFncCalls = functionCallsOf(pathToFncCall).map(invc => invc.funDef.id.toString)
-        
-
-        vcs :+= new VerificationCondition(funDef, Precondition, precondition, pathToFncCall, toProve, allFncCalls, variables)
+        vcs :+= new VerificationCondition(outerFunDef, Precondition, precondition, pathToFncCall, toProve, allFncCalls, variables)
         e               
 
+      case Assertion(toProve) =>
+        val pathToAssertion = And(path)
+        val allFncCalls = functionCallsOf(pathToAssertion).map(invc => invc.funDef.id.toString)
+        vcs :+= new VerificationCondition(outerFunDef, Assert, precondition, pathToAssertion, toProve, allFncCalls, variables)
+        e
       case _ =>
         super.rec(e, path)
     }

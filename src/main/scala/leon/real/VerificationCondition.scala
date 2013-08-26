@@ -49,10 +49,12 @@ class VerificationCondition(val funDef: FunDef, val kind: VCKind.Value, val pre:
 
   var time : Option[Double] = None
   var counterExample : Option[Map[Identifier, Expr]] = None
+
+  override def toString: String = "vc (%s,%s): (%s && %s) -> %s".format(fncId, kind, pre, body, post)
 }
 
 object VCKind extends Enumeration {
   val Precondition = Value("precond.")
   val Postcondition = Value("postcond.")
-  val Assertion = Value("assert.")
+  val Assert = Value("assert.")
 }

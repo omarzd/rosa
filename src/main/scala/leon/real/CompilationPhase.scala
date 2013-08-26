@@ -136,39 +136,13 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
             }
             vcs :+= new VerificationCondition(funDef, Postcondition, precondition, body, postcondition, allFncCalls, variables)
 
-            fncs += (funDef -> Fnc(precondition, bodyWORes, postcondition))
-            // TODO: vcs from assertions
-            // TODO: vcs checking precondition of function calls
-
-            val assertionCollector = new AssertionCollector(precondition, variables)
+            // VCs for preconditions of fnc calls and assertions
+            val assertionCollector = new AssertionCollector(funDef, precondition, variables)
             assertionCollector.transform(body)
-            println("vcs: " + assertionCollector.vcs)
-            /*if (containsFunctionCalls(body)) {
-              val roundoffRemover = new RoundoffRemover
-              val paths = collectPaths(body)
-            for (path <- paths) {
-              var i = 0
-              while (i != -1) {
-                val j = path.expression.indexWhere(e => containsFunctionCalls(e), i)
-                if (j != -1) {
-                  i = j + 1
-                  val pathToFncCall = path.expression.take(j)
-                  val fncCalls = functionCallsOf(path.expression(j))
-                  for (fncCall <- fncCalls) {
-                    fncCall.funDef.precondition match {
-                      case Some(p) =>
-                        val args: Map[Expr, Expr] = fncCall.funDef.args.map(decl => decl.toVariable).zip(fncCall.args).toMap
-                        val postcondition = replace(args, roundoffRemover.transform(p))
-                        constraints = constraints :+ Constraint(
-                            And(vcPrecondition, path.condition), And(pathToFncCall), postcondition, "pre of call " + fncCall.toString, merging, z3only)
-                      case None => ;
-                    }
-                  }
-                } else { i = -1}
-              }
-            }
-          }*/
+            vcs ++= assertionCollector.vcs
 
+            // for function inlining
+            fncs += (funDef -> Fnc(precondition, bodyWORes, postcondition))
           } else {
             reporter.warning("Incomplete precondition! Skipping...")
           }
