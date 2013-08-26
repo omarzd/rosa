@@ -12,6 +12,7 @@ import purescala.TypeTrees._
 import xlang.Trees._
 import real.Trees._
 import real.RationalAffineUtils._
+import VCKind._
 
 object TreeOps {
 
@@ -129,6 +130,37 @@ object TreeOps {
   /* -----------------------
         Function calls
    ------------------------- */
+  class AssertionCollector(precondition: Expr, variables: VariablePool) extends TransformerWithPC {
+    type C = Seq[Expr]
+    val initC = Nil
+
+    val roundoffRemover = new RoundoffRemover
+
+    var vcs = Seq[VerificationCondition]()
+
+    def register(e: Expr, path: C) = path :+ e
+
+    override def rec(e: Expr, path: C) = e match {
+      case FunctionInvocation(funDef, args) if (funDef.precondition.isDefined) =>
+        println("fnc found: " + funDef.id.name)
+        println("with path: " + path)
+        
+        val pathToFncCall = And(path)
+                  
+        val arguments: Map[Expr, Expr] = funDef.args.map(decl => decl.toVariable).zip(args).toMap
+        val toProve = replace(arguments, roundoffRemover.transform(funDef.precondition.get))
+
+        val allFncCalls = functionCallsOf(pathToFncCall).map(invc => invc.funDef.id.toString)
+        
+
+        vcs :+= new VerificationCondition(funDef, Precondition, precondition, pathToFncCall, toProve, allFncCalls, variables)
+        e               
+
+      case _ =>
+        super.rec(e, path)
+    }
+  } 
+
   /*
     Replace the function call with its specification. For translation to Z3 FncValue needs to be translated
     with a fresh variable. For approximation, translate the spec into an XFloat.
@@ -275,6 +307,19 @@ object TreeOps {
 
     override def rec(e: Expr, path: C) = e match {
       case Noise(_, _) => True
+      case Roundoff(_) => True
+      case _ =>
+        super.rec(e, path)
+    }
+  }
+
+  class RoundoffRemover extends TransformerWithPC {
+    type C = Seq[Expr]
+    val initC = Nil
+
+    def register(e: Expr, path: C) = path :+ e
+
+    override def rec(e: Expr, path: C) = e match {
       case Roundoff(_) => True
       case _ =>
         super.rec(e, path)
