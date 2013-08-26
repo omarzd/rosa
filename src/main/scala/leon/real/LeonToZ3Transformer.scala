@@ -160,6 +160,12 @@ class LeonToZ3Transformer(variables: VariablePool) extends TransformerWithPC {
         addExtra(Equals(fresh, rec(body, path)))
         fresh
 
+      // normally this is approximated
+      case FncBodyF(name, body) =>
+        val fresh = getNewFncVariable(name + "_f")
+        addExtra(Equals(fresh, rec(body, path)))
+        fresh
+
       case _ =>
         super.rec(e, path)
     }

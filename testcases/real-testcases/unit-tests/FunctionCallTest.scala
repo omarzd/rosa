@@ -11,7 +11,7 @@ object FunctionCallTest {
 
   def f1(x: Real): Real = {
     require(x >< (3,4))
-    val z = if (x < 0) 2*x else 3*x
+    val z = if (x < 3.5) 2*x else 3*x
     if (z > 3) inline(z)
     else inline(2)
   } ensuring(res => res <= 10)
