@@ -12,6 +12,8 @@ package object real {
 
   case class UnsupportedRealFragmentException(msg: String) extends Exception(msg)
 
+  case class Fnc(pre: Expr, body: Expr, post: Expr)
+
   object Precision extends Enumeration {
     type Precision = Value
     val Float64 = Value("Float64")

@@ -74,7 +74,7 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
         toAnalyze
       }
         
-    val vcs = analyzeThis(fncsToAnalyse).sortWith((vc1, vc2) => lt(vc1, vc2))
+    val (vcs, fncs) = analyzeThis(fncsToAnalyse)
     if (reporter.errorCount > 0) throw LeonFatalError()
     
     if (options.simulation) {
@@ -83,7 +83,7 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
       for(vc <- vcs) simulator.simulateThis(vc, prec)
       new CompilationReport(List())
     } else {
-      val prover = new Prover(ctx, options, program, verbose)
+      val prover = new Prover(ctx, options, program, fncs, verbose)
       val finalPrecision = prover.check(vcs)
 
       val newProgram = specToCode(program.id, program.mainObject.id, vcs, finalPrecision) 
@@ -100,8 +100,11 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
     
   }
 
-  private def analyzeThis(sortedFncs: Seq[FunDef]): Seq[VerificationCondition] = {
-    var vcs: Seq[VerificationCondition] = Seq.empty
+  
+
+  private def analyzeThis(sortedFncs: Seq[FunDef]): (Seq[VerificationCondition], Map[FunDef, Fnc]) = {
+    var vcs = Seq[VerificationCondition]()
+    var fncs = Map[FunDef, Fnc]()
     
     for (funDef <- sortedFncs if (funDef.body.isDefined)) {
       reporter.info("Analysing fnc:  %s".format(funDef.id.name))
@@ -118,18 +121,21 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
             val allFncCalls = functionCallsOf(precondition).map(invc => invc.funDef.id.toString) ++
               functionCallsOf(funDef.body.get).map(invc => invc.funDef.id.toString)
 
-            val (body, postcondition) = funDef.postcondition match {
+            val (body, bodyWORes, postcondition) = funDef.postcondition match {
               case Some(ResultVariable()) =>
                 val posts = getInvariantCondition(funDef.body.get)
                 val bodyWOLets = convertLetsToEquals(funDef.body.get)
                 val body = replace(posts.map(p => (p, True)).toMap, bodyWOLets)
-                (body, Or(posts))
-              case Some(p) => (convertLetsToEquals(addResult(funDef.body.get)), p)
+                (body, body, Or(posts))
+              case Some(p) =>
+                (convertLetsToEquals(addResult(funDef.body.get)), convertLetsToEquals(funDef.body.get), p)
 
-              case None => (convertLetsToEquals(addResult(funDef.body.get)), BooleanLiteral(true))
+              case None =>
+                (convertLetsToEquals(addResult(funDef.body.get)), convertLetsToEquals(funDef.body.get), True)
             }
             vcs :+= new VerificationCondition(funDef, Postcondition, precondition, body, postcondition, allFncCalls, variables)
-            
+
+            fncs += (funDef -> Fnc(precondition, bodyWORes, postcondition))
             // TODO: vcs from assertions
             // TODO: vcs checking precondition of function calls
 
@@ -139,7 +145,7 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
         case None =>
       }
     }
-    vcs
+    (vcs.sortWith((vc1, vc2) => lt(vc1, vc2)), fncs)
   }
 
   private def lt(vc1: VerificationCondition, vc2: VerificationCondition): Boolean = {

@@ -107,22 +107,18 @@ class LeonToZ3Transformer(variables: VariablePool) extends TransformerWithPC {
         val (mult, dlt) = getFreshRndoffMultiplier
         addExtra(constrainDelta(dlt))
         Times(Plus(rec(x, path), rec(y, path)), mult)
-
       case MinusF(x, y) =>
         val (mult, dlt) = getFreshRndoffMultiplier
         addExtra(constrainDelta(dlt))
         Times(Minus(rec(x, path), rec(y, path)), mult)
-
       case TimesF(x, y) =>
         val (mult, dlt) = getFreshRndoffMultiplier
         addExtra(constrainDelta(dlt))
         Times(Times(rec(x, path), rec(y, path)), mult)
-
       case DivisionF(x, y) =>
         val (mult, dlt) = getFreshRndoffMultiplier
         addExtra(constrainDelta(dlt))
         Times(Division(rec(x, path), rec(y, path)), mult)
-
       case SqrtF(x) =>
         val n = getNewSqrtVariable
         val (mult, dlt) = getFreshRndoffMultiplier
@@ -147,6 +143,17 @@ class LeonToZ3Transformer(variables: VariablePool) extends TransformerWithPC {
       //within
       case WithIn(v @ Variable(_), lwrBnd, upBnd) =>
         And(LessThan(RationalLiteral(lwrBnd), v), LessThan(v, RationalLiteral(upBnd))) 
+
+      case FncValue(s) =>
+        val fresh = getNewXFloatVar
+        val spec = replace(Map(ResultVariable() -> fresh), s)
+        addExtra(rec(spec, path))
+        fresh
+
+      case FncBody(name, body) =>
+        val fresh = getNewFncVariable(name)
+        addExtra(Equals(fresh, rec(body, path)))
+        fresh
 
       case _ =>
         super.rec(e, path)

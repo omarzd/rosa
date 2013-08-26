@@ -90,7 +90,7 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
       case DivisionF(lhs, rhs) =>
         val r = getXFloat(rec(rhs, path))
         if (possiblyZero(r.interval)) reporter.warning("Potential div-by-zero detected: " + e)
-        ApproxNode(getXFloat(rec(lhs, path)) + r)
+        ApproxNode(getXFloat(rec(lhs, path)) / r)
         
       case SqrtF(t) =>
         val x = getXFloat(rec(t, path))
@@ -124,9 +124,26 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
         } else {*/
         val pathError = zero
           //}
-
         ApproxNode(mergeXFloatWithExtraError(thenBranch, elseBranch, And(path), pathError))
-      
+
+      case FncValueF(spec) =>
+        val translator = new ResultCollector
+        //println("spec: " + spec)
+        val (interval, error, constraints) = translator.getBounds(spec)
+        //println(interval + "   , " + error + "    , " + constraints)
+        val fresh = getNewXFloatVar
+
+        val tmp = ApproxNode(xFloatWithUncertain(fresh, interval,
+          config.addCondition(replace(Map(ResultVariable() -> fresh), noiseRemover.transform(spec))),
+          error, false)._1)
+        //println("xfloat: " + tmp)
+        tmp
+
+      case FncBodyF(name, body) =>
+        val fncValue = rec(body, path)
+        println("fncValue: " + fncValue)
+        ApproxNode(getXFloat(fncValue))
+
       case _ =>
         super.rec(e, path)
     }

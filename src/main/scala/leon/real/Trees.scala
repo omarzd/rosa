@@ -12,6 +12,7 @@ import leon.purescala.{PrettyPrinter, PrettyPrintable, ScalaPrinter}
 
 object Trees {
 
+
   // represents the actual result in post-conditions
   case class FResVariable() extends Expr with Terminal with FixedType with PrettyPrintable {
     val fixedType = FloatType
@@ -317,6 +318,43 @@ object Trees {
     def printWith(lvl: Int, printer: PrettyPrinter) {
       printer.append("fncVal(")
       printer.pp(spec,lvl)
+      printer.append(")")
+    }
+  }
+
+  case class FncValueF(spec: Expr) extends Expr with FixedType with UnaryExtractable with PrettyPrintable {
+    val fixedType = FloatType
+    def extract: Option[(Expr, (Expr)=>Expr)] = {
+      Some((spec, (e) => FncValueF(e)))
+    }
+    def printWith(lvl: Int, printer: PrettyPrinter) {
+      printer.append("fncVal_f(")
+      printer.pp(spec,lvl)
+      printer.append(")")
+    }
+  }
+
+  // A value returned from a function call desribed by it's specification
+  case class FncBody(name: String, body: Expr) extends Expr with FixedType with UnaryExtractable with PrettyPrintable {
+    val fixedType = RealType
+    def extract: Option[(Expr, (Expr)=>Expr)] = {
+      Some((body, (e) => FncBody(name, e)))
+    }
+    def printWith(lvl: Int, printer: PrettyPrinter) {
+      printer.append("fnc_"+name+"(")
+      printer.pp(body,lvl)
+      printer.append(")")
+    }
+  }
+
+  case class FncBodyF(name: String, body: Expr) extends Expr with FixedType with UnaryExtractable with PrettyPrintable {
+    val fixedType = FloatType
+    def extract: Option[(Expr, (Expr)=>Expr)] = {
+      Some((body, (e) => FncBodyF(name, e)))
+    }
+    def printWith(lvl: Int, printer: PrettyPrinter) {
+      printer.append("fnc_"+name+"_f(")
+      printer.pp(body,lvl)
       printer.append(")")
     }
   }

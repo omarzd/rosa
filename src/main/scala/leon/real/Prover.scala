@@ -17,7 +17,7 @@ import Rational._
 
 case class Approximation(kind: ApproxKind, cnstrs: Seq[Expr], sanityChecks: Seq[Expr], spec: Option[Spec])
 
-class Prover(ctx: LeonContext, options: RealOptions, prog: Program, verbose: Boolean = false) {
+class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[FunDef, Fnc], verbose: Boolean = false) {
   val reporter = ctx.reporter
   val solver = new RealSolver(ctx, prog, options.z3Timeout)
   
@@ -33,7 +33,8 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, verbose: Boo
 
         // TODO: filter out those that are not applicable
         // TODO: this we also don't need to do for all precisions each time
-        val approximations = List(ApproxKind(Postcondition, Pathwise, JustFloat))
+        // TODO: some combinations don't work: e.g. Uninterpreted & JustFloat
+        val approximations = List(ApproxKind(Inlining, Pathwise, JustFloat))
         
         // TODO: re-use some of the approximation work across precision?
         approximations.find(aKind => {
@@ -108,18 +109,24 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, verbose: Boo
     valid
   }
 
+  // DOC: we only support function calls in fnc bodies, not in pre and post
+  // TODO: roundoff (adding default roundoff at the beginning and such)
   def getApproximation(vc: VerificationCondition, kind: ApproxKind, precision: Precision): Approximation = {
+    val postInliner = new PostconditionInliner
+    val fncInliner = new FunctionInliner(fncs)
 
     val (preTmp, bodyTmp, postTmp) = kind.fncHandling match {
-      case Uninterpreted => (vc.pre, vc.body, vc.post)
+      case Uninterpreted =>
+        (vc.pre, vc.body, vc.post)
 
       case Postcondition =>
-        throw new Exception("Ups, not yet implemented.")
-        (True, True, True)
+        (vc.pre, postInliner.transform(vc.body), vc.post)
+
       case Inlining =>
-        throw new Exception("Ups, not yet implemented.")
-        (True, True, True)
+        (vc.pre, fncInliner.transform(vc.body), vc.post)
     }
+    println("bodyTmp: " + bodyTmp)
+
 
     val (pre, body, post): (Expr, Set[Path], Expr) = kind.pathHandling match {
       case Pathwise =>
