@@ -15,7 +15,6 @@ import ArithmApprox._
 import PathHandling._
 import Rational._
 
-case class Approximation(kind: ApproxKind, cnstrs: Seq[Expr], sanityChecks: Seq[Expr], spec: Option[Spec])
 
 class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[FunDef, Fnc], verbose: Boolean = false) {
   val reporter = ctx.reporter
@@ -26,7 +25,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
       reporter.info("******** precision: %s *************".format(precision))
 
       for (vc <- vcs) {
-        reporter.info("Verification condition (%s) ==== %s ====".format(vc.kind, vc.id))
+        reporter.info("Verification condition (%s) ==== %s ====".format(vc.kind, vc.fncId))
         reporter.info("Trying with approximation")
         val start = System.currentTimeMillis
         var spec: Option[Spec] = None

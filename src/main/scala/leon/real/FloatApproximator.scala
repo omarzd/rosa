@@ -127,9 +127,8 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
         ApproxNode(mergeXFloatWithExtraError(thenBranch, elseBranch, And(path), pathError))
 
       case FncValueF(spec) =>
-        val translator = new ResultCollector
         //println("spec: " + spec)
-        val (interval, error, constraints) = translator.getBounds(spec)
+        val (interval, error, constraints) = getResultSpec(spec)
         //println(interval + "   , " + error + "    , " + constraints)
         val fresh = getNewXFloatVar
 

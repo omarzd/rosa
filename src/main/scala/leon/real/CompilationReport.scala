@@ -26,6 +26,7 @@ class CompilationReport(vcs: Seq[VerificationCondition], precision: Precision = 
     ("║ total: %-4d   valid: %-4d   invalid: %-4d   unknown %-4d " +
       (" " * 16) +
       " %7.3f ║\n").format(totalConditions, totalValid, totalInvalid, totalUnknown, totalTime) +
+    ("║ precision: %-10s " + (" " * 59) + " ║\n").format(precision.toString) +
     CompilationReport.infoFooter
   } else {
     "No verification conditions were analyzed."

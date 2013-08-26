@@ -35,8 +35,7 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
     LeonFlagOptionDef("z3only", "--z3only", "Let Z3 loose on the full constraint - at your own risk."),
     LeonValueOptionDef("z3timeout", "--z3timeout=1000", "Timeout for Z3 in milliseconds."),
     LeonValueOptionDef("precision", "--precision=single", "Which precision to assume of the underlying"+
-      "floating-point arithmetic: single, double, doubledouble, quaddouble or all (finds the best one)."),
-    LeonFlagOptionDef("nospecgen", "--nospecgen", "Don't generate specs.")
+      "floating-point arithmetic: single, double, doubledouble, quaddouble or all (finds the best one).")
   )
 
 
@@ -60,8 +59,6 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
         case "quaddouble" => List(QuadDouble)
         case "all" => List(Float32, Float64, DoubleDouble, QuadDouble)
       }
-      // TODO: enable this
-      case LeonFlagOption("nospecgen") => options.specGen = false
       case _ =>
     }
     
@@ -95,7 +92,7 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
       writer.write(newProgramAsString)
       writer.close()
     
-      new CompilationReport(vcs.sortWith((vc1, vc2) => vc1.id < vc2.id))
+      new CompilationReport(vcs.sortWith((vc1, vc2) => vc1.fncId < vc2.fncId))
     }
     
   }
@@ -151,8 +148,8 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
   private def lt(vc1: VerificationCondition, vc2: VerificationCondition): Boolean = {
     if (vc1.allFncCalls.isEmpty) true
     else if (vc2.allFncCalls.isEmpty) false
-    else if (vc2.allFncCalls.contains(vc1.id)) true
-    else if (vc1.allFncCalls.contains(vc2.id)) false
+    else if (vc2.allFncCalls.contains(vc1.fncId)) true
+    else if (vc1.allFncCalls.contains(vc2.fncId)) false
     else true
   }
 

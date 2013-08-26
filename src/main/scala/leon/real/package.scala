@@ -14,6 +14,12 @@ package object real {
 
   case class Fnc(pre: Expr, body: Expr, post: Expr)
 
+  case class Path(condition: Expr, body: Expr)
+
+  case class ApproxKind(fncHandling: FncHandling.Value, pathHandling: PathHandling.Value, arithmApprox: ArithmApprox.Value)
+
+  case class Approximation(kind: ApproxKind, cnstrs: Seq[Expr], sanityChecks: Seq[Expr], spec: Option[Spec])
+
   object Precision extends Enumeration {
     type Precision = Value
     val Float64 = Value("Float64")
@@ -48,12 +54,11 @@ package object real {
     var precision: List[Precision] = List(Float64)
     var z3Only = false
     var pathSensitive = false
-    var specGen = true
     var solverMaxIter = solverMaxIterMedium
     var solverPrecision = solverPrecisionMedium
 
     override def toString: String = "simulation: %s,\nz3 timeout: %s,\nprecision: %s,\nz3Only: %s,\npathSensitive: %s,\nspecGen: %s".format(
-      simulation, z3Timeout, precision, z3Only, pathSensitive, specGen) 
+      simulation, z3Timeout, precision, z3Only, pathSensitive) 
   }
 
   object FncHandling extends Enumeration {
@@ -76,10 +81,6 @@ package object real {
     val FloatNRange = Value("Float'n'Range") // also replace the real with an approx. of the range
   }
 
-  case class ApproxKind(fncHandling: FncHandling.Value, pathHandling: PathHandling.Value, arithmApprox: ArithmApprox.Value)
-
-
-
   // TODO: remove these?
   object Sat extends Enumeration {
     type Sat = Value
@@ -87,13 +88,5 @@ package object real {
     val UNSAT = Value("UNSAT")
     val Unknown = Value("Unknown")
   }
-
-  /*object Valid extends Enumeration {
-    type Valid = Value
-    val VALID = Value("VALID")
-    val INVALID = Value("INVALID")
-    val UNKNOWN = Value("Not sure")
-  }*/
-
 
 }

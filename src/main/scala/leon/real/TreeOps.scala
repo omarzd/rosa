@@ -15,16 +15,49 @@ import real.RationalAffineUtils._
 
 object TreeOps {
 
-  // TODO: sort
-
-  def specToExpr(s: Spec): Expr = {
-    And(And(LessEquals(RationalLiteral(s.bounds.xlo), ResultVariable()),
-            LessEquals(ResultVariable(), RationalLiteral(s.bounds.xhi))),
-            Noise(ResultVariable(), RationalLiteral(s.absError)))
+  /* ----------------------
+         Analysis phase
+   ------------------------ */
+  // can return several, as we may have an if-statement
+  def getInvariantCondition(expr: Expr): List[Expr] = expr match {
+    case IfExpr(cond, thenn, elze) => getInvariantCondition(thenn) ++ getInvariantCondition(elze)
+    case Let(binder, value, body) => getInvariantCondition(body)
+    case LessEquals(_, _) | LessThan(_, _) | GreaterThan(_, _) | GreaterEquals(_, _) => List(expr)
+    case Equals(_, _) => List(expr)
+    case _ =>
+      println("!!! Expected invariant, but found: " + expr.getClass)
+      List(BooleanLiteral(false))
   }
 
-  case class Path(condition: Expr, body: Expr)
+  // Has to run before we removed the lets!
+  // Basically the first free expression that is not an if or a let is the result
+  def addResult(expr: Expr): Expr = expr match {
+    case ifThen @ IfExpr(_, _, _) => Equals(ResultVariable(), ifThen)
+    case Let(binder, value, body) => Let(binder, value, addResult(body))
+    case UMinusR(_) | PlusR(_, _) | MinusR(_, _) | TimesR(_, _) | DivisionR(_, _) | SqrtR(_) | FunctionInvocation(_, _) | Variable(_) =>
+      Equals(ResultVariable(), expr)
+    case Block(exprs, last) => Block(exprs, addResult(last))
+    case _ => expr
+  }
 
+  def convertLetsToEquals(expr: Expr): Expr = expr match {
+    case Equals(l, r) => Equals(l, convertLetsToEquals(r))
+    case IfExpr(cond, thenn, elze) =>
+      IfExpr(cond, convertLetsToEquals(thenn), convertLetsToEquals(elze))
+
+    case Let(binder, value, body) =>
+      And(Equals(Variable(binder), convertLetsToEquals(value)), convertLetsToEquals(body))
+
+    case Block(exprs, last) =>
+      And(exprs.map(e => convertLetsToEquals(e)) :+ convertLetsToEquals(last))
+
+    case _ => expr
+  }
+
+
+  /* -----------------------
+             Paths
+   ------------------------- */
   def getPaths(expr: Expr): Set[Path] = {
     val partialPaths = collectPaths(expr)
     partialPaths.map(p => Path(p.condition, And(p.expression)))
@@ -73,6 +106,10 @@ object TreeOps {
       Set(PartialPath(True, List(expr)))
   }
 
+
+  /* -----------------------
+           Evaluation
+   ------------------------- */
   def inIntervals(expr: Expr, vars: VariablePool): RationalInterval = expr match {
     case RationalLiteral(r) => RationalInterval(r, r)
     case v @ Variable(_) => vars.getInterval(v)
@@ -86,55 +123,12 @@ object TreeOps {
       RationalInterval(sqrtDown(tt.xlo), sqrtUp(tt.xhi))     
   }
   
-  // can return several, as we may have an if-statement
-  def getInvariantCondition(expr: Expr): List[Expr] = expr match {
-    case IfExpr(cond, thenn, elze) => getInvariantCondition(thenn) ++ getInvariantCondition(elze)
-    case Let(binder, value, body) => getInvariantCondition(body)
-    case LessEquals(_, _) | LessThan(_, _) | GreaterThan(_, _) | GreaterEquals(_, _) => List(expr)
-    case Equals(_, _) => List(expr)
-    case _ =>
-      println("!!! Expected invariant, but found: " + expr.getClass)
-      List(BooleanLiteral(false))
-  }
+  
 
-  // Has to run before we removed the lets!
-  // Basically the first free expression that is not an if or a let is the result
-  def addResult(expr: Expr): Expr = expr match {
-    case ifThen @ IfExpr(_, _, _) => Equals(ResultVariable(), ifThen)
-    case Let(binder, value, body) => Let(binder, value, addResult(body))
-    case UMinusR(_) | PlusR(_, _) | MinusR(_, _) | TimesR(_, _) | DivisionR(_, _) | SqrtR(_) | FunctionInvocation(_, _) | Variable(_) =>
-      Equals(ResultVariable(), expr)
-    case Block(exprs, last) => Block(exprs, addResult(last))
-    case _ => expr
-  }
 
-  def convertLetsToEquals(expr: Expr): Expr = expr match {
-    case Equals(l, r) => Equals(l, convertLetsToEquals(r))
-    case IfExpr(cond, thenn, elze) =>
-      IfExpr(cond, convertLetsToEquals(thenn), convertLetsToEquals(elze))
-
-    case Let(binder, value, body) =>
-      And(Equals(Variable(binder), convertLetsToEquals(value)), convertLetsToEquals(body))
-
-    case Block(exprs, last) =>
-      And(exprs.map(e => convertLetsToEquals(e)) :+ convertLetsToEquals(last))
-
-    case _ => expr
-  }
-
-  class NoiseRemover extends TransformerWithPC {
-    type C = Seq[Expr]
-    val initC = Nil
-
-    def register(e: Expr, path: C) = path :+ e
-
-    override def rec(e: Expr, path: C) = e match {
-      case Noise(_, _) => True
-      case _ =>
-        super.rec(e, path)
-    }
-  }
-
+  /* -----------------------
+        Function calls
+   ------------------------- */
   /*
     Replace the function call with its specification. For translation to Z3 FncValue needs to be translated
     with a fresh variable. For approximation, translate the spec into an XFloat.
@@ -218,42 +212,15 @@ object TreeOps {
     }
   }*/
 
-
-  def idealToActual(expr: Expr, vars: VariablePool): Expr = {
-    val transformer = new RealToFloatTransformer(vars)
-    transformer.transform(expr) 
+  //@param (bounds, errors, extra specs)
+  def getResultSpec(expr: Expr): (RationalInterval, Rational, Expr) = {
+    val rc = new ResultCollector
+    rc.transform(expr)
+    (RationalInterval(rc.lwrBound.get, rc.upBound.get), rc.error.get, And(rc.extras))
   }
 
-  private class RealToFloatTransformer(variables: VariablePool) extends TransformerWithPC {
-    type C = Seq[Expr]
-    val initC = Nil
-    
-    def register(e: Expr, path: C) = path :+ e
-
-    // (Sound) Overapproximation in the case of strict inequalities
-    override def rec(e: Expr, path: C) = e match {
-      case UMinusR(t) => UMinusF(rec(t, path))
-      case PlusR(lhs, rhs) => PlusF(rec(lhs, path), rec(rhs, path))
-      case MinusR(lhs, rhs) => MinusF(rec(lhs, path), rec(rhs, path))
-      case TimesR(lhs, rhs) => TimesF(rec(lhs, path), rec(rhs, path))
-      case DivisionR(lhs, rhs) => DivisionF(rec(lhs, path), rec(rhs, path))
-      case SqrtR(t) => SqrtF(rec(t, path))
-      case v: Variable => variables.buddy(v)
-      case ResultVariable() => FResVariable()
-
-      // leave conditions on if-then-else in reals
-      case LessEquals(_,_) | LessThan(_,_) | GreaterEquals(_,_) | GreaterThan(_,_) => e
-
-      case FncValue(s) => FncValueF(s)
-      case FncBody(n, b) => FncBodyF(n, rec(b, path)) 
-
-      case _ =>
-        super.rec(e, path)
-    }
-  }
-
-
-  class ResultCollector extends TransformerWithPC {
+  // Assume that the spec is complete
+  private class ResultCollector extends TransformerWithPC {
     type C = Seq[Expr]
     val initC = Nil
     var lwrBound: Option[Rational] = None
@@ -295,21 +262,66 @@ object TreeOps {
         // TODO: extras
         super.rec(e, path)
     }
+  }
 
-    // Assume that the spec is complete
-    //@param (bounds, errors, extra specs)
-    def getBounds(e: Expr): (RationalInterval, Rational, Expr) = {
-      initCollector
-      rec(e, initC)
-      (RationalInterval(lwrBound.get, upBound.get), error.get, And(extras))
+  /* -----------------------
+             Misc
+   ------------------------- */
+  class NoiseRemover extends TransformerWithPC {
+    type C = Seq[Expr]
+    val initC = Nil
+
+    def register(e: Expr, path: C) = path :+ e
+
+    override def rec(e: Expr, path: C) = e match {
+      case Noise(_, _) => True
+      case _ =>
+        super.rec(e, path)
     }
   }
 
+  def idealToActual(expr: Expr, vars: VariablePool): Expr = {
+    val transformer = new RealToFloatTransformer(vars)
+    transformer.transform(expr) 
+  }
 
+  private class RealToFloatTransformer(variables: VariablePool) extends TransformerWithPC {
+    type C = Seq[Expr]
+    val initC = Nil
+    
+    def register(e: Expr, path: C) = path :+ e
 
-  /*
-    Arithmetic ops
-  */
+    // (Sound) Overapproximation in the case of strict inequalities
+    override def rec(e: Expr, path: C) = e match {
+      case UMinusR(t) => UMinusF(rec(t, path))
+      case PlusR(lhs, rhs) => PlusF(rec(lhs, path), rec(rhs, path))
+      case MinusR(lhs, rhs) => MinusF(rec(lhs, path), rec(rhs, path))
+      case TimesR(lhs, rhs) => TimesF(rec(lhs, path), rec(rhs, path))
+      case DivisionR(lhs, rhs) => DivisionF(rec(lhs, path), rec(rhs, path))
+      case SqrtR(t) => SqrtF(rec(t, path))
+      case v: Variable => variables.buddy(v)
+      case ResultVariable() => FResVariable()
+
+      // leave conditions on if-then-else in reals
+      case LessEquals(_,_) | LessThan(_,_) | GreaterEquals(_,_) | GreaterThan(_,_) => e
+
+      case FncValue(s) => FncValueF(s)
+      case FncBody(n, b) => FncBodyF(n, rec(b, path)) 
+
+      case _ =>
+        super.rec(e, path)
+    }
+  }
+
+  def specToExpr(s: Spec): Expr = {
+    And(And(LessEquals(RationalLiteral(s.bounds.xlo), ResultVariable()),
+            LessEquals(ResultVariable(), RationalLiteral(s.bounds.xhi))),
+            Noise(ResultVariable(), RationalLiteral(s.absError)))
+  }
+
+  /* --------------------
+        Arithmetic ops
+   ---------------------- */
   val productCollector = new ProductCollector
   val powerTransformer = new PowerTransformer
   val factorizer = new Factorizer
@@ -357,22 +369,18 @@ object TreeOps {
     override def rec(e: Expr, path: C) = e match {
       case Product(exprs) =>
         val groups: Map[String, Seq[Expr]] = exprs.groupBy[String]( expr => expr.toString )
-        val groupsRec = groups.map( x => getPowerOrExpr(rec(x._2.head, path), x._2.size))
+        val groupsRec = groups.map( x =>
+          if (x._2.size == 1) {
+            rec(x._2.head, path)
+          } else {
+            PowerR(rec(x._2.head, path), IntLiteral(x._2.size))
+          }
+        )
           
         groupsRec.tail.foldLeft[Expr](groupsRec.head)((x, y) => TimesR(x, y))
         
       case _ =>
         super.rec(e, path)
-    }
-
-    private def getPowerOrExpr(elem: Expr, count: Int): Expr = {
-      if (count == 1) elem
-      else PowerR(elem, IntLiteral(count))
-    }   
-
-    private def getPowerOrExpr(elems: Seq[Expr]): Expr = {
-      if (elems.size == 1) elems.head
-      else PowerR(elems.head, IntLiteral(elems.size))
     }
   }
 
@@ -411,27 +419,14 @@ object TreeOps {
   }
 
    // Copied from purescala.TreeOps, added RationalLiteral
-   // TODO Not sure we need the IntLiterals here at all!
   def simplifyArithmetic(expr: Expr): Expr = {
     def simplify0(expr: Expr): Expr = expr match {
-      case PlusR(IntLiteral(i1), IntLiteral(i2)) => IntLiteral(i1 + i2)
-      case PlusR(IntLiteral(0), e) => e
-      case PlusR(e, IntLiteral(0)) => e
-      case PlusR(e1, UMinusR(e2)) => MinusR(e1, e2)
-      case PlusR(PlusR(e, IntLiteral(i1)), IntLiteral(i2)) => PlusR(e, IntLiteral(i1+i2))
-      case PlusR(PlusR(IntLiteral(i1), e), IntLiteral(i2)) => PlusR(IntLiteral(i1+i2), e)
-
       case PlusR(RationalLiteral(i1), RationalLiteral(i2)) => RationalLiteral(i1 + i2)
       case PlusR(RationalLiteral(z), e) if (z == Rational.zero) => e
       case PlusR(e, RationalLiteral(z)) if (z == Rational.zero) => e
       case PlusR(PlusR(e, RationalLiteral(i1)), RationalLiteral(i2)) => PlusR(e, RationalLiteral(i1+i2))
       case PlusR(PlusR(RationalLiteral(i1), e), RationalLiteral(i2)) => PlusR(RationalLiteral(i1+i2), e)
 
-
-      case MinusR(e, IntLiteral(0)) => e
-      case MinusR(IntLiteral(0), e) => UMinusR(e)
-      case MinusR(IntLiteral(i1), IntLiteral(i2)) => IntLiteral(i1 - i2)
-      case UMinusR(IntLiteral(x)) => IntLiteral(-x)
       case MinusR(e, RationalLiteral(z)) if (z == Rational.zero) => e
       case MinusR(RationalLiteral(z), e) if (z == Rational.zero) => UMinusR(e)
       case MinusR(RationalLiteral(i1), RationalLiteral(i2)) => RationalLiteral(i1 - i2)
@@ -443,19 +438,6 @@ object TreeOps {
       case UMinusR(PlusR(UMinusR(e1), e2)) => PlusR(e1, UMinusR(e2))
       case UMinusR(MinusR(e1, e2)) => MinusR(e2, e1)
 
-      
-      case TimesR(IntLiteral(i1), IntLiteral(i2)) => IntLiteral(i1 * i2)
-      case TimesR(IntLiteral(1), e) => e
-      case TimesR(IntLiteral(-1), e) => UMinusR(e)
-      case TimesR(e, IntLiteral(1)) => e
-      case TimesR(IntLiteral(0), _) => IntLiteral(0)
-      case TimesR(_, IntLiteral(0)) => IntLiteral(0)
-      case TimesR(IntLiteral(i1), TimesR(IntLiteral(i2), t)) => TimesR(IntLiteral(i1*i2), t)
-      case TimesR(IntLiteral(i1), TimesR(t, IntLiteral(i2))) => TimesR(IntLiteral(i1*i2), t)
-      case TimesR(IntLiteral(i), UMinusR(e)) => TimesR(IntLiteral(-i), e)
-      case TimesR(UMinusR(e), IntLiteral(i)) => TimesR(e, IntLiteral(-i))
-      case TimesR(IntLiteral(i1), DivisionR(e, IntLiteral(i2))) if i2 != 0 && i1 % i2 == 0 => TimesR(IntLiteral(i1/i2), e)
-
       case TimesR(RationalLiteral(i1), RationalLiteral(i2)) => RationalLiteral(i1 * i2)
       case TimesR(RationalLiteral(o), e) if (o == Rational.one) => e
       case TimesR(RationalLiteral(no), e) if (no == -Rational.one) => UMinusR(e)
@@ -465,11 +447,8 @@ object TreeOps {
       case TimesR(RationalLiteral(i1), TimesR(RationalLiteral(i2), t)) => TimesR(RationalLiteral(i1*i2), t)
       case TimesR(RationalLiteral(i1), TimesR(t, RationalLiteral(i2))) => TimesR(RationalLiteral(i1*i2), t)
       case TimesR(RationalLiteral(i), UMinusR(e)) => TimesR(RationalLiteral(-i), e)
-      case TimesR(UMinusR(e), RationalLiteral(i)) => TimesR(e, RationalLiteral(-i))
-      
+      case TimesR(UMinusR(e), RationalLiteral(i)) => TimesR(e, RationalLiteral(-i))      
 
-      case DivisionR(IntLiteral(i1), IntLiteral(i2)) if i2 != 0 => IntLiteral(i1 / i2)
-      case DivisionR(e, IntLiteral(1)) => e
       case DivisionR(RationalLiteral(i1), RationalLiteral(i2)) if i2 != 0 => RationalLiteral(i1 / i2)
       case DivisionR(e, RationalLiteral(o)) if (o == Rational.one) => e
 
@@ -479,8 +458,8 @@ object TreeOps {
       //btw, I know those are not the most general rules, but they lead to good optimizations :)
       case PlusR(UMinusR(PlusR(e1, e2)), e3) if e1 == e3 => UMinusR(e2)
       case PlusR(UMinusR(PlusR(e1, e2)), e3) if e2 == e3 => UMinusR(e1)
-      case MinusR(e1, e2) if e1 == e2 => IntLiteral(0)
-      case MinusR(PlusR(e1, e2), PlusR(e3, e4)) if e1 == e4 && e2 == e3 => IntLiteral(0)
+      case MinusR(e1, e2) if e1 == e2 => RationalLiteral(Rational.zero)
+      case MinusR(PlusR(e1, e2), PlusR(e3, e4)) if e1 == e4 && e2 == e3 => RationalLiteral(Rational.zero)
       case MinusR(PlusR(e1, e2), PlusR(PlusR(e3, e4), e5)) if e1 == e4 && e2 == e3 => UMinusR(e5)
 
       //default
@@ -494,6 +473,6 @@ object TreeOps {
 
     val res = fix(simplePostTransform(simplify0))(expr)
     res
-  }
+  } // end simplify arithmetic
 
 }

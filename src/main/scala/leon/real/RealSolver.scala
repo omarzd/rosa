@@ -124,9 +124,8 @@ class RealSolver(context: LeonContext, prog: Program, timeout: Long) extends Uni
 
   // Just so we have it
   def getRange(precond: Expr, expr: Expr, variables: VariablePool, maxIter: Int, prec: Rational) = {
-    // TODO: pre-process the expr (arithmetic ops)
     val approx = inIntervals(expr, variables)
-    tightenRange(expr, precond, approx, maxIter, prec)
+    tightenRange(massageArithmetic(expr), precond, approx, maxIter, prec)
   }
 
   def tightenRange(tree: Expr, precondition: Expr, initialBound: RationalInterval, maxIter: Int, prec: Rational):

@@ -7,7 +7,7 @@ object IfThenElse {
   def f1(x: Real): Real = {
     require(x >< (0, 5) && x +/- 1e-5)
     if(x <= 0.2) x
-    else 2.0 * x
+    else 2 * x
   } ensuring( res => res <= 10.0 && res +/- 1e-4)
 
   def f2(x: Real): Real = {
