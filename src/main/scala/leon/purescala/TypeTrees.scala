@@ -170,7 +170,6 @@ object TypeTrees {
   case object BooleanType extends TypeTree
   case object Int32Type extends TypeTree
   case object RealType extends TypeTree
-  case object FloatType extends TypeTree
   
   case object Float64Type extends TypeTree // code generation for reals
   case object Float32Type extends TypeTree

@@ -162,8 +162,16 @@ class LeonToZ3Transformer(variables: VariablePool) extends TransformerWithPC {
       case FloatIfExpr(cond, thenn, elze) =>
         rec(IfExpr(cond, thenn, elze), path)
 
+      case EqualsF(l, r) =>
+        rec(Equals(l, r), path)
+
       case FncInvocationF(funDef, args) =>
+        val newArgs = args.map(a => rec(a, path))
+        newArgs.foreach(a => println("arg: " + a + "  type: " + a.getType + "   " + a.getClass))
         FunctionInvocation(funDef, args.map(a => rec(a, path)))
+
+      //case v @ Variable(id) if (v.getType == FloatType) =>
+      //  Variable(id).setType(RealType)
 
       case _ =>
         super.rec(e, path)

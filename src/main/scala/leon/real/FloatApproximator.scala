@@ -84,18 +84,10 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
 
     //println("\n rec: " + e + "   with path: " + path)
     e match {
-      case Equals(lhs, rhs) if (lhs.getType == FloatType) =>
-        //println("***** equals: " + e)
-        val rightSide = rec(rhs, path)
-        //println("right side: " + rightSide)
-        val x = getXFloat(rightSide)
+      case EqualsF(lhs, rhs) =>
+        val x = getXFloat(rec(rhs, path))
         variables = variables + (lhs -> x)
         constraintFromXFloats(Map(lhs -> x))
-
-      case Equals(lhs, rhs) =>
-        //print("other equals: " + e)
-        //println("type: " + lhs.getType)
-        Equals(rec(lhs, path), rec(rhs, path))
 
       case UMinusF(t) => ApproxNode(-getXFloat(rec(t, path)))
       case PlusF(lhs, rhs) =>

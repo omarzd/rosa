@@ -281,7 +281,6 @@ trait AbstractZ3Solver extends solvers.IncrementalSolverBuilder {
     case Int32Type => intSort
     case BooleanType => boolSort
     case RealType => realSort
-    case FloatType => realSort
     case UnitType => unitSort
     case AbstractClassType(cd) => adtSorts(cd)
     case CaseClassType(cd) => {

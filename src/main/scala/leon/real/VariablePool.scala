@@ -85,7 +85,7 @@ class VariablePool(inputs: Map[Expr, Record]) {
 
 object VariablePool {
   def emptyRecord(ideal: Expr): Record = ideal match {
-    case Variable(id) => Record(ideal, Variable(FreshIdentifier("#" + id.name)).setType(FloatType), None, None, None)
+    case Variable(id) => Record(ideal, Variable(FreshIdentifier("#" + id.name)).setType(RealType), None, None, None)
     case _ => new Exception("bug!"); null
   }
 

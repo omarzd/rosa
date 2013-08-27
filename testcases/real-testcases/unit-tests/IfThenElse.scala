@@ -54,7 +54,7 @@ object IfThenElse {
     z * z
   } ensuring(res => res +/- 1e-6)
 
-  def f6(x: Real, y: Real): Real = {
+  /*def f6(x: Real, y: Real): Real = {
     require(x >< (-2.2, 2.3) && y >< (3.5, 7.5))
     val z = if(y <= 5.4) {
       val w = x * x + y
@@ -66,5 +66,5 @@ object IfThenElse {
       w * w
     }
     z * z
-  } ensuring(res => res +/- 1e-6)  
+  } ensuring(res => res +/- 1e-6)  */
 }
