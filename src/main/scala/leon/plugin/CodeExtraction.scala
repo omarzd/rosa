@@ -700,9 +700,9 @@ trait CodeExtraction extends Extractors {
               unsupported(tr, "Invalid comparison: (_: "+rt+") == (_: "+lt+")")
           }
 
-        case ExFloat64Literal(v) => new RationalLiteral(v)
-        case ExImplicitDouble2Real(dbl) => new RationalLiteral(dbl)
-        case ExImplicitInt2Real(i) => new RationalLiteral(i)
+        case ExFloat64Literal(v) => new RealLiteral(v)
+        case ExImplicitDouble2Real(dbl) => new RealLiteral(dbl)
+        case ExImplicitInt2Real(i) => new RealLiteral(i)
         case ExImplicitDouble2RealVar(sym,tpt) => varSubsts.get(sym) match {
           case Some(fun) => fun()
           case None => mutableVarSubsts.get(sym) match {
@@ -731,7 +731,7 @@ trait CodeExtraction extends Extractors {
           val rv = extractTree(v)
           val tuple = extractTree(tpl)
           (rv, tuple) match {
-            case (Variable(_), Tuple(Seq(RationalLiteral(lwr), RationalLiteral(upr)))) if (lwr <= upr) =>
+            case (Variable(_), Tuple(Seq(RealLiteral(lwr), RealLiteral(upr)))) if (lwr <= upr) =>
               WithIn(rv, lwr, upr)
             case _ =>
               unsupported(tr, "invalid use of ><")    

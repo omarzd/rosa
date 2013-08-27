@@ -112,7 +112,7 @@ object TreeOps {
            Evaluation
    ------------------------- */
   def inIntervals(expr: Expr, vars: VariablePool): RationalInterval = expr match {
-    case RationalLiteral(r) => RationalInterval(r, r)
+    case RealLiteral(r) => RationalInterval(r, r)
     case v @ Variable(_) => vars.getInterval(v)
     case UMinusR(t) => - inIntervals(t, vars)
     case PlusR(l, r) => inIntervals(l, vars) + inIntervals(r, vars)
@@ -268,24 +268,24 @@ object TreeOps {
 
     // FIXME: this should probably be done in register
     override def rec(e: Expr, path: C) = e match {
-      case LessEquals(RationalLiteral(lwrBnd), ResultVariable()) => lwrBound = Some(lwrBnd); e
-      case LessEquals(ResultVariable(), RationalLiteral(uprBnd)) => upBound = Some(uprBnd); e
+      case LessEquals(RealLiteral(lwrBnd), ResultVariable()) => lwrBound = Some(lwrBnd); e
+      case LessEquals(ResultVariable(), RealLiteral(uprBnd)) => upBound = Some(uprBnd); e
       case LessEquals(IntLiteral(lwrBnd), ResultVariable()) => lwrBound = Some(Rational(lwrBnd)); e
       case LessEquals(ResultVariable(), IntLiteral(uprBnd)) => upBound = Some(Rational(uprBnd)); e
-      case LessThan(RationalLiteral(lwrBnd), ResultVariable()) => lwrBound = Some(lwrBnd); e
-      case LessThan(ResultVariable(), RationalLiteral(uprBnd)) =>  upBound = Some(uprBnd); e
+      case LessThan(RealLiteral(lwrBnd), ResultVariable()) => lwrBound = Some(lwrBnd); e
+      case LessThan(ResultVariable(), RealLiteral(uprBnd)) =>  upBound = Some(uprBnd); e
       case LessThan(IntLiteral(lwrBnd), ResultVariable()) => lwrBound = Some(Rational(lwrBnd)); e
       case LessThan(ResultVariable(), IntLiteral(uprBnd)) => upBound = Some(Rational(uprBnd)); e
-      case GreaterEquals(RationalLiteral(uprBnd), ResultVariable()) =>  upBound = Some(uprBnd); e
-      case GreaterEquals(ResultVariable(), RationalLiteral(lwrBnd)) => lwrBound = Some(lwrBnd); e
+      case GreaterEquals(RealLiteral(uprBnd), ResultVariable()) =>  upBound = Some(uprBnd); e
+      case GreaterEquals(ResultVariable(), RealLiteral(lwrBnd)) => lwrBound = Some(lwrBnd); e
       case GreaterEquals(IntLiteral(uprBnd), ResultVariable()) => upBound = Some(Rational(uprBnd)); e
       case GreaterEquals(ResultVariable(), IntLiteral(lwrBnd)) => lwrBound = Some(Rational(lwrBnd)); e
-      case GreaterThan(RationalLiteral(uprBnd), ResultVariable()) =>  upBound = Some(uprBnd); e
-      case GreaterThan(ResultVariable(), RationalLiteral(lwrBnd)) => lwrBound = Some(lwrBnd); e
+      case GreaterThan(RealLiteral(uprBnd), ResultVariable()) =>  upBound = Some(uprBnd); e
+      case GreaterThan(ResultVariable(), RealLiteral(lwrBnd)) => lwrBound = Some(lwrBnd); e
       case GreaterThan(IntLiteral(uprBnd), ResultVariable()) => upBound = Some(Rational(uprBnd)); e
       case GreaterThan(ResultVariable(), IntLiteral(lwrBnd)) => lwrBound = Some(Rational(lwrBnd)); e
 
-      case Noise(ResultVariable(), RationalLiteral(value)) => error = Some(value); e
+      case Noise(ResultVariable(), RealLiteral(value)) => error = Some(value); e
       case Noise(ResultVariable(), IntLiteral(value)) => error = Some(Rational(value)); e
 
       //case Noise(ResultVariable(), x) => errorExpr = Some(x); e
@@ -346,6 +346,7 @@ object TreeOps {
       case SqrtR(t) => SqrtF(rec(t, path))
       case v: Variable => variables.buddy(v)
       case ResultVariable() => FResVariable()
+      case RealLiteral(r) => new FloatLiteral(r)
 
       // leave conditions on if-then-else in reals
       case LessEquals(_,_) | LessThan(_,_) | GreaterEquals(_,_) | GreaterThan(_,_) => e
@@ -359,9 +360,9 @@ object TreeOps {
   }
 
   def specToExpr(s: Spec): Expr = {
-    And(And(LessEquals(RationalLiteral(s.bounds.xlo), ResultVariable()),
-            LessEquals(ResultVariable(), RationalLiteral(s.bounds.xhi))),
-            Noise(ResultVariable(), RationalLiteral(s.absError)))
+    And(And(LessEquals(RealLiteral(s.bounds.xlo), ResultVariable()),
+            LessEquals(ResultVariable(), RealLiteral(s.bounds.xhi))),
+            Noise(ResultVariable(), RealLiteral(s.absError)))
   }
 
   /* --------------------
@@ -463,19 +464,19 @@ object TreeOps {
 
   }
 
-   // Copied from purescala.TreeOps, added RationalLiteral
+   // Copied from purescala.TreeOps, added RealLiteral
   def simplifyArithmetic(expr: Expr): Expr = {
     def simplify0(expr: Expr): Expr = expr match {
-      case PlusR(RationalLiteral(i1), RationalLiteral(i2)) => RationalLiteral(i1 + i2)
-      case PlusR(RationalLiteral(z), e) if (z == Rational.zero) => e
-      case PlusR(e, RationalLiteral(z)) if (z == Rational.zero) => e
-      case PlusR(PlusR(e, RationalLiteral(i1)), RationalLiteral(i2)) => PlusR(e, RationalLiteral(i1+i2))
-      case PlusR(PlusR(RationalLiteral(i1), e), RationalLiteral(i2)) => PlusR(RationalLiteral(i1+i2), e)
+      case PlusR(RealLiteral(i1), RealLiteral(i2)) => RealLiteral(i1 + i2)
+      case PlusR(RealLiteral(z), e) if (z == Rational.zero) => e
+      case PlusR(e, RealLiteral(z)) if (z == Rational.zero) => e
+      case PlusR(PlusR(e, RealLiteral(i1)), RealLiteral(i2)) => PlusR(e, RealLiteral(i1+i2))
+      case PlusR(PlusR(RealLiteral(i1), e), RealLiteral(i2)) => PlusR(RealLiteral(i1+i2), e)
 
-      case MinusR(e, RationalLiteral(z)) if (z == Rational.zero) => e
-      case MinusR(RationalLiteral(z), e) if (z == Rational.zero) => UMinusR(e)
-      case MinusR(RationalLiteral(i1), RationalLiteral(i2)) => RationalLiteral(i1 - i2)
-      case UMinusR(RationalLiteral(x)) => RationalLiteral(-x)
+      case MinusR(e, RealLiteral(z)) if (z == Rational.zero) => e
+      case MinusR(RealLiteral(z), e) if (z == Rational.zero) => UMinusR(e)
+      case MinusR(RealLiteral(i1), RealLiteral(i2)) => RealLiteral(i1 - i2)
+      case UMinusR(RealLiteral(x)) => RealLiteral(-x)
 
       case MinusR(e1, UMinusR(e2)) => PlusR(e1, e2)
       case MinusR(e1, MinusR(UMinusR(e2), e3)) => PlusR(e1, PlusR(e2, e3))
@@ -483,28 +484,28 @@ object TreeOps {
       case UMinusR(PlusR(UMinusR(e1), e2)) => PlusR(e1, UMinusR(e2))
       case UMinusR(MinusR(e1, e2)) => MinusR(e2, e1)
 
-      case TimesR(RationalLiteral(i1), RationalLiteral(i2)) => RationalLiteral(i1 * i2)
-      case TimesR(RationalLiteral(o), e) if (o == Rational.one) => e
-      case TimesR(RationalLiteral(no), e) if (no == -Rational.one) => UMinusR(e)
-      case TimesR(e, RationalLiteral(o)) if (o == Rational.one) => e
-      case TimesR(RationalLiteral(z), _) if (z == Rational.zero) => RationalLiteral(Rational.zero)
-      case TimesR(_, RationalLiteral(z)) if (z == Rational.zero) => RationalLiteral(Rational.zero)
-      case TimesR(RationalLiteral(i1), TimesR(RationalLiteral(i2), t)) => TimesR(RationalLiteral(i1*i2), t)
-      case TimesR(RationalLiteral(i1), TimesR(t, RationalLiteral(i2))) => TimesR(RationalLiteral(i1*i2), t)
-      case TimesR(RationalLiteral(i), UMinusR(e)) => TimesR(RationalLiteral(-i), e)
-      case TimesR(UMinusR(e), RationalLiteral(i)) => TimesR(e, RationalLiteral(-i))      
+      case TimesR(RealLiteral(i1), RealLiteral(i2)) => RealLiteral(i1 * i2)
+      case TimesR(RealLiteral(o), e) if (o == Rational.one) => e
+      case TimesR(RealLiteral(no), e) if (no == -Rational.one) => UMinusR(e)
+      case TimesR(e, RealLiteral(o)) if (o == Rational.one) => e
+      case TimesR(RealLiteral(z), _) if (z == Rational.zero) => RealLiteral(Rational.zero)
+      case TimesR(_, RealLiteral(z)) if (z == Rational.zero) => RealLiteral(Rational.zero)
+      case TimesR(RealLiteral(i1), TimesR(RealLiteral(i2), t)) => TimesR(RealLiteral(i1*i2), t)
+      case TimesR(RealLiteral(i1), TimesR(t, RealLiteral(i2))) => TimesR(RealLiteral(i1*i2), t)
+      case TimesR(RealLiteral(i), UMinusR(e)) => TimesR(RealLiteral(-i), e)
+      case TimesR(UMinusR(e), RealLiteral(i)) => TimesR(e, RealLiteral(-i))      
 
-      case DivisionR(RationalLiteral(i1), RationalLiteral(i2)) if i2 != 0 => RationalLiteral(i1 / i2)
-      case DivisionR(e, RationalLiteral(o)) if (o == Rational.one) => e
+      case DivisionR(RealLiteral(i1), RealLiteral(i2)) if i2 != 0 => RealLiteral(i1 / i2)
+      case DivisionR(e, RealLiteral(o)) if (o == Rational.one) => e
 
-      case PowerR(RationalLiteral(o), e) if (o == Rational.one) => RationalLiteral(Rational.one)
+      case PowerR(RealLiteral(o), e) if (o == Rational.one) => RealLiteral(Rational.one)
 
       //here we put more expensive rules
       //btw, I know those are not the most general rules, but they lead to good optimizations :)
       case PlusR(UMinusR(PlusR(e1, e2)), e3) if e1 == e3 => UMinusR(e2)
       case PlusR(UMinusR(PlusR(e1, e2)), e3) if e2 == e3 => UMinusR(e1)
-      case MinusR(e1, e2) if e1 == e2 => RationalLiteral(Rational.zero)
-      case MinusR(PlusR(e1, e2), PlusR(e3, e4)) if e1 == e4 && e2 == e3 => RationalLiteral(Rational.zero)
+      case MinusR(e1, e2) if e1 == e2 => RealLiteral(Rational.zero)
+      case MinusR(PlusR(e1, e2), PlusR(e3, e4)) if e1 == e4 && e2 == e3 => RealLiteral(Rational.zero)
       case MinusR(PlusR(e1, e2), PlusR(PlusR(e3, e4), e5)) if e1 == e4 && e2 == e3 => UMinusR(e5)
 
       //default

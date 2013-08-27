@@ -11,6 +11,7 @@ package object real {
   val False = BooleanLiteral(false)
 
   case class UnsupportedRealFragmentException(msg: String) extends Exception(msg)
+  case class ArithmeticException(msg: String) extends Exception(msg)
 
   case class Fnc(pre: Expr, body: Expr, post: Expr)
 

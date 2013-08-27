@@ -13,11 +13,11 @@ class CompilationReport(vcs: Seq[VerificationCondition], precision: Precision = 
 
   lazy val totalTime : Double = vcs.foldLeft(0.0d)((t,c) => t + c.time.getOrElse(0.0d) / 1000)
 
-  lazy val totalValid : Int = vcs.count(_.value == Some(true))
+  lazy val totalValid : Int = vcs.count(_.value(precision) == Some(true))
 
-  lazy val totalInvalid : Int = vcs.count(_.value == Some(false))
+  lazy val totalInvalid : Int = vcs.count(_.value(precision) == Some(false))
 
-  lazy val totalUnknown : Int = vcs.count(_.value == None)
+  lazy val totalUnknown : Int = vcs.count(_.value(precision) == None)
 
   def summaryString : String = if(totalConditions >= 0) {
     CompilationReport.infoHeader +

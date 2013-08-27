@@ -7,7 +7,7 @@ import purescala.Trees._
 import purescala.TypeTrees._
 import purescala.Common._
 
-import real.Trees.RationalLiteral
+import real.Trees.RealLiteral
 
 object VariableShop {
 
@@ -62,7 +62,7 @@ object VariableShop {
 
   def getFreshRndoffMultiplier: (Expr, Variable) = {
     val delta = getNewDelta
-    (Plus(new RationalLiteral(1), delta) , delta)
+    (Plus(new RealLiteral(1), delta) , delta)
   }
 
   def getFreshVarOf(name: String): Variable = {

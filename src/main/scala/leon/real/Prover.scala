@@ -26,6 +26,9 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
 
       for (vc <- vcs) {
         reporter.info("Verification condition (%s) ==== %s ====".format(vc.kind, vc.fncId))
+        println("pre: " + vc.pre)
+        println("body: " + vc.body)
+        println("post: " + vc.post)
         reporter.info("Trying with approximation")
         val start = System.currentTimeMillis
         var spec: Option[Spec] = None
@@ -33,26 +36,37 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
         // TODO: filter out those that are not applicable
         // TODO: this we also don't need to do for all precisions each time
         // TODO: some combinations don't work: e.g. Uninterpreted & JustFloat
-        val approximations = List(ApproxKind(Inlining, Pathwise, JustFloat))
+        val approximations = List(ApproxKind(Uninterpreted, Merging, Z3Only), 
+                                  ApproxKind(Uninterpreted, Merging, JustFloat))
         
         // TODO: re-use some of the approximation work across precision?
         approximations.find(aKind => {
           reporter.info("  - " + aKind)
-          val currentApprox = getApproximation(vc, aKind, precision)
-          spec = merge(spec, currentApprox.spec)
+
+          try {
+            val currentApprox = getApproximation(vc, aKind, precision)
+            spec = merge(spec, currentApprox.spec)
           
-          if (verbose) println(currentApprox.cnstrs)
-          checkValid(currentApprox, vc.variables, precision) match {
-            case Some(true) =>
-              reporter.info("==== VALID ====")
-              vc.value += (precision -> Some(true))
-              true
-            case Some(false) =>
-              // TODO: figure out if we can find invalid
-              reporter.info("=== INVALID ===")
-              true
-            case None =>
-              reporter.info("---- Unknown ----")
+            //if (verbose) println(currentApprox.cnstrs)
+            checkValid(currentApprox, vc.variables, precision) match {
+              case Some(true) =>
+                reporter.info("==== VALID ====")
+                vc.value += (precision -> Some(true))
+                true
+              case Some(false) =>
+                // TODO: figure out if we can find invalid
+                reporter.info("=== INVALID ===")
+                true
+              case None =>
+                reporter.info("---- Unknown ----")
+                false
+            }
+          } catch {
+            case e: java.lang.ArithmeticException =>
+              reporter.warning("Failed to compute approximation: " + e.getMessage)
+              false
+            case e: ArithmeticException =>
+              reporter.error("This error should not have happened. Please report.")
               false
           }
 
@@ -81,6 +95,8 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
   }
 
   def checkValid(app: Approximation, variables: VariablePool, precision: Precision): Option[Boolean] = {
+    if (verbose) println("\napprox: " + app.cnstrs)
+
     // I think we can keep one
     val transformer = new LeonToZ3Transformer(variables)
     var valid: Option[Boolean] = Some(true)
@@ -114,7 +130,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
     val postInliner = new PostconditionInliner
     val fncInliner = new FunctionInliner(fncs)
 
-    val (preTmp, bodyTmp, postTmp) = kind.fncHandling match {
+    val (preFnc, bodyFnc, postFnc) = kind.fncHandling match {
       case Uninterpreted =>
         (vc.pre, vc.body, vc.post)
 
@@ -124,20 +140,23 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
       case Inlining =>
         (vc.pre, fncInliner.transform(vc.body), vc.post)
     }
-    println("bodyTmp: " + bodyTmp)
+    if (verbose)
+      println("\nafter FNC handling:\npre: %s\nbody: %s\npost: %s".format(preFnc,bodyFnc,postFnc))
 
 
     val (pre, body, post): (Expr, Set[Path], Expr) = kind.pathHandling match {
       case Pathwise =>
-        ( preTmp,
-          getPaths(bodyTmp).map(p => Path(p.condition, And(p.body, idealToActual(p.body, vc.variables)))), 
-          postTmp )
+        ( preFnc,
+          getPaths(bodyFnc).map(p => Path(p.condition, And(p.body, idealToActual(p.body, vc.variables)))), 
+          postFnc )
       case Merging =>
-        ( preTmp,
-          Set(Path(True, And(bodyTmp, idealToActual(bodyTmp, vc.variables)))),
-          postTmp )
+        ( preFnc,
+          Set(Path(True, And(bodyFnc, idealToActual(bodyFnc, vc.variables)))),
+          postFnc )
     }
-    println("body: " + body)
+    if (verbose)
+      println("\nafter PATH handling:\npre: %s\nbody: %s\npost: %s".format(pre,body,post))
+
     
     kind.arithmApprox match {
       case Z3Only =>
@@ -155,12 +174,11 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
         var spec: Option[Spec] = None
   
         for ( path <- body ) {
-          if (verbose) println("before: " + path)
           // Hmm, this uses the same solver as the check...
           val transformer = new FloatApproximator(reporter, solver, precision, And(pre, path.condition), vc.variables)
           val (newBody, newSpec) = transformer.transformWithSpec(path.body)
           spec = merge(spec, Option(newSpec))
-          if (verbose) println("after: " + newBody)
+          if (verbose) println("body after approx: " + newBody)
           approx :+= And(And(pre, And(path.condition, newBody)), negate(post))
           sanity :+= And(pre, newBody)
         }

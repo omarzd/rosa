@@ -16,7 +16,7 @@ case class Index(val freshIndex: Int, val history: List[Int])
 // Simplification of trees? There is some function in TreeOps already...
 case class Magnitude(val value: Rational, val expr: Expr) {
   def unary_-(): Magnitude = Magnitude(-value, UMinus(expr))
-  def *(factor: Rational): Magnitude = Magnitude(value * factor, Times(expr, RationalLiteral(factor)))
+  def *(factor: Rational): Magnitude = Magnitude(value * factor, Times(expr, RealLiteral(factor)))
   def +(y: Magnitude): Magnitude = Magnitude(this.value + y.value, Plus(expr, y.expr))
   def -(y: Magnitude): Magnitude = Magnitude(this.value - y.value, Minus(expr, y.expr))
   def *(y: Magnitude): Magnitude = Magnitude(this.value * y.value, Times(expr, y.expr))
@@ -32,17 +32,17 @@ object Deviation {
   }
 
   def apply(i: Int, v: Rational): Deviation =
-    Deviation(Index(i, List.empty), Magnitude(v, RationalLiteral(v)))
+    Deviation(Index(i, List.empty), Magnitude(v, RealLiteral(v)))
 
   def apply(i: Int, hist: List[Int], v: Rational) : Deviation =
-    Deviation(Index(i, hist), Magnitude(v, RationalLiteral(v)))
+    Deviation(Index(i, hist), Magnitude(v, RealLiteral(v)))
 
   def apply(i: Int, hist: List[Int], v: Rational, variable: Variable) : Deviation =
     Deviation(Index(i, hist), Magnitude(v, variable))
 
 
   val dummyDev = Deviation(Index(Int.MaxValue, List.empty),
-    Magnitude(Rational.zero, RationalLiteral(Rational.zero)))
+    Magnitude(Rational.zero, RealLiteral(Rational.zero)))
 
   var verbose = false
 }

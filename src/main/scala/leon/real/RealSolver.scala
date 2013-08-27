@@ -15,7 +15,7 @@ import solvers.z3._
 import solvers._
 
 import real.TreeOps._
-import real.Trees.RationalLiteral
+import real.Trees.RealLiteral
 import Sat._
 import Rational._
 
@@ -25,7 +25,7 @@ class RealSolver(context: LeonContext, prog: Program, timeout: Long) extends Uni
   override val name = "numeric solver"
   override val description = "Z3 solver with some numeric convenience methods"
 
-  var verbose = false
+  private var verbose = false
   var printWarnings = false
   var diagnose = true
   var countTimeouts = 0
@@ -131,7 +131,7 @@ class RealSolver(context: LeonContext, prog: Program, timeout: Long) extends Uni
   def tightenRange(tree: Expr, precondition: Expr, initialBound: RationalInterval, maxIter: Int, prec: Rational):
     RationalInterval = tree match {
     case IntLiteral(v) => initialBound
-    case RationalLiteral(v) => initialBound
+    case RealLiteral(v) => initialBound
     //case Variable(id) => initialBound
     case _ =>
       assert(solver.getNumScopes == 0)
@@ -304,8 +304,8 @@ class RealSolver(context: LeonContext, prog: Program, timeout: Long) extends Uni
       if (verbose) {
         println("!!! ERROR: both " + which + " bounds are not sound!" +
           "\nmsg: " + msg + "\n ------------------")
-        throw new ArithmeticException("ouch")
       }
+      throw new ArithmeticException("ouch")
     case (SAT, _, msg) =>
       if (reporter != null)
         reporter.error("!!! ERROR: " + which + " lower bound is not sound!" +
@@ -313,8 +313,8 @@ class RealSolver(context: LeonContext, prog: Program, timeout: Long) extends Uni
       if (verbose) {
         println("!!! ERROR: " + which + " bounds are not sound!" +
           "\nmsg: " + msg + "\n ------------------")
-        throw new ArithmeticException("ouch")
       }
+      throw new ArithmeticException("ouch")
     case (_, SAT, msg) =>
       if (reporter != null)
         reporter.error("!!! ERROR: " + which + " upper bound is not sound!" +
@@ -322,8 +322,8 @@ class RealSolver(context: LeonContext, prog: Program, timeout: Long) extends Uni
       if (verbose) {
         println("!!! ERROR: " + which + " bounds are not sound!" +
           "\nmsg: " + msg + "\n ------------------")
-        throw new ArithmeticException("ouch")
       }
+      throw new ArithmeticException("ouch")
     case (UNSAT, UNSAT, msg) =>
       if (verbose) {
         println(which + " bounds check successful.")

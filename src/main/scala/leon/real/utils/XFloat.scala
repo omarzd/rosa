@@ -5,7 +5,7 @@ package real
 
 import purescala.Trees._
 
-import real.Trees.RationalLiteral
+import real.Trees.RealLiteral
 import Rational._
 import XRationalForm._
 import RationalAffineUtils._
@@ -80,13 +80,13 @@ object XFloat {
     val r = rationalFromReal(d)
     val rndoff = roundoff(r, config.machineEps)
     val newError = addNoise(new XRationalForm(Rational.zero), rndoff)
-    return new XFloat(RationalLiteral(r), RationalInterval(r, r), newError, config)
+    return new XFloat(RealLiteral(r), RationalInterval(r, r), newError, config)
   }
 
   // constant
   def apply(r: Rational, config: XFloatConfig): XFloat = {
     val newError = new XRationalForm(Rational.zero)
-    return new XFloat(RationalLiteral(r), RationalInterval(r,r), newError, config)
+    return new XFloat(RealLiteral(r), RationalInterval(r,r), newError, config)
   }
 
   /**
@@ -233,8 +233,8 @@ class XFloat(val tree: Expr, val approxInterval: RationalInterval, val error: XR
 
 
     // Compute approximation
-    //val tightInverse = getTightInterval(Division(new RationalLiteral(1), y.tree), y.approxRange.inverse)
-    val tightInverse = getTightInterval(Division(new RationalLiteral(1), y.tree), RationalInterval(one, one)/y.approxInterval, y.config.getCondition)
+    //val tightInverse = getTightInterval(Division(new RealLiteral(1), y.tree), y.approxRange.inverse)
+    val tightInverse = getTightInterval(Division(new RealLiteral(1), y.tree), RationalInterval(one, one)/y.approxInterval, y.config.getCondition)
     val kAA = XRationalForm(tightInverse)
     val xAA = XRationalForm(this.realInterval)
     val xErr = this.error
@@ -268,7 +268,7 @@ class XFloat(val tree: Expr, val approxInterval: RationalInterval, val error: XR
     //val newTree = Sqrt(this.tree)
     val (sqrtVar, n) = getNewSqrtVariablePair
     val newTree = sqrtVar
-    val newCondition = And(Equals(Times(sqrtVar, sqrtVar), this.tree), LessEquals(RationalLiteral(zero), sqrtVar))
+    val newCondition = And(Equals(Times(sqrtVar, sqrtVar), this.tree), LessEquals(RealLiteral(zero), sqrtVar))
     val newConfig = config.addCondition(newCondition)
 
     val newInterval = RationalInterval(sqrtDown(this.approxInterval.xlo), sqrtUp(this.approxInterval.xhi))

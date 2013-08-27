@@ -21,17 +21,23 @@ object Trees {
     }
   }
 
-  case class RationalLiteral(value: Rational) extends Expr with Terminal with FixedType with PrettyPrintable {
-    var exact = isExact(value)
-
-    def this(r: Rational, e: Boolean) = {
-      this(r)
-      exact = e
-    }
+  case class RealLiteral(value: Rational) extends Expr with Terminal with FixedType with PrettyPrintable {
+    val fixedType = RealType
     def this(d: Double) = this(Rational(d))
     def this(i: Int) = this(Rational(i))
-    val fixedType = RealType // TODO: this should not be fixedType (mark as float those that should have rndoff error)
+    
+    def printWith(lvl: Int, printer: PrettyPrinter) {
+      printer.append(value.toString)
+    }
+  }
 
+  case class FloatLiteral(value: Rational, exact: Boolean) extends Expr with Terminal with FixedType with PrettyPrintable {
+    val fixedType = FloatType
+    
+    def this(r: Rational) = this(r, isExact(r))
+    def this(d: Double) = this(Rational(d))
+    def this(i: Int) = this(Rational(i), true)
+    
     def printWith(lvl: Int, printer: PrettyPrinter) {
       printer.append(value.toString)
     }

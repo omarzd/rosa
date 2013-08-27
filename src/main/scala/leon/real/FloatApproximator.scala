@@ -33,6 +33,8 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
   type C = Seq[Expr]
   val initC = Nil
 
+  val verboseLocal = false // TODO figure out which verbose that is if we call this 'verbose'
+
   val leonToZ3 = new LeonToZ3Transformer(inputs)
   val noiseRemover = new NoiseRemover
   val (minVal, maxVal) = precision match { // TODO: alright, this is not exact
@@ -41,11 +43,15 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
     case DoubleDouble => (-Rational(Double.MaxValue), Rational(Double.MaxValue))  // same range as Double
     case QuadDouble => (-Rational(Double.MaxValue), Rational(Double.MaxValue)) // same range as Double
   }
-    
+  
   val config = XFloatConfig(solver, leonToZ3.getZ3Expr(noiseRemover.transform(precondition), precision), 
     precision, getUnitRoundoff(precision), solverMaxIterMedium, solverPrecisionMedium)
 
+  if (verboseLocal) println("initial config: " + config)
+
   var variables: Map[Expr, XFloat] = variables2xfloats(inputs, config)._1
+
+  if (verboseLocal) println("initial variables: " + variables)
   
   def register(e: Expr, path: C) = e match {
     // We allow only these conditions in if-then-else
@@ -65,7 +71,7 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
   override def rec(e: Expr, path: C) =  {
     def getXFloat(e: Expr): XFloat = e match {
       case ApproxNode(x) => x
-      case RationalLiteral(r) => addCondition(XFloat(r, config), path)
+      case FloatLiteral(r, exact) => addCondition(XFloat(r, config), path)
       case v: Variable => addCondition(variables(v), path)
     }
 
@@ -183,7 +189,8 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
   }
 
   private def rangeConstraint(v: Expr, i: RationalInterval): Expr = {
-    And(LessEquals(RationalLiteral(i.xlo), v), LessEquals(v, RationalLiteral(i.xhi)))
+    // FIXME: check this (RealLiteral or FloatLiteral?)
+    And(LessEquals(RealLiteral(i.xlo), v), LessEquals(v, RealLiteral(i.xhi)))
   }
   
   /*case FunctionInvocation(funDef, args) =>
@@ -253,9 +260,9 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
 
   private def constraintFromXFloats(results: Map[Expr, XFloat]): Expr = {
     And(results.foldLeft(Seq[Expr]())(
-      (seq, kv) => seq ++ Seq(LessEquals(new RationalLiteral(kv._2.interval.xlo, true), kv._1),
-                                LessEquals(kv._1, new RationalLiteral(kv._2.interval.xhi, true)),
-                                Noise(inputs.getIdeal(kv._1), RationalLiteral(kv._2.maxError)))))
+      (seq, kv) => seq ++ Seq(LessEquals(RealLiteral(kv._2.interval.xlo), kv._1),
+                                LessEquals(kv._1, RealLiteral(kv._2.interval.xhi)),
+                                Noise(inputs.getIdeal(kv._1), RealLiteral(kv._2.maxError)))))
   }
 
   private def overflowPossible(interval: RationalInterval): Boolean =

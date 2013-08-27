@@ -432,7 +432,7 @@ trait AbstractZ3Solver extends solvers.IncrementalSolverBuilder {
         case Not(e) => z3.mkNot(rec(e))
         case IntLiteral(v) => z3.mkInt(v, intSort)
         case BooleanLiteral(v) => if (v) z3.mkTrue() else z3.mkFalse()
-        case RationalLiteral(r) =>
+        case RealLiteral(r) =>
           z3.mkNumeral(r.n.toString + "/" + r.d.toString, realSort)
         case UnitLiteral => unitValue
         case Equals(l, r) => z3.mkEq(rec(l), rec(r))
@@ -701,7 +701,7 @@ trait AbstractZ3Solver extends solvers.IncrementalSolverBuilder {
           }
 
           case Z3NumeralAST(Some(v)) => IntLiteral(v)
-          //case Z3NumeralRealAST(num, den) => RationalLiteral(Rational(num, den))
+          //case Z3NumeralRealAST(num, den) => RealLiteral(Rational(num, den))
           case Z3NumeralAST(None) => {
             reporter.info("Cannot read exact model from Z3: Integer does not fit in machine word")
             reporter.info("Exiting procedure now")

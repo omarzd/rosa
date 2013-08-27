@@ -46,23 +46,23 @@ class LeonToZ3Transformer(variables: VariablePool) extends TransformerWithPC {
       case Roundoff(v @ Variable(_)) =>
         val delta = getNewDelta
         addExtra(constrainDelta(delta))
-        Equals(variables.buddy(v), Times(Plus(new RationalLiteral(1), delta), v))
+        Equals(variables.buddy(v), Times(Plus(new RealLiteral(1), delta), v))
 
-      case Noise(v @ Variable(_), r @ RationalLiteral(value)) =>
+      case Noise(v @ Variable(_), r @ RealLiteral(value)) =>
         val freshErrorVar = getErrorVar(v)
         And(Seq(Equals(variables.buddy(v), Plus(v, freshErrorVar)),
-          LessEquals(RationalLiteral(-value), freshErrorVar),
+          LessEquals(RealLiteral(-value), freshErrorVar),
           LessEquals(freshErrorVar, r)))
       
-      case Noise(res @ ResultVariable(), r @ RationalLiteral(value)) =>
+      case Noise(res @ ResultVariable(), r @ RealLiteral(value)) =>
         val freshErrorVar = getErrorVar(res)
         And(Seq(Equals(FResVariable(), Plus(res, freshErrorVar)),
-          LessEquals(RationalLiteral(-value), freshErrorVar),
+          LessEquals(RealLiteral(-value), freshErrorVar),
           LessEquals(freshErrorVar, r)))
-      case Noise(res @ FResVariable(), r @ RationalLiteral(value)) =>
+      case Noise(res @ FResVariable(), r @ RealLiteral(value)) =>
         val freshErrorVar = getErrorVar(res)
         And(Seq(Equals(FResVariable(), Plus(res, freshErrorVar)),
-          LessEquals(RationalLiteral(-value), freshErrorVar),
+          LessEquals(RealLiteral(-value), freshErrorVar),
           LessEquals(freshErrorVar, r)))
     
       case Noise(v @ Variable(_), expr) =>
@@ -94,7 +94,7 @@ class LeonToZ3Transformer(variables: VariablePool) extends TransformerWithPC {
         ))
       
       // translate real-valued arithmetic (makes the trees not typecheck, but we don't need to modify AbstractSolver)
-      case UMinusR(t) => UMinus(rec(e, path))
+      case UMinusR(t) => UMinus(rec(t, path))
       case PlusR(l, r) => Plus(rec(l, path), rec(r, path))
       case MinusR(l, r) => Minus(rec(l, path), rec(r, path))
       case TimesR(l, r) => Times(rec(l, path), rec(r, path))
@@ -102,7 +102,7 @@ class LeonToZ3Transformer(variables: VariablePool) extends TransformerWithPC {
       case SqrtR(x) =>
         val r = getNewSqrtVariable
         val xR = rec(x, path)
-        extraConstraints ++= Seq(Equals(Times(r, r), xR), LessEquals(RationalLiteral(zero), r))
+        extraConstraints ++= Seq(Equals(Times(r, r), xR), LessEquals(RealLiteral(zero), r))
         r
 
       // floating-point arithmetic
@@ -129,16 +129,15 @@ class LeonToZ3Transformer(variables: VariablePool) extends TransformerWithPC {
         val (mult, dlt) = getFreshRndoffMultiplier
         addExtra(constrainDelta(dlt))
         val xN = rec(x, path)
-        extraConstraints ++= Seq(Equals(Times(n, n), xN), LessEquals(RationalLiteral(zero), n))
+        extraConstraints ++= Seq(Equals(Times(n, n), xN), LessEquals(RealLiteral(zero), n))
         Times(n, mult)
 
-      case r @ RationalLiteral(v) =>
-        if (r.exact) r
+      case r @ FloatLiteral(v, exact) =>
+        if (exact) RealLiteral(v)
         else {
-          // TODO: we don't want to do this for the ideal part!
           val (mult, dlt) = getFreshRndoffMultiplier
           addExtra(constrainDelta(dlt))
-          Times(r, mult)
+          Times(RealLiteral(v), mult)
         }
 
       // actual
@@ -147,7 +146,7 @@ class LeonToZ3Transformer(variables: VariablePool) extends TransformerWithPC {
 
       //within
       case WithIn(v @ Variable(_), lwrBnd, upBnd) =>
-        And(LessThan(RationalLiteral(lwrBnd), v), LessThan(v, RationalLiteral(upBnd))) 
+        And(LessThan(RealLiteral(lwrBnd), v), LessThan(v, RealLiteral(upBnd))) 
 
       case FncValue(s) =>
         val fresh = getNewXFloatVar
@@ -177,7 +176,7 @@ class LeonToZ3Transformer(variables: VariablePool) extends TransformerWithPC {
       val z3Expr = replace(Map(ResultVariable() -> res, FResVariable() -> fres), this.transform(e)) 
       
       if (epsUsed)
-        And(And(extraConstraints :+ Equals(machineEps, RationalLiteral(getUnitRoundoff(precision)))), z3Expr)
+        And(And(extraConstraints :+ Equals(machineEps, RealLiteral(getUnitRoundoff(precision)))), z3Expr)
       else
         And(And(extraConstraints), z3Expr)
     }

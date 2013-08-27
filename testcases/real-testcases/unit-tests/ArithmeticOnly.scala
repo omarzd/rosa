@@ -4,12 +4,14 @@ import Real._
 
 object ArithmeticOnly {
 
+  // valid
   def f1_simple(x: Real): Real = {
     require(x >< (1.0, 2.0) && x +/- 1e-9)
     
     x * x
   } ensuring (res => res <= 5.0 && res +/- 1e-8)
 
+  // not valid
   def f2_simple(x: Real): Real = {
     require(x >< (1.0, 2.0) && x +/- 1e-5)
 
@@ -18,14 +20,14 @@ object ArithmeticOnly {
 
 
   def f1_noNoise(x: Real, y: Real): Real = {
-    require(x >< (-2.2, 2.3) && y >< (3.5, 7.5))
-    x * (sqrt(x) - y) / x + (-x)
+    require(x >< (2.2, 2.3) && y >< (3.5, 7.5))
+    x * (sqrt(x) - y) / x + (-x) * 2.1
   } ensuring (res => res <= 0)
 
   def f2_noNoise(x: Real, y: Real): Real = {
-    require(-2.2 <= x && x <= 2.3 && 3.5 <= y && y <= 7.5)
+    require(2.2 <= x && x <= 2.3 && 3.5 <= y && y <= 7.5)
     x * (sqrt(x) - y) / x + (-x)
-  } ensuring (res => res <= 0.0)
+  } ensuring (res => res <= 0.0 && res +/- 1e-7)
 
 
   def f1_withNoise(x: Real, y: Real): Real = {
@@ -36,7 +38,7 @@ object ArithmeticOnly {
   def f2_withNoise(x: Real, y: Real): Real = {
     require(-2.2 <= x && x <= 2.3 && 3.5 <= y && y <= 7.5 && x +/- 1e-5) // y has roundoff
     x * (sqrt(x) - y) / x + (-x)
-  } ensuring (res => res >< (-5, 7.5),  && res +/- 1e-4)
+  } // ensuring (res => res >< (-5, 7.5) && res +/- 1e-4)
 
 
   def f1_actual(x: Real, y: Real): Real = {
@@ -47,7 +49,7 @@ object ArithmeticOnly {
   def f2_actual(x: Real, y: Real): Real = {
     require(-2.2 <= x && x <= 2.3 && 3.5 <= y && y <= 7.5 && x +/- 1e-5) // y has roundoff
     x * (sqrt(x) - y) / x + (-x)
-  } ensuring (res => ~res >< (-5.001, 7) && res +/- 1e-4)
+  } // ensuring (res => ~res >< (-5.001, 7) && res +/- 1e-4)
 
 
   def f1_cnstr(x: Real, y: Real): Real = {

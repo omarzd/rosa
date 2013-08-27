@@ -165,7 +165,7 @@ class Simulator(reporter: Reporter) {
 
   private def eval(tree: Expr, vars: Map[Expr, (Double, Rational)]): (Double, Rational) = tree match {
     case v @ Variable(id) =>  vars(v)
-    case RationalLiteral(v) => (v.toDouble, v)
+    case RealLiteral(v) => (v.toDouble, v)
     //case IntLiteral(v) => (v.toDouble, Rational(v))
     case UMinusR(e) =>
       val (eDbl, eRat) = eval(e, vars)
@@ -198,7 +198,7 @@ class Simulator(reporter: Reporter) {
 
   private def evalSingle(tree: Expr, vars: Map[Expr, (Float, Rational)]): (Float, Rational) = tree match {
     case v @ Variable(id) =>  vars(v)
-    case RationalLiteral(v) => (v.toFloat, v)
+    case RealLiteral(v) => (v.toFloat, v)
     //case IntLiteral(v) => (v.toFloat, Rational(v))
     case UMinusR(e) =>
       val (eDbl, eRat) = evalSingle(e, vars)
@@ -227,7 +227,7 @@ class Simulator(reporter: Reporter) {
 
   private def evalInterval(tree: Expr, vars: Map[Expr, RationalInterval]): RationalInterval = tree match {
     case v @ Variable(id) => vars(v)
-    case RationalLiteral(v) => RationalInterval(v, v)
+    case RealLiteral(v) => RationalInterval(v, v)
     //case IntLiteral(v) => RationalInterval(Rational(v), Rational(v))
     case UMinusR(e) => - evalInterval(e, vars)
     case PlusR(lhs, rhs) => evalInterval(lhs, vars) + evalInterval(rhs, vars)
@@ -241,7 +241,7 @@ class Simulator(reporter: Reporter) {
 
   private def evalXRationalForm(tree: Expr, vars: Map[Expr, XRationalForm]): XRationalForm = tree match {
     case v @ Variable(id) => vars(v)
-    case RationalLiteral(v) => new XRationalForm(v)
+    case RealLiteral(v) => new XRationalForm(v)
     //case IntLiteral(v) => new XRationalForm(Rational(v))
     case UMinusR(e) => - evalXRationalForm(e, vars)
     case PlusR(lhs, rhs) => evalXRationalForm(lhs, vars) + evalXRationalForm(rhs, vars)

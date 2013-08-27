@@ -104,31 +104,31 @@ object VariablePool {
 
     // (Sound) Overapproximation in the case of strict inequalities
     override def rec(e: Expr, path: C) = e match {
-      case LessEquals(RationalLiteral(lwrBnd), x @ Variable(_)) => // a <= x
+      case LessEquals(RealLiteral(lwrBnd), x @ Variable(_)) => // a <= x
         recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newLo(lwrBnd)); e
       
-      case LessEquals(x @ Variable(_), RationalLiteral(uprBnd)) => // x <= b
+      case LessEquals(x @ Variable(_), RealLiteral(uprBnd)) => // x <= b
         recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newUp(uprBnd)); e
 
-      case LessThan(RationalLiteral(lwrBnd), x @ Variable(_)) => // a < x
+      case LessThan(RealLiteral(lwrBnd), x @ Variable(_)) => // a < x
         recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newLo(lwrBnd)); e
       
-      case LessThan(x @ Variable(_), RationalLiteral(uprBnd)) => // x < b
+      case LessThan(x @ Variable(_), RealLiteral(uprBnd)) => // x < b
         recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newUp(uprBnd)); e
       
-      case GreaterEquals(RationalLiteral(uprBnd), x @ Variable(_)) => // b >= x
+      case GreaterEquals(RealLiteral(uprBnd), x @ Variable(_)) => // b >= x
         recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newUp(uprBnd)); e
       
-      case GreaterEquals(x @ Variable(_), RationalLiteral(lwrBnd)) => // x >= a
+      case GreaterEquals(x @ Variable(_), RealLiteral(lwrBnd)) => // x >= a
         recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newLo(lwrBnd)); e
       
-      case GreaterThan(RationalLiteral(uprBnd), x @ Variable(_)) => // b > x
+      case GreaterThan(RealLiteral(uprBnd), x @ Variable(_)) => // b > x
         recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newUp(uprBnd)); e
       
-      case GreaterThan(x @ Variable(_), RationalLiteral(lwrBnd)) => // x > a
+      case GreaterThan(x @ Variable(_), RealLiteral(lwrBnd)) => // x > a
         recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newLo(lwrBnd)); e
       
-      case Noise(x @ Variable(_), RationalLiteral(value)) =>
+      case Noise(x @ Variable(_), RealLiteral(value)) =>
         recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newUncert(value)); e
 
       case Noise(_, _) =>
