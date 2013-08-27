@@ -712,13 +712,13 @@ trait CodeExtraction extends Extractors {
           }
         }
         case ExSqrt(e) => SqrtR(extractTree(e))
-        case ExPlusMinus(l, r) => Noise(extractTree(l), extractTree(r))
-          /*val rl = extractTree(l)
+        case ExPlusMinus(l, r) =>
+          val rl = extractTree(l)
           rl match {
             case Variable(_) | ResultVariable() => Noise(rl, extractTree(r))
             case _ =>
               unsupported(tr, "+/- only supported for variables")
-          }*/
+          }
         case ExActual(e) => Actual(extractTree(e))
           /*val re = extractTree(e)
           re match {
