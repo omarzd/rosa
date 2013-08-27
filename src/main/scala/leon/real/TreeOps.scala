@@ -353,7 +353,9 @@ object TreeOps {
       case LessEquals(_,_) | LessThan(_,_) | GreaterEquals(_,_) | GreaterThan(_,_) => e
 
       case FncValue(s) => FncValueF(s)
-      case FncBody(n, b) => FncBodyF(n, rec(b, path)) 
+      case FncBody(n, b) => FncBodyF(n, rec(b, path))
+      case FunctionInvocation(fundef, args) =>
+        FncInvocationF(fundef, args.map(a => rec(a, path)))
 
       case _ =>
         super.rec(e, path)

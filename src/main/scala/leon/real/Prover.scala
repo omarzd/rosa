@@ -37,7 +37,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
         // TODO: this we also don't need to do for all precisions each time
         // TODO: some combinations don't work: e.g. Uninterpreted & JustFloat
         val approximations = List(ApproxKind(Uninterpreted, Merging, Z3Only), 
-                                  ApproxKind(Uninterpreted, Merging, JustFloat))
+                                  ApproxKind(Inlining, Merging, JustFloat))
                                   //ApproxKind(Uninterpreted, Pathwise, JustFloat))
         
         // TODO: re-use some of the approximation work across precision?
@@ -178,7 +178,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
           // Hmm, this uses the same solver as the check...
           val transformer = new FloatApproximator(reporter, solver, precision, And(pre, path.condition), vc.variables)
           val (newBody, newSpec) = transformer.transformWithSpec(path.body)
-          spec = merge(spec, Option(newSpec))
+          spec = merge(spec, newSpec)
           if (verbose) println("body after approx: " + newBody)
           approx :+= And(And(pre, And(path.condition, newBody)), negate(post))
           sanity :+= And(pre, newBody)

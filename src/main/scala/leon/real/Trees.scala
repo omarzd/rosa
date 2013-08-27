@@ -407,6 +407,28 @@ object Trees {
       printer.ind(lvl+1)
       printer.pp(elze, lvl+1)
     }
+  }
+
+  case class FncInvocationF(funDef: FunDef, args: Seq[Expr]) extends Expr with FixedType with NAryExtractable with PrettyPrintable {
+    assert(funDef.returnType == RealType)
+    val fixedType = FloatType
+
+    //funDef.args.zip(args).foreach { case (a, c) => typeCheck(c, a.tpe) }
+
+    def extract: Option[(Seq[Expr], (Seq[Expr])=>Expr)] = {
+      Some((args, (es) => FncInvocationF(funDef, es)))
+    }
+
+    def printWith(lvl: Int, printer: PrettyPrinter) {
+      printer.append(funDef.id.name + "_f(")
+      (args.init).foreach(e => {
+        printer.pp(e, lvl)
+        printer.append(", ")
+      })
+      printer.pp(args.last,lvl)
+      printer.append(")")
+    }
+
 
   }
 

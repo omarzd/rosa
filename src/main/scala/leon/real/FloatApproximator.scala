@@ -60,11 +60,15 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
     case _ => path
   }
 
-  def transformWithSpec(e: Expr): (Expr, Spec) = {
+  def transformWithSpec(e: Expr): (Expr, Option[Spec]) = {
     val exprTransformed = this.transform(e)
-    val resXFloat = variables(FResVariable())
-    val spec = Spec(RationalInterval(resXFloat.realInterval.xlo, resXFloat.realInterval.xhi), resXFloat.maxError)
-    (exprTransformed, spec)
+    variables.get(FResVariable()) match {
+      case Some(resXFloat) =>
+        val spec = Spec(RationalInterval(resXFloat.realInterval.xlo, resXFloat.realInterval.xhi), resXFloat.maxError)
+        (exprTransformed, Some(spec))
+      case None =>
+        (exprTransformed, None)
+    }    
   }
 
   // TODO: overflow check

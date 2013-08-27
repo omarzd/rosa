@@ -46,98 +46,92 @@ class LeonToZ3Transformer(variables: VariablePool) extends TransformerWithPC {
       case Roundoff(v @ Variable(_)) =>
         val delta = getNewDelta
         addExtra(constrainDelta(delta))
-        Equals(variables.buddy(v), Times(Plus(new RealLiteral(1), delta), v))
+        Equals(variables.buddy(v), TimesR(PlusR(new RealLiteral(1), delta), v))
 
       case Noise(v @ Variable(_), r @ RealLiteral(value)) =>
         val freshErrorVar = getErrorVar(v)
-        And(Seq(Equals(variables.buddy(v), Plus(v, freshErrorVar)),
+        And(Seq(Equals(variables.buddy(v), PlusR(v, freshErrorVar)),
           LessEquals(RealLiteral(-value), freshErrorVar),
           LessEquals(freshErrorVar, r)))
       
       case Noise(res @ ResultVariable(), r @ RealLiteral(value)) =>
         val freshErrorVar = getErrorVar(res)
-        And(Seq(Equals(FResVariable(), Plus(res, freshErrorVar)),
+        And(Seq(Equals(FResVariable(), PlusR(res, freshErrorVar)),
           LessEquals(RealLiteral(-value), freshErrorVar),
           LessEquals(freshErrorVar, r)))
       case Noise(res @ FResVariable(), r @ RealLiteral(value)) =>
         val freshErrorVar = getErrorVar(res)
-        And(Seq(Equals(FResVariable(), Plus(res, freshErrorVar)),
+        And(Seq(Equals(FResVariable(), PlusR(res, freshErrorVar)),
           LessEquals(RealLiteral(-value), freshErrorVar),
           LessEquals(freshErrorVar, r)))
     
       case Noise(v @ Variable(_), expr) =>
         val freshErrorVar = getErrorVar(v)
         val value = rec(expr, path)
-        And(Seq(Equals(variables.buddy(v), Plus(v, freshErrorVar)),
+        And(Seq(Equals(variables.buddy(v), PlusR(v, freshErrorVar)),
           Or(
-            And(LessEquals(UMinus(value), freshErrorVar), LessEquals(freshErrorVar, value)),
-            And(LessEquals(value, freshErrorVar), LessEquals(freshErrorVar, UMinus(value)))
+            And(LessEquals(UMinusR(value), freshErrorVar), LessEquals(freshErrorVar, value)),
+            And(LessEquals(value, freshErrorVar), LessEquals(freshErrorVar, UMinusR(value)))
           )
         ))
       case Noise(res @ ResultVariable(), expr) =>
         val freshErrorVar = getErrorVar(res)
         val value = rec(expr, path)
-        And(Seq(Equals(FResVariable(), Plus(res, freshErrorVar)),
+        And(Seq(Equals(FResVariable(), PlusR(res, freshErrorVar)),
           Or(
-            And(LessEquals(UMinus(value), freshErrorVar), LessEquals(freshErrorVar, value)),
-            And(LessEquals(value, freshErrorVar), LessEquals(freshErrorVar, UMinus(value)))
+            And(LessEquals(UMinusR(value), freshErrorVar), LessEquals(freshErrorVar, value)),
+            And(LessEquals(value, freshErrorVar), LessEquals(freshErrorVar, UMinusR(value)))
           )
         ))
       case Noise(res @ FResVariable(), expr) =>
         val freshErrorVar = getErrorVar(res)
         val value = rec(expr, path)
-        And(Seq(Equals(FResVariable(), Plus(res, freshErrorVar)),
+        And(Seq(Equals(FResVariable(), PlusR(res, freshErrorVar)),
           Or(
-            And(LessEquals(UMinus(value), freshErrorVar), LessEquals(freshErrorVar, value)),
-            And(LessEquals(value, freshErrorVar), LessEquals(freshErrorVar, UMinus(value)))
+            And(LessEquals(UMinusR(value), freshErrorVar), LessEquals(freshErrorVar, value)),
+            And(LessEquals(value, freshErrorVar), LessEquals(freshErrorVar, UMinusR(value)))
           )
         ))
       
-      // translate real-valued arithmetic (makes the trees not typecheck, but we don't need to modify AbstractSolver)
-      case UMinusR(t) => UMinus(rec(t, path))
-      case PlusR(l, r) => Plus(rec(l, path), rec(r, path))
-      case MinusR(l, r) => Minus(rec(l, path), rec(r, path))
-      case TimesR(l, r) => Times(rec(l, path), rec(r, path))
-      case DivisionR(l, r) => Division(rec(l, path), rec(r, path))
       case SqrtR(x) =>
         val r = getNewSqrtVariable
         val xR = rec(x, path)
-        extraConstraints ++= Seq(Equals(Times(r, r), xR), LessEquals(RealLiteral(zero), r))
+        extraConstraints ++= Seq(Equals(TimesR(r, r), xR), LessEquals(RealLiteral(zero), r))
         r
 
       // floating-point arithmetic
-      case UMinusF(x) => UMinus(rec(x, path))
+      case UMinusF(x) => UMinusR(rec(x, path))
 
       case PlusF(x, y) =>
         val (mult, dlt) = getFreshRndoffMultiplier
         addExtra(constrainDelta(dlt))
-        Times(Plus(rec(x, path), rec(y, path)), mult)
+        TimesR(PlusR(rec(x, path), rec(y, path)), mult)
       case MinusF(x, y) =>
         val (mult, dlt) = getFreshRndoffMultiplier
         addExtra(constrainDelta(dlt))
-        Times(Minus(rec(x, path), rec(y, path)), mult)
+        TimesR(MinusR(rec(x, path), rec(y, path)), mult)
       case TimesF(x, y) =>
         val (mult, dlt) = getFreshRndoffMultiplier
         addExtra(constrainDelta(dlt))
-        Times(Times(rec(x, path), rec(y, path)), mult)
+        TimesR(TimesR(rec(x, path), rec(y, path)), mult)
       case DivisionF(x, y) =>
         val (mult, dlt) = getFreshRndoffMultiplier
         addExtra(constrainDelta(dlt))
-        Times(Division(rec(x, path), rec(y, path)), mult)
+        TimesR(DivisionR(rec(x, path), rec(y, path)), mult)
       case SqrtF(x) =>
         val n = getNewSqrtVariable
         val (mult, dlt) = getFreshRndoffMultiplier
         addExtra(constrainDelta(dlt))
         val xN = rec(x, path)
-        extraConstraints ++= Seq(Equals(Times(n, n), xN), LessEquals(RealLiteral(zero), n))
-        Times(n, mult)
+        extraConstraints ++= Seq(Equals(TimesR(n, n), xN), LessEquals(RealLiteral(zero), n))
+        TimesR(n, mult)
 
       case r @ FloatLiteral(v, exact) =>
         if (exact) RealLiteral(v)
         else {
           val (mult, dlt) = getFreshRndoffMultiplier
           addExtra(constrainDelta(dlt))
-          Times(RealLiteral(v), mult)
+          TimesR(RealLiteral(v), mult)
         }
 
       // actual
@@ -145,8 +139,8 @@ class LeonToZ3Transformer(variables: VariablePool) extends TransformerWithPC {
       case Actual(ResultVariable()) => FResVariable()
 
       //within
-      case WithIn(v @ Variable(_), lwrBnd, upBnd) =>
-        And(LessThan(RealLiteral(lwrBnd), v), LessThan(v, RealLiteral(upBnd))) 
+      case WithIn(x, lwrBnd, upBnd) =>
+        And(LessThan(RealLiteral(lwrBnd), x), LessThan(x, RealLiteral(upBnd))) 
 
       case FncValue(s) =>
         val fresh = getNewXFloatVar
@@ -167,6 +161,9 @@ class LeonToZ3Transformer(variables: VariablePool) extends TransformerWithPC {
 
       case FloatIfExpr(cond, thenn, elze) =>
         rec(IfExpr(cond, thenn, elze), path)
+
+      case FncInvocationF(funDef, args) =>
+        FunctionInvocation(funDef, args.map(a => rec(a, path)))
 
       case _ =>
         super.rec(e, path)
