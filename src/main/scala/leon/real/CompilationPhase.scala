@@ -195,4 +195,18 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
     case DoubleDouble => FloatDDType
     case QuadDouble => FloatQDType
   }
+
+  /*
+  class AssertionRemover extends TransformerWithPC {
+    type C = Seq[Expr]
+    val initC = Nil
+
+    def register(e: Expr, path: C) = path :+ e
+
+    override def rec(e: Expr, path: C) = e match {
+      case Assertion(expr) => True
+      case _ =>
+        super.rec(e, path)
+    }
+  }*/
 }

@@ -413,8 +413,6 @@ object Trees {
     assert(funDef.returnType == RealType)
     val fixedType = RealType
 
-    //funDef.args.zip(args).foreach { case (a, c) => typeCheck(c, a.tpe) }
-
     def extract: Option[(Seq[Expr], (Seq[Expr])=>Expr)] = {
       Some((args, (es) => FncInvocationF(funDef, es)))
     }

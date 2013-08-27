@@ -10,7 +10,6 @@ import Rational._
 import XRationalForm._
 import RationalAffineUtils._
 import Precision._
-import real.Utils._
 import VariableShop._
 
 import collection.mutable.Queue

@@ -21,6 +21,11 @@ package object real {
 
   case class Approximation(kind: ApproxKind, cnstrs: Seq[Expr], sanityChecks: Seq[Expr], spec: Option[Spec])
 
+  def formatOption[T](res: Option[T]): String = res match {
+    case Some(xf) => xf.toString
+    case None => " -- "
+  }
+
   object Precision extends Enumeration {
     type Precision = Value
     val Float64 = Value("Float64")
@@ -82,12 +87,10 @@ package object real {
     val FloatNRange = Value("Float'n'Range") // also replace the real with an approx. of the range
   }
 
-  // TODO: remove these?
   object Sat extends Enumeration {
     type Sat = Value
     val SAT = Value("SAT")
     val UNSAT = Value("UNSAT")
     val Unknown = Value("Unknown")
   }
-
 }

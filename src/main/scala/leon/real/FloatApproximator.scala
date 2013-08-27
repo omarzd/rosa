@@ -71,19 +71,15 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
     }    
   }
 
-  // TODO: overflow check
   override def rec(e: Expr, path: C) =  {
     def getXFloat(e: Expr): XFloat = e match {
       case ApproxNode(x) => x
       case FloatLiteral(r, exact) => addCondition(XFloat(r, config), path)
-      case v: Variable =>
-        //println("looking up variable from: " + variables.keySet)
-        addCondition(variables(v), path)
+      case v: Variable => addCondition(variables(v), path)
       case And(args) => getXFloat(args.last)
     }
 
-    //println("\n rec: " + e + "   with path: " + path)
-    e match {
+    val newExpr = e match {
       case EqualsF(lhs, rhs) =>
         val x = getXFloat(rec(rhs, path))
         variables = variables + (lhs -> x)
@@ -136,25 +132,27 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
         ApproxNode(mergeXFloatWithExtraError(thenBranch, elseBranch, And(path), pathError))
 
       case FncValueF(spec) =>
-        //println("spec: " + spec)
         val (interval, error, constraints) = getResultSpec(spec)
-        //println(interval + "   , " + error + "    , " + constraints)
         val fresh = getNewXFloatVar
 
         val tmp = ApproxNode(xFloatWithUncertain(fresh, interval,
           config.addCondition(replace(Map(ResultVariable() -> fresh), leonToZ3.getZ3Condition(noiseRemover.transform(spec)))),
           error, false)._1)
-        //println("xfloat: " + tmp)
         tmp
 
       case FncBodyF(name, body) =>
         val fncValue = rec(body, path)
-        println("fncValue: " + fncValue)
         ApproxNode(getXFloat(fncValue))
 
       case _ =>
         super.rec(e, path)
     }
+    newExpr match {
+      case ApproxNode(x) if (overflowPossible(x.interval)) =>
+        reporter.warning("Possible overflow detected at: " + newExpr)
+      case _ =>
+    }
+    newExpr
   }
 
 
@@ -196,69 +194,13 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
     And(LessEquals(RealLiteral(i.xlo), v), LessEquals(v, RealLiteral(i.xhi)))
   }
   
-  /*case FunctionInvocation(funDef, args) =>
-        // Evaluate the function, i.e. compute the postcondition and inline it
-      println("function call: " + funDef.id.toString)
-      /*val fresh = getNewFncVariable(funDef.id.name)
-      val arguments: Map[Expr, Expr] = funDef.args.map(decl => decl.toVariable).zip(args).toMap
-      val newBody = replace(arguments, vcMap(funDef).body)
-      val vals = inXFloats(reporter, newBody, vars, config)
-      val result = vals._1(ResultVariable())
-      val newXFloat = compactXFloat(result, fresh)
-      newXFloat*/
-
-      //In this version we inline the postcondition instead
-      val fresh = getNewFncVariable(funDef.id.name)
-      val arguments: Map[Expr, Expr] = funDef.args.map(decl => decl.toVariable).zip(args).toMap
-
-      val firstChoice = funDef.postcondition
-      val secondChoice = vcMap(funDef).generatedPost
-      val post = firstChoice match {
-        case Some(post) if (postComplete.check(post)) => Some(post)
-        case _ => secondChoice match {
-          case Some(post) if (postComplete.check(post)) => Some(post)
-          case _ => None
-        }
-      }
-      println("post: " + post)
-      // there is no body to evaluate, but a new XFloat
-      // Basically, we have to construct the new XFloat from the postcondition
-      post match {
-        case Some(p) =>
-          val freshCondition = replace(arguments, p)
-          resultCollector.getResultWithExpr(freshCondition) match {
-            case Some((lo, hi, errorExpr)) =>
-              println("errorExpr found: " + errorExpr)
-              val newInt = RationalInterval(lo, hi)
-              val newError = evalErrorExpr(errorExpr, vars)
-              println("error evaluated: " + newError)
-              val newConfig = config.addCondition(rangeConstraint(fresh, newInt))
-              val xf = xFloatWithUncertain(fresh, newInt, newConfig, newError, false)._1
-              println("returning: " + xf)
-              xf
-            case None =>
-              throw UnsupportedFragmentException("Incomplete postcondition for: " + expr)
-              null
-          }
-        case None =>
-          throw UnsupportedFragmentException("Incomplete postcondition for: " + expr)
-          null
-      }
-    */
-   /* case _ => // FIXME: why don't we handle the two failures in the same way?
-      throw UnsupportedRealFragmentException("XFloat cannot handle: " + expr)
-      null
-    }
-    if (overflowPossible(xfloat.interval))
-      reporter.warning("Possible overflow detected at: " + expr)
-
-      /*if (formulaSize(xfloat.tree) > compactingThreshold) {
-        reporter.warning("compacting, size: " + formulaSize(xfloat.tree))
-        val fresh = getNewXFloatVar
-        compactXFloat(xfloat, fresh)
-      } else {*/
-        xfloat
-      //}
+  
+ /*if (formulaSize(xfloat.tree) > compactingThreshold) {
+    reporter.warning("compacting, size: " + formulaSize(xfloat.tree))
+    val fresh = getNewXFloatVar
+    compactXFloat(xfloat, fresh)
+  } else {
+    xfloat
   }*/
 
   private def constraintFromXFloats(results: Map[Expr, XFloat]): Expr = {
@@ -297,68 +239,6 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
 }
 
 
-
-  /*private def inXFloats(expr: Expr, vars: Map[Expr, XFloat], config: XFloatConfig): (Map[Expr, XFloat], Option[XFloat]) = {
-    expr match {
-      case And(args) =>
-        var currentVars: Map[Expr, XFloat] = vars
-        var lastXf: Option[XFloat] = None
-        for (arg <- args) {
-          val (map, xf) = inXFloats(arg, currentVars, config)
-          lastXf = xf
-          currentVars = map
-          (currentVars, lastXf)
-        }
-        (currentVars, lastXf)
-
-      case Equals(variable, value) =>
-        val (map, computedValue) = inXFloats(value, vars, config)
-        (vars + (variable -> computedValue.get), None)
-
-      /*case IfExpr(cond, then, elze) =>
-        // Errors and ranges from the two branches
-        val thenConfig = config.addCondition(cond)
-        val elzeConfig = config.addCondition(negate(cond))
-        val (thenMap, thenValue) =
-          if (sanityCheck(thenConfig.getCondition)) inXFloats(reporter, then, addConditionToInputs(vars, cond), thenConfig)
-          else (vars, None)
-        val (elzeMap, elzeValue) =
-          if (sanityCheck(elzeConfig.getCondition))
-            inXFloats(reporter, elze, addConditionToInputs(vars, negate(cond)), elzeConfig)
-          else (vars, None)
-        assert(!thenValue.isEmpty || !elzeValue.isEmpty)
-        println("thenValue: " + thenValue)
-        println("elzeValue: " + elzeValue)
-        
-        val pathError = if (checkPathError) {
-          // When the actual computation goes a different way than the real one
-          val (flCond1, reCond1) = getDiffPathsConditions(cond, vars, config)
-          println("cond1: " + flCond1)
-          val (flCond2, reCond2) = getDiffPathsConditions(negate(cond), vars, config)
-          println("cond2: " + flCond2)
-
-          val pathErrorThen = getPathError(elze, And(flCond1, negate(cond)), then, And(cond, reCond1), vars, config)
-          println("pathError1: %.16g".format(pathErrorThen.toDouble))
-
-          val pathErrorElze = getPathError(then, And(flCond2, cond), elze, And(negate(cond), reCond2), vars, config)
-          println("pathError2: %.16g".format(pathErrorElze.toDouble))
-          max(pathErrorThen, pathErrorElze)
-        } else {
-          zero
-        }
-        (vars, Some(mergeXFloatWithExtraError(thenValue, elzeValue, config, pathError)).get)
-      */
-
-      case Variable(_) | RationalLiteral(_) | UMinusF(_) | PlusF(_, _) | MinusF(_, _) | TimesF(_, _) | //IntLiteral(_) | 
-        DivisionF(_, _) | SqrtF(_) | FunctionInvocation(_, _) =>
-        (vars, Some(evalArith(expr, vars, config)))
-
-      case BooleanLiteral(true) => (vars, None)
-      case _ =>
-        reporter.error("Xfloat cannot handle: " + expr)
-        (Map.empty, None)
-    }
-  }*/
 
   /* ---------------------
       Error across paths

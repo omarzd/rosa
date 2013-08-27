@@ -41,7 +41,6 @@ class LeonToZ3Transformer(variables: VariablePool) extends TransformerWithPC {
       And(Seq(LessEquals(UMinus(machineEps), delta), LessEquals(delta, machineEps)))
     }
 
-    // TODO: does not include initial roundoff
     override def rec(e: Expr, path: C) = e match {
       case Roundoff(v @ Variable(_)) =>
         val delta = getNewDelta
@@ -169,9 +168,6 @@ class LeonToZ3Transformer(variables: VariablePool) extends TransformerWithPC {
         val newArgs = args.map(a => rec(a, path))
         newArgs.foreach(a => println("arg: " + a + "  type: " + a.getType + "   " + a.getClass))
         FunctionInvocation(funDef, args.map(a => rec(a, path)))
-
-      //case v @ Variable(id) if (v.getType == FloatType) =>
-      //  Variable(id).setType(RealType)
 
       case _ =>
         super.rec(e, path)

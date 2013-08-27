@@ -126,7 +126,6 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
   }
 
   // DOC: we only support function calls in fnc bodies, not in pre and post
-  // TODO: roundoff (adding default roundoff at the beginning and such)
   def getApproximation(vc: VerificationCondition, kind: ApproxKind, precision: Precision): Approximation = {
     val postInliner = new PostconditionInliner
     val fncInliner = new FunctionInliner(fncs)

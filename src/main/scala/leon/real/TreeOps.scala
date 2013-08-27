@@ -65,8 +65,6 @@ object TreeOps {
   }
 
   case class PartialPath(condition: Expr, expression: Seq[Expr]) {
-    //var feasible = true //until further notice
-
     def addCondition(c: Expr): PartialPath =
       PartialPath(And(condition, c), expression)
 
@@ -524,4 +522,42 @@ object TreeOps {
     res
   } // end simplify arithmetic
 
+
+  /*
+  // Convenience for readability of printouts
+  class DeltaRemover extends TransformerWithPC {
+    type C = Seq[Expr]
+    val initC = Nil
+
+    def register(e: Expr, path: C) = path :+ e
+
+    override def rec(e: Expr, path: C) = e match {
+      case LessEquals(Variable(id1), Variable(id2)) if (id1.toString.contains("#delta_") && id2.toString == "#eps") =>
+        True
+      case LessEquals(UMinus(Variable(id1)), Variable(id2)) if (id1.toString == "#eps" && id2.toString.contains("#delta_")) =>
+        True
+      case _ =>
+        super.rec(e, path)
+    }
+  }
+
+  class BoundsConverter(eps2: Variable, offset: Variable) extends TransformerWithPC {
+    type C = Seq[Expr]
+    val initC = Nil
+
+    def register(e: Expr, path: C) = path :+ e
+
+    override def rec(e: Expr, path: C) = e match {
+      case LessEquals(UMinus(eps), delta) if (eps.toString == "#eps") => LessThan(UMinus(eps2), delta)
+      case LessEquals(delta, eps) if (eps.toString == "#eps") => LessThan(delta, eps2)
+      case Equals(eps, machineEps) if (eps.toString == "#eps") => Equals(eps2, machineEps)
+
+      case LessEquals(r @ RationalLiteral(v), x) => LessThan(Minus(r, offset), x)
+      case GreaterEquals(x, r @ RationalLiteral(v)) => GreaterThan(x, Minus(r, offset))
+      case LessEquals(x, y) => LessThan(x, Plus(y, offset))
+      case GreaterEquals(x, y) => GreaterThan(Plus(x, offset), y)
+      case _ =>
+        super.rec(e, path)
+    }
+  }*/
 }

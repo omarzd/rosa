@@ -10,9 +10,7 @@ import leon.purescala.Trees._
 import purescala.TreeOps._
 
 import real.Trees._
-import real.Utils._
 
-// TODO: deal with roundoff, do we always add it, or just of no uncertainty is specified?
 case class Record(ideal: Expr, actual: Expr, lo: Option[Rational], up: Option[Rational], uncertainty: Option[Rational]) {
   def newLo(n: Rational): Record = Record(ideal, actual, Some(n), up, uncertainty)
   def newUp(n: Rational): Record = Record(ideal, actual, lo, Some(n), uncertainty)
