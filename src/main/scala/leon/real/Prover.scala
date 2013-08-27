@@ -38,6 +38,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
         // TODO: some combinations don't work: e.g. Uninterpreted & JustFloat
         val approximations = List(ApproxKind(Uninterpreted, Merging, Z3Only), 
                                   ApproxKind(Uninterpreted, Merging, JustFloat))
+                                  //ApproxKind(Uninterpreted, Pathwise, JustFloat))
         
         // TODO: re-use some of the approximation work across precision?
         approximations.find(aKind => {
@@ -101,11 +102,11 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
     val transformer = new LeonToZ3Transformer(variables)
     var valid: Option[Boolean] = Some(true)
 
-    for ((constraint, sanityExpr) <- app.cnstrs.zip(app.sanityChecks)) {
+    for (((constraint, sanityExpr), index) <- app.cnstrs.zip(app.sanityChecks).view.zipWithIndex) {
       //println("constraint: " + constraint)
 
       val z3constraint = massageArithmetic(transformer.getZ3Expr(constraint, precision))
-      if (verbose) println("\n z3constraint: " + z3constraint)
+      if (verbose) println("\n z3constraint ("+index+"): " + z3constraint)
 
       if (reporter.errorCount == 0 && sanityCheck(transformer.getZ3Expr(sanityExpr, precision)))
         solver.checkSat(z3constraint) match {
@@ -155,7 +156,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
           postFnc )
     }
     if (verbose)
-      println("\nafter PATH handling:\npre: %s\nbody: %s\npost: %s".format(pre,body,post))
+      println("\nafter PATH handling:\npre: %s\nbody: %s\npost: %s".format(pre,body.mkString("\n"),post))
 
     
     kind.arithmApprox match {

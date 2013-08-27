@@ -8,7 +8,7 @@ object IfThenElse {
     require(x >< (0, 5) && x +/- 1e-5)
     if(x <= 0.2) x
     else 2 * x
-  } ensuring( res => res <= 10.0 && res +/- 1e-4)
+  } ensuring(res => res <= 10.0 && res +/- 1e-4)
 
 
   def f2(x: Real): Real = {
@@ -32,6 +32,8 @@ object IfThenElse {
     if(x * x <= 0) {
       if(y <= 5.4) {
         x * x + y
+      } else {
+        x / y
       }
     } else {
       x / y
@@ -43,12 +45,14 @@ object IfThenElse {
     val z = if(x * x <= 0) {
       if(y <= 5.4) {
         x * x + y
+      } else {
+        x / y
       }
     } else {
       x / y
     }
     z * z
-  }
+  } ensuring(res => res +/- 1e-6)
 
   def f6(x: Real, y: Real): Real = {
     require(x >< (-2.2, 2.3) && y >< (3.5, 7.5))
@@ -58,8 +62,9 @@ object IfThenElse {
         -w
       else 2 * w
     } else {
-      x / y
+      val w = x / y
+      w * w
     }
     z * z
-  }  
+  } ensuring(res => res +/- 1e-6)  
 }

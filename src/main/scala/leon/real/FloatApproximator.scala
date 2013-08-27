@@ -72,20 +72,27 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
     def getXFloat(e: Expr): XFloat = e match {
       case ApproxNode(x) => x
       case FloatLiteral(r, exact) => addCondition(XFloat(r, config), path)
-      case v: Variable => addCondition(variables(v), path)
+      case v: Variable =>
+        //println("looking up variable from: " + variables.keySet)
+        addCondition(variables(v), path)
+      case And(args) => getXFloat(args.last)
     }
 
     //println("\n rec: " + e + "   with path: " + path)
     e match {
-      case Equals(lhs, rhs) => 
-        if (rhs.getType == FloatType) {
-          val x = getXFloat(rec(rhs, path))
-          variables = variables + (lhs -> x)
-          constraintFromXFloats(Map(lhs -> x))
-        } else {
-          Equals(rec(lhs, path), rec(rhs, path))
-        }
-      
+      case Equals(lhs, rhs) if (lhs.getType == FloatType) =>
+        //println("***** equals: " + e)
+        val rightSide = rec(rhs, path)
+        //println("right side: " + rightSide)
+        val x = getXFloat(rightSide)
+        variables = variables + (lhs -> x)
+        constraintFromXFloats(Map(lhs -> x))
+
+      case Equals(lhs, rhs) =>
+        //print("other equals: " + e)
+        //println("type: " + lhs.getType)
+        Equals(rec(lhs, path), rec(rhs, path))
+
       case UMinusF(t) => ApproxNode(-getXFloat(rec(t, path)))
       case PlusF(lhs, rhs) =>
         ApproxNode(getXFloat(rec(lhs, path)) + getXFloat(rec(rhs, path)))
@@ -103,7 +110,7 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
         if (possiblyNegative(x.interval)) reporter.warning("Potential sqrt of negative detected: " + e)
         ApproxNode(x.squareRoot)    
         
-      case ifThen @ IfExpr(cond, den, elze) if (ifThen.getType == FloatType) =>
+      case FloatIfExpr(cond, den, elze) =>
         val thenBranch =
           if (isFeasible(path :+ cond)) Some(getXFloat(rec(den, register(cond, path))))
           else None
@@ -139,7 +146,7 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
         val fresh = getNewXFloatVar
 
         val tmp = ApproxNode(xFloatWithUncertain(fresh, interval,
-          config.addCondition(replace(Map(ResultVariable() -> fresh), noiseRemover.transform(spec))),
+          config.addCondition(replace(Map(ResultVariable() -> fresh), leonToZ3.getZ3Condition(noiseRemover.transform(spec)))),
           error, false)._1)
         //println("xfloat: " + tmp)
         tmp
@@ -162,14 +169,14 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
       val newInt = x1.realInterval.union(x2.realInterval)
       val newError = max(max(x1.maxError, x2.maxError), pathError)
       val fresh = getNewXFloatVar
-      val newConfig = config.addCondition(And(condition, rangeConstraint(fresh, newInt)))
+      val newConfig = config.addCondition(leonToZ3.getZ3Condition(And(condition, rangeConstraint(fresh, newInt))))
       xFloatWithUncertain(fresh, newInt, newConfig, newError, false)._1
     case (Some(x1), None) =>
       if (pathError != zero) {
         val newError = max(x1.maxError, pathError)
         val newInt = x1.realInterval
         val fresh = getNewXFloatVar
-        val newConfig = config.addCondition(And(condition, rangeConstraint(fresh, newInt)))
+        val newConfig = config.addCondition(leonToZ3.getZ3Condition(And(condition, rangeConstraint(fresh, newInt))))
         xFloatWithUncertain(fresh, newInt, newConfig, newError, false)._1
       } else
         x1
@@ -178,7 +185,7 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
         val newError = max(x2.maxError, pathError)
         val newInt = x2.realInterval
         val fresh = getNewXFloatVar
-        val newConfig = config.addCondition(And(condition, rangeConstraint(fresh, newInt)))
+        val newConfig = config.addCondition(leonToZ3.getZ3Condition(And(condition, rangeConstraint(fresh, newInt))))
         xFloatWithUncertain(fresh, newInt, newConfig, newError, false)._1
       } else
         x2
@@ -276,14 +283,14 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
 
   private def addCondition(v: XFloat, cond: Seq[Expr]): XFloat = {
     if (cond.size > 0)
-      new XFloat(v.tree, v.approxInterval, v.error, v.config.addCondition(And(cond)))
+      new XFloat(v.tree, v.approxInterval, v.error, v.config.addCondition(leonToZ3.getZ3Condition(And(cond))))
     else
       v
   }
 
   private def isFeasible(pre: Seq[Expr]): Boolean = {
     import Sat._
-    solver.checkSat(And(pre)) match {
+    solver.checkSat(leonToZ3.getZ3Expr(And(pre), precision)) match {
       case (SAT, model) => true
       case (UNSAT, model) => false
       case _ =>

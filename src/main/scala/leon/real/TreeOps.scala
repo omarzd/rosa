@@ -347,6 +347,7 @@ object TreeOps {
       case v: Variable => variables.buddy(v)
       case ResultVariable() => FResVariable()
       case RealLiteral(r) => new FloatLiteral(r)
+      case IfExpr(cond, thenn, elze) => FloatIfExpr(rec(cond, path), rec(thenn, path), rec(elze, path))
 
       // leave conditions on if-then-else in reals
       case LessEquals(_,_) | LessThan(_,_) | GreaterEquals(_,_) | GreaterThan(_,_) => e

@@ -165,8 +165,19 @@ class LeonToZ3Transformer(variables: VariablePool) extends TransformerWithPC {
         addExtra(Equals(fresh, rec(body, path)))
         fresh
 
+      case FloatIfExpr(cond, thenn, elze) =>
+        rec(IfExpr(cond, thenn, elze), path)
+
       case _ =>
         super.rec(e, path)
+    }
+
+    // shortcut to avoid making res variables that are never used
+    // this is used for path conditions only
+    def getZ3Condition(e: Expr): Expr = {
+      extraConstraints = Seq[Expr]()
+      val z3Expr = this.transform(e)
+      And(And(extraConstraints), z3Expr)
     }
 
     def getZ3Expr(e: Expr, precision: Precision): Expr = {

@@ -388,4 +388,27 @@ object Trees {
     }
   }
 
+  case class FloatIfExpr(cond: Expr, thenn: Expr, elze: Expr) extends Expr with FixedType with NAryExtractable with PrettyPrintable {
+    val fixedType = leastUpperBound(thenn.getType, elze.getType).getOrElse(AnyType)
+
+    def extract: Option[(Seq[Expr], (Seq[Expr])=>Expr)] = {
+      Some((Seq(cond, thenn, elze), (es) => FloatIfExpr(es(0), es(1), es(2))))
+    }
+
+    def printWith(lvl: Int, printer: PrettyPrinter) {
+      printer.append("iff (")
+      printer.pp(cond, lvl)
+      printer.append(")\n")
+      printer.ind(lvl+1)
+      printer.pp(thenn, lvl+1)
+      printer.append("\n")
+      printer.ind(lvl)
+      printer.append("elsse\n")
+      printer.ind(lvl+1)
+      printer.pp(elze, lvl+1)
+    }
+
+  }
+
+
 }
