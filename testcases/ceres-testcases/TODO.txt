@@ -1,2 +1,0 @@
-- integration and differentiation benchmarks
-- ODE benchmarks

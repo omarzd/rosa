@@ -9,28 +9,28 @@ import Real._
 */
 object Bsplines {
 
-  def bspline0(u: Real): (Real, Real) = {
-    require(u >< (0.0, 1.0) && u +/- 1e-9)
-  
-    assert(u * sqrt(u) <= 0.5)
-  
-    ((1 - u) * (1 - u) * (1 - u)/6.0, u*u)
-
-  } ensuring ( res => -0.05 <= ~res._1 && ~res._1 <= 0.17 && res._2 +/- 1e-15)
+  def bspline0(u: Real): Real = {
+    require(0 <= u && u <= 1)
+    (1 - u) * (1 - u) * (1 - u) / 6.0
+  } ensuring (res => 0 <= res && res <= 0.17 && noise(res, 1e-15))
+  // proven in paper: [-0.05, 0.17]
   
   def bspline1(u: Real): Real = {
-    require(u >< (0, 1))
+    require(0 <= u && u <= 1)
     (3 * u*u*u - 6 * u*u + 4) / 6.0
-  } ensuring (res => -0.05 <= res && res <= 0.98 && res +/- 1e-15)
-  
+  } ensuring (res => 0.16 <= res && res <= 0.7 && noise(res, 1e-15))
+  // in paper [-0.05, 0.98]
+
   def bspline2(u: Real): Real = {
     require(0 <= u && u <= 1)
     (-3 * u*u*u  + 3*u*u + 3*u + 1) / 6.0
-  } ensuring (res => -0.02 <= res && res <= 0.89 && res +/- 1e-15)
+  } ensuring (res => 0.16 <= res && res <= 0.7 && noise(res, 1e-15))
+  // in paper [-0.02, 0.89]
 
   def bspline3(u: Real): Real = {
     require(0 <= u && u <= 1)
     -u*u*u / 6.0
-  } ensuring (res => -0.17 <= res && res <= 0.05 && res +/- 1e-15)
-  
+  } ensuring (res => -0.17 <= res && res <= 0.0 && noise(res, 1e-15))
+  // in paper [-0.17, 0.05]
+
 }
