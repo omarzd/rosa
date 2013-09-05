@@ -7,8 +7,6 @@ import leon.purescala.Trees._
 import leon.purescala.Definitions._
 import leon.purescala.Common._
 
-import Precision._
-
 
 case class Spec(bounds: RationalInterval, absError: Rational)
 

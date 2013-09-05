@@ -16,8 +16,6 @@ import xlang.Trees._
 
 import real.Trees._
 import real.TreeOps._
-
-import Precision._
 import VCKind._
 
 
@@ -58,10 +56,13 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
         case "doubledouble" => List(DoubleDouble)
         case "quaddouble" => List(QuadDouble)
         case "all" => List(Float32, Float64, DoubleDouble, QuadDouble)
+        case x => List(FPPrecision(x.toInt))
       }
       case _ =>
     }
-    
+
+    println("options: " + options)
+
     val fncsToAnalyse  = 
       if(fncNamesToAnalyse.isEmpty) program.definedFunctions
       else {

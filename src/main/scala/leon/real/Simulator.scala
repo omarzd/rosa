@@ -9,7 +9,6 @@ import purescala.Definitions._
 import ceres.common.{Interval, EmptyInterval, NormalInterval}
 
 import real.Trees._
-import Precision._
 
 class Simulator(reporter: Reporter) {
 
@@ -28,6 +27,7 @@ class Simulator(reporter: Reporter) {
     val (maxRoundoff, resInterval) = precision match {
       case Float32 => runFloatSimulation(inputs, body)
       case Float64 => runDoubleSimulation(inputs, body)
+      case _=> reporter.warning("Cannot handle this precision: " + precision)
     }
     //val (maxRoundoff, resInterval) = (0.0, Interval(0.0) )
 

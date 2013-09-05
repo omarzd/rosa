@@ -8,7 +8,6 @@ import purescala.Definitions._
 import purescala.TreeOps._
 
 import real.TreeOps._
-import Precision._
 import Sat._
 import FncHandling._
 import ArithmApprox._

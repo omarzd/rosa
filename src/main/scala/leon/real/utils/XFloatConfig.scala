@@ -5,8 +5,6 @@ package real
 
 import purescala.Trees._
 import purescala.TreeOps._
-import Precision._
-
 
 
 case class XFloatConfig(solver: RealSolver, precondition: Expr, precision: Precision,

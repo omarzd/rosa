@@ -10,14 +10,13 @@ import purescala.TypeTrees._
 import real.Trees._
 import real.TreeOps._
 import XFloat._
-import Precision._
 import Rational._
 import VariableShop._
 
 object FloatApproximator {
 
   // Just so we have it somewhere, not tested
-  def evalWithError(reporter: Reporter, solver: RealSolver, precision: Precision, expr: Expr, precondition: Expr, inputs: VariablePool): Map[Expr, XFloat] = {
+  def evalWithError(reporter: Reporter, solver: RealSolver, precision: Precision, expr: Expr, precondition: Expr, inputs: VariablePool): Map[Expr, XReal] = {
     //val config = XFloatConfig(reporter, solver, precondition, options.defaultPrecision, getUnitRoundoff(options.defaultPrecision),
     //  solverMaxIterMedium, solverPrecisionMedium)
 
@@ -49,7 +48,7 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
 
   if (verboseLocal) println("initial config: " + config)
 
-  var variables: Map[Expr, XFloat] = variables2xfloats(inputs, config)._1
+  var variables: Map[Expr, XReal] = variables2xfloats(inputs, config)._1
 
   if (verboseLocal) println("initial variables: " + variables)
   
@@ -72,43 +71,43 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
   }
 
   override def rec(e: Expr, path: C) =  {
-    def getXFloat(e: Expr): XFloat = e match {
+    def getXReal(e: Expr): XReal = e match {
       case ApproxNode(x) => x
       case FloatLiteral(r, exact) => addCondition(XFloat(r, config), path)
       case v: Variable => addCondition(variables(v), path)
-      case And(args) => getXFloat(args.last)
+      case And(args) => getXReal(args.last)
     }
 
     val newExpr = e match {
       case EqualsF(lhs, rhs) =>
-        val x = getXFloat(rec(rhs, path))
+        val x = getXReal(rec(rhs, path))
         variables = variables + (lhs -> x)
         constraintFromXFloats(Map(lhs -> x))
 
-      case UMinusF(t) => ApproxNode(-getXFloat(rec(t, path)))
+      case UMinusF(t) => ApproxNode(-getXReal(rec(t, path)))
       case PlusF(lhs, rhs) =>
-        ApproxNode(getXFloat(rec(lhs, path)) + getXFloat(rec(rhs, path)))
+        ApproxNode(getXReal(rec(lhs, path)) + getXReal(rec(rhs, path)))
       case MinusF(lhs, rhs) =>
-        ApproxNode(getXFloat(rec(lhs, path)) - getXFloat(rec(rhs, path)))
+        ApproxNode(getXReal(rec(lhs, path)) - getXReal(rec(rhs, path)))
       case TimesF(lhs, rhs) =>
-        ApproxNode(getXFloat(rec(lhs, path)) * getXFloat(rec(rhs, path)))
+        ApproxNode(getXReal(rec(lhs, path)) * getXReal(rec(rhs, path)))
       case DivisionF(lhs, rhs) =>
-        val r = getXFloat(rec(rhs, path))
+        val r = getXReal(rec(rhs, path))
         if (possiblyZero(r.interval)) reporter.warning("Potential div-by-zero detected: " + e)
-        ApproxNode(getXFloat(rec(lhs, path)) / r)
+        ApproxNode(getXReal(rec(lhs, path)) / r)
         
       case SqrtF(t) =>
-        val x = getXFloat(rec(t, path))
+        val x = getXReal(rec(t, path))
         if (possiblyNegative(x.interval)) reporter.warning("Potential sqrt of negative detected: " + e)
         ApproxNode(x.squareRoot)    
         
       case FloatIfExpr(cond, den, elze) =>
         val thenBranch =
-          if (isFeasible(path :+ cond)) Some(getXFloat(rec(den, register(cond, path))))
+          if (isFeasible(path :+ cond)) Some(getXReal(rec(den, register(cond, path))))
           else None
 
         val elseBranch =
-          if (isFeasible(path :+ negate(cond))) Some(getXFloat(rec(elze, register(cond, path))))
+          if (isFeasible(path :+ negate(cond))) Some(getXReal(rec(elze, register(cond, path))))
           else None
         assert(!thenBranch.isEmpty || !elseBranch.isEmpty)
         
@@ -129,7 +128,7 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
         } else {*/
         val pathError = zero
           //}
-        ApproxNode(mergeXFloatWithExtraError(thenBranch, elseBranch, And(path), pathError))
+        ApproxNode(mergeXRealWithExtraError(thenBranch, elseBranch, And(path), pathError))
 
       case FncValueF(spec) =>
         val (interval, error, constraints) = getResultSpec(spec)
@@ -142,7 +141,7 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
 
       case FncBodyF(name, body) =>
         val fncValue = rec(body, path)
-        ApproxNode(getXFloat(fncValue))
+        ApproxNode(getXReal(fncValue))
 
       case _ =>
         super.rec(e, path)
@@ -157,8 +156,8 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
 
 
   
-  private def mergeXFloatWithExtraError(one: Option[XFloat], two: Option[XFloat], condition: Expr,
-    pathError: Rational): XFloat = (one, two) match {
+  private def mergeXRealWithExtraError(one: Option[XReal], two: Option[XReal], condition: Expr,
+    pathError: Rational): XReal = (one, two) match {
     case (Some(x1), Some(x2)) =>
       val newInt = x1.realInterval.union(x2.realInterval)
       val newError = max(max(x1.maxError, x2.maxError), pathError)
@@ -203,7 +202,7 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
     xfloat
   }*/
 
-  private def constraintFromXFloats(results: Map[Expr, XFloat]): Expr = {
+  private def constraintFromXFloats(results: Map[Expr, XReal]): Expr = {
     And(results.foldLeft(Seq[Expr]())(
       (seq, kv) => seq ++ Seq(LessEquals(RealLiteral(kv._2.interval.xlo), kv._1),
                                 LessEquals(kv._1, RealLiteral(kv._2.interval.xhi)),
@@ -219,7 +218,7 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
   private def possiblyNegative(interval: RationalInterval): Boolean =
     if (interval.xlo < Rational.zero || interval.xhi < Rational.zero) true else false
 
-  private def addCondition(v: XFloat, cond: Seq[Expr]): XFloat = {
+  private def addCondition(v: XReal, cond: Seq[Expr]): XReal = {
     if (cond.size > 0)
       new XFloat(v.tree, v.approxInterval, v.error, v.config.addCondition(leonToZ3.getZ3Condition(And(cond))))
     else

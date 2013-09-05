@@ -11,7 +11,6 @@ import purescala.TypeTrees._
 import real.Trees._
 import VariableShop._
 import Rational._
-import Precision._
 
 class LeonToZ3Transformer(variables: VariablePool) extends TransformerWithPC {
     type C = Seq[Expr]
