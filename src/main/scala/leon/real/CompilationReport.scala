@@ -3,8 +3,6 @@
 package leon
 package real
 
-import Precision._
-
 // @param precision the precision that we were able to prove stuff with (or not)
 class CompilationReport(val allVCs: Seq[VerificationCondition], precision: Precision) {
   val realVCs = allVCs.filter(vc => vc.kind != VCKind.SpecGen)

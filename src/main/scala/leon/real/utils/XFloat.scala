@@ -10,7 +10,6 @@ import real.Trees.RealLiteral
 import Rational._
 import XRationalForm._
 import RationalAffineUtils._
-import Precision._
 import VariableShop._
 
 import collection.mutable.Queue
@@ -152,7 +151,7 @@ object XFloat {
   @param error various uncertainties, incl. roundoffs
   @param config solver, precondition, which precision to choose
  */
-class XFloat(val tree: Expr, val approxInterval: RationalInterval, val error: XRationalForm, val config: XFloatConfig) {
+class XFloat(val tr: Expr, val appInt: RationalInterval, val err: XRationalForm, val cnfg: XFloatConfig) extends XReal(tr, appInt, err, cnfg) {
   import XFloat._
 
   lazy val realInterval: RationalInterval = {
@@ -176,9 +175,10 @@ class XFloat(val tree: Expr, val approxInterval: RationalInterval, val error: XR
     "%s +/- %s +/- [%s]".format(error.x0, varErrors.toString, sumQueue(otherErrors))
   }*/
 
-  def unary_-(): XFloat = new XFloat(UMinusR(tree), -approxInterval, -error, config)
+  def unary_-(): XReal = new XFloat(UMinusR(tree), -approxInterval, -error, config)
 
-  def +(y: XFloat): XFloat = {
+  def +(y: XReal): XReal = {
+    assert(y.getClass == this.getClass)
     if (verbose) println("Adding " + this + " to " + y)
     val newConfig = config.and(y.config)
     val newTree = PlusR(this.tree, y.tree)
@@ -192,7 +192,8 @@ class XFloat(val tree: Expr, val approxInterval: RationalInterval, val error: XR
     return new XFloat(newTree, newRealRange, newError, newConfig)
   }
 
-  def -(y: XFloat): XFloat = {
+  def -(y: XReal): XReal = {
+    assert(y.getClass == this.getClass)
     if (verbose) println("Subtracting " + this + " from " + y)
     val newConfig = config.and(y.config)
     val newTree = MinusR(this.tree, y.tree)
@@ -205,7 +206,8 @@ class XFloat(val tree: Expr, val approxInterval: RationalInterval, val error: XR
     return new XFloat(newTree, newRealRange, newError, newConfig)
   }
 
-  def *(y: XFloat): XFloat = {
+  def *(y: XReal): XReal = {
+    assert(y.getClass == this.getClass)
     if (verbose) println("Mult " + this.tree + " with " + y.tree)
     if (verbose) println("x.error: " + this.error.longString)
     if (verbose) println("y.error: " + y.error.longString)
@@ -228,7 +230,8 @@ class XFloat(val tree: Expr, val approxInterval: RationalInterval, val error: XR
     return new XFloat(newTree, newRealRange, newError, newConfig)
   }
 
-  def /(y: XFloat): XFloat = {
+  def /(y: XReal): XReal = {
+    assert(y.getClass == this.getClass)
     //if (y.isExact) {
 
 
@@ -258,7 +261,7 @@ class XFloat(val tree: Expr, val approxInterval: RationalInterval, val error: XR
     return new XFloat(newTree, newRealRange, newError, newConfig)
   }
 
-  def squareRoot: XFloat = {
+  def squareRoot: XReal = {
     // if this.isExact
 
     val int = this.interval

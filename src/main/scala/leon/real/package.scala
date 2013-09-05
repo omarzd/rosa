@@ -29,14 +29,13 @@ package object real {
     case None => " -- "
   }
 
-  object Precision extends Enumeration {
-    type Precision = Value
-    val Float64 = Value("Float64")
-    val Float32 = Value("Float32")
-    val DoubleDouble = Value("DoubleDouble")
-    val QuadDouble = Value("QuadDouble")
-  }
-  import Precision._
+  sealed abstract class Precision
+  object Float64 extends Precision // = Value("Float64")
+  object Float32 extends Precision //= Value("Float32")
+  object DoubleDouble extends Precision //= Value("DoubleDouble")
+  object QuadDouble extends Precision //= Value("QuadDouble")
+  case class FPPrecision(bitlength: Int) extends Precision
+  //import Precision._
 
   def getUnitRoundoff(precision: Precision): Rational = precision match {
     case Float32 => Rational(new BigInt(new BigInteger("1")), new BigInt(new BigInteger("2")).pow(23))
@@ -57,7 +56,7 @@ package object real {
   // Since we don't know which precision we may test, returns, for now, true only for integers
   def isExact(r: Rational): Boolean = r.isWhole
 
-  
+
   object Sat extends Enumeration {
     type Sat = Value
     val SAT = Value("SAT")
