@@ -144,13 +144,7 @@ object XFloat {
 }
 
 
-/**
-  A datatype for range arithmetic that keeps track of floating-point roundoff errors.
-  @param tree expression tree
-  @param approxRange approximation of the real-valued range
-  @param error various uncertainties, incl. roundoffs
-  @param config solver, precondition, which precision to choose
- */
+
 class XFloat(val tr: Expr, val appInt: RationalInterval, val err: XRationalForm, val cnfg: XFloatConfig) extends XReal(tr, appInt, err, cnfg) {
   import XFloat._
 
