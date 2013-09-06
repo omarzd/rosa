@@ -33,7 +33,7 @@ object FixedPointFormat {
     val signed = if (allowUnsignedFormat) a < Rational(0) else true
     val intBits = bitsNeeded(math.max(math.abs(a.integerPart), math.abs(b.integerPart)))
     // We don't allow 0 fractional bits
-    if (checkForOverflow && intBits >= bits) {
+    if (intBits >= bits) {
       throw FixedPointOverflowException("Number of max bits (%d) exceeded: %d".format(bits, intBits))
     }
     val fracBits = if (signed) bits - intBits - 1 else bits - intBits
@@ -51,7 +51,8 @@ object FixedPointFormat {
 
   // Computes the format for the queue as given and then checks that this format can also hold
   // the new quantization error, if not, a larger format is returned.
-  private[fixedpoint] def getFormat(x0: Rational, queue1: Queue[Deviation], queue2: Queue[Deviation],
+  // TODO: do we need this?
+  /*private def getFormat(x0: Rational, queue1: Queue[Deviation], queue2: Queue[Deviation],
     bits: Int): FixedPointFormat = {
     val radius = sumQueue(queue1) + sumQueue(queue2)
 
@@ -65,6 +66,13 @@ object FixedPointFormat {
     else {
       return prelim
     }
+  }*/
+
+  def getFormat(i: RationalInterval, bits: Int): FixedPointFormat = {
+    val prelim = getFormat(i.xlo, i.xhi, bits)
+    val secondary = getFormat(i.xlo - prelim.quantError, i.xhi + prelim.quantError)
+    if (prelim != secondary) secondary
+    else prelim
   }
 
   /**
