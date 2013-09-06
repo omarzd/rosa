@@ -12,6 +12,9 @@ package object real {
 
   case class UnsupportedRealFragmentException(msg: String) extends Exception(msg)
   case class ArithmeticException(msg: String) extends Exception(msg)
+  case class FixedPointOverflowException(s: String) extends Exception
+  case class IncompatibleFixedPointFormatsException(s: String) extends Exception
+  
 
   case class Fnc(pre: Expr, body: Expr, post: Expr)
 
@@ -24,6 +27,13 @@ package object real {
   def formatOption[T](res: Option[T]): String = res match {
     case Some(xf) => xf.toString
     case None => " -- "
+  }
+
+  def printFloat(f: Double): String = {
+    if (f >= 1.0) "%.6f".format(f)
+    else if (f >= 0.001) "%.9f".format(f)
+    else if (f >= 0.00001) "%.12f".format(f)
+    else "%.16f".format(f)
   }
 
   sealed abstract class Precision
