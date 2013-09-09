@@ -12,10 +12,33 @@ import Rational._
 
 object XFixed {
 
+  def variables2xfixed(vars: VariablePool, config: XConfig, bits: Int, withRoundoff: Boolean = false): (Map[Expr, XFixed], Map[Int, Expr]) = {
+    var variableMap: Map[Expr, XFixed] = Map.empty
+    var indexMap: Map[Int, Expr] = Map.empty
+
+    for(rec <- vars.getValidRecords) {
+      rec match {
+        case Record(v @ Variable(_), a @ Variable(_), Some(lo), Some(up), Some(unc)) =>
+          val (xfixed, index) = xFixedWithUncertain(v, RationalInterval(lo, up), config, unc, withRoundoff, bits)
+          variableMap = variableMap + (a -> xfixed)
+          indexMap = indexMap + (index -> a)
+
+        case Record(v @ Variable(_), a @ Variable(_), Some(lo), Some(up), None) =>
+          val (xfixed, index) = xFixedWithRoundoff(v, RationalInterval(lo, up), config, bits)
+          variableMap = variableMap + (a -> xfixed)
+          indexMap = indexMap + (index -> a)
+
+        case _ =>
+          throw new Exception("bug!")
+      }
+    }
+    (variableMap, indexMap)
+  }
+
   // double constant (we include rdoff error)
-  def apply(d: Double, config: XFloatConfig): XFixed = {
+  def apply(d: Double, config: XConfig, bits: Int): XFixed = {
     val r = rationalFromReal(d)
-    val format = getFormat(r)
+    val format = getFormat(r, bits)
     val rndoff = format.quantError
     val newError =
       if (!format.canRepresent(r))
@@ -26,8 +49,8 @@ object XFixed {
   }
 
   // constant
-  def apply(r: Rational, config: XFloatConfig): XFixed = {
-    val format = getFormat(r)
+  def apply(r: Rational, config: XConfig, bits: Int): XFixed = {
+    val format = getFormat(r, bits)
     val rndoff = format.quantError
     val newError =
       if (!format.canRepresent(r))
@@ -37,14 +60,14 @@ object XFixed {
     new XFixed(format, RealLiteral(r), RationalInterval(r,r), newError, config)
   }
 
-  def xFixedWithRoundoff(v: Variable, range: RationalInterval, config: XFloatConfig, bits: Int): (XFixed, Int) = {
+  def xFixedWithRoundoff(v: Variable, range: RationalInterval, config: XConfig, bits: Int): (XFixed, Int) = {
     val format = getFormat(range, bits)
     val rndoff = format.quantError
     val (newError, index) = addNoiseWithIndex(new XRationalForm(Rational.zero), rndoff)
     (new XFixed(format, v, range, newError, config), index)
   }
 
-  def xFloatWithUncertain(v: Expr, range: RationalInterval, config: XFloatConfig,
+  def xFixedWithUncertain(v: Expr, range: RationalInterval, config: XConfig,
     uncertain: Rational, withRoundoff: Boolean, bits: Int): (XFixed, Int) = {
     assert(uncertain >= Rational.zero)
 
@@ -66,7 +89,7 @@ object XFixed {
   Assumes that all operands always have the same bitlength.
 */
 class XFixed(val format: FixedPointFormat, val tr: Expr, val appInt: RationalInterval, val err: XRationalForm,
-  val cnfg: XFloatConfig) extends XReal(tr, appInt, err, cnfg) {
+  val cnfg: XConfig) extends XReal(tr, appInt, err, cnfg) {
 
   //Assumes signed format.
   override def unary_-(): XReal = {

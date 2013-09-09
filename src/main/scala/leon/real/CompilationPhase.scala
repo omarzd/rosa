@@ -8,8 +8,6 @@ import java.io.{PrintWriter, File}
 import purescala.Definitions._
 import purescala.Trees._
 import purescala.TreeOps._
-import purescala.TypeTrees._
-import purescala.Common._
 import purescala.ScalaPrinter
 
 import xlang.Trees._
@@ -90,7 +88,7 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
       val prover = new Prover(ctx, options, program, fncs, verbose)
       val finalPrecision = prover.check(vcs)
 
-      val newProgram = specToCode(program.id, program.mainObject.id, vcs, finalPrecision) 
+      val newProgram = CodeGenerator.specToCode(program.id, program.mainObject.id, vcs, finalPrecision) 
       val newProgramAsString = ScalaPrinter(newProgram)
       reporter.info("Generated program with %d lines.".format(newProgramAsString.lines.length))
       //reporter.info(newProgramAsString)

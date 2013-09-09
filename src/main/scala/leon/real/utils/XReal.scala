@@ -15,10 +15,10 @@ import RationalAffineUtils._
   @param approxRange approximation of the real-valued range
   @param config solver, precondition, which precision to choose
  */
-class XReal(val tree: Expr, val approxInterval: RationalInterval, val error: XRationalForm, val config: XFloatConfig) {
+class XReal(val tree: Expr, val approxInterval: RationalInterval, val error: XRationalForm, val config: XConfig) {
   val verbose = false
 
-  def this(tuple: (Expr, RationalInterval, XRationalForm, XFloatConfig)) =
+  def this(tuple: (Expr, RationalInterval, XRationalForm, XConfig)) =
     this(tuple._1, tuple._2, tuple._3, tuple._4)
 
   // Interval of the real-valued part only
@@ -46,9 +46,9 @@ class XReal(val tree: Expr, val approxInterval: RationalInterval, val error: XRa
   /*
     Propagation
    */
-  def negate: (Expr, RationalInterval, XRationalForm, XFloatConfig) = (UMinus(tree), -approxInterval, -error, config)
+  def negate: (Expr, RationalInterval, XRationalForm, XConfig) = (UMinus(tree), -approxInterval, -error, config)
 
-  def add(y: XReal): (Expr, RationalInterval, XRationalForm, XFloatConfig) = {
+  def add(y: XReal): (Expr, RationalInterval, XRationalForm, XConfig) = {
     if (verbose) println("Adding " + this + " to " + y)
     val newConfig = config.and(y.config)
     val newTree = Plus(this.tree, y.tree)
@@ -59,7 +59,7 @@ class XReal(val tree: Expr, val approxInterval: RationalInterval, val error: XRa
     (newTree, newRealRange, newError, newConfig)
   }
 
-  def subtract(y: XReal): (Expr, RationalInterval, XRationalForm, XFloatConfig)  = {
+  def subtract(y: XReal): (Expr, RationalInterval, XRationalForm, XConfig)  = {
     if (verbose) println("Subtracting " + this + " from " + y)
     val newConfig = config.and(y.config)
     val newTree = Minus(this.tree, y.tree)
@@ -69,7 +69,7 @@ class XReal(val tree: Expr, val approxInterval: RationalInterval, val error: XRa
     (newTree, newRealRange, newError, newConfig)
   }
 
-  def multiply(y: XReal): (Expr, RationalInterval, XRationalForm, XFloatConfig) = {
+  def multiply(y: XReal): (Expr, RationalInterval, XRationalForm, XConfig) = {
     if (verbose) println("Mult " + this.tree + " with " + y.tree)
     if (verbose) println("x.error: " + this.error.longString)
     if (verbose) println("y.error: " + y.error.longString)
@@ -87,7 +87,7 @@ class XReal(val tree: Expr, val approxInterval: RationalInterval, val error: XRa
     (newTree, newRealRange, newError, newConfig)
   }
 
-  def divide(y: XReal): (Expr, RationalInterval, XRationalForm, XFloatConfig) = {
+  def divide(y: XReal): (Expr, RationalInterval, XRationalForm, XConfig) = {
     //if (y.isExact) {
 
     // Compute approximation
@@ -112,7 +112,7 @@ class XReal(val tree: Expr, val approxInterval: RationalInterval, val error: XRa
     (newTree, newRealRange, newError, newConfig)
   }
 
-  def takeSqrtRoot: (Expr, RationalInterval, XRationalForm, XFloatConfig) = {
+  def takeSqrtRoot: (Expr, RationalInterval, XRationalForm, XConfig) = {
     // if this.isExact
 
     val int = this.interval

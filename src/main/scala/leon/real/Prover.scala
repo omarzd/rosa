@@ -131,12 +131,17 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
     for (((constraint, sanityExpr), index) <- app.cnstrs.zip(app.sanityChecks).view.zipWithIndex) {
       //println("constraint: " + constraint)
 
-      val z3constraint = if (useMassageArithmetic) massageArithmetic(transformer.getZ3Expr(constraint, precision))
-                        else transformer.getZ3Expr(constraint, precision)
-      
+      val (z3constraint, sane) = precision match {
+        case FPPrecision(bts) =>
+          (massageArithmetic(transformer.getZ3ExprForFixedpoint(constraint)),
+            sanityCheck(transformer.getZ3ExprForFixedpoint(sanityExpr)))
+        case _ =>
+          (massageArithmetic(transformer.getZ3Expr(constraint, precision)),
+            sanityCheck(transformer.getZ3Expr(sanityExpr, precision)))
+      }
       if (verbose) reporter.debug("z3constraint ("+index+"): " + z3constraint)
 
-      if (reporter.errorCount == 0 && sanityCheck(transformer.getZ3Expr(sanityExpr, precision)))
+      if (reporter.errorCount == 0 && sane)
         solver.checkSat(z3constraint) match {
           case (UNSAT, _) =>;
           case (SAT, model) =>

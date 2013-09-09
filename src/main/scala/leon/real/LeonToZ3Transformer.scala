@@ -11,6 +11,7 @@ import purescala.TypeTrees._
 import real.Trees._
 import VariableShop._
 import Rational._
+import TreeOps._
 
 class LeonToZ3Transformer(variables: VariablePool) extends TransformerWithPC {
     type C = Seq[Expr]
@@ -221,9 +222,27 @@ class LeonToZ3Transformer(variables: VariablePool) extends TransformerWithPC {
       val fres = Variable(FreshIdentifier("#fres")).setType(RealType)
       val z3Expr = replace(Map(ResultVariable() -> res, FResVariable() -> fres), this.transform(e)) 
       
-      if (epsUsed)
+      if (epsUsed) {
+        println("\neps used, constraing: ")
+        println(And(And(extraConstraints), z3Expr))
         And(And(extraConstraints :+ Equals(machineEps, RealLiteral(getUnitRoundoff(precision)))), z3Expr)
+
+      }
       else
         And(And(extraConstraints), z3Expr)
     }
+
+    // for fixedpoint arithmetic
+    def getZ3ExprForFixedpoint(e: Expr): Expr = {      
+      extraConstraints = Seq[Expr]()
+      val noiseRemover = new NoiseRemover
+      val eWoRoundoff = noiseRemover.transform(e)
+
+      val res = Variable(FreshIdentifier("#res")).setType(RealType)
+      val fres = Variable(FreshIdentifier("#fres")).setType(RealType)
+      val z3Expr = replace(Map(ResultVariable() -> res, FResVariable() -> fres), this.transform(eWoRoundoff)) 
+      
+      assert (!epsUsed)
+      And(And(extraConstraints), z3Expr)
+    }    
   }

@@ -12,6 +12,7 @@ import purescala.TypeTrees._
 import real.Trees._
 import real.TreeOps._
 import XFloat._
+import XFixed._
 import Rational._
 import VariableShop._
 
@@ -49,17 +50,29 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
     case Float64 => (-Rational(Double.MaxValue), Rational(Double.MaxValue))
     case DoubleDouble => (-Rational(Double.MaxValue), Rational(Double.MaxValue))  // same range as Double
     case QuadDouble => (-Rational(Double.MaxValue), Rational(Double.MaxValue)) // same range as Double
+    case FPPrecision(bits) => FixedPointFormat(true, bits, 0, false).range
   }
   
   val initialCondition: Expr = leonToZ3.getZ3Expr(noiseRemover.transform(precondition), precision)
 
   // config with the initial precondition
-  val config = XFloatConfig(solver, initialCondition, 
-    precision, getUnitRoundoff(precision), solverMaxIterMedium, solverPrecisionMedium)
+  val config = XConfig(solver, initialCondition, solverMaxIterMedium, solverPrecisionMedium)
+
+  val (machineEps, bits) = precision match {
+    case FPPrecision(bts) => (Rational.zero, bts)
+    case _ => (getUnitRoundoff(precision), 0)
+  }
+
+  // TODO: float config
+  //val config = XFloatConfig(solver, initialCondition, 
+  //  precision, getUnitRoundoff(precision), solverMaxIterMedium, solverPrecisionMedium)
 
   if (verboseLocal) println("initial config: " + config)
 
-  var variables: Map[Expr, XReal] = variables2xfloats(inputs, config)._1
+  var variables: Map[Expr, XReal] = precision match {
+    case Float32 | Float64 | DoubleDouble | QuadDouble => variables2xfloats(inputs, config, machineEps)._1
+    case FPPrecision(bits) => variables2xfixed(inputs, config, bits)._1
+  }
 
   if (verboseLocal) println("initial variables: " + variables)
   
@@ -85,8 +98,8 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
     // TODO: can we do this nicer?
     def getXReal(e: Expr): XReal = e match {
       case ApproxNode(x) => x
-      case FloatLiteral(r, exact) => addCondition(XFloat(r, config), path)
-      case v: Variable => addCondition(variables(v), path)
+      case fl: FloatLiteral => addCondition(fl, path)
+      case v: Variable => addCondition(v, path)
       case And(args) => getXReal(args.last)
     }
 
@@ -278,9 +291,14 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
         val (interval, error, constraints) = getResultSpec(spec)
         val fresh = getNewXFloatVar
 
-        val tmp = ApproxNode(xFloatWithUncertain(fresh, interval,
-          config.addCondition(replace(Map(ResultVariable() -> fresh), leonToZ3.getZ3Condition(noiseRemover.transform(spec)))),
-          error, false)._1)
+        val tmp = precision match {
+          case FPPrecision(bts) => ApproxNode(xFixedWithUncertain(fresh, interval,
+            config.addCondition(replace(Map(ResultVariable() -> fresh), leonToZ3.getZ3Condition(noiseRemover.transform(spec)))),
+            error, false, bts)._1)
+          case _ => ApproxNode(xFloatWithUncertain(fresh, interval,
+            config.addCondition(replace(Map(ResultVariable() -> fresh), leonToZ3.getZ3Condition(noiseRemover.transform(spec)))),
+            error, false, machineEps)._1)
+        }
         tmp
 
       case FncBodyF(name, body) =>
@@ -350,14 +368,20 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
       val newError = max(max(x1.maxError, x2.maxError), pathError)
       val fresh = getNewXFloatVar
       val newConfig = config.addCondition(leonToZ3.getZ3Condition(And(condition, rangeConstraint(fresh, newInt))))
-      xFloatWithUncertain(fresh, newInt, newConfig, newError, false)._1
+      precision match {
+        case FPPrecision(bts) => xFixedWithUncertain(fresh, newInt, newConfig, newError, false, bts)._1
+        case _ => xFloatWithUncertain(fresh, newInt, newConfig, newError, false, machineEps)._1
+      }
     case (Some(x1), None) =>
       if (pathError != zero) {
         val newError = max(x1.maxError, pathError)
         val newInt = x1.realInterval
         val fresh = getNewXFloatVar
         val newConfig = config.addCondition(leonToZ3.getZ3Condition(And(condition, rangeConstraint(fresh, newInt))))
-        xFloatWithUncertain(fresh, newInt, newConfig, newError, false)._1
+        precision match {
+          case FPPrecision(bts) => xFixedWithUncertain(fresh, newInt, newConfig, newError, false, bts)._1
+          case _ => xFloatWithUncertain(fresh, newInt, newConfig, newError, false, machineEps)._1
+        }
       } else
         x1
     case (None, Some(x2)) =>
@@ -366,7 +390,10 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
         val newInt = x2.realInterval
         val fresh = getNewXFloatVar
         val newConfig = config.addCondition(leonToZ3.getZ3Condition(And(condition, rangeConstraint(fresh, newInt))))
-        xFloatWithUncertain(fresh, newInt, newConfig, newError, false)._1
+        precision match {
+          case FPPrecision(bts) => xFixedWithUncertain(fresh, newInt, newConfig, newError, false, bts)._1
+          case _ => xFloatWithUncertain(fresh, newInt, newConfig, newError, false, machineEps)._1
+        }
       } else
         x2
     // We assume that one of the two branches is feasible
@@ -408,12 +435,28 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
   private def possiblyNegative(interval: RationalInterval): Boolean =
     if (interval.xlo < Rational.zero || interval.xhi < Rational.zero) true else false
 
-  private def addCondition(v: XReal, cond: Seq[Expr]): XReal = {
+  private def addCondition(v: Expr, cond: Seq[Expr]): XReal = {
+    v match {
+      case v: Variable =>
+        variables(v) match {
+          case xfl: XFloat => new XFloat(xfl.tree, xfl.approxInterval, xfl.error, xfl.config.addCondition(leonToZ3.getZ3Condition(And(cond))), machineEps)
+          case xfx: XFixed => new XFixed(xfx.format, xfx.tree, xfx.approxInterval, xfx.error, xfx.config.addCondition(leonToZ3.getZ3Condition(And(cond))))
+        }
+
+      case FloatLiteral(r, exact) =>
+        precision match {
+          case FPPrecision(bits) => XFixed(r, config.addCondition(leonToZ3.getZ3Condition(And(cond))), bits)
+          case _ => XFloat(r, config.addCondition(leonToZ3.getZ3Condition(And(cond))), machineEps) // TODO: save the machineEps somewhere?
+        }
+    }
+  }
+
+  /*private def addCondition(v: XReal, cond: Seq[Expr]): XReal = {
     if (cond.size > 0)
       new XFloat(v.tree, v.approxInterval, v.error, v.config.addCondition(leonToZ3.getZ3Condition(And(cond))))
     else
       v
-  }
+  }*/
 
   private def isFeasible(pre: Seq[Expr]): Boolean = {
     import Sat._

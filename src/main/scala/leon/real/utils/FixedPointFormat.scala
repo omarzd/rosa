@@ -9,6 +9,7 @@ import collection.mutable.Queue
 
 object FixedPointFormat {
 
+  // TODO: make this default options with FixedPointFormat class
   /** Default bitvector length. */
   var globalBitLength = 16
   /** Default rounding mode. */
@@ -81,10 +82,10 @@ object FixedPointFormat {
     set in the globalBitLength variable.
    @param r rational to be represented
    */
-  def getFormat(r: Rational): FixedPointFormat = {
+  /*def getFormat(r: Rational): FixedPointFormat = {
     val tmp = getFormat(r, globalBitLength)
     return tmp
-  }
+  }*/
 
   /**
     Computes the best format needed to represent a rational number (i.e. a constant).
