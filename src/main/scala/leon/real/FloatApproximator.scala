@@ -90,11 +90,14 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
       case v: Variable => addCondition(v, path)
       case And(args) => getXReal(args.last)
     }
-
+    //println("expr: " + e)
+        
     val newExpr = e match {
       case EqualsF(lhs, rhs) =>
         val x = getXReal(rec(rhs, path))
         variables = variables + (lhs -> x)
+        //println("euqals, adding: " + lhs)
+        //println("variables: " + variables)
         constraintFromXFloats(Map(lhs -> x))
 
       case UMinusF(t) => ApproxNode(-getXReal(rec(t, path)))

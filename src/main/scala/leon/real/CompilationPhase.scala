@@ -82,7 +82,8 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
       val prover = new Prover(ctx, options, program, fncs, verbose)
       val finalPrecision = prover.check(vcs)
 
-      val newProgram = CodeGenerator.specToCode(program.id, program.mainObject.id, vcs, finalPrecision) 
+      val codeGenerator = new CodeGenerator(reporter, ctx, options, program)
+      val newProgram = codeGenerator.specToCode(program.id, program.mainObject.id, vcs, finalPrecision) 
       val newProgramAsString = ScalaPrinter(newProgram)
       reporter.info("Generated program with %d lines.".format(newProgramAsString.lines.length))
       //reporter.info(newProgramAsString)

@@ -299,6 +299,16 @@ class Rational private(val n: BigInt, val d: BigInt) extends ScalaNumber with Sc
     return xNom.compare(yNom)
   }
 
+  def roundToInt: Int = {
+    if (n >= zeroBigInt) { // positive number
+      if (this - Rational(this.integerPart) < Rational(1l, 2l)) this.integerPart
+      else this.integerPart + 1
+    } else {
+      if (this - Rational(this.integerPart) > Rational(1l, 2l)) this.integerPart
+      else this.integerPart - 1
+    }
+  }
+
   override def equals(other: Any): Boolean = other match {
     case x: Rational => this.compare(x) == 0
     case x: Double => this.toDouble == x  // Fixme: not ideal

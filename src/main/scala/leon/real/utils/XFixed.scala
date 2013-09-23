@@ -170,6 +170,6 @@ class XFixed(val format: FixedPointFormat, val tr: Expr, val appInt: RationalInt
   }
 
 
-
+  override def toString: String = "%s - (%.16g,%s)".format(this.interval.toString, this.maxError.toDouble, this.format)
 
 }
