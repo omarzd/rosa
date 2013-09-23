@@ -50,7 +50,7 @@ package object real {
   case class FPPrecision(bitlength: Int) extends Precision
   //import Precision._
 
-  def getUnitRoundoff(precision: Precision): Rational = precision match {
+  def getUnitRoundoff(precision: Precision): Rational = (precision: @unchecked) match {
     case Float32 => Rational(new BigInt(new BigInteger("1")), new BigInt(new BigInteger("2")).pow(23))
     case Float64 => Rational(new BigInt(new BigInteger("1")), new BigInt(new BigInteger("2")).pow(53))
     case DoubleDouble => Rational(new BigInt(new BigInteger("1")), new BigInt(new BigInteger("2")).pow(105))

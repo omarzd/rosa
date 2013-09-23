@@ -13,6 +13,7 @@ import xlang.Trees._
 import real.Trees._
 import real.RationalAffineUtils._
 import VCKind._
+import VariableShop._
 
 object TreeOps {
 
@@ -300,6 +301,71 @@ object TreeOps {
         super.rec(e, path)
     }
   }
+
+
+  /* -----------------------
+       Fixed-points
+   ------------------------- */
+  
+  def toSSA(expr: Expr): Expr = {
+    val transformer = new SSATransformer
+    transformer.transform(expr)
+  }
+
+  private class SSATransformer extends TransformerWithPC {
+    type C = Seq[Expr]
+    val initC = Nil
+
+    // Note that this transforms real arithmetic to float arithmetic
+    private def arithToSSA(expr: Expr): (Seq[Expr], Expr) = expr match {
+      case PlusR(lhs, rhs) =>
+        val (lSeq, lVar) = arithToSSA(lhs)
+        val (rSeq, rVar) = arithToSSA(rhs)
+        val tmpVar = getFreshTmp
+        (lSeq ++ rSeq :+ Equals(tmpVar, PlusR(lVar, rVar)), tmpVar)
+
+      case MinusR(lhs, rhs) =>
+        val (lSeq, lVar) = arithToSSA(lhs)
+        val (rSeq, rVar) = arithToSSA(rhs)
+        val tmpVar = getFreshTmp
+        (lSeq ++ rSeq :+ Equals(tmpVar, MinusR(lVar, rVar)), tmpVar)
+    
+      case TimesR(lhs, rhs) =>
+        val (lSeq, lVar) = arithToSSA(lhs)
+        val (rSeq, rVar) = arithToSSA(rhs)
+        val tmpVar = getFreshTmp
+        (lSeq ++ rSeq :+ Equals(tmpVar, TimesR(lVar, rVar)), tmpVar)
+    
+      case DivisionR(lhs, rhs) =>
+        val (lSeq, lVar) = arithToSSA(lhs)
+        val (rSeq, rVar) = arithToSSA(rhs)
+        val tmpVar = getFreshTmp
+        (lSeq ++ rSeq :+ Equals(tmpVar, DivisionR(lVar, rVar)), tmpVar)
+           
+      case UMinusR(t) =>
+        val (seq, v) = arithToSSA(t)
+        val tmpVar = getFreshTmp
+        (seq :+ Equals(tmpVar, UMinusR(v)), tmpVar)
+      case RealLiteral(_) | Variable(_) | ResultVariable() => (Seq[Expr](), expr)
+    }
+    
+    def register(e: Expr, path: C) = path :+ e
+
+    override def rec(e: Expr, path: C) = e match {
+      //case arithExpr: RealArithmetic =>
+      //  val (seq, tmpVar) = arithToSSA(arithExpr)
+      //  And()
+
+      case Equals(v, arithExpr: RealArithmetic) =>
+        val (seq, tmpVar) = arithToSSA(arithExpr)
+        And(And(seq), EqualsF(v, tmpVar))
+
+      case _ =>
+        super.rec(e, path)
+    }
+  }  
+
+
 
   /* -----------------------
              Misc

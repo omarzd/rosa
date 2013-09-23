@@ -50,6 +50,13 @@ object Trees {
     }
   }
 
+  case class LongLiteral(value: Long) extends Expr with Terminal with FixedType with PrettyPrintable {
+    val fixedType = Int32Type
+    def printWith(lvl: Int, printer: PrettyPrinter) {
+      printer.append(value.toString)
+    }
+  }
+
   /* Adds an uncertainty of absolute magnitude error to the expression varr. */
   case class Noise(varr: Expr, error: Expr) extends Expr with FixedType with BinaryExtractable with PrettyPrintable {
     val fixedType = BooleanType
@@ -128,8 +135,12 @@ object Trees {
     }
   }
 
+  trait RealArithmetic {
+    self: Expr =>
+  }
+
   /* Arithmetic on reals */
-  case class PlusR(lhs: Expr, rhs: Expr) extends Expr with FixedType with BinaryExtractable with PrettyPrintable {
+  case class PlusR(lhs: Expr, rhs: Expr) extends Expr with FixedType with BinaryExtractable with PrettyPrintable with RealArithmetic {
     val fixedType = RealType
     def extract: Option[(Expr, Expr, (Expr, Expr)=>Expr)] = {
       Some((lhs, rhs, (t1, t2) => PlusR(t1, t2)))
@@ -143,7 +154,7 @@ object Trees {
       printer.append(")")
     }
   }
-  case class MinusR(lhs: Expr, rhs: Expr) extends Expr with FixedType with BinaryExtractable with PrettyPrintable {
+  case class MinusR(lhs: Expr, rhs: Expr) extends Expr with FixedType with BinaryExtractable with PrettyPrintable with RealArithmetic {
     val fixedType = RealType
     def extract: Option[(Expr, Expr, (Expr, Expr)=>Expr)] = {
       Some((lhs, rhs, (t1, t2) => MinusR(t1, t2)))
@@ -156,7 +167,7 @@ object Trees {
       printer.append(")")
     }
   }
-  case class UMinusR(expr: Expr) extends Expr with FixedType with UnaryExtractable with PrettyPrintable {
+  case class UMinusR(expr: Expr) extends Expr with FixedType with UnaryExtractable with PrettyPrintable with RealArithmetic {
     val fixedType = RealType
     def extract: Option[(Expr, (Expr)=>Expr)] = {
       Some((expr, (e) => UMinusR(e)))
@@ -167,7 +178,7 @@ object Trees {
       printer.append(")")
     }
   }
-  case class TimesR(lhs: Expr, rhs: Expr) extends Expr with FixedType with BinaryExtractable with PrettyPrintable {
+  case class TimesR(lhs: Expr, rhs: Expr) extends Expr with FixedType with BinaryExtractable with PrettyPrintable with RealArithmetic {
     val fixedType = RealType
     def extract: Option[(Expr, Expr, (Expr, Expr)=>Expr)] = {
       Some((lhs, rhs, (t1, t2) => TimesR(t1, t2)))
@@ -180,7 +191,7 @@ object Trees {
       printer.append(")")
     }
   }
-  case class DivisionR(lhs: Expr, rhs: Expr) extends Expr with FixedType with BinaryExtractable with PrettyPrintable {
+  case class DivisionR(lhs: Expr, rhs: Expr) extends Expr with FixedType with BinaryExtractable with PrettyPrintable with RealArithmetic {
     val fixedType = RealType
     def extract: Option[(Expr, Expr, (Expr, Expr)=>Expr)] = {
       Some((lhs, rhs, (t1, t2) => DivisionR(t1, t2)))
@@ -193,7 +204,7 @@ object Trees {
       printer.append(")")
     }
   }
-  case class PowerR(lhs: Expr, rhs: Expr) extends Expr with FixedType with BinaryExtractable with PrettyPrintable {
+  case class PowerR(lhs: Expr, rhs: Expr) extends Expr with FixedType with BinaryExtractable with PrettyPrintable with RealArithmetic {
     val fixedType = RealType
     def extract: Option[(Expr, Expr, (Expr, Expr)=>Expr)] = {
       Some((lhs, rhs, (t1, t2) => PowerR(t1, t2)))
@@ -206,7 +217,7 @@ object Trees {
       printer.append(")")
     }
   }
-  case class SqrtR(expr: Expr) extends Expr with FixedType with UnaryExtractable with PrettyPrintable {
+  case class SqrtR(expr: Expr) extends Expr with FixedType with UnaryExtractable with PrettyPrintable with RealArithmetic {
     val fixedType = RealType
     def extract: Option[(Expr, (Expr)=>Expr)] = {
       Some((expr, (e) => SqrtR(e)))
@@ -457,6 +468,33 @@ object Trees {
     }
   }
 
+  case class RightShift(expr: Expr, bits: Int) extends Expr with FixedType with UnaryExtractable with PrettyPrintable {
+    val fixedType = Int32Type
+    def extract: Option[(Expr, (Expr)=>Expr)] = {
+      Some((expr, (e) => RightShift(e, bits)))
+    }
+    def printWith(lvl: Int, printer: PrettyPrinter) {
+      printer.append("(")
+      printer.pp(expr,lvl)
+      printer.append(" >> ")
+      printer.append(bits.toString)
+      printer.append(")")
+    }
+  }
+
+  case class LeftShift(expr: Expr, bits: Int) extends Expr with FixedType with UnaryExtractable with PrettyPrintable {
+    val fixedType = Int32Type
+    def extract: Option[(Expr, (Expr)=>Expr)] = {
+      Some((expr, (e) => LeftShift(e, bits)))
+    }
+    def printWith(lvl: Int, printer: PrettyPrinter) {
+      printer.append("(")
+      printer.pp(expr,lvl)
+      printer.append(" << ")
+      printer.append(bits.toString)
+      printer.append(")")
+    }
+  }
 
 
 }

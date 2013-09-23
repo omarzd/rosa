@@ -18,6 +18,7 @@ object VariableShop {
   private var resErrorCounter = 0
   private var xfloatCounter = 0
   private var freshVarCounter = 0
+  private var tmpCounter = 0
 
   def getNewXFloatVar: Variable = { // used for compacting xfloats
     xfloatCounter = xfloatCounter + 1
@@ -68,5 +69,10 @@ object VariableShop {
   def getFreshVarOf(name: String): Variable = {
     freshVarCounter = freshVarCounter + 1
     Variable(FreshIdentifier("#" + name + freshVarCounter)).setType(RealType)
+  }
+
+  def getFreshTmp: Variable = {
+    tmpCounter = tmpCounter + 1
+    Variable(FreshIdentifier("#tmp" + tmpCounter)).setType(RealType)
   }
 }
