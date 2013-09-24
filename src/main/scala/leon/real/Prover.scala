@@ -19,8 +19,20 @@ import Rational._
 class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[FunDef, Fnc], verbose: Boolean = false) {
   val reporter = ctx.reporter
   val solver = new RealSolver(ctx, prog, options.z3Timeout)
+
+  def getApplicableApproximations(vcs: Seq[VerificationCondition]): Map[VerificationCondition, List[ApproxKind]] =
+    vcs.map { vc =>
+        val list = allApprox.filter { approxKind =>
+          if (!options.z3Only && approxKind.arithmApprox == Z3Only) false
+          else if (containsIfExpr(vc.body) && approxKind.pathHandling == Pathwise) false
+          else if (vc.allFncCalls.isEmpty && (approxKind.fncHandling == Postcondition || approxKind.fncHandling == Inlining)) false
+          else true
+        }
+        (vc, list)
+      }.toMap
   
   def check(vcs: Seq[VerificationCondition]): Precision = {
+    val validApproximations = getApplicableApproximations(vcs)
     options.precision.find( precision => {
       reporter.info("******** precision: %s *************".format(precision))
 
@@ -33,13 +45,9 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
         val start = System.currentTimeMillis
         var spec: Option[Spec] = None
 
-        // TODO: filter out those that are not applicable
-        // TODO: this we also don't need to do for all precisions each time
-        // TODO: some combinations don't work: e.g. Uninterpreted & JustFloat
-        val approximations = List(ApproxKind(Uninterpreted, Merging, Z3Only), 
-                                  ApproxKind(Inlining, Merging, JustFloat))
-                                  //ApproxKind(Uninterpreted, Pathwise, JustFloat))
-        
+        val approximations = validApproximations(vc)
+        println("approximations: " + approximations)
+
         // TODO: re-use some of the approximation work across precision?
         approximations.find(aKind => {
           reporter.info("  - " + aKind)
