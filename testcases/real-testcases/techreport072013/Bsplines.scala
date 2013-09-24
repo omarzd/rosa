@@ -3,7 +3,7 @@ import leon.Real
 import Real._
 
 /**
-  Equations and initial ranges from:
+  Equation and initial ranges from:
   L. Zhang, Y. Zhang, and W. Zhou. Tradeoff between Approximation Accuracy and
   Complexity for Range Analysis using Affine Arithmetic.
 */
@@ -18,7 +18,7 @@ object Bsplines {
 
   } ensuring ( res => -0.05 <= ~res._1 && ~res._1 <= 0.17 && res._2 +/- 1e-15)
   
-  /*def bspline1(u: Real): Real = {
+  def bspline1(u: Real): Real = {
     require(u >< (0, 1))
     (3 * u*u*u - 6 * u*u + 4) / 6.0
   } ensuring (res => -0.05 <= res && res <= 0.98 && res +/- 1e-15)
@@ -32,5 +32,5 @@ object Bsplines {
     require(0 <= u && u <= 1)
     -u*u*u / 6.0
   } ensuring (res => -0.17 <= res && res <= 0.05 && res +/- 1e-15)
-  */
+  
 }
