@@ -11,6 +11,7 @@ abstract class Reporter {
   def warningFunction(msg: Any) : Unit 
   def errorFunction(msg: Any) : Unit
   def fatalErrorFunction(msg: Any) : Nothing
+  def debugFunction(msg: Any) : Unit
 
   // This part of the implementation is non-negociable.
   private var _errorCount : Int = 0
@@ -32,6 +33,7 @@ abstract class Reporter {
     _errorCount += 1
     fatalErrorFunction(msg)
   }
+  final def debug(msg: Any) = debugFunction(msg)
 }
 
 class DefaultReporter extends Reporter {
@@ -39,12 +41,15 @@ class DefaultReporter extends Reporter {
   protected val warningPfx = "[Warning] "
   protected val infoPfx    = "[ Info  ] "
   protected val fatalPfx   = "[ Fatal ] "
+  protected val debugPfx   = "[ Debug ] "
 
   def output(msg: String) : Unit = println(msg)
 
   protected def reline(pfx: String, msg: String) : String = {
     val color = if(pfx == errorPfx || pfx == warningPfx || pfx == fatalPfx) {
       Console.RED
+    } else if (pfx == debugPfx) {
+      Console.YELLOW
     } else {
       Console.BLUE
     }
@@ -56,11 +61,13 @@ class DefaultReporter extends Reporter {
   def warningFunction(msg: Any) = output(reline(warningPfx, msg.toString))
   def infoFunction(msg: Any) = output(reline(infoPfx, msg.toString))
   def fatalErrorFunction(msg: Any) = { output(reline(fatalPfx, msg.toString)); throw LeonFatalError() }
+  def debugFunction(msg: Any) = output(reline(debugPfx, msg.toString))
 }
 
 class QuietReporter extends DefaultReporter {
   override def warningFunction(msg : Any) = {}
   override def infoFunction(msg : Any) = {}
+  override def debugFunction(msg : Any) = {}
 }
 
 class SilentReporter extends QuietReporter {

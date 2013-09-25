@@ -74,6 +74,8 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
     val (vcs, fncs) = analyzeThis(fncsToAnalyse)
     if (reporter.errorCount > 0) throw LeonFatalError()
     
+    reporter.info("--- Analysis complete ---")
+    reporter.info("")
     if (options.simulation) {
       val simulator = new Simulator(reporter)
       val prec = if (options.precision.size == 1) options.precision.head else Float64
@@ -105,22 +107,20 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
     
     for (funDef <- sortedFncs if (funDef.body.isDefined)) {
       reporter.info("Analysing fnc:  %s".format(funDef.id.name))
-      if (verbose) println(funDef.body.get)
+      if (verbose) reporter.debug("fnc body: " + funDef.body.get)
       
       funDef.precondition match {
         case Some(pre) =>
           val variables = VariablePool(pre)
-          if (verbose) println("parameters: " + variables)
+          if (verbose) reporter.debug("parameter: " + variables)
           if (variables.hasValidInput(funDef.args)) {
-            if (verbose) println("prec. is complete, continuing")
-
-
+            if (verbose) reporter.debug("precondition is acceptable")
             val allFncCalls = functionCallsOf(funDef.body.get).map(invc => invc.funDef.id.toString)
               //functionCallsOf(pre).map(invc => invc.funDef.id.toString) ++
 
             // Add default roundoff on inputs
             val precondition = And(pre, And(variables.inputsWithoutNoise.map(i => Roundoff(i))))
-            if (verbose) println("precondition: " + precondition)
+            if (verbose) reporter.debug("precondition: " + precondition)
             
             val (body, bodyWORes, postcondition) = funDef.postcondition match {
               case Some(ResultVariable()) =>
