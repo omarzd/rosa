@@ -10,10 +10,12 @@ import purescala.TreeOps._
 import real.TreeOps._
 import Precision._
 import Sat._
+import Approximations._
 import FncHandling._
 import ArithmApprox._
 import PathHandling._
 import Rational._
+
 
 
 class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[FunDef, Fnc], verbose: Boolean = false) {
@@ -22,35 +24,43 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
 
   def getApplicableApproximations(vcs: Seq[VerificationCondition]): Map[VerificationCondition, List[ApproxKind]] =
     vcs.map { vc =>
-        val list = allApprox.filter { approxKind =>
-          if (!options.z3Only && approxKind.arithmApprox == Z3Only) false
-          else if (containsIfExpr(vc.body) && approxKind.pathHandling == Pathwise) false
-          else if (vc.allFncCalls.isEmpty && (approxKind.fncHandling == Postcondition || approxKind.fncHandling == Inlining)) false
-          else true
-        }
-        (vc, list)
+        val list = (
+          if (vc.allFncCalls.isEmpty) {
+            if (containsIfExpr(vc.body)) a_NoFncIf
+            else a_NoFncNoIf
+          } else {
+            if (containsIfExpr(vc.body)) a_FncIf
+            else a_FncNoIf
+          })
+
+        if (!options.z3Only) (vc, list.filter(ak => ak.arithmApprox != Z3Only))
+        else (vc, list)
       }.toMap
   
   def check(vcs: Seq[VerificationCondition]): Precision = {
     val validApproximations = getApplicableApproximations(vcs)
+
+    if (verbose) {
+      reporter.debug("approximation kinds:")
+      validApproximations.foreach(x => reporter.debug(x._1 + ": " + x._2))
+    }
     options.precision.find( precision => {
-      reporter.info("******** precision: %s *************".format(precision))
+      reporter.info("Trying precision: " + precision)
 
       for (vc <- vcs) {
-        reporter.info("Verification condition (%s) ==== %s ====".format(vc.kind, vc.fncId))
-        println("pre: " + vc.pre)
-        println("body: " + vc.body)
-        println("post: " + vc.post)
-        reporter.info("Trying with approximation")
+        reporter.info("Verification condition  ==== %s (%s) ====".format(vc.fncId, vc.kind))
+        if (verbose) reporter.debug("pre: " + vc.pre)
+        if (verbose) reporter.debug("body: " + vc.body)
+        if (verbose) reporter.debug("post: " + vc.post)
+        
         val start = System.currentTimeMillis
         var spec: Option[Spec] = None
 
         val approximations = validApproximations(vc)
-        println("approximations: " + approximations)
-
+        
         // TODO: re-use some of the approximation work across precision?
         approximations.find(aKind => {
-          reporter.info("  - " + aKind)
+          reporter.info("approx: " + aKind)
 
           try {
             val currentApprox = getApproximation(vc, aKind, precision)
@@ -83,7 +93,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
           case None =>
           case _ =>
         }
-        if (verbose) println("generated spec: " + spec)
+        if (verbose) reporter.debug("generated spec: " + spec)
         vc.spec += (precision -> spec)
       
         val end = System.currentTimeMillis
@@ -104,7 +114,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
   }
 
   def checkValid(app: Approximation, variables: VariablePool, precision: Precision): Option[Boolean] = {
-    if (verbose) println("\napprox: " + app.cnstrs)
+    if (verbose) reporter.debug("checking for valid: " + app.cnstrs)
 
     // I think we can keep one
     val transformer = new LeonToZ3Transformer(variables)
@@ -114,7 +124,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
       //println("constraint: " + constraint)
 
       val z3constraint = massageArithmetic(transformer.getZ3Expr(constraint, precision))
-      if (verbose) println("\n z3constraint ("+index+"): " + z3constraint)
+      if (verbose) reporter.debug("z3constraint ("+index+"): " + z3constraint)
 
       if (reporter.errorCount == 0 && sanityCheck(transformer.getZ3Expr(sanityExpr, precision)))
         solver.checkSat(z3constraint) match {
@@ -149,7 +159,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
         (vc.pre, fncInliner.transform(vc.body), vc.post)
     }
     if (verbose)
-      println("\nafter FNC handling:\npre: %s\nbody: %s\npost: %s".format(preFnc,bodyFnc,postFnc))
+      reporter.debug("after FNC handling:\npre: %s\nbody: %s\npost: %s".format(preFnc,bodyFnc,postFnc))
 
 
     val (pre, body, post): (Expr, Set[Path], Expr) = kind.pathHandling match {
@@ -163,7 +173,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
           postFnc )
     }
     if (verbose)
-      println("\nafter PATH handling:\npre: %s\nbody: %s\npost: %s".format(pre,body.mkString("\n"),post))
+      reporter.debug("after PATH handling:\npre: %s\nbody: %s\npost: %s".format(pre,body.mkString("\n"),post))
 
     
     kind.arithmApprox match {
@@ -186,13 +196,15 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
           val transformer = new FloatApproximator(reporter, solver, precision, And(pre, path.condition), vc.variables)
           val (newBody, newSpec) = transformer.transformWithSpec(path.body)
           spec = merge(spec, newSpec)
-          if (verbose) println("body after approx: " + newBody)
+          if (verbose) reporter.debug("body after approx: " + newBody)
           approx :+= And(And(pre, And(path.condition, newBody)), negate(post))
           sanity :+= And(pre, newBody)
         }
         Approximation(kind, approx, sanity, spec)
 
-      case FloatNRange =>
+      case FloatNRange => 
+        // TODO: real range approximation
+        throw new Exception("FloatNRange doesn't exist yet")
         Approximation(kind, List(), List(), None)
     }
   }

@@ -50,7 +50,8 @@ class VerificationCondition(val funDef: FunDef, val kind: VCKind.Value, val pre:
   var time : Option[Double] = None
   var counterExample : Option[Map[Identifier, Expr]] = None
 
-  override def toString: String = "vc (%s,%s): (%s && %s) -> %s".format(fncId, kind, pre, body, post)
+  def longString: String = "vc (%s,%s): (%s && %s) -> %s".format(fncId, kind, pre, body, post)
+  override def toString: String = "%s (%s)".format(fncId, kind)
 }
 
 object VCKind extends Enumeration {
