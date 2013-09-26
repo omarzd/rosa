@@ -69,16 +69,35 @@ class RealRegression extends FunSuite {
     }
   }
 
+  private def mkIgnore(file: File) = {
+    val fullName = file.getPath()
+    val start = fullName.indexOf("regression")
+
+    val displayName = if(start != -1) {
+      fullName.substring(start, fullName.length)
+    } else {
+      fullName
+    }
+    ignore(displayName) {
+      assert(true)
+    }
+  }
+
   private def forEachFileIn(cat : String, forError: Boolean = false)(block : Output=>Unit) {
     val fs = filesInResourceDir(
       "regression/verification/real/" + cat,
       _.endsWith(".scala"))
 
     for(f <- fs) {
-      //mkTest(f, List(LeonFlagOption("feelinglucky")), forError)(block)
-      //mkTest(f, List(LeonFlagOption("codegen"), LeonFlagOption("evalground"), LeonFlagOption("feelinglucky")), forError)(block)
       mkTest(f, List(LeonFlagOption("real")), forError)(block)
     }
+
+    val ignoredFiles = filesInResourceDir(
+      "regression/verification/real/" + cat,
+      _.endsWith(".txt"))
+    for(f <- ignoredFiles) {
+      mkIgnore(f)
+    }    
   }
   
   forEachFileIn("valid") { output =>
