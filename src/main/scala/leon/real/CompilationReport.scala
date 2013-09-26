@@ -6,7 +6,7 @@ package real
 import Precision._
 
 // @param precision the precision that we were able to prove stuff with (or not)
-class CompilationReport(vcs: Seq[VerificationCondition], precision: Precision = Float64) {
+class CompilationReport(val vcs: Seq[VerificationCondition], precision: Precision = Float64) {
 
   lazy val totalConditions : Int = vcs.size
 
