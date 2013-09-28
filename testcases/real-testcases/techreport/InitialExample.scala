@@ -16,7 +16,7 @@ object InitialExample {
   } ensuring(res => res +/- 1e-11)
 
   def triangleUnstable(a: Real, b: Real, c: Real): Real = {
-    require(a.in(1.0, 9.0) && b.in(1.0, 9.0) && c.in(1.0, 9.0) &&
+    require(a >< (1.0, 9.0) && b >< (1.0, 9.0) && c >< (1.0, 9.0) &&
       a + b > c + 0.000001 && a + c > b + 0.000001 && b + c > a + 0.000001)
 
     val s = (a + b + c)/2.0
@@ -24,7 +24,7 @@ object InitialExample {
   }
   
   def triangleSorted(a: Real, b: Real, c: Real): Real = {
-    require(a.in(1.0, 9.0) && b.in(1.0, 9.0) && c.in(1.0, 9.0) &&
+    require(a >< (1.0, 9.0) && b >< (1.0, 9.0) && c >< (1.0, 9.0) &&
       a + b > c + 0.000001 && a + c > b + 0.000001 && b + c > a + 0.000001 &&
       a < c && b < c)
 
