@@ -140,7 +140,7 @@ object XFloat {
     return machineEps * abs(r)
   }
 
-  val verbose = false
+  var verbose = false
 }
 
 
@@ -298,11 +298,11 @@ class XFloat(val tree: Expr, val approxInterval: RationalInterval, val error: XR
   }
 
   private def getTightInterval(tree: Expr, approx: RationalInterval, condition: Expr): RationalInterval = {
-    //println("\n tightening: " + tree)
-    //println("with pre: " + condition)
+    if (verbose) println("\n tightening: " + tree)
+    if (verbose) println("with pre: " + condition)
     val massagedTree = TreeOps.massageArithmetic(tree)
     //println("massaged: " + massagedTree)
-    //println("initial approx: " + approx)
+    if (verbose) println("initial approx: " + approx)
 
     /*val eps2 = Variable(FreshIdentifier("#eps2")).setType(RealType)
     val boundsConverter = new BoundsConverter(eps2, eps)

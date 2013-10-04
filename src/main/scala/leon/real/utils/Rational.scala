@@ -250,6 +250,7 @@ object Rational {
 
   private val mathContext = new java.math.MathContext(64, java.math.RoundingMode.HALF_EVEN)
 
+  // TODO: doesn't work for scientific notation
   def niceDoubleString(d: Double) = {
     var numString = "%.16g".format(d)
     //println("numString: " + numString)

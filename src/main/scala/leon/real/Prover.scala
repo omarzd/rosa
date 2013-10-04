@@ -165,6 +165,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
 
 
     val (pre, body, post): (Expr, Set[Path], Expr) = kind.pathHandling match {
+      // TODO: insert warning when checking path error that it's not checked in this case, even if it says valid
       case Pathwise =>
         ( preFnc,
           getPaths(bodyFnc).map(p => Path(p.condition, And(p.body, idealToActual(p.body, vc.variables)))), 

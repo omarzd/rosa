@@ -29,6 +29,7 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
   var reporter: Reporter = null
 
   override val definedOptions: Set[LeonOptionDef] = Set(
+    // TODO: option for only merging and checkpatherror
     LeonValueOptionDef("functions", "--functions=f1:f2", "Limit verification to f1, f2,..."),
     LeonFlagOptionDef("simulation", "--simulation", "Run a simulation instead of verification"),
     LeonFlagOptionDef("pathSensitive", "--pathSensitive", "Do a path sensitive analysis."),
@@ -38,7 +39,7 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
       "floating-point arithmetic: single, double, doubledouble, quaddouble or all (finds the best one).")
   )
 
-
+  // TODO: fix the rational printing issues
   def run(ctx: LeonContext)(program: Program): CompilationReport = { 
     reporter = ctx.reporter
     reporter.info("Running Compilation phase")

@@ -2,7 +2,8 @@ import leon.Real
 import Real._
 
 // Tests if-then-else handling
-object IfThenElse1 {
+// including path error
+object CAV10_1 {
 
   def cav10(x: Real): Real = {
     require(x >< (0, 10))
@@ -10,7 +11,6 @@ object IfThenElse1 {
       x/10
     else 
       x*x + 2
-    // TODO: path error
   } ensuring(res => 0 <= res && res <= 3.0)
 
 }

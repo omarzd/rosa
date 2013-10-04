@@ -16,7 +16,7 @@ object Bsplines {
   // proven in paper: [-0.05, 0.17]
   
   def bspline1(u: Real): Real = {
-   require(0 <= u && u <= 1)
+    require(0 <= u && u <= 1)
     (3 * u*u*u - 6 * u*u + 4) / 6.0
   } ensuring (res => 0.16 <= res && res <= 0.7 && res +/- 1e-15)
   // in paper [-0.05, 0.98]
