@@ -19,13 +19,16 @@ import real.Trees.RealLiteral
 import Sat._
 import Rational._
 
+object RealSolver {
+  var verbose = false
+}
 
 class RealSolver(context: LeonContext, prog: Program, timeout: Long) extends UninterpretedZ3Solver(context) {
-
+  import RealSolver._
   override val name = "numeric solver"
   override val description = "Z3 solver with some numeric convenience methods"
 
-  private var verbose = false
+  //var verbose = false
   var printWarnings = false
   var diagnose = true
   var countTimeouts = 0
