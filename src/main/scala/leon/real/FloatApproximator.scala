@@ -3,6 +3,7 @@
 package leon
 package real
 
+import purescala.Common._
 import purescala.Trees._
 import purescala.TreeOps._
 import purescala.TypeTrees._
@@ -29,7 +30,8 @@ object FloatApproximator {
 
 }
 
-class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Precision, precondition: Expr, inputs: VariablePool) extends TransformerWithPC {
+class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Precision, precondition: Expr, inputs: VariablePool,
+  checkPathError: Boolean = true) extends TransformerWithPC {
   type C = Seq[Expr]
   val initC = Nil
 
@@ -44,6 +46,7 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
     case QuadDouble => (-Rational(Double.MaxValue), Rational(Double.MaxValue)) // same range as Double
   }
   
+  // config with the initial precondition
   val config = XFloatConfig(solver, leonToZ3.getZ3Expr(noiseRemover.transform(precondition), precision), 
     precision, getUnitRoundoff(precision), solverMaxIterMedium, solverPrecisionMedium)
 
@@ -72,11 +75,124 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
   }
 
   override def rec(e: Expr, path: C) =  {
+    // TODO: can we do this nicer?
     def getXFloat(e: Expr): XFloat = e match {
       case ApproxNode(x) => x
       case FloatLiteral(r, exact) => addCondition(XFloat(r, config), path)
       case v: Variable => addCondition(variables(v), path)
       case And(args) => getXFloat(args.last)
+    }
+
+    // TODO: try this also with the pre-transformation to c(x) < 0 (as in the paper)?
+    // the float condition is to be used with the negation of the actual condition to get only 
+    // the values that are off-path
+    // TODO: we may also want to try to formulate this condition differently
+    def getOffPathConditions(cond: Expr): (Expr, Expr) = {
+      def getTotalError(l: Expr, r: Expr): Expr = {
+        val lActual = idealToActual(l, inputs)
+        val rActual = idealToActual(r, inputs)
+        println("lActual: " + lActual + "   (" + l +")")
+        println("rActual: " + rActual + "   (" + r +")")
+
+        val errLeft = getXFloat(rec(lActual, path)).maxError
+        val errRight = getXFloat(rec(rActual, path)).maxError
+        RealLiteral(errLeft + errRight)
+      }
+
+      cond match {
+        case LessThan(l, r) =>
+          val totalError = getTotalError(l, r)
+          val floatCond = LessThan(l, PlusR(r, totalError))
+          val realCond = GreaterEquals(l, MinusR(r, totalError))
+          (floatCond, realCond)
+
+        case LessEquals(l, r) =>
+          val totalError = getTotalError(l, r)
+          val floatCond = LessEquals(l, PlusR(r, totalError))
+          val realCond = GreaterThan(l, MinusR(r, totalError))
+          (floatCond, realCond)
+
+        case GreaterThan(l, r) =>
+          val totalError = getTotalError(l, r)
+          val floatCond = GreaterThan(l, MinusR(r, totalError))
+          val realCond = LessEquals(l, PlusR(r, totalError))
+          (floatCond, realCond)
+
+        case GreaterEquals(l, r) =>
+          val totalError = getTotalError(l, r)
+          val floatCond = GreaterEquals(l, MinusR(r, totalError))
+          val realCond = LessThan(l, PlusR(r, totalError))
+          (floatCond, realCond)
+      }
+    }// end getOffPathConditions
+
+
+    // Computes the path error for one direction and branch 
+    //@param branchCondition real-valued
+    //@param f1 path to be taken by ideal execution
+    //@param f2 path to be taken by floating-point execution
+    def computePathError(branchCondition: Expr, f1: Expr, f2: Expr): Rational = {
+      //([c], errc) = evalWithError(pre, c)
+      val (flCond, reCond) = getOffPathConditions(branchCondition)
+  
+      val floatCondition = And(flCond, negate(branchCondition))
+      val realCondition = And(reCond, branchCondition)
+  
+      val variablesOfPaths = variablesOf(f1) ++ variablesOf(f2)
+  
+      //([f2]float, errfloat) = evalWithError(pre ∧ c(x) ∈ [0, errc], f2)
+      val (freshMap1, inputs1) = getFreshVariablesWithConditionWithoutErrors(variablesOfPaths, floatCondition)
+      variables = variables ++ inputs1
+      solver.clearCounts
+      val realResult = getXFloat(rec(replace(freshMap1, f1), path :+ branchCondition))
+      
+      
+  
+      //[f1]real = getRange(pre ∧ c(x) ∈ [−errc, 0], f1)
+      val (freshMap2, inputs2) = getFreshVariablesWithConditionWithoutErrors(variablesOfPaths, realCondition)
+      variables = variables ++ inputs2
+      solver.clearCounts
+      val floatResult = getXFloat(rec(replace(freshMap2, f2), path :+ negate(branchCondition)))  
+  
+
+
+      //return: max |[f1]real − ([f2]float + errfloat)|
+      val correlation = variables.filter {
+          x => x._1 match {
+            case Variable(id) => variablesOfPaths.contains(id)
+            case _ => false
+          }
+        }.map {
+        case (v, xf) =>
+          val freshErrorVar = getNewErrorVar
+          And(Seq(Equals(freshMap2(v), PlusR(freshMap1(v), freshErrorVar)),
+          LessEquals(RealLiteral(-xf.maxError), freshErrorVar),
+          LessEquals(freshErrorVar, RealLiteral(xf.maxError))))
+        }
+        //println("\ncorrelation cond:  " + And(correlation.toSeq))
+
+        //val xfc = realRange.get.config
+      //val newConfig = xfc
+      //val newConfig = xfc.addCondition(And(correlation.toSeq)) 
+        //new XFloatConfig(xfc.reporter, xfc.solver, BooleanLiteral(true), xfc.precision, xfc.machineEps, xfc.solverMaxIter,
+        //xfc.solverPrecision, xfc.additionalConstraints ++ correlation.toSeq)
+
+      val realResultWithCorrelation = new XFloat(realResult.tree, realResult.approxInterval, new XRationalForm(Rational.zero),
+        realResult.config.addCondition(And(correlation.toSeq)))
+      //println("\n" + realRangeWithCorrelation.config.getCondition)
+
+
+      solver.clearCounts
+      val diff = (floatResult - realResultWithCorrelation).interval
+      reporter.info("STATS for diff: " + solver.getCounts)
+
+      // restore state from before
+      variables = variables -- inputs1.keys
+      variables = variables -- inputs2.keys
+      
+
+      val maxError = max(abs(diff.xlo), abs(diff.xhi))
+      maxError
     }
 
     val newExpr = e match {
@@ -85,13 +201,10 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
         variables = variables + (lhs -> x)
         constraintFromXFloats(Map(lhs -> x))
 
-      case UMinusF(t) => ApproxNode(-getXFloat(rec(t, path)))
-      case PlusF(lhs, rhs) =>
-        ApproxNode(getXFloat(rec(lhs, path)) + getXFloat(rec(rhs, path)))
-      case MinusF(lhs, rhs) =>
-        ApproxNode(getXFloat(rec(lhs, path)) - getXFloat(rec(rhs, path)))
-      case TimesF(lhs, rhs) =>
-        ApproxNode(getXFloat(rec(lhs, path)) * getXFloat(rec(rhs, path)))
+      case UMinusF(t) =>        ApproxNode(-getXFloat(rec(t, path)))
+      case PlusF(lhs, rhs) =>   ApproxNode(getXFloat(rec(lhs, path)) + getXFloat(rec(rhs, path)))
+      case MinusF(lhs, rhs) =>  ApproxNode(getXFloat(rec(lhs, path)) - getXFloat(rec(rhs, path)))
+      case TimesF(lhs, rhs) =>  ApproxNode(getXFloat(rec(lhs, path)) * getXFloat(rec(rhs, path)))
       case DivisionF(lhs, rhs) =>
         val r = getXFloat(rec(rhs, path))
         if (possiblyZero(r.interval)) reporter.warning("Potential div-by-zero detected: " + e)
@@ -102,9 +215,9 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
         if (possiblyNegative(x.interval)) reporter.warning("Potential sqrt of negative detected: " + e)
         ApproxNode(x.squareRoot)    
         
-      case FloatIfExpr(cond, den, elze) =>
+      case FloatIfExpr(cond, thenn, elze) =>
         val thenBranch =
-          if (isFeasible(path :+ cond)) Some(getXFloat(rec(den, register(cond, path))))
+          if (isFeasible(path :+ cond)) Some(getXFloat(rec(thenn, register(cond, path))))
           else None
 
         val elseBranch =
@@ -113,8 +226,20 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
         assert(!thenBranch.isEmpty || !elseBranch.isEmpty)
         
         // TODO: path error
+        val pathError = if (checkPathError) { // When the actual computation goes a different way than the real one
+          //val pathError1 = computePathError(cond, f1, f2) 
+          val pathError1 = computePathError(cond, thenn, elze)
+
+          //val pathError2 = computePathError(pre, ¬ cond, f2, f1) 
+          val pathError2 = computePathError(negate(cond), elze, thenn)
+
+          max(pathError1, pathError2)
+        } else {
+          zero
+        }
+
         /*val pathError = if (checkPathError) {
-            // When the actual computation goes a different way than the real one
+            
             val (flCond1, reCond1) = getDiffPathsConditions(cond, vars, config)
             println("cond1: " + flCond1)
             val (flCond2, reCond2) = getDiffPathsConditions(negate(cond), vars, config)
@@ -127,7 +252,7 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
             println("pathError2: %.16g".format(pathErrorElze.toDouble))
             max(pathErrorThen, pathErrorElze)
         } else {*/
-        val pathError = zero
+        //val pathError = zero
         //}
         ApproxNode(mergeXFloatWithExtraError(thenBranch, elseBranch, And(path), pathError))
 
@@ -144,6 +269,7 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
         val fncValue = rec(body, path)
         ApproxNode(getXFloat(fncValue))
 
+      // TODO: for the real-valued part we may want to cut it off here, so we don't recurse unnecessarily
       case _ =>
         super.rec(e, path)
     }
@@ -155,6 +281,38 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
     newExpr
   }
 
+
+
+
+  // TODO: this has to be done better, perhaps use monads
+  //@param (freshMap, xfloatMap) freshMap is the map from existing variables to fresh ones, 
+  // xfloatMap is the map from new variables to xfloats without errors
+  private def getFreshVariablesWithConditionWithoutErrors(vars: Set[Identifier], cond: Expr): (Map[Expr, Expr], Map[Expr, XFloat]) = {
+    
+    var freshMap: Map[Expr, Expr] = variables.collect {
+      case (v @ Variable(id), xf) if (vars.contains(id)) => (v, getFreshVarOf(id.toString))
+    }
+
+    val newInputs = //variables.filter((v, xf) => vars.contains(v.id)).map {
+      freshMap.map {
+      case (v, fresh) =>
+        val xf = variables(v)
+        // TODO: add the condition before to improve the approx interval?
+       (fresh, new XFloat(replace(freshMap, xf.tree), xf.approxInterval, new XRationalForm(Rational.zero),
+        xf.config.addCondition(cond).freshenUp(freshMap).updatePrecision(solverMaxIterHigh, solverPrecisionHigh)))
+    }
+    (freshMap, newInputs)
+  }
+
+  /*private def freshenUp(expr: Expr, freshMap: Map[Expr, Expr], inputs: Map[Expr, XFloat]): (Expr, Map[Expr, XFloat]) = {
+    val freshExpr = replace(freshMap, expr)
+    val freshInputs: Map[Expr, XFloat] = inputs.collect {
+      case (k, xf) if(freshMap.contains(k)) =>
+        val newXf = new XFloat(replace(freshMap, xf.tree), xf.approxInterval, xf.error, xf.config.freshenUp(freshMap))
+       (freshMap(k), newXf)
+    }
+    (freshExpr, freshInputs)
+  }*/
 
   
   private def mergeXFloatWithExtraError(one: Option[XFloat], two: Option[XFloat], condition: Expr,
@@ -318,35 +476,7 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
     case Sqrt(t) => affine.Utils.sqrtUp(evalErrorExpr(t, vars))
   }*/
 
-  /*private def getDiffPathsConditions(cond: Expr, inputs: Map[Expr, XFloat], config: XFloatConfig): (Expr, Expr) = cond match {
-    case LessThan(l, r) =>
-      val errLeft = eval(l, inputs, config).maxError
-      val errRight = eval(r, inputs, config).maxError
-      val floatCond = LessThan(l, Plus(r, RationalLiteral(errLeft + errRight)))
-      val realCond = GreaterEquals(l, Minus(r, RationalLiteral(errLeft + errRight)))
-      (floatCond, realCond)
-
-    case LessEquals(l, r) =>
-      val errLeft = eval(l, inputs, config).maxError
-      val errRight = eval(r, inputs, config).maxError
-      val floatCond = LessEquals(l, Plus(r, RationalLiteral(errLeft + errRight)))
-      val realCond = GreaterThan(l, Minus(r, RationalLiteral(errLeft + errRight)))
-      (floatCond, realCond)
-
-    case GreaterThan(l, r) =>
-      val errLeft = eval(l, inputs, config).maxError
-      val errRight = eval(r, inputs, config).maxError
-      val floatCond = GreaterThan(l, Minus(r, RationalLiteral(errLeft + errRight)))
-      val realCond = LessEquals(l, Plus(r, RationalLiteral(errLeft + errRight)))
-      (floatCond, realCond)
-
-    case GreaterEquals(l, r) =>
-      val errLeft = eval(l, inputs, config).maxError
-      val errRight = eval(r, inputs, config).maxError
-      val floatCond = GreaterEquals(l, Minus(r, RationalLiteral(errLeft + errRight)))
-      val realCond = LessThan(l, Plus(r, RationalLiteral(errLeft + errRight)))
-      (floatCond, realCond)
-  }*/
+  
 
   /*private def addConditionToInputs(inputs: Map[Expr, XFloat], cond: Expr): Map[Expr, XFloat] = {
     inputs.map{
