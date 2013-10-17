@@ -3,7 +3,8 @@
 package leon
 package real
 
-import purescala.Trees._
+import purescala.Trees.{Expr, Variable, And, Equals, LessEquals}
+import real.Trees._
 
 import real.Trees.RealLiteral
 import Rational._
@@ -175,12 +176,12 @@ class XFloat(val tree: Expr, val approxInterval: RationalInterval, val error: XR
     "%s +/- %s +/- [%s]".format(error.x0, varErrors.toString, sumQueue(otherErrors))
   }*/
 
-  def unary_-(): XFloat = new XFloat(UMinus(tree), -approxInterval, -error, config)
+  def unary_-(): XFloat = new XFloat(UMinusR(tree), -approxInterval, -error, config)
 
   def +(y: XFloat): XFloat = {
     if (verbose) println("Adding " + this + " to " + y)
     val newConfig = config.and(y.config)
-    val newTree = Plus(this.tree, y.tree)
+    val newTree = PlusR(this.tree, y.tree)
     val newInterval = this.approxInterval + y.approxInterval
 
     var newError = this.error + y.error
@@ -194,7 +195,7 @@ class XFloat(val tree: Expr, val approxInterval: RationalInterval, val error: XR
   def -(y: XFloat): XFloat = {
     if (verbose) println("Subtracting " + this + " from " + y)
     val newConfig = config.and(y.config)
-    val newTree = Minus(this.tree, y.tree)
+    val newTree = MinusR(this.tree, y.tree)
     val newInterval = this.approxInterval - y.approxInterval
 
     var newError = this.error - y.error
@@ -209,7 +210,7 @@ class XFloat(val tree: Expr, val approxInterval: RationalInterval, val error: XR
     if (verbose) println("x.error: " + this.error.longString)
     if (verbose) println("y.error: " + y.error.longString)
     val newConfig = config.and(y.config)
-    val newTree = Times(this.tree, y.tree)
+    val newTree = TimesR(this.tree, y.tree)
     val newInterval = this.approxInterval * y.approxInterval
 
     val xAA = XRationalForm(this.realInterval)
@@ -233,7 +234,7 @@ class XFloat(val tree: Expr, val approxInterval: RationalInterval, val error: XR
 
     // Compute approximation
     //val tightInverse = getTightInterval(Division(new RealLiteral(1), y.tree), y.approxRange.inverse)
-    val tightInverse = getTightInterval(Division(new RealLiteral(1), y.tree), RationalInterval(one, one)/y.approxInterval, y.config.getCondition)
+    val tightInverse = getTightInterval(DivisionR(new RealLiteral(1), y.tree), RationalInterval(one, one)/y.approxInterval, y.config.getCondition)
     val kAA = XRationalForm(tightInverse)
     val xAA = XRationalForm(this.realInterval)
     val xErr = this.error
@@ -245,7 +246,7 @@ class XFloat(val tree: Expr, val approxInterval: RationalInterval, val error: XR
 
     // Now do the multiplication x * (1/y)
     val newConfig = config.and(y.config)
-    val newTree = Division(this.tree, y.tree)
+    val newTree = DivisionR(this.tree, y.tree)
     val newInterval = this.approxInterval / y.approxInterval
 
 
@@ -267,7 +268,7 @@ class XFloat(val tree: Expr, val approxInterval: RationalInterval, val error: XR
     //val newTree = Sqrt(this.tree)
     val (sqrtVar, n) = getNewSqrtVariablePair
     val newTree = sqrtVar
-    val newCondition = And(Equals(Times(sqrtVar, sqrtVar), this.tree), LessEquals(RealLiteral(zero), sqrtVar))
+    val newCondition = And(Equals(TimesR(sqrtVar, sqrtVar), this.tree), LessEquals(RealLiteral(zero), sqrtVar))
     val newConfig = config.addCondition(newCondition)
 
     val newInterval = RationalInterval(sqrtDown(this.approxInterval.xlo), sqrtUp(this.approxInterval.xhi))
@@ -300,7 +301,9 @@ class XFloat(val tree: Expr, val approxInterval: RationalInterval, val error: XR
   private def getTightInterval(tree: Expr, approx: RationalInterval, condition: Expr): RationalInterval = {
     if (verbose) println("\n tightening: " + tree)
     if (verbose) println("with pre: " + condition)
-    val massagedTree = TreeOps.massageArithmetic(tree)
+    //println("tree before: " + tree)
+    val massagedTree = if (useMassageArithmetic) TreeOps.massageArithmetic(tree)
+                       else tree
     //println("massaged: " + massagedTree)
     if (verbose) println("initial approx: " + approx)
 

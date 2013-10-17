@@ -286,6 +286,10 @@ object TreeOps {
       case Noise(ResultVariable(), RealLiteral(value)) => error = Some(value); e
       case Noise(ResultVariable(), IntLiteral(value)) => error = Some(Rational(value)); e
 
+      case Times(_, _) | Plus(_, _) | Division(_, _) | Minus(_, _) | UMinus(_) =>
+        throw new Exception("found integer arithmetic in ResultCollector")
+        null
+
       //case Noise(ResultVariable(), x) => errorExpr = Some(x); e
       case _ =>
         // TODO: extras
@@ -355,6 +359,9 @@ object TreeOps {
       case FunctionInvocation(fundef, args) =>
         FncInvocationF(fundef, args.map(a => rec(a, path)))
 
+      case Times(_, _) | Plus(_, _) | Division(_, _) | Minus(_, _) | UMinus(_) =>
+        throw new Exception("found integer arithmetic in RealToFloatTransformer")
+        null
       case _ =>
         super.rec(e, path)
     }
@@ -377,9 +384,13 @@ object TreeOps {
   def massageArithmetic(expr: Expr): Expr = {
     //TODO: somehow remove redundant definitions of errors? stuff like And(Or(idealPart), Or(actualPart))
     val t1 = minusDistributor.transform(expr)
+    //println("t1: " + t1.getClass)
     val t2 = factorizer.transform(factorizer.transform(t1))
+    //println("t2: " + t2)
     val t3 = productCollector.transform(t2)
+    //println("t3: " + t3)
     val t4 = powerTransformer.transform(t3)
+    //println("t4: " + t4)
     simplifyArithmetic(t4)
   }
 
@@ -442,6 +453,9 @@ object TreeOps {
       case TimesR(PlusR(a, b), f) => PlusR(rec(TimesR(a, f), path), rec(TimesR(b, f), path))
       case TimesR(f, MinusR(a, b)) => MinusR(rec(TimesR(f, a), path), rec(TimesR(f, b), path))
       case TimesR(MinusR(a, b), f) => MinusR(rec(TimesR(a, f), path), rec(TimesR(b, f), path))
+      case Times(_, _) | Plus(_, _) | Division(_, _) | Minus(_, _) | UMinus(_) =>
+        throw new Exception("found integer arithmetic in Factorizer")
+        null
       case _ => super.rec(e, path)
     }
   }
@@ -459,6 +473,9 @@ object TreeOps {
       case UMinusR(TimesR(x, y)) => TimesR(rec(UMinusR(x), path), rec(y, path))
       case UMinusR(DivisionR(x, y)) => DivisionR(rec(UMinusR(x), path), rec(y, path))
       case UMinusR(UMinusR(x)) => rec(x, path)
+      case Times(_, _) | Plus(_, _) | Division(_, _) | Minus(_, _) | UMinus(_) =>
+        throw new Exception("found integer arithmetic in MinusDistributor " + e)
+        null
       case _ =>
         super.rec(e, path)
     }
@@ -508,7 +525,9 @@ object TreeOps {
       case MinusR(e1, e2) if e1 == e2 => RealLiteral(Rational.zero)
       case MinusR(PlusR(e1, e2), PlusR(e3, e4)) if e1 == e4 && e2 == e3 => RealLiteral(Rational.zero)
       case MinusR(PlusR(e1, e2), PlusR(PlusR(e3, e4), e5)) if e1 == e4 && e2 == e3 => UMinusR(e5)
-
+      case Times(_, _) | Plus(_, _) | Division(_, _) | Minus(_, _) | UMinus(_) =>
+        throw new Exception("found integer arithmetic in simplifyArithmetic")
+        null
       //default
       case e => e
     }

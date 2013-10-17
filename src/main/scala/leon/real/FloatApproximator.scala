@@ -4,7 +4,8 @@ package leon
 package real
 
 import purescala.Common._
-import purescala.Trees._
+//import purescala.Trees._
+import purescala.Trees.{Expr, Variable, And, Equals, LessEquals, LessThan, GreaterThan, GreaterEquals, ResultVariable}
 import purescala.TreeOps._
 import purescala.TypeTrees._
 
@@ -258,6 +259,10 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
         val fncValue = rec(body, path)
         ApproxNode(getXFloat(fncValue))
 
+      /*case Times(_, _) | Plus(_, _) | Division(_, _) | Minus(_, _) | UMinus(_) =>
+        throw new Exception("found integer arithmetic in FloatApproximator")
+        null*/
+
       // TODO: for the real-valued part we may want to cut it off here, so we don't recurse unnecessarily
       case _ =>
         super.rec(e, path)
@@ -350,6 +355,9 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
       (seq, kv) => seq ++ Seq(LessEquals(RealLiteral(kv._2.interval.xlo), kv._1),
                                 LessEquals(kv._1, RealLiteral(kv._2.interval.xhi)),
                                 Noise(inputs.getIdeal(kv._1), RealLiteral(kv._2.maxError)))))
+    /*(seq, kv) => seq ++ Seq(LessEquals(RealLiteral(kv._2.realInterval.xlo), inputs.getIdeal(kv._1)),
+                                LessEquals(inputs.getIdeal(kv._1), RealLiteral(kv._2.realInterval.xhi)),
+                                Noise(inputs.getIdeal(kv._1), RealLiteral(kv._2.maxError)))))*/
   }
 
   private def overflowPossible(interval: RationalInterval): Boolean =

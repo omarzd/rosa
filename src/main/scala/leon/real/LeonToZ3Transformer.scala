@@ -5,6 +5,7 @@ package real
 
 import purescala.Common._
 import purescala.Trees._
+//import purescala.Trees.{Expr, Variable, And, Equals, LessEquals, LessThan, GreaterThan, GreaterEquals, ResultVariable}
 import purescala.TreeOps._
 import purescala.TypeTrees._
 
@@ -38,7 +39,7 @@ class LeonToZ3Transformer(variables: VariablePool) extends TransformerWithPC {
     def register(e: Expr, path: C) = path :+ e
 
     private def constrainDelta(delta: Variable): Expr = {
-      And(Seq(LessEquals(UMinus(machineEps), delta), LessEquals(delta, machineEps)))
+      And(Seq(LessEquals(UMinusR(machineEps), delta), LessEquals(delta, machineEps)))
     }
 
     override def rec(e: Expr, path: C) = e match {
@@ -168,6 +169,10 @@ class LeonToZ3Transformer(variables: VariablePool) extends TransformerWithPC {
         val newArgs = args.map(a => rec(a, path))
         newArgs.foreach(a => println("arg: " + a + "  type: " + a.getType + "   " + a.getClass))
         FunctionInvocation(funDef, args.map(a => rec(a, path)))
+
+      case Times(_, _) | Plus(_, _) | Division(_, _) | Minus(_, _) | UMinus(_) =>
+        throw new Exception("found integer arithmetic in LeonToZ3Transformer")
+        null
 
       case _ =>
         super.rec(e, path)

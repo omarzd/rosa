@@ -137,6 +137,7 @@ class RealSolver(context: LeonContext, prog: Program, timeout: Long) extends Uni
     case RealLiteral(v) => initialBound
     //case Variable(id) => initialBound
     case _ =>
+      //println("maxIter: " + maxIter + "    precision: " + prec)
       assert(solver.getNumScopes == 0)
       solver.push
       assertCnstr(precondition)

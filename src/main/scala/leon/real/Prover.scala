@@ -123,8 +123,8 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
     for (((constraint, sanityExpr), index) <- app.cnstrs.zip(app.sanityChecks).view.zipWithIndex) {
       //println("constraint: " + constraint)
 
-      //val z3constraint = massageArithmetic(transformer.getZ3Expr(constraint, precision))
-      val z3constraint = transformer.getZ3Expr(constraint, precision)
+      val z3constraint = if (useMassageArithmetic) massageArithmetic(transformer.getZ3Expr(constraint, precision))
+                        else transformer.getZ3Expr(constraint, precision)
       
       if (verbose) reporter.debug("z3constraint ("+index+"): " + z3constraint)
 

@@ -10,6 +10,8 @@ package object real {
   val True = BooleanLiteral(true)
   val False = BooleanLiteral(false)
 
+  val useMassageArithmetic = true
+
   case class UnsupportedRealFragmentException(msg: String) extends Exception(msg)
   case class ArithmeticException(msg: String) extends Exception(msg)
 
