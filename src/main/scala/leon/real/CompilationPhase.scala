@@ -132,10 +132,13 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
               case Some(p) =>
                 (convertLetsToEquals(addResult(funDef.body.get)), convertLetsToEquals(funDef.body.get), p)
 
-              case None =>
+              case None => // only want to generate specs
                 (convertLetsToEquals(addResult(funDef.body.get)), convertLetsToEquals(funDef.body.get), True)
             }
-            vcs :+= new VerificationCondition(funDef, Postcondition, precondition, body, postcondition, allFncCalls, variables)
+            if (postcondition == True)
+              vcs :+= new VerificationCondition(funDef, SpecGen, precondition, body, postcondition, allFncCalls, variables)
+            else  
+              vcs :+= new VerificationCondition(funDef, Postcondition, precondition, body, postcondition, allFncCalls, variables)
 
             // VCs for preconditions of fnc calls and assertions
             val assertionCollector = new AssertionCollector(funDef, precondition, variables)

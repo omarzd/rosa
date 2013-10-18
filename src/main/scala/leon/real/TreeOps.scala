@@ -184,6 +184,7 @@ object TreeOps {
             case _ => None
           }
         }*/
+        // TODO: make this fail gracefully if the postcondition is not given and enable postcondition inlining again
         val post = funDef.postcondition.get
         FncValue(replace(arguments, post))
       case _ =>

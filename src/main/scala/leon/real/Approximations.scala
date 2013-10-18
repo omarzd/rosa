@@ -38,11 +38,11 @@ object Approximations {
     ApproxKind(Uninterpreted, Merging, Z3Only),
     ApproxKind(Uninterpreted, Pathwise, Z3Only),
     
-    ApproxKind(Postcondition, Merging, Z3Only),
-    ApproxKind(Postcondition, Merging, JustFloat),
+    //ApproxKind(Postcondition, Merging, Z3Only),
+    //ApproxKind(Postcondition, Merging, JustFloat),
     //ApproxKind(Postcondition, Merging, FloatNRange),
-    ApproxKind(Postcondition, Pathwise, Z3Only),
-    ApproxKind(Postcondition, Pathwise, JustFloat),
+    //ApproxKind(Postcondition, Pathwise, Z3Only),
+    //ApproxKind(Postcondition, Pathwise, JustFloat),
     //ApproxKind(Postcondition, Pathwise, FloatNRange),  
     ApproxKind(Inlining, Merging, Z3Only),
     ApproxKind(Inlining, Merging, JustFloat),
@@ -55,8 +55,8 @@ object Approximations {
   val a_FncNoIf = List(
     ApproxKind(Uninterpreted, Merging, Z3Only),
     
-    ApproxKind(Postcondition, Merging, Z3Only),
-    ApproxKind(Postcondition, Merging, JustFloat),
+    //ApproxKind(Postcondition, Merging, Z3Only),
+    //ApproxKind(Postcondition, Merging, JustFloat),
     //ApproxKind(Postcondition, Merging, FloatNRange),
     ApproxKind(Inlining, Merging, Z3Only),
     ApproxKind(Inlining, Merging, JustFloat)

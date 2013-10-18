@@ -22,14 +22,19 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
   val reporter = ctx.reporter
   val solver = new RealSolver(ctx, prog, options.z3Timeout)
 
+  // TODO: ugly?!
   def getApplicableApproximations(vcs: Seq[VerificationCondition]): Map[VerificationCondition, List[ApproxKind]] =
     vcs.map { vc =>
         val list = (
           if (vc.allFncCalls.isEmpty) {
-            if (containsIfExpr(vc.body)) a_NoFncIf
+            if (containsIfExpr(vc.body))
+              if (options.pathError) a_NoFncIf.filter(ak => ak.pathHandling == Merging)
+              else a_NoFncIf
             else a_NoFncNoIf
           } else {
-            if (containsIfExpr(vc.body)) a_FncIf
+            if (containsIfExpr(vc.body))
+              if (options.pathError) a_FncIf.filter(ak => ak.pathHandling == Merging)
+              else a_FncIf
             else a_FncNoIf
           })
 
@@ -47,7 +52,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
     options.precision.find( precision => {
       reporter.info("Trying precision: " + precision)
 
-      for (vc <- vcs) {
+      for (vc <- vcs if (options.specGen || vc.kind != VCKind.SpecGen)) {
         reporter.info("Verification condition  ==== %s (%s) ====".format(vc.fncId, vc.kind))
         if (verbose) reporter.debug("pre: " + vc.pre)
         if (verbose) reporter.debug("body: " + vc.body)
@@ -196,7 +201,8 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
   
         for ( path <- body ) {
           // Hmm, this uses the same solver as the check...
-          val transformer = new FloatApproximator(reporter, solver, precision, And(pre, path.condition), vc.variables)
+          val transformer = new FloatApproximator(reporter, solver, precision, And(pre, path.condition),
+            vc.variables, options.pathError)
           val (newBody, newSpec) = transformer.transformWithSpec(path.body)
           spec = merge(spec, newSpec)
           if (verbose) reporter.debug("body after approx: " + newBody)

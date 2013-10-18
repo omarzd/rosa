@@ -61,6 +61,10 @@ package object real {
     var pathSensitive = false
     var solverMaxIter = solverMaxIterMedium
     var solverPrecision = solverPrecisionMedium
+    // generate specs for functions without postconditions?
+    var specGen = false
+    // checking path error
+    var pathError = true // experimental feature
 
     override def toString: String = "simulation: %s,\nz3 timeout: %s,\nprecision: %s,\nz3Only: %s,\npathSensitive: %s,\nspecGen: %s".format(
       simulation, z3Timeout, precision, z3Only, pathSensitive) 

@@ -58,4 +58,5 @@ object VCKind extends Enumeration {
   val Precondition = Value("precond.")
   val Postcondition = Value("postcond.")
   val Assert = Value("assert.")
+  val SpecGen = Value("specgen")
 }

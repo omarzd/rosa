@@ -134,6 +134,9 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
     //@param f1 path to be taken by ideal execution
     //@param f2 path to be taken by floating-point execution
     def computePathError(branchCondition: Expr, f1: Expr, f2: Expr): Rational = {
+      def removeErrors(xf: XFloat): XFloat = {
+        new XFloat(xf.tree, xf.approxInterval, new XRationalForm(Rational.zero), xf.config)
+      }
       if (pathErrorVerbose) println("--------\n computing path error for condition: " + branchCondition)
       if (pathErrorVerbose) println("real path: "+ f1)
       if (pathErrorVerbose) println("actual path: "+f2)
@@ -148,8 +151,8 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
       val variablesOfPaths = variablesOf(f1) ++ variablesOf(f2)
       
       //[f1]real = getRange(pre ∧ c(x) ∈ [−errc, 0], f1)
-      val (freshMap1, inputs1) = getFreshVariablesWithConditionWithoutErrors(variablesOfPaths, realCondition)
-      if (pathErrorVerbose) println("freshMap1: " + freshMap1 + "\ninputs1:")
+      val (freshMapReal, inputs1) = getFreshVariablesWithConditionWithoutErrors(variablesOfPaths, realCondition)
+      if (pathErrorVerbose) println("freshMapReal: " + freshMapReal + "\ninputs1:")
       if (pathErrorVerbose) inputs1.foreach{ i => println(i.toString + " " + i._2.config)}
 
       variables = variables ++ inputs1
@@ -157,20 +160,24 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
       //XFloat.verbose = true
       // don't add the branchCondition to the path, since it's in terms of real variables and will cause an invalid result
       // the branchCondition is already added to the config of the variables, and for constants it doesn't matter
-      val realResult = getXFloat(rec(replace(freshMap1, f1), path))
-      if (pathErrorVerbose) println("realResult: " + realResult)
+      //println("realPath: " + replace(freshMapReal, f1))
+      val realResult = getXFloat(rec(replace(freshMapReal, f1), path))
+      //println("real result config: " + realResult.config.getCondition)
+      //println("real result: " + realResult)
+      //println("solverPrecision: " + realResult.config.solverPrecision)
+      if (pathErrorVerbose) println("realResult: " + removeErrors(realResult))
       
       
       //([f2]float, errfloat) = evalWithError(pre ∧ c(x) ∈ [0, errc], f2)
       //(Map[Expr, Expr], Map[Expr, XFloat])
-      val (freshMap2, inputs2) = getFreshVariablesWithConditionWithoutErrors(variablesOfPaths, floatCondition)
-      if (pathErrorVerbose) println("freshMap2: " + freshMap2 + "\ninputs2: ")
-      if (pathErrorVerbose) inputs2.foreach{ i => println(i.toString + " " + i._2.config) }
+      val (freshMapFloat, inputs2) = getFreshVariablesWithConditionWithoutErrors(variablesOfPaths, floatCondition)
+      if (pathErrorVerbose) println("freshMapFloat: " + freshMapFloat + "\ninputs2: ")
+      //if (pathErrorVerbose) inputs2.foreach{ i => println(i.toString + " " + i._2.config) }
 
       variables = variables ++ inputs2
       solver.clearCounts
-      val floatResult = getXFloat(rec(replace(freshMap2, f2), path))
-      println("floatResult: " + floatResult)
+      val floatResult = getXFloat(rec(replace(freshMapFloat, f2), path))
+      //println("floatResult: " + floatResult)
 
 
       //return: max |[f1]real − ([f2]float + errfloat)|
@@ -180,7 +187,7 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
           }}.map {
         case (v, xf) =>
           val freshErrorVar = getNewErrorVar
-          And(Seq(Equals(freshMap2(v), PlusR(freshMap1(v), freshErrorVar)),
+          And(Seq(Equals(freshMapFloat(v), PlusR(freshMapReal(v), freshErrorVar)),
           LessEquals(RealLiteral(-xf.maxError), freshErrorVar),
           LessEquals(freshErrorVar, RealLiteral(xf.maxError))))
         }
@@ -189,12 +196,17 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
       val realResultWithCorrelation = new XFloat(realResult.tree, realResult.approxInterval, new XRationalForm(Rational.zero),
         realResult.config.addCondition(And(correlation.toSeq)))
       if (pathErrorVerbose) println("realResultWithCorrelation: " + realResultWithCorrelation)
+      //println("\n realRangeWithCorrelation.config" + realResultWithCorrelation.config.getCondition)
 
+      //println("floatResult.config: " + floatResult.config.getCondition)
       solver.clearCounts
-      val diff = (floatResult - realResultWithCorrelation).interval
+      //XFloat.verbose = true
+      val diffXFloat = (floatResult - realResultWithCorrelation)
+      val diff = diffXFloat.interval
       if (pathErrorVerbose) println("diff: " + diff)
+      //println("diff config: " + diffXFloat.config.getCondition)
       if (pathErrorVerbose) reporter.info("STATS for diff: " + solver.getCounts)
-
+      //XFloat.verbose = false
       // restore state from before
       variables = variables -- inputs1.keys -- inputs2.keys
       //XFloat.verbose = false
@@ -229,9 +241,11 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
           else None
 
         val elseBranch =
-          if (isFeasible(path :+ negate(cond))) Some(getXFloat(rec(elze, register(cond, path))))
+          if (isFeasible(path :+ negate(cond))) Some(getXFloat(rec(elze, register(negate(cond), path))))
           else None
         assert(!thenBranch.isEmpty || !elseBranch.isEmpty)
+        reporter.debug("thenBranch: " + thenBranch)
+        reporter.debug("elseBranch: " + elseBranch)
         
         val pathError = if (checkPathError) { // When the actual computation goes a different way than the real one
           val pathError1 = computePathError(cond, thenn, elze)
@@ -298,8 +312,9 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
     var freshMap: Map[Expr, Expr] = variables.collect {
       case (v @ Variable(id), xf) if (vars.contains(id)) => (v, getFreshVarOf(id.toString))
     }
+    //ideal to new variables
     var buddyFreshMap: Map[Expr, Expr] = variables.collect {
-      case (v @ Variable(id), xf) if (vars.contains(id)) => (inputs.getIdeal(v), getFreshVarOf(id.toString))
+      case (v @ Variable(id), xf) if (vars.contains(id)) => (inputs.getIdeal(v), freshMap(v))
     }
     
     val newInputs =
@@ -308,6 +323,7 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
         val xf = variables(v)
         // TODO: add the condition before to improve the approx interval?
        (fresh, new XFloat(replace(buddyFreshMap, xf.tree), xf.approxInterval, new XRationalForm(Rational.zero),
+        // TODO: fix the precision, this is not enough (we may have to fix the merging of configs)
         xf.config.addCondition(cond).freshenUp(buddyFreshMap).updatePrecision(solverMaxIterHigh, solverPrecisionHigh)))
     }
     (freshMap, newInputs)
