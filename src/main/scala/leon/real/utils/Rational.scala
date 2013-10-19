@@ -250,23 +250,19 @@ object Rational {
 
   private val mathContext = new java.math.MathContext(64, java.math.RoundingMode.HALF_EVEN)
 
-  // TODO: doesn't work for scientific notation
   def niceDoubleString(d: Double) = {
-    var numString = "%.16g".format(d)
-    //println("numString: " + numString)
-    var continue = (numString.length > 1)
-    while(continue) {
-      if (numString.last == '0') {
-        numString = numString.dropRight(1)
-        //println("numString after drop: " + numString)
-        continue = true
-      }
-      else {
-        continue = false
-      }
+    // TODO: is there such a library function maybe?
+    def removeTrailingZeroes(s: String): String = {
+      if (s.last == '0') removeTrailingZeroes(s.init)
+      else s
     }
-    if (numString.last == '.') numString.dropRight(1)
-    else numString
+    var numString = "%.18g".format(d)
+    numString.split('e') match {
+      case Array(digitsOnly, exponent) =>
+        removeTrailingZeroes(digitsOnly) + "e" + exponent
+      case Array(digitsOnly) =>
+        removeTrailingZeroes(digitsOnly)
+    }
   }
 }
 
