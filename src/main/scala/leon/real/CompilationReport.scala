@@ -19,7 +19,6 @@ class CompilationReport(val allVCs: Seq[VerificationCondition], precision: Preci
 
   lazy val totalUnknown : Int = realVCs.count(_.value(precision) == None)
 
-  // TODO: filter out VCs that are only specgen
   def summaryString : String = if(totalConditions >= 0) {
     CompilationReport.infoHeader +
     realVCs.map(CompilationReport.infoLine(precision)).mkString("\n", "\n", "\n") +

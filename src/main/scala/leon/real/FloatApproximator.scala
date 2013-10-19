@@ -92,7 +92,6 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
     // TODO: try this also with the pre-transformation to c(x) < 0 (as in the paper)?
     // the float condition is to be used with the negation of the actual condition to get only 
     // the values that are off-path
-    // TODO: we may also want to try to formulate this condition differently
     def getOffPathConditions(cond: Expr): (Expr, Expr) = {
       def getTotalError(l: Expr, r: Expr): Expr = {
         val lActual = idealToActual(l, inputs)
@@ -338,7 +337,6 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
         val xf = variables(v)
         // TODO: add the condition before to improve the approx interval?
        (fresh, new XFloat(replace(buddyFreshMap, xf.tree), xf.approxInterval, new XRationalForm(Rational.zero),
-        // TODO: fix the precision, this is not enough (we may have to fix the merging of configs)
         xf.config.addCondition(cond).freshenUp(buddyFreshMap).updatePrecision(solverMaxIterHigh, solverPrecisionHigh)))
     }
     (freshMap, newInputs)

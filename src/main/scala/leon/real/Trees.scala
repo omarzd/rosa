@@ -31,7 +31,7 @@ object Trees {
     }
   }
 
-  // TODO: description when this is used, i.e. difference to the RealLiteral
+  // literal in the floating-point computation
   case class FloatLiteral(value: Rational, exact: Boolean) extends Expr with Terminal with FixedType with PrettyPrintable {
     val fixedType = RealType
     
