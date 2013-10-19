@@ -22,10 +22,12 @@ case class XFloatConfig(solver: RealSolver, precondition: Expr, precision: Preci
   
   def and(other: XFloatConfig): XFloatConfig = {
     if (this.precondition == other.precondition)
-      XFloatConfig(solver, precondition, precision, machineEps, solverMaxIter, solverPrecision,
+      XFloatConfig(solver, precondition, precision, machineEps,
+        math.max(solverMaxIter, other.solverMaxIter), Rational.min(solverPrecision, other.solverPrecision),
         this.additionalConstraints ++ other.additionalConstraints)
     else
-      XFloatConfig(solver, precondition, precision, machineEps, solverMaxIter, solverPrecision,
+      XFloatConfig(solver, precondition, precision, machineEps,
+        math.max(solverMaxIter, other.solverMaxIter), Rational.min(solverPrecision, other.solverPrecision),
        this.additionalConstraints ++ other.additionalConstraints ++ Set(other.precondition))
   }
 
