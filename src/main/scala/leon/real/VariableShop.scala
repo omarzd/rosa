@@ -3,11 +3,11 @@
 package leon
 package real
 
-import purescala.Trees._
+import purescala.Trees.{Variable, Expr}
 import purescala.TypeTrees._
 import purescala.Common._
 
-import real.Trees.RealLiteral
+import real.Trees.{RealLiteral, TimesR, PlusR}
 
 object VariableShop {
 
@@ -57,12 +57,12 @@ object VariableShop {
 
   def getRndoff(expr: Expr): (Expr, Variable) = {
     val delta = getNewDelta
-    (Times(expr, delta), delta)
+    (TimesR(expr, delta), delta)
   }
 
   def getFreshRndoffMultiplier: (Expr, Variable) = {
     val delta = getNewDelta
-    (Plus(new RealLiteral(1), delta) , delta)
+    (PlusR(new RealLiteral(1), delta) , delta)
   }
 
   def getFreshVarOf(name: String): Variable = {

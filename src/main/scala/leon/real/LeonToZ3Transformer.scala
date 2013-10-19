@@ -48,23 +48,44 @@ class LeonToZ3Transformer(variables: VariablePool) extends TransformerWithPC {
         addExtra(constrainDelta(delta))
         Equals(variables.buddy(v), TimesR(PlusR(new RealLiteral(1), delta), v))
 
+      // For bspline 3 to work, we need this:
+      // TODO: test if this is better in general?
+      /*case Noise(v @ Variable(_), r @ RealLiteral(value)) =>
+        And(LessEquals(RealLiteral(-value), MinusR(v, variables.buddy(v))), 
+            LessEquals(MinusR(v, variables.buddy(v)), r))
+        
+      case Noise(res @ ResultVariable(), r @ RealLiteral(value)) =>
+        And(LessEquals(RealLiteral(-value), MinusR(res, FResVariable())),
+            LessEquals(MinusR(res, FResVariable()), r))
+      
+
+      case Noise(res @ FResVariable(), r @ RealLiteral(value)) =>
+        throw new Exception("???")
+        null
+        And(LessEquals(RealLiteral(-value), MinusR(ress, buddy(ress))),
+            LessEquals(MinusR(ress, buddy(ress)), r))
+      */
+
+
       case Noise(v @ Variable(_), r @ RealLiteral(value)) =>
         val freshErrorVar = getErrorVar(v)
         And(Seq(Equals(variables.buddy(v), PlusR(v, freshErrorVar)),
           LessEquals(RealLiteral(-value), freshErrorVar),
           LessEquals(freshErrorVar, r)))
-      
       case Noise(res @ ResultVariable(), r @ RealLiteral(value)) =>
         val freshErrorVar = getErrorVar(res)
         And(Seq(Equals(FResVariable(), PlusR(res, freshErrorVar)),
           LessEquals(RealLiteral(-value), freshErrorVar),
           LessEquals(freshErrorVar, r)))
       case Noise(res @ FResVariable(), r @ RealLiteral(value)) =>
-        val freshErrorVar = getErrorVar(res)
+        throw new Exception("???")
+        null
+        /*val freshErrorVar = getErrorVar(res)
         And(Seq(Equals(FResVariable(), PlusR(res, freshErrorVar)),
           LessEquals(RealLiteral(-value), freshErrorVar),
           LessEquals(freshErrorVar, r)))
-    
+        */
+
       case Noise(v @ Variable(_), expr) =>
         val freshErrorVar = getErrorVar(v)
         val value = rec(expr, path)
@@ -84,14 +105,16 @@ class LeonToZ3Transformer(variables: VariablePool) extends TransformerWithPC {
           )
         ))
       case Noise(res @ FResVariable(), expr) =>
-        val freshErrorVar = getErrorVar(res)
+        throw new Exception("???")
+        null
+        /*val freshErrorVar = getErrorVar(res)
         val value = rec(expr, path)
         And(Seq(Equals(FResVariable(), PlusR(res, freshErrorVar)),
           Or(
             And(LessEquals(UMinusR(value), freshErrorVar), LessEquals(freshErrorVar, value)),
             And(LessEquals(value, freshErrorVar), LessEquals(freshErrorVar, UMinusR(value)))
           )
-        ))
+        ))*/
       
       case SqrtR(x) =>
         val r = getNewSqrtVariable
