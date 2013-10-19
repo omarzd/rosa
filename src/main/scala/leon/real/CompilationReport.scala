@@ -6,22 +6,23 @@ package real
 import Precision._
 
 // @param precision the precision that we were able to prove stuff with (or not)
-class CompilationReport(val vcs: Seq[VerificationCondition], precision: Precision = Float64) {
+class CompilationReport(val allVCs: Seq[VerificationCondition], precision: Precision = Float64) {
+  val realVCs = allVCs.filter(vc => vc.kind != VCKind.SpecGen)
 
-  lazy val totalConditions : Int = vcs.size
+  lazy val totalConditions : Int = realVCs.size
 
-  lazy val totalTime : Double = vcs.foldLeft(0.0d)((t,c) => t + c.time.getOrElse(0.0d) / 1000)
+  lazy val totalTime : Double = realVCs.foldLeft(0.0d)((t,c) => t + c.time.getOrElse(0.0d) / 1000)
 
-  lazy val totalValid : Int = vcs.count(_.value(precision) == Some(true))
+  lazy val totalValid : Int = realVCs.count(_.value(precision) == Some(true))
 
-  lazy val totalInvalid : Int = vcs.count(_.value(precision) == Some(false))
+  lazy val totalInvalid : Int = realVCs.count(_.value(precision) == Some(false))
 
-  lazy val totalUnknown : Int = vcs.count(_.value(precision) == None)
+  lazy val totalUnknown : Int = realVCs.count(_.value(precision) == None)
 
   // TODO: filter out VCs that are only specgen
   def summaryString : String = if(totalConditions >= 0) {
     CompilationReport.infoHeader +
-    vcs.map(CompilationReport.infoLine(precision)).mkString("\n", "\n", "\n") +
+    realVCs.map(CompilationReport.infoLine(precision)).mkString("\n", "\n", "\n") +
     CompilationReport.infoSep +
     ("║ total: %-4d   valid: %-4d   invalid: %-4d   unknown %-4d " +
       (" " * 16) +

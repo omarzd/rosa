@@ -39,6 +39,7 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
     LeonFlagOptionDef("pathError", "--pathError", "Check also the path error (default is to not check)")
   )
 
+  // TODO check code generation
   def run(ctx: LeonContext)(program: Program): CompilationReport = { 
     reporter = ctx.reporter
     reporter.info("Running Compilation phase")
