@@ -4,6 +4,7 @@ import Real._
 object Conditionals {
 
   def smartRoot(a: Real, b: Real, c: Real): Real = {
+    // TODO: can we make this a function of just one variable? makes more sense
     require(3 <= a && a <= 3 && 3.5 <= b && b <= 3.5 && c >< (-2, 2) &&
       b*b - a * c * 4.0 > 0.1)
 

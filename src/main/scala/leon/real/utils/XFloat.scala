@@ -300,7 +300,7 @@ class XFloat(val tree: Expr, val approxInterval: RationalInterval, val error: XR
 
   private def getTightInterval(tree: Expr, approx: RationalInterval, condition: Expr): RationalInterval = {
     if (verbose) println("\n tightening: " + tree)
-    //if (verbose) println("with pre: " + condition)
+    if (verbose) println("with pre: " + condition)
     //println("tree before: " + tree)
     val massagedTree = if (useMassageArithmetic) TreeOps.massageArithmetic(tree)
                        else tree

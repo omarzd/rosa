@@ -200,6 +200,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
         var spec: Option[Spec] = None
   
         for ( path <- body ) {
+          //println("\nfor path: " + path)
           // Hmm, this uses the same solver as the check...
           val transformer = new FloatApproximator(reporter, solver, precision, And(pre, path.condition),
             vc.variables, options.pathError)
