@@ -65,7 +65,7 @@ package object real {
     // generate specs for functions without postconditions?
     var specGen = false
     // checking path error
-    var pathError = true // experimental feature
+    var pathError = false // experimental feature :-)
 
     override def toString: String = "simulation: %s,\nz3 timeout: %s,\nprecision: %s,\nz3Only: %s,\npathSensitive: %s,\nspecGen: %s".format(
       simulation, z3Timeout, precision, z3Only, pathSensitive) 
