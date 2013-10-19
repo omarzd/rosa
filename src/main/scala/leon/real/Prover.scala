@@ -86,6 +86,9 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
                 false
             }
           } catch {
+            case PostconditionInliningFailedException(msg) =>
+              reporter.info("failed to compute approximation: " + msg)
+              false
             case e: java.lang.ArithmeticException =>
               reporter.warning("Failed to compute approximation: " + e.getMessage)
               false

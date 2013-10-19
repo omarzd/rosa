@@ -14,6 +14,7 @@ package object real {
 
   case class UnsupportedRealFragmentException(msg: String) extends Exception(msg)
   case class ArithmeticException(msg: String) extends Exception(msg)
+  case class PostconditionInliningFailedException(msg: String) extends Exception(msg)
 
   case class Fnc(pre: Expr, body: Expr, post: Expr)
 

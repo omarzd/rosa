@@ -184,9 +184,12 @@ object TreeOps {
             case _ => None
           }
         }*/
-        // TODO: make this fail gracefully if the postcondition is not given and enable postcondition inlining again
-        val post = funDef.postcondition.get
-        FncValue(replace(arguments, post))
+        funDef.postcondition match {
+          case Some(post) => FncValue(replace(arguments, post))
+          case None =>
+            throw PostconditionInliningFailedException("missing postcondition for " + funDef.id.name)
+        }
+        
       case _ =>
           super.rec(e, path)
     }

@@ -5,7 +5,7 @@ import Real._
 
 object InitialExample {
 
-  def mainFunction(a: Real, b: Real, c: Real): Real = {
+  def mainFunction(a: Real): Real = {
     require(4.500005 <= a && a <= 6.5)
 
     val b = 4.0
