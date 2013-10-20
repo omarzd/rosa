@@ -174,7 +174,7 @@ object TreeOps {
       case FunctionInvocation(funDef, args) =>
         val arguments: Map[Expr, Expr] = funDef.args.map(decl => decl.toVariable).zip(args).toMap
         
-        // TODO
+        // TODO: enable using postconditions that we have computed ourselves
         /*val firstChoice = funDef.postcondition
         val secondChoice = vcMap(funDef).spec
         val post = firstChoice match {

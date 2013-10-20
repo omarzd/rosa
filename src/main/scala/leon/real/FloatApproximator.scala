@@ -310,6 +310,7 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
     xfloat
   }*/
 
+  // TODO: compacting of xfloats
   /*private def compactXFloat(xfloat: XFloat, newTree: Expr): XFloat = {
     val newConfig = xfloat.config.addCondition(rangeConstraint(newTree, xfloat.realInterval))
     val (newXFloat, index) = xFloatWithUncertain(newTree, xfloat.realInterval, newConfig, xfloat.maxError, false)

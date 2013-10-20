@@ -5,7 +5,6 @@ package real
 
 import purescala.Common._
 import purescala.Trees._
-//import purescala.Trees.{Expr, Variable, And, Equals, LessEquals, LessThan, GreaterThan, GreaterEquals, ResultVariable}
 import purescala.TreeOps._
 import purescala.TypeTrees._
 
@@ -53,12 +52,9 @@ class LeonToZ3Transformer(variables: VariablePool) extends TransformerWithPC {
       /*case Noise(v @ Variable(_), r @ RealLiteral(value)) =>
         And(LessEquals(RealLiteral(-value), MinusR(v, variables.buddy(v))), 
             LessEquals(MinusR(v, variables.buddy(v)), r))
-        
       case Noise(res @ ResultVariable(), r @ RealLiteral(value)) =>
         And(LessEquals(RealLiteral(-value), MinusR(res, FResVariable())),
             LessEquals(MinusR(res, FResVariable()), r))
-      
-
       case Noise(res @ FResVariable(), r @ RealLiteral(value)) =>
         throw new Exception("???")
         null
@@ -81,7 +77,7 @@ class LeonToZ3Transformer(variables: VariablePool) extends TransformerWithPC {
         throw new Exception("???")
         null
         /*val freshErrorVar = getErrorVar(res)
-        And(Seq(Equals(FResVariable(), PlusR(res, freshErrorVar)),
+          And(Seq(Equals(FResVariable(), PlusR(res, freshErrorVar)),
           LessEquals(RealLiteral(-value), freshErrorVar),
           LessEquals(freshErrorVar, r)))
         */
@@ -108,8 +104,8 @@ class LeonToZ3Transformer(variables: VariablePool) extends TransformerWithPC {
         throw new Exception("???")
         null
         /*val freshErrorVar = getErrorVar(res)
-        val value = rec(expr, path)
-        And(Seq(Equals(FResVariable(), PlusR(res, freshErrorVar)),
+          val value = rec(expr, path)
+          And(Seq(Equals(FResVariable(), PlusR(res, freshErrorVar)),
           Or(
             And(LessEquals(UMinusR(value), freshErrorVar), LessEquals(freshErrorVar, value)),
             And(LessEquals(value, freshErrorVar), LessEquals(freshErrorVar, UMinusR(value)))
@@ -173,13 +169,24 @@ class LeonToZ3Transformer(variables: VariablePool) extends TransformerWithPC {
 
       case FncBody(name, body) =>
         val fresh = getNewFncVariable(name)
-        addExtra(Equals(fresh, rec(body, path)))
+        rec(body, path) match {
+          case And(args) => 
+            addExtra(And(args.init :+ Equals(fresh, args.last)))
+          case _ =>
+            addExtra(Equals(fresh, e))
+        }
         fresh
+        
 
       // normally this is approximated
       case FncBodyF(name, body) =>
         val fresh = getNewFncVariable(name + "_f")
-        addExtra(Equals(fresh, rec(body, path)))
+        rec(body, path) match {
+          case And(args) => 
+            addExtra(And(args.init :+ Equals(fresh, args.last)))
+          case _ =>
+            addExtra(Equals(fresh, e))
+        }
         fresh
 
       case FloatIfExpr(cond, thenn, elze) =>
