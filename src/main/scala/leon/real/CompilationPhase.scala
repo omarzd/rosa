@@ -32,8 +32,8 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
     LeonValueOptionDef("functions", "--functions=f1:f2", "Limit verification to f1, f2,..."),
     LeonFlagOptionDef("simulation", "--simulation", "Run a simulation instead of verification"),
     LeonFlagOptionDef("pathSensitive", "--pathSensitive", "Do a path sensitive analysis."),
-    LeonFlagOptionDef("z3only", "--z3only", "Let Z3 loose on the full constraint - at your own risk."),
-    LeonValueOptionDef("z3timeout", "--z3timeout=1000", "Timeout for Z3 in milliseconds."),
+    LeonFlagOptionDef("z3Only", "--z3Only", "Let Z3 loose on the full constraint - at your own risk."),
+    LeonValueOptionDef("z3Timeout", "--z3Timeout=1000", "Timeout for Z3 in milliseconds."),
     LeonValueOptionDef("precision", "--precision=single", "Which precision to assume of the underlying"+
       "floating-point arithmetic: single, double, doubledouble, quaddouble or all (finds the best one)."),
     LeonFlagOptionDef("pathError", "--pathError", "Check also the path error (default is to not check)")
@@ -51,9 +51,9 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
       case LeonValueOption("functions", ListValue(fs)) => fncNamesToAnalyse = Set() ++ fs
       case LeonFlagOption("simulation") => options.simulation = true
       case LeonFlagOption("pathSensitive") => options.pathSensitive = true
-      case LeonFlagOption("z3only") => options.z3Only = true
+      case LeonFlagOption("z3Only") => options.z3Only = true
       case LeonFlagOption("pathError") => options.pathError = true
-      case LeonValueOption("z3timeout", ListValue(tm)) => options.z3Timeout = tm.head.toLong
+      case LeonValueOption("z3Timeout", ListValue(tm)) => options.z3Timeout = tm.head.toLong
       case LeonValueOption("precision", ListValue(ps)) => options.precision = ps.head match {
         case "single" => List(Float32)
         case "double" => List(Float64)
