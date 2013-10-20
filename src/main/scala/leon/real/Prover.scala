@@ -72,19 +72,21 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
             spec = merge(spec, currentApprox.spec)
           
             //if (verbose) println(currentApprox.cnstrs)
-            checkValid(currentApprox, vc.variables, precision) match {
-              case Some(true) =>
-                reporter.info("==== VALID ====")
-                vc.value += (precision -> Some(true))
-                true
-              case Some(false) =>
-                // TODO: figure out if we can find invalid
-                reporter.info("=== INVALID ===")
-                true
-              case None =>
-                reporter.info("---- Unknown ----")
-                false
-            }
+            if (vc.kind == VCKind.SpecGen) true  // only uses first approximation
+            else
+              checkValid(currentApprox, vc.variables, precision) match {
+                case Some(true) =>
+                  reporter.info("==== VALID ====")
+                  vc.value += (precision -> Some(true))
+                  true
+                case Some(false) =>
+                  // TODO: figure out if we can find invalid
+                  reporter.info("=== INVALID ===")
+                  true
+                case None =>
+                  reporter.info("---- Unknown ----")
+                  false
+              } 
           } catch {
             case PostconditionInliningFailedException(msg) =>
               reporter.info("failed to compute approximation: " + msg)
@@ -98,7 +100,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
           case None =>
           case _ =>
         }
-        if (verbose) reporter.debug("generated spec: " + spec)
+        reporter.info("generated spec: " + spec)
         vc.spec += (precision -> spec)
       
         val end = System.currentTimeMillis

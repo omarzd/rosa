@@ -172,8 +172,8 @@ class LeonToZ3Transformer(variables: VariablePool) extends TransformerWithPC {
         rec(body, path) match {
           case And(args) => 
             addExtra(And(args.init :+ Equals(fresh, args.last)))
-          case _ =>
-            addExtra(Equals(fresh, e))
+          case x =>
+            addExtra(Equals(fresh, x))
         }
         fresh
         
@@ -184,8 +184,8 @@ class LeonToZ3Transformer(variables: VariablePool) extends TransformerWithPC {
         rec(body, path) match {
           case And(args) => 
             addExtra(And(args.init :+ Equals(fresh, args.last)))
-          case _ =>
-            addExtra(Equals(fresh, e))
+          case x =>
+            addExtra(Equals(fresh, x))
         }
         fresh
 

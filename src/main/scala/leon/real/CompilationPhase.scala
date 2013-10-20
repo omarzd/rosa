@@ -25,7 +25,7 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
   val name = "Real compilation"
   val description = "compilation of real programs"
 
-  var verbose = true
+  var verbose = false
   var reporter: Reporter = null
 
   override val definedOptions: Set[LeonOptionDef] = Set(
