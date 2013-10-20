@@ -13,8 +13,9 @@ package object real {
   val useMassageArithmetic = true
 
   case class UnsupportedRealFragmentException(msg: String) extends Exception(msg)
-  case class ArithmeticException(msg: String) extends Exception(msg)
+  case class RealArithmeticException(msg: String) extends Exception(msg)
   case class PostconditionInliningFailedException(msg: String) extends Exception(msg)
+  case class UnsoundBoundsException(msg: String) extends Exception(msg)
 
   case class Fnc(pre: Expr, body: Expr, post: Expr)
 
@@ -63,7 +64,7 @@ package object real {
     var solverMaxIter = solverMaxIterMedium
     var solverPrecision = solverPrecisionMedium
     // generate specs for functions without postconditions?
-    var specGen = false
+    var specGen = true
     // checking path error
     var pathError = false // experimental feature :-)
 

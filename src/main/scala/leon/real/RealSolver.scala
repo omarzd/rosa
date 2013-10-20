@@ -299,40 +299,17 @@ class RealSolver(context: LeonContext, prog: Program, timeout: Long) extends Uni
     r.n.toString + "/" + r.d.toString
   }
 
-  // which: initial or final
+  // @param which: initial or final
   private def printBoundsResult(res: (Sat, Sat, String), which: String) = res match {
     case (SAT, SAT, msg) =>
-      if (reporter != null)
-        reporter.error("!!! ERROR: both " + which + " bounds are not sound!" +
-          "\nmsg: " + msg + "\n ------------------")
-      if (verbose) {
-        println("!!! ERROR: both " + which + " bounds are not sound!" +
-          "\nmsg: " + msg + "\n ------------------")
-      }
-      throw new ArithmeticException("ouch")
+      throw new UnsoundBoundsException("!!! ERROR: both " + which + " bounds are not sound!\nmsg: " + msg)
     case (SAT, _, msg) =>
-      if (reporter != null)
-        reporter.error("!!! ERROR: " + which + " lower bound is not sound!" +
-          "\nmsg: " + msg + "\n ------------------")
-      if (verbose) {
-        println("!!! ERROR: " + which + " bounds are not sound!" +
-          "\nmsg: " + msg + "\n ------------------")
-      }
-      throw new ArithmeticException("ouch")
+      throw new UnsoundBoundsException("!!! ERROR: " + which + " lower bound is not sound!\nmsg: " + msg)
     case (_, SAT, msg) =>
-      if (reporter != null)
-        reporter.error("!!! ERROR: " + which + " upper bound is not sound!" +
-          "\nmsg: " + msg + "\n ------------------")
-      if (verbose) {
-        println("!!! ERROR: " + which + " bounds are not sound!" +
-          "\nmsg: " + msg + "\n ------------------")
-      }
-      throw new ArithmeticException("ouch")
+      throw new UnsoundBoundsException("!!! ERROR: " + which + " upper bound is not sound!\nmsg: " + msg)
     case (UNSAT, UNSAT, msg) =>
-      if (verbose) {
-        println(which + " bounds check successful.")
-      }
+      if (verbose) println(which + " bounds check successful.")
     case _ =>
-      if (printWarnings) println("WARNING: cannot check "+which+" bounds.")
+      if (printWarnings || verbose) println("WARNING: cannot check "+which+" bounds.")
   }
 }

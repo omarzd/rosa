@@ -240,13 +240,13 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
       case TimesF(lhs, rhs) =>  ApproxNode(getXFloat(rec(lhs, path)) * getXFloat(rec(rhs, path)))
       case DivisionF(lhs, rhs) =>
         val r = getXFloat(rec(rhs, path))
-        if (possiblyZero(r.interval)) reporter.warning("Potential div-by-zero detected: " + e)
+        if (possiblyZero(r.interval)) throw RealArithmeticException("Potential div-by-zero detected: " + e)
         ApproxNode(getXFloat(rec(lhs, path)) / r)
         
       case SqrtF(t) =>
         val x = getXFloat(rec(t, path))
-        if (possiblyNegative(x.interval)) reporter.warning("Potential sqrt of negative detected: " + e)
-        ApproxNode(x.squareRoot)    
+        if (possiblyNegative(x.interval)) throw RealArithmeticException("Potential sqrt of negative detected: " + e)
+        ApproxNode(x.squareRoot)
         
       case FloatIfExpr(cond, thenn, elze) =>
         val currentPathCondition = path :+ initialCondition
