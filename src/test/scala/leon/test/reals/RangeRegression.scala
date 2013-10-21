@@ -108,23 +108,23 @@ class RangeRegression extends FunSuite {
       mkTest(f, List(LeonFlagOption("real")), forError)(block)
     }
 
-    val ignoredFiles = filesInResourceDir(
+    /*val ignoredFiles = filesInResourceDir(
       "regression/verification/real/" + cat,
       _.endsWith(".txt"))
     for(f <- ignoredFiles) {
       mkIgnore(f)
-    }    
+    } */   
   }
   
   forEachFileIn("ranges") { output =>
     val Output(report, reporter) = output
     
-    for(vc <- report.vcs if (vc.kind == VCKind.Postcondition)) {
+    for(vc <- report.allVCs if (vc.kind == VCKind.SpecGen)) {
       val bsLine = baseline(vc.fncId)
       val Some(Spec(bounds, absError)) = vc.spec(Precision.Float64)
-      assert(bsLine._1 === bounds.xlo, "lower bound doesn't match baseline")
-      assert(bsLine._2 === bounds.xhi, "upper bound doesn't match baseline")
-      assert(bsLine._3 === absError, "error doesn't match baseline")
+      assert(bsLine._1 === bounds.xlo, "lower bound doesn't match baseline for " + vc.fncId)
+      assert(bsLine._2 === bounds.xhi, "upper bound doesn't match baseline for " + vc.fncId)
+      assert(bsLine._3 === absError, "error doesn't match baseline for " + vc.fncId)
        
     }
     assert(reporter.errorCount === 0)
