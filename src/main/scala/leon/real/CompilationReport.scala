@@ -6,9 +6,9 @@ package real
 import Precision._
 
 // @param precision the precision that we were able to prove stuff with (or not)
-class CompilationReport(val allVCs: Seq[VerificationCondition], precision: Precision = Float64) {
+class CompilationReport(val allVCs: Seq[VerificationCondition], precision: Precision) {
   val realVCs = allVCs.filter(vc => vc.kind != VCKind.SpecGen)
-
+  val specGen = allVCs.filter(vc => vc.kind == VCKind.SpecGen)
   lazy val totalConditions : Int = realVCs.size
 
   lazy val totalTime : Double = realVCs.foldLeft(0.0d)((t,c) => t + c.time.getOrElse(0.0d) / 1000)
@@ -22,6 +22,7 @@ class CompilationReport(val allVCs: Seq[VerificationCondition], precision: Preci
   def summaryString : String = if(totalConditions >= 0) {
     CompilationReport.infoHeader +
     realVCs.map(CompilationReport.infoLine(precision)).mkString("\n", "\n", "\n") +
+    specGen.map(CompilationReport.timeLine).mkString("\n", "\n", "\n") +
     CompilationReport.infoSep +
     ("║ total: %-4d   valid: %-4d   invalid: %-4d   unknown %-4d " +
       (" " * 16) +
@@ -35,7 +36,7 @@ class CompilationReport(val allVCs: Seq[VerificationCondition], precision: Preci
 
 
 object CompilationReport {
-  def emptyReport : CompilationReport = new CompilationReport(Seq())
+  def emptyReport : CompilationReport = new CompilationReport(Seq(), Float64)
 
   private def fit(str : String, maxLength : Int) : String = {
     if(str.length <= maxLength) {
@@ -63,6 +64,18 @@ object CompilationReport {
       "",
       vc.status(precision),
       "",
+      "",
+      timeStr)
+  }
+
+  private def timeLine(vc : VerificationCondition) : String = {
+    val timeStr = vc.time match {
+      case Some(t) => "%-3.3f".format(t / 1000)
+      case None => ""
+    }
+
+    "║ %-25s %-47s %7s ║".format(
+      fit(vc.funDef.id.toString, 25),
       "",
       timeStr)
   }

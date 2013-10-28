@@ -1,3 +1,5 @@
+/* Copyright 2013 EPFL, Lausanne */
+
 package leon
 
 import purescala.Trees._
@@ -55,22 +57,6 @@ package object real {
   // Since we don't know which precision we may test, returns, for now, true only for integers
   def isExact(r: Rational): Boolean = r.isWhole
 
-  class RealOptions {
-    var simulation = false
-    var z3Timeout = 1000l
-    var precision: List[Precision] = List(Float64)
-    var z3Only = false
-    var pathSensitive = false
-    var solverMaxIter = solverMaxIterMedium
-    var solverPrecision = solverPrecisionMedium
-    // generate specs for functions without postconditions?
-    var specGen = true
-    // checking path error
-    var pathError = false // experimental feature :-)
-
-    override def toString: String = "simulation: %s,\nz3 timeout: %s,\nprecision: %s,\nz3Only: %s,\npathSensitive: %s,\nspecGen: %s".format(
-      simulation, z3Timeout, precision, z3Only, pathSensitive) 
-  }
   
   object Sat extends Enumeration {
     type Sat = Value

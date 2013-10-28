@@ -134,7 +134,6 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
     //@param branchCondition real-valued
     //@param f1 path to be taken by ideal execution
     //@param f2 path to be taken by floating-point execution
-    // TODO: check that this is sound wrt to nested if-then-else
     def computePathError(currentPathCondition: Seq[Expr], branchCondition: Expr, f1: Expr, f2: Expr): Rational = {
       def removeErrors(xf: XFloat): XFloat = {
         new XFloat(xf.tree, xf.approxInterval, new XRationalForm(Rational.zero), xf.config)
