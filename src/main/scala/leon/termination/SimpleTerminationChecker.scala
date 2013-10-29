@@ -87,9 +87,7 @@ class SimpleTerminationChecker(context : LeonContext, program : Program) extends
         } getOrElse Set.empty[FunctionInvocation]
       }
 
-      val callsToAnalyze = callsOfInterest(funDef.body) ++ callsOfInterest(funDef.precondition) ++ callsOfInterest(funDef.postcondition)
-
-      assert(!callsToAnalyze.isEmpty)
+      val callsToAnalyze = callsOfInterest(funDef.body) ++ callsOfInterest(funDef.precondition) ++ callsOfInterest(funDef.postcondition.map(_._2))
 
       val funDefArgsIDs = funDef.args.map(_.id).toSet
 

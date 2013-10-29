@@ -5,7 +5,7 @@ package real
 
 import purescala.Common._
 //import purescala.Trees._
-import purescala.Trees.{Expr, Variable, And, Equals, LessEquals, LessThan, GreaterThan, GreaterEquals, ResultVariable}
+import purescala.Trees.{Expr, Variable, And, Equals, LessEquals, LessThan, GreaterThan, GreaterEquals}
 import purescala.TreeOps._
 import purescala.TypeTrees._
 
@@ -35,6 +35,8 @@ object FloatApproximator {
 class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Precision, precondition: Expr, inputs: VariablePool,
   checkPathError: Boolean = true) extends TransformerWithPC {
   import FloatApproximator._
+
+  implicit val debugSection = DebugSectionVerification
 
   type C = Seq[Expr]
   val initC = Nil

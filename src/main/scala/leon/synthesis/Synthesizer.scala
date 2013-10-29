@@ -8,18 +8,14 @@ import purescala.Definitions.{Program, FunDef}
 import purescala.TreeOps._
 import purescala.Trees._
 import purescala.ScalaPrinter
-import solvers.z3._
-import solvers.TimeoutSolver
-import sun.misc.{Signal, SignalHandler}
 
-import solvers.Solver
+import solvers._
+import solvers.combinators._
+import solvers.z3._
+
 import java.io.File
 
-import collection.mutable.PriorityQueue
-
 import synthesis.search._
-
-import java.util.concurrent.atomic.AtomicBoolean
 
 class Synthesizer(val context : LeonContext,
                   val functionContext: Option[FunDef],
@@ -27,20 +23,9 @@ class Synthesizer(val context : LeonContext,
                   val problem: Problem,
                   val options: SynthesisOptions) {
 
-  val silentReporter = new SilentReporter
-  val silentContext = context.copy(reporter = silentReporter)
-
   val rules: Seq[Rule] = options.rules
 
-  val solver: FairZ3Solver = new FairZ3Solver(silentContext)
-  solver.setProgram(program)
-
-  val simpleSolver: Solver = new UninterpretedZ3Solver(silentContext)
-  simpleSolver.setProgram(program)
-
   val reporter = context.reporter
-
-  var shouldStop = new AtomicBoolean(false)
 
   def synthesize(): (Solution, Boolean) = {
 
@@ -49,26 +34,25 @@ class Synthesizer(val context : LeonContext,
       } else if (options.searchWorkers > 1) {
         new ParallelSearch(this, problem, options.searchWorkers)
       } else {
-        new SimpleSearch(this, problem)
+        options.searchBound match {
+          case Some(b) =>
+            new BoundedSearch(this, problem, b)
+
+          case None =>
+            new SimpleSearch(this, problem)
+        }
       }
-
-    val sigINT = new Signal("INT")
-    var oldHandler: SignalHandler = null
-    oldHandler = Signal.handle(sigINT, new SignalHandler {
-      def handle(sig: Signal) {
-        println
-        reporter.info("Aborting...")
-
-        shouldStop.set(true)
-        search.stop()
-
-        Signal.handle(sigINT, oldHandler)
-      }
-    })
 
     val ts = System.currentTimeMillis()
 
     val res = search.search()
+
+    search match {
+      case pr: ParallelSearch =>
+        context.timers.add(pr.expandTimers)
+        context.timers.add(pr.sendWorkTimers)
+      case _ =>
+    }
 
     val diff = System.currentTimeMillis()-ts
     reporter.info("Finished in "+diff+"ms")
@@ -97,15 +81,17 @@ class Synthesizer(val context : LeonContext,
 
     val (npr, fds) = solutionToProgram(sol)
 
-    val tsolver = new TimeoutSolver(new FairZ3Solver(silentContext), timeoutMs)
-    tsolver.setProgram(npr)
+    val solverf = SolverFactory(() => new FairZ3Solver(context, npr).setTimeout(timeoutMs))
 
     val vcs = generateVerificationConditions(reporter, npr, fds.map(_.id.name))
-    val vctx = VerificationContext(context, Seq(tsolver), silentReporter)
+    val vctx = VerificationContext(context, Seq(solverf), context.reporter)
     val vcreport = checkVerificationConditions(vctx, vcs)
 
     if (vcreport.totalValid == vcreport.totalConditions) {
       (sol, true)
+    } else if (vcreport.totalValid + vcreport.totalUnknown == vcreport.totalConditions) {
+      reporter.warning("Solution may be invalid:")
+      (sol, false)
     } else {
       reporter.warning("Solution was invalid:")
       reporter.warning(fds.map(ScalaPrinter(_)).mkString("\n\n"))
@@ -123,7 +109,7 @@ class Synthesizer(val context : LeonContext,
 
     // Create new fundef for the body
     val ret = TupleType(problem.xs.map(_.getType))
-    val res = ResultVariable().setType(ret)
+    val res = Variable(FreshIdentifier("res").setType(ret))
 
     val mapPost: Map[Expr, Expr] =
       problem.xs.zipWithIndex.map{ case (id, i)  =>
@@ -132,7 +118,7 @@ class Synthesizer(val context : LeonContext,
 
     val fd = new FunDef(FreshIdentifier("finalTerm", true), ret, problem.as.map(id => VarDecl(id, id.getType)))
     fd.precondition  = Some(And(problem.pc, sol.pre))
-    fd.postcondition = Some(replace(mapPost, problem.phi))
+    fd.postcondition = Some((res.id, replace(mapPost, problem.phi)))
     fd.body          = Some(sol.term)
 
     val newDefs = sol.defs + fd

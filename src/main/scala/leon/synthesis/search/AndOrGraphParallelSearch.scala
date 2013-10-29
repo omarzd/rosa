@@ -2,6 +2,7 @@
 
 package leon.synthesis.search
 
+import leon.utils._
 import akka.actor._
 import scala.concurrent.duration._
 import scala.concurrent.Await
@@ -12,13 +13,17 @@ import akka.pattern.AskTimeoutException
 abstract class AndOrGraphParallelSearch[WC,
                                         AT <: AOAndTask[S],
                                         OT <: AOOrTask[S],
-                                        S](og: AndOrGraph[AT, OT, S], nWorkers: Int) extends AndOrGraphSearch[AT, OT, S](og) {
+                                        S](og: AndOrGraph[AT, OT, S],
+                                           nWorkers: Int) extends AndOrGraphSearch[AT, OT, S](og) {
 
   def initWorkerContext(w: ActorRef): WC
 
   val timeout = 600.seconds
 
   var system: ActorSystem = _
+
+  val sendWorkTimers = new TimerCollection("Synthesis-par SendWork")
+  val expandTimers   = new TimerCollection("Synthesis-par Expand")
 
   def search(): Option[(S, Boolean)] = {
     system = ActorSystem("ParallelSearch")
@@ -66,6 +71,19 @@ abstract class AndOrGraphParallelSearch[WC,
     case object NoTaskReady
   }
 
+  def getNextLeaves(idleWorkers: Map[ActorRef, Option[g.Leaf]], workingWorkers: Map[ActorRef, Option[g.Leaf]]): List[g.Leaf] = {
+    val processing = workingWorkers.values.flatten.toSet
+
+    val ts = System.currentTimeMillis();
+
+    val str = nextLeaves()
+      .filterNot(processing)
+      .take(idleWorkers.size)
+      .toList
+
+    str
+  }
+
   class Master extends Actor {
     import Protocol._
 
@@ -78,7 +96,9 @@ abstract class AndOrGraphParallelSearch[WC,
 
       assert(idleWorkers.size > 0)
 
-      nextLeaves(idleWorkers.size) match {
+      val t = new Timer().start
+
+      getNextLeaves(idleWorkers, workingWorkers) match {
         case Nil =>
           if (workingWorkers.isEmpty) {
             outer ! SearchDone
@@ -88,7 +108,6 @@ abstract class AndOrGraphParallelSearch[WC,
 
         case ls =>
           for ((w, leaf) <- idleWorkers.keySet zip ls) {
-            processing += leaf
             leaf match {
               case al: g.AndLeaf =>
                 workers += w -> Some(al)
@@ -99,7 +118,11 @@ abstract class AndOrGraphParallelSearch[WC,
             }
           }
       }
+
+      sendWorkTimers += t
     }
+
+    context.setReceiveTimeout(10.seconds)
 
     def receive = {
       case BeginSearch =>
@@ -113,7 +136,9 @@ abstract class AndOrGraphParallelSearch[WC,
       case WorkerAndTaskDone(w, res) =>
         workers.get(w) match {
           case Some(Some(l: g.AndLeaf)) =>
+            val t = new Timer().start
             onExpansion(l, res)
+            expandTimers += t
             workers += w -> None
           case _ =>
         }
@@ -122,7 +147,9 @@ abstract class AndOrGraphParallelSearch[WC,
       case WorkerOrTaskDone(w, res) =>
         workers.get(w) match {
           case Some(Some(l: g.OrLeaf)) =>
+            val t = new Timer().start
             onExpansion(l, res)
+            expandTimers += t
             workers += w -> None
           case _ =>
         }
@@ -130,9 +157,15 @@ abstract class AndOrGraphParallelSearch[WC,
 
       case Terminated(w) =>
         if (workers contains w) {
-          processing -= workers(w).get
           workers -= w
         }
+
+      case ReceiveTimeout =>
+        println("@ Worker status:")
+        for ((w, t) <- workers if t.isDefined) {
+          println("@  - "+w.toString+": "+t.get.task)
+        }
+
 
     }
   }

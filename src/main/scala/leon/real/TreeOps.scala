@@ -185,7 +185,7 @@ object TreeOps {
           }
         }*/
         funDef.postcondition match {
-          case Some(post) => FncValue(replace(arguments, post))
+          case Some((resId, postExpr)) => FncValue(replace(arguments + (Variable(resId) -> ResultVariable()), postExpr))
           case None =>
             throw PostconditionInliningFailedException("missing postcondition for " + funDef.id.name)
         }

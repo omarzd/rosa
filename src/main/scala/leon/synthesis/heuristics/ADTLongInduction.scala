@@ -4,7 +4,7 @@ package leon
 package synthesis
 package heuristics
 
-import solvers.TimeoutSolver
+import solvers._
 import purescala.Common._
 import purescala.Trees._
 import purescala.Extractors._
@@ -14,9 +14,8 @@ import purescala.Definitions._
 
 case object ADTLongInduction extends Rule("ADT Long Induction") with Heuristic {
   def instantiateOn(sctx: SynthesisContext, p: Problem): Traversable[RuleInstantiation] = {
-    val tsolver = new TimeoutSolver(sctx.solver, 500L)
     val candidates = p.as.collect {
-        case IsTyped(origId, AbstractClassType(cd)) if isInductiveOn(tsolver)(p.pc, origId) => (origId, cd)
+        case IsTyped(origId, AbstractClassType(cd)) if isInductiveOn(sctx.solverFactory)(p.pc, origId) => (origId, cd)
     }
 
     val instances = for (candidate <- candidates) yield {
@@ -155,10 +154,11 @@ case object ADTLongInduction extends Rule("ADT Long Induction") with Heuristic {
             } else {
               val funPre = substAll(substMap, And(p.pc, Or(globalPre)))
               val funPost = substAll(substMap, p.phi)
+              val idPost = FreshIdentifier("res").setType(resType)
               val outerPre = Or(globalPre)
 
               newFun.precondition = Some(funPre)
-              newFun.postcondition = Some(LetTuple(p.xs.toSeq, ResultVariable().setType(resType), funPost))
+              newFun.postcondition = Some((idPost, LetTuple(p.xs.toSeq, Variable(idPost), funPost)))
 
               newFun.body = Some(MatchExpr(Variable(inductOn), cases))
 

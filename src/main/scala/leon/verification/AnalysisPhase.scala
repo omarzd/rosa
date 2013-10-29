@@ -9,14 +9,17 @@ import purescala.Trees._
 import purescala.TreeOps._
 import purescala.TypeTrees._
 
-import solvers.{Solver,TrivialSolver,TimeoutSolver}
-import solvers.z3.FairZ3Solver
+import solvers._
+import solvers.z3._
+import solvers.combinators._
 
 import scala.collection.mutable.{Set => MutableSet}
 
 object AnalysisPhase extends LeonPhase[Program,VerificationReport] {
   val name = "Analysis"
   val description = "Leon Verification"
+
+  implicit val debugSection = DebugSectionVerification
 
   override val definedOptions : Set[LeonOptionDef] = Set(
     LeonValueOptionDef("functions", "--functions=f1:f2", "Limit verification to f1,f2,..."),
@@ -61,34 +64,33 @@ object AnalysisPhase extends LeonPhase[Program,VerificationReport] {
     val reporter = vctx.reporter
     val solvers  = vctx.solvers
 
-    for((funDef, vcs) <- vcs.toSeq.sortWith((a,b) => a._1 < b._1); vcInfo <- vcs if !vctx.shouldStop.get()) {
+    val interruptManager = vctx.context.interruptManager
+
+    for((funDef, vcs) <- vcs.toSeq.sortWith((a,b) => a._1 < b._1); vcInfo <- vcs if !interruptManager.isInterrupted()) {
       val funDef = vcInfo.funDef
       val vc = vcInfo.condition
 
       reporter.info("Now considering '" + vcInfo.kind + "' VC for " + funDef.id + "...")
-      reporter.info("Verification condition (" + vcInfo.kind + ") for ==== " + funDef.id + " ====")
-      reporter.info(simplifyLets(vc))
+      reporter.debug("Verification condition (" + vcInfo.kind + ") for ==== " + funDef.id + " ====")
+      reporter.debug(simplifyLets(vc))
 
       // try all solvers until one returns a meaningful answer
-      var superseeded : Set[String] = Set.empty[String]
-      solvers.find(se => {
-        reporter.info("Trying with solver: " + se.name)
-        if(superseeded(se.name) || superseeded(se.description)) {
-          reporter.info("Solver was superseeded. Skipping.")
-          false
-        } else {
-          superseeded = superseeded ++ Set(se.superseeds: _*)
-
+      solvers.find(sf => {
+        val s = sf.getNewSolver
+        try {
+          reporter.debug("Trying with solver: " + s.name)
           val t1 = System.nanoTime
-          se.init()
-          val (satResult, counterexample) = se.solveSAT(Not(vc))
+          s.assertCnstr(Not(vc))
+
+          val satResult = s.check
+          val counterexample: Map[Identifier, Expr] = if (satResult == Some(true)) s.getModel else Map()
           val solverResult = satResult.map(!_)
 
           val t2 = System.nanoTime
           val dt = ((t2 - t1) / 1000000) / 1000.0
 
           solverResult match {
-            case _ if vctx.shouldStop.get() =>
+            case _ if interruptManager.isInterrupted() =>
               reporter.info("=== CANCELLED ===")
               vcInfo.time = Some(dt)
               false
@@ -102,7 +104,7 @@ object AnalysisPhase extends LeonPhase[Program,VerificationReport] {
 
               vcInfo.hasValue = true
               vcInfo.value = Some(true)
-              vcInfo.solvedWith = Some(se)
+              vcInfo.solvedWith = Some(s)
               vcInfo.time = Some(dt)
               true
 
@@ -112,20 +114,20 @@ object AnalysisPhase extends LeonPhase[Program,VerificationReport] {
               reporter.error("==== INVALID ====")
               vcInfo.hasValue = true
               vcInfo.value = Some(false)
-              vcInfo.solvedWith = Some(se)
+              vcInfo.solvedWith = Some(s)
               vcInfo.counterExample = Some(counterexample)
               vcInfo.time = Some(dt)
               true
-
           }
+        } finally {
+          s.free()
+        }}) match {
+          case None => {
+            vcInfo.hasValue = true
+            reporter.warning("==== UNKNOWN ====")
+          }
+          case _ =>
         }
-      }) match {
-        case None => {
-          vcInfo.hasValue = true
-          reporter.warning("No solver could prove or disprove the verification condition.")
-        }
-        case _ =>
-      }
     }
 
     val report = new VerificationReport(vcs)
@@ -148,28 +150,23 @@ object AnalysisPhase extends LeonPhase[Program,VerificationReport] {
 
     val reporter = ctx.reporter
 
-    val trivialSolver = new TrivialSolver(ctx)
-    val fairZ3 = new FairZ3Solver(ctx)
+    val baseFactories = Seq(
+      SolverFactory(() => new FairZ3Solver(ctx, program))
+    )
 
-    val solvers0 : Seq[Solver] = trivialSolver :: fairZ3 :: Nil
-    val solvers: Seq[Solver] = timeout match {
-      case Some(t) => solvers0.map(s => new TimeoutSolver(s, 1000L * t))
-      case None => solvers0
+    val solverFactories = timeout match {
+      case Some(sec) =>
+        baseFactories.map { sf =>
+          new TimeoutSolverFactory(sf, sec*1000L)
+        }
+      case None =>
+        baseFactories
     }
 
-    solvers.foreach(_.setProgram(program))
+    val vctx = VerificationContext(ctx, solverFactories, reporter)
 
-    val vctx = VerificationContext(ctx, solvers, reporter)
-
-    val report = if(solvers.size > 1) {
-      reporter.info("Running verification condition generation...")
-      val vcs = generateVerificationConditions(reporter, program, functionsToAnalyse)
-      checkVerificationConditions(vctx, vcs)
-    } else {
-      reporter.warning("No solver specified. Cannot test verification conditions.")
-      VerificationReport.emptyReport
-    }
-
-    report
+    reporter.debug("Running verification condition generation...")
+    val vcs = generateVerificationConditions(reporter, program, functionsToAnalyse)
+    checkVerificationConditions(vctx, vcs)
   }
 }

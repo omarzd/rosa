@@ -51,6 +51,14 @@ object Trees {
     val fixedType = body.getType
   }
 
+  case class LetDef(fd: FunDef, body: Expr) extends Expr {
+    val et = body.getType
+    if(et != Untyped)
+      setType(et)
+
+  }
+
+
   /* Control flow */
   case class FunctionInvocation(funDef: FunDef, args: Seq[Expr]) extends Expr with FixedType with ScalacPositional {
     val fixedType = funDef.returnType
@@ -137,13 +145,6 @@ object Trees {
     val theGuard: Option[Expr]
     def hasGuard = theGuard.isDefined
     def expressions: Seq[Expr]
-
-    def allIdentifiers : Set[Identifier] = {
-      pattern.allIdentifiers ++
-      TreeOps.allIdentifiers(rhs) ++
-      theGuard.map(TreeOps.allIdentifiers(_)).getOrElse(Set[Identifier]()) ++
-      (expressions map (TreeOps.allIdentifiers(_))).foldLeft(Set[Identifier]())((a, b) => a ++ b)
-    }
   }
 
   case class SimpleCase(pattern: Pattern, rhs: Expr) extends MatchCase {
@@ -161,11 +162,8 @@ object Trees {
 
     private def subBinders = subPatterns.map(_.binders).foldLeft[Set[Identifier]](Set.empty)(_ ++ _)
     def binders: Set[Identifier] = subBinders ++ (if(binder.isDefined) Set(binder.get) else Set.empty)
-
-    def allIdentifiers : Set[Identifier] = {
-      ((subPatterns map (_.allIdentifiers)).foldLeft(Set[Identifier]())((a, b) => a ++ b))  ++ binders
-    }
   }
+
   case class InstanceOfPattern(binder: Option[Identifier], classTypeDef: ClassTypeDef) extends Pattern { // c: Class
     val subPatterns = Seq.empty
   }
@@ -320,6 +318,7 @@ object Trees {
   object Not {
     def apply(expr : Expr) : Expr = expr match {
       case Not(e) => e
+      case BooleanLiteral(v) => BooleanLiteral(!v)
       case _ => new Not(expr)
     }
 
@@ -380,9 +379,6 @@ object Trees {
   }
 
   case class DeBruijnIndex(index: Int) extends Expr with Terminal
-
-  // represents the result in post-conditions
-  case class ResultVariable() extends Expr with Terminal
 
   /* Literals */
   sealed abstract class Literal[T] extends Expr with Terminal {
@@ -483,11 +479,27 @@ object Trees {
   case class SubsetOf(set1: Expr, set2: Expr) extends Expr with FixedType {
     val fixedType = BooleanType
   }
-  case class SetIntersection(set1: Expr, set2: Expr) extends Expr
-  case class SetUnion(set1: Expr, set2: Expr) extends Expr
-  case class SetDifference(set1: Expr, set2: Expr) extends Expr
-  case class SetMin(set: Expr) extends Expr
-  case class SetMax(set: Expr) extends Expr
+
+
+  case class SetIntersection(set1: Expr, set2: Expr) extends Expr {
+    leastUpperBound(Seq(set1, set2).map(_.getType)).foreach(setType _)
+  }
+  case class SetUnion(set1: Expr, set2: Expr) extends Expr {
+    leastUpperBound(Seq(set1, set2).map(_.getType)).foreach(setType _)
+  }
+  case class SetDifference(set1: Expr, set2: Expr) extends Expr {
+    leastUpperBound(Seq(set1, set2).map(_.getType)).foreach(setType _)
+  }
+  case class SetMin(set: Expr) extends Expr with FixedType {
+    typeCheck(set, SetType(Int32Type))
+
+    val fixedType = Int32Type
+  }
+  case class SetMax(set: Expr) extends Expr with FixedType {
+    typeCheck(set, SetType(Int32Type))
+
+    val fixedType = Int32Type
+  }
 
   /* Multiset expressions */
   case class EmptyMultiset(baseType: TypeTree) extends Expr with Terminal

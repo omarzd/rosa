@@ -8,7 +8,7 @@ import scala.collection.immutable.HashMap
 import z3.scala._
 
 import purescala.Common._
-import purescala.Trees.{Expr, Not, IntLiteral}
+import purescala.Trees.{Expr, Not, IntLiteral, Variable}
 import purescala.TreeOps._
 import purescala.Definitions._
 import solvers.z3._
@@ -23,10 +23,15 @@ object RealSolver {
   var verbose = false
 }
 
-class RealSolver(context: LeonContext, prog: Program, timeout: Long) extends UninterpretedZ3Solver(context) {
+// This is not an ideal construction as we are duplicating everything in UninterpretedSolver,
+// except the Z3Config, where we have to set the timeout.
+class RealSolver(val context: LeonContext, val program: Program, timeout: Long)
+  extends AbstractZ3Solver
+     with Z3ModelReconstruction {
+
   import RealSolver._
-  override val name = "numeric solver"
-  override val description = "Z3 solver with some numeric convenience methods"
+  val name = "numeric solver"
+  val description = "Z3 solver with some numeric convenience methods"
 
   //var verbose = false
   var printWarnings = false
@@ -46,38 +51,102 @@ class RealSolver(context: LeonContext, prog: Program, timeout: Long) extends Uni
   def getCounts: String = "timeouts: %d, tight: %d, hit precision: %d, hit iteration: %d".format(
     countTimeouts, countTightRanges, countHitPrecisionThreshold, countHitIterationThreshold)
 
-  override protected[leon] val z3cfg = new Z3Config(
+  // this is fixed
+  protected[leon] val z3cfg = new Z3Config(
     "MODEL" -> true,
     "TIMEOUT" -> timeout,
     "TYPE_CHECK" -> true,
     "WELL_SORTED_CHECK" -> true
   )
 
-  setProgram(prog)
+  toggleWarningMessages(true)
+
+  // what the superclasses require
+  private var functionMap: Map[FunDef, Z3FuncDecl] = Map.empty
+  private var reverseFunctionMap: Map[Z3FuncDecl, FunDef] = Map.empty
+  protected[leon] def prepareFunctions : Unit = {
+    functionMap        = Map.empty
+    reverseFunctionMap = Map.empty
+    for(funDef <- program.definedFunctions) {
+      val sortSeq = funDef.args.map(vd => typeToSort(vd.tpe))
+      val returnSort = typeToSort(funDef.returnType)
+
+      val z3Decl = z3.mkFreshFuncDecl(funDef.id.name, sortSeq, returnSort)
+      functionMap = functionMap + (funDef -> z3Decl)
+      reverseFunctionMap = reverseFunctionMap + (z3Decl -> funDef)
+    }
+  }
+  protected[leon] def functionDefToDecl(funDef: FunDef) : Z3FuncDecl = functionMap(funDef)
+  protected[leon] def functionDeclToDef(decl: Z3FuncDecl) : FunDef = reverseFunctionMap(decl)
+  protected[leon] def isKnownDecl(decl: Z3FuncDecl) : Boolean = reverseFunctionMap.isDefinedAt(decl)
+
   initZ3
 
   val solver = z3.mkSolver
-
-  def push = {
-    solver.push
-    if (verbose) println("solver, pushed")
-  }
-
-  def pop = {
-    solver.pop()
-    if (verbose) println("solver, popped")
-  }
 
   def getNumScopes: Int = {
     solver.getNumScopes
   }
 
-  def assertCnstr(expr: Expr) = {
+  def push() {
+    solver.push
+  }
+
+
+  def pop(lvl: Int = 1) {
+    solver.pop(lvl)
+  }
+
+  private var variables = Set[Identifier]()
+  private var containsFunCalls = false
+
+  def assertCnstr(expression: Expr) {
+    variables ++= variablesOf(expression)
+    containsFunCalls ||= containsFunctionCalls(expression)
+    solver.assertCnstr(toZ3Formula(expression).get)
+  }
+
+  def innerCheck: Option[Boolean] = {
+    solver.check match {
+      case Some(true) =>
+        if (containsFunCalls) {
+          None
+        } else {
+          Some(true)
+        }
+
+      case r =>
+        r
+    }
+  }
+
+  def innerCheckAssumptions(assumptions: Set[Expr]): Option[Boolean] = {
+    variables ++= assumptions.flatMap(variablesOf(_))
+    solver.checkAssumptions(assumptions.toSeq.map(toZ3Formula(_).get) : _*)
+  }
+
+  def getModel = {
+    modelToMap(solver.getModel, variables)
+  }
+
+  def getUnsatCore = {
+    solver.getUnsatCore.map(ast => fromZ3Formula(null, ast, None) match {
+      case n @ Not(Variable(_)) => n
+      case v @ Variable(_) => v
+      case x => scala.sys.error("Impossible element extracted from core: " + ast + " (as Leon tree : " + x + ")")
+    }).toSet
+  }
+
+  // TODO: check if we need this is in the first place
+  /*override def assertCnstr(expr: Expr) = {
     val exprInZ3 = toZ3Formula(expr).get
     solver.assertCnstr(exprInZ3)
     if (verbose) println("Added constraint: " + exprInZ3)
-  }
+  }*/
 
+
+  // Our stuff
+  
   def checkSat(expr: Expr): (Sat, Z3Model) = {
     solver.push
     val variables = variablesOf(expr)

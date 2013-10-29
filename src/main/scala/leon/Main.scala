@@ -2,6 +2,8 @@
 
 package leon
 
+import leon.utils._
+
 object Main {
 
   lazy val allPhases: List[LeonPhase[_, _]] = {
@@ -11,7 +13,7 @@ object Main {
       xlang.ArrayTransformation,
       xlang.EpsilonElimination,
       xlang.ImperativeCodeElimination,
-      xlang.FunctionClosure,
+      purescala.FunctionClosure,
       xlang.XlangAnalysisPhase,
       synthesis.SynthesisPhase,
       termination.TerminationPhase,
@@ -22,22 +24,16 @@ object Main {
 
   // Add whatever you need here.
   lazy val allComponents : Set[LeonComponent] = allPhases.toSet ++ Set(
-    // It's a little unfortunate that we need to build one...
-    new solvers.z3.FairZ3Solver(LeonContext())
+    new solvers.z3.FairZ3Component{}
   )
 
   lazy val topLevelOptions : Set[LeonOptionDef] = Set(
-      LeonFlagOptionDef ("termination",  "--termination", "Check program termination"),
-      LeonFlagOptionDef ("synthesis",    "--synthesis",   "Partial synthesis of choose() constructs"),
-      LeonFlagOptionDef ("xlang",        "--xlang",       "Support for extra program constructs (imperative,...)"),
-      LeonFlagOptionDef ("parse",        "--parse",       "Checks only whether the program is valid PureScala"),
-      LeonValueOptionDef("debug",        "--debug=[1-5]", "Debug level"),
-      LeonFlagOptionDef ("help",         "--help",        "Show help"),
-      LeonFlagOptionDef ("real",         "--real",        "Compilation of programs over reals")
-      //  Unimplemented Options:
-      //
-      //  LeonFlagOptionDef("uniqid",        "--uniqid",             "When pretty-printing purescala trees, show identifiers IDs"),
-      //  LeonFlagOptionDef("tolerant",      "--tolerant",           "Silently extracts non-pure function bodies as ''unknown''"),
+      LeonFlagOptionDef ("termination", "--termination",        "Check program termination"),
+      LeonFlagOptionDef ("synthesis",   "--synthesis",          "Partial synthesis of choose() constructs"),
+      LeonFlagOptionDef ("xlang",       "--xlang",              "Support for extra program constructs (imperative,...)"),
+      LeonValueOptionDef("debug",       "--debug=<sections..>", "Enables specific messages"),
+      LeonFlagOptionDef ("help",        "--help",               "Show help"),
+      LeonFlagOptionDef ("real",        "--real",               "Compilation of programs over reals")
     )
 
   lazy val allOptions = allComponents.flatMap(_.definedOptions) ++ topLevelOptions
@@ -63,8 +59,10 @@ object Main {
     sys.exit(1)
   }
 
-  def processOptions(reporter: Reporter, args: Seq[String]): LeonContext = {
+  def processOptions(args: Seq[String]): LeonContext = {
     val phases = allPhases
+
+    val initReporter = new DefaultReporter(Settings())
 
     val allOptions = this.allOptions
 
@@ -75,54 +73,119 @@ object Main {
 
     val files = args.filterNot(_.startsWith("-")).map(new java.io.File(_))
 
-    val leonOptions = options.flatMap { opt =>
-      val leonOpt: LeonOption = opt.substring(2, opt.length).split("=", 2).toList match {
+    def valueToFlag(s: String) = s match {
+      case "on"  | "true"  | "yes" => Some(true)
+      case "off" | "false" | "no"  => Some(false)
+      case _ => None
+    }
+
+    var optionsValues: Map[LeonOptionDef, String] = allOptions.flatMap{
+      case fod: LeonFlagOptionDef =>
+        Some((fod, if (fod.default) "on" else "off"))
+      case vod: LeonValueOptionDef =>
+        vod.default.map(d =>
+          (vod, d)
+        )
+    }.toMap
+
+    for (opt <- options) {
+      val (name, value) = opt.substring(2, opt.length).split("=", 2).toList match {
         case List(name, value) =>
-          LeonValueOption(name, value)
+          (name, Some(value))
         case List(name) =>
-          LeonFlagOption(name)
-        case _ =>
-          reporter.fatalError("Woot?")
+          (name, None)
       }
 
-      if (allOptionsMap contains leonOpt.name) {
-        (allOptionsMap(leonOpt.name), leonOpt) match {
-          case (_: LeonFlagOptionDef  | _: LeonOptValueOptionDef,  LeonFlagOption(name)) =>
-            Some(leonOpt)
-          case (_: LeonValueOptionDef | _: LeonOptValueOptionDef, LeonValueOption(name, value)) =>
-            Some(leonOpt)
-          case _ =>
-            reporter.error("Invalid option usage: " + opt)
-            displayHelp(reporter)
-            None
+      val optV = allOptionsMap.get(name) match {
+        case Some(fod: LeonFlagOptionDef) =>
+          value.orElse(Some("on"))
+
+        case Some(vod: LeonValueOptionDef) =>
+          value.orElse(vod.flagValue)
+
+        case _ =>
+          None
+      }
+
+      if (allOptionsMap contains name) {
+        optV.foreach { v =>
+          optionsValues +=  allOptionsMap(name) -> v
         }
       } else {
-        reporter.error("leon: '"+opt+"' is not a valid option. See 'leon --help'")
-        None
+        initReporter.fatalError("'"+name+"' is not a valid option. See 'leon --help'")
       }
     }
+
+    val leonOptions = optionsValues.flatMap {
+      case (fod: LeonFlagOptionDef, value) =>
+        valueToFlag(value) match {
+          case Some(v) =>
+            Some(LeonFlagOption(fod.name, v))
+          case None =>
+            initReporter.error("Invalid option usage: --"+fod.name+"="+value)
+            displayHelp(initReporter)
+            None
+        }
+      case (vod: LeonValueOptionDef, value) =>
+        Some(LeonValueOption(vod.name, value))
+    }.toSeq
+
+
 
     var settings  = Settings()
 
     // Process options we understand:
     for(opt <- leonOptions) opt match {
-      case LeonFlagOption("termination") =>
-        settings = settings.copy(termination = true, xlang = false, verify = false, synthesis = false)
-      case LeonFlagOption("synthesis") =>
-        settings = settings.copy(synthesis = true, xlang = false, verify = false)
-      case LeonFlagOption("xlang") =>
-        settings = settings.copy(synthesis = false, xlang = true)
-      case LeonFlagOption("parse") =>
-        settings = settings.copy(synthesis = false, xlang = false, verify = false)
-      case LeonFlagOption("help") =>
-        displayHelp(reporter)
-      case LeonFlagOption("real") =>
-        settings = settings.copy(termination = false, xlang = false, verify = false, synthesis = false,
-          real = true)
+      case LeonFlagOption("termination", value) =>
+        settings = settings.copy(termination = value)
+      case LeonFlagOption("synthesis", value) =>
+        settings = settings.copy(synthesis = value)
+      case LeonFlagOption("xlang", value) =>
+        settings = settings.copy(xlang = value)
+      case LeonValueOption("debug", ListValue(sections)) =>
+        val debugSections = sections.flatMap { s =>
+          if (s == "all") {
+            DebugSections.all
+          } else {
+            DebugSections.all.find(_.name == s) match {
+              case Some(rs) =>
+                Some(rs)
+              case None =>
+                initReporter.error("Section "+s+" not found, available: "+DebugSections.all.map(_.name).mkString(", "))
+                None
+            }
+          }
+        }
+        settings = settings.copy(debugSections = debugSections.toSet)
+      case LeonFlagOption("help", true) =>
+        displayHelp(initReporter)
+      case LeonFlagOption("real", value) =>
+        settings = settings.copy(verify = false, real = value)
       case _ =>
     }
 
-    LeonContext(settings = settings, reporter = reporter, files = files, options = leonOptions)
+    // Create a new reporter taking settings into account
+    val reporter = new DefaultReporter(settings)
+
+    reporter.whenDebug(DebugSectionOptions) { debug =>
+
+      debug("Options considered by Leon:")
+      for (lo <- leonOptions) lo match {
+        case LeonFlagOption(name, v) =>
+          debug("  --"+name+"="+(if(v) "on" else "off"))
+        case LeonValueOption(name, v) =>
+          debug("  --"+name+"="+v)
+
+      }
+    }
+
+    val intManager = new InterruptManager(reporter)
+
+    LeonContext(settings = settings,
+                reporter = reporter,
+                files = files,
+                options = leonOptions,
+                interruptManager = intManager)
   }
 
   def computePipeline(settings: Settings): Pipeline[List[String], Any] = {
@@ -130,16 +193,10 @@ object Main {
 
     val pipeBegin : Pipeline[List[String],Program] = plugin.ExtractionPhase andThen SubtypingPhase
 
-    val pipeSynthesis: Pipeline[Program, Program] =
+    val pipeProcess: Pipeline[Program, Any] =
       if (settings.synthesis) {
         synthesis.SynthesisPhase
-      } else {
-        NoopPhase()
-      }
-
-    val pipeVerify: Pipeline[Program, Any] =
-      if (settings.termination) {
-        // OK, OK, that's not really verification...
+      } else if (settings.termination) {
         termination.TerminationPhase
       } else if (settings.xlang) {
         xlang.XlangAnalysisPhase
@@ -152,33 +209,51 @@ object Main {
       }
 
     pipeBegin andThen
-    pipeSynthesis andThen
-    pipeVerify
+    pipeProcess
   }
 
   def main(args : Array[String]) {
-    val reporter = new DefaultReporter()
-
-    // Process options
-    val ctx = processOptions(reporter, args.toList)
-
-    // Compute leon pipeline
-    val pipeline = computePipeline(ctx.settings)
-
     try {
+      // Process options
+      val timer     = new Timer().start
+
+      val ctx = processOptions(args.toList)
+
+      ctx.interruptManager.registerSignalHandler()
+
+      ctx.timers.get("Leon Opts") += timer
+
+      // Compute leon pipeline
+      val pipeline = computePipeline(ctx.settings)
+
+      timer.restart
+
       // Run pipeline
       pipeline.run(ctx)(args.toList) match {
         case report: verification.VerificationReport =>
-          reporter.info(report.summaryString)
+          ctx.reporter.info(report.summaryString)
 
         case report: termination.TerminationReport =>
-          reporter.info(report.summaryString)
+          ctx.reporter.info(report.summaryString)
 
         case report: real.CompilationReport =>
-          reporter.info(report.summaryString)
+          ctx.reporter.info(report.summaryString)
 
         case _ =>
       }
+
+      ctx.timers.get("Leon Run") += timer
+
+      ctx.reporter.whenDebug(DebugSectionTimers) { debug =>
+        debug("-"*80)
+        debug("Times:")
+        debug("-"*80)
+        for ((name, swc) <- ctx.timers.getAll.toSeq.sortBy(_._1)) {
+          debug(swc.toString)
+        }
+        debug("-"*80)
+      }
+
     } catch {
       case LeonFatalError() => sys.exit(1)
     }

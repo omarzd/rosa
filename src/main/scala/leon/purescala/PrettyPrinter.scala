@@ -57,7 +57,6 @@ class PrettyPrinter(sb: StringBuffer = new StringBuffer) {
     case Variable(id) => sb.append(idToString(id))
     case DeBruijnIndex(idx) => sb.append("_" + idx)
     case LetTuple(bs,d,e) =>
-        //pp(e, pp(d, sb.append("(let (" + b + " := "), lvl).append(") in "), lvl).append(")")
       sb.append("(let (" + bs.map(idToString _).mkString(",") + " := ");
       pp(d, lvl)
       sb.append(") in\n")
@@ -66,13 +65,20 @@ class PrettyPrinter(sb: StringBuffer = new StringBuffer) {
       sb.append(")")
 
     case Let(b,d,e) =>
-        //pp(e, pp(d, sb.append("(let (" + b + " := "), lvl).append(") in "), lvl).append(")")
       sb.append("(let (" + idToString(b) + " := ");
       pp(d, lvl)
       sb.append(") in\n")
       ind(lvl+1)
       pp(e, lvl+1)
       sb.append(")")
+
+    case LetDef(fd,body) =>
+      sb.append("\n")
+      pp(fd, lvl+1)
+      sb.append("\n")
+      sb.append("\n")
+      ind(lvl)
+      pp(body, lvl)
 
     case And(exprs) => ppNary(exprs, "(", " \u2227 ", ")", lvl)            // \land
     case Or(exprs) => ppNary(exprs, "(", " \u2228 ", ")", lvl)             // \lor
@@ -136,8 +142,8 @@ class PrettyPrinter(sb: StringBuffer = new StringBuffer) {
     case SetUnion(l,r) => ppBinary(l, r, " \u222A ", lvl)        // \cup
     case MultisetUnion(l,r) => ppBinary(l, r, " \u222A ", lvl)   // \cup
     case MapUnion(l,r) => ppBinary(l, r, " \u222A ", lvl)        // \cup
-    case SetDifference(l,r) => ppBinary(l, r, " \\ ", lvl)
-    case MultisetDifference(l,r) => ppBinary(l, r, " \\ ", lvl)
+    case SetDifference(l,r) => ppBinary(l, r, " \\ ", lvl) 
+    case MultisetDifference(l,r) => ppBinary(l, r, " \\ ", lvl)       
     case SetIntersection(l,r) => ppBinary(l, r, " \u2229 ", lvl) // \cap
     case MultisetIntersection(l,r) => ppBinary(l, r, " \u2229 ", lvl) // \cap
     case SetCardinality(t) => ppUnary(t, "|", "|", lvl)
@@ -270,7 +276,6 @@ class PrettyPrinter(sb: StringBuffer = new StringBuffer) {
       sb.append("}")
     }
 
-    case ResultVariable() => sb.append("#res")
     case Not(expr) => ppUnary(expr, "\u00AC(", ")", lvl)               // \neg
 
     case e @ Error(desc) =>
@@ -309,6 +314,14 @@ class PrettyPrinter(sb: StringBuffer = new StringBuffer) {
     case MultisetType(bt) => sb.append("Multiset["); pp(bt, lvl); sb.append("]")
     case TupleType(tpes) => ppNaryType(tpes, "(", ", ", ")", lvl)
     case c: ClassType => sb.append(c.classDef.id)
+    case FunctionType(fts, tt) => {
+      if (fts.size > 1)
+        ppNaryType(fts, "(", ", ", ")", lvl)
+      else if (fts.size == 1)
+        pp(fts.head, lvl)
+      sb.append(" => ")
+      pp(tt, lvl)
+    }
     case _ => sb.append("Type?")
   }
 
@@ -375,35 +388,36 @@ class PrettyPrinter(sb: StringBuffer = new StringBuffer) {
         parent.foreach(p => sb.append(" extends " + idToString(p.id)))
       }
 
-      case fd @ FunDef(id, rt, args, body, pre, post) => {
+      case fd: FunDef =>
         for(a <- fd.annotations) {
           ind(lvl)
           sb.append("@" + a + "\n")
         }
 
-        pre.foreach(prec => {
+        fd.precondition.foreach(prec => {
           ind(lvl)
           sb.append("@pre : ")
           pp(prec, lvl)
           sb.append("\n")
         })
 
-        post.foreach(postc => {
+        fd.postcondition.foreach{ case (id, postc) => {
           ind(lvl)
           sb.append("@post: ")
+          sb.append(idToString(id)+" => ")
           pp(postc, lvl)
           sb.append("\n")
-        })
+        }}
 
         ind(lvl)
         sb.append("def ")
-        sb.append(idToString(id))
+        sb.append(idToString(fd.id))
         sb.append("(")
 
-        val sz = args.size
+        val sz = fd.args.size
         var c = 0
-
-        args.foreach(arg => {
+       
+        fd.args.foreach(arg => {
           sb.append(arg.id)
           sb.append(" : ")
           pp(arg.tpe, lvl)
@@ -415,13 +429,15 @@ class PrettyPrinter(sb: StringBuffer = new StringBuffer) {
         })
 
         sb.append(") : ")
-        pp(rt, lvl)
+        pp(fd.returnType, lvl)
         sb.append(" = ")
-        if(body.isDefined)
-          pp(body.get, lvl)
-        else
-          sb.append("[unknown function implementation]")
-      }
+        fd.body match {
+          case Some(body) =>
+            pp(body, lvl)
+
+          case None =>
+            sb.append("[unknown function implementation]")
+        }
 
       case _ => sb.append("Defn?")
     }

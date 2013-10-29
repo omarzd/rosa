@@ -24,8 +24,9 @@ resolvers += "Typesafe Repository" at "http://repo.typesafe.com/typesafe/release
 
 libraryDependencies ++= Seq(
     "org.scala-lang" % "scala-compiler" % "2.10.2",
-    "org.scalatest" %% "scalatest" % "1.9.1" excludeAll(ExclusionRule(organization="org.scala-lang")),
-    "com.typesafe.akka" %% "akka-actor" % "2.1.4"
+    "org.scalatest" % "scalatest_2.10" % "2.0.M5b" % "test" excludeAll(ExclusionRule(organization="org.scala-lang")),
+    "junit" % "junit" % "4.8" % "test",
+    "com.typesafe.akka" %% "akka-actor" % "2.2.0" excludeAll(ExclusionRule(organization="org.scala-lang"))
 )
 
 javaOptions += "-Xmx1G"
@@ -39,3 +40,7 @@ fork in run := true
 fork in test := true
 
 mainClass in (Compile, run) := Some("leon.Main")
+
+logBuffered in Test := false
+
+testOptions in Test += Tests.Argument("-oD")

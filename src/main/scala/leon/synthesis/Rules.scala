@@ -80,10 +80,12 @@ object RuleInstantiation {
 }
 
 abstract class Rule(val name: String) {
-  def instantiateOn(scrx: SynthesisContext, problem: Problem): Traversable[RuleInstantiation]
+  def instantiateOn(sctx: SynthesisContext, problem: Problem): Traversable[RuleInstantiation]
 
   def subst(what: Tuple2[Identifier, Expr], in: Expr): Expr = replace(Map(Variable(what._1) -> what._2), in)
   def substAll(what: Map[Identifier, Expr], in: Expr): Expr = replace(what.map(w => Variable(w._1) -> w._2), in)
+
+  implicit val debugSection = DebugSectionSynthesis
 
   val forward: List[Solution] => Option[Solution] = {
     case List(s) =>

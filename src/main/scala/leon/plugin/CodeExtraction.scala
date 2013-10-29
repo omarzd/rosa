@@ -240,11 +240,13 @@ trait CodeExtraction extends Extractors {
 
       val (body2, ensuring) = body match {
         case ExEnsuredExpression(body2, resSym, contract) =>
-          varSubsts(resSym) = (() => ResultVariable().setType(funDef.returnType))
-          (body2, toPureScala(contract))
+          val resId = FreshIdentifier(resSym.name.toString).setType(funDef.returnType)
+          varSubsts(resSym) = (() => Variable(resId))
+          (body2, toPureScala(contract).map(r => (resId, r)))
 
         case ExHoldsExpression(body2) =>
-          (body2, Some(ResultVariable().setType(BooleanType)))
+          val resId = FreshIdentifier("res").setType(BooleanType)
+          (body2, Some((resId, Variable(resId))))
 
         case _ =>
           (body, None)
@@ -289,7 +291,7 @@ trait CodeExtraction extends Extractors {
         }
       }
 
-      val finalEnsuring = ensuring.filter{ e =>
+      val finalEnsuring = ensuring.filter{ case (id, e) =>
         if(containsLetDef(e)) {
           reporter.error(body3.pos, "Function postcondition should not contain nested function definition")
           false
@@ -309,8 +311,8 @@ trait CodeExtraction extends Extractors {
       throw new ImpureCodeEncounteredException(null)
     }
     def unsupported(tr: Tree, msg: String): Nothing = {
-      reporter.error(tr.pos, tr.toString)
       reporter.error(tr.pos, msg)
+      reporter.error(tr.pos, tr.toString)
       throw new ImpureCodeEncounteredException(tr)
     }
 
@@ -389,14 +391,17 @@ trait CodeExtraction extends Extractors {
       var rest = tmpRest
 
       val res = current match {
+        case ExArrayLiteral(tpe, args) =>
+          FiniteArray(args.map(extractTree)).setType(ArrayType(extractType(tpe)))
+
         case ExCaseObject(sym) =>
           classesToClasses.get(sym) match {
             case Some(ccd: CaseClassDef) =>
               CaseClass(ccd, Seq())
-
             case _ =>
-              unsupported(tr, "Unknown case class "+sym.name)
+              unsupported(tr, "Unknown case object "+sym.name)
           }
+
 
         case ExParameterlessMethodCall(t,n) if extractTree(t).getType.isInstanceOf[CaseClassType] =>
           val selector = extractTree(t)

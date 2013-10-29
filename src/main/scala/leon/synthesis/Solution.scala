@@ -7,9 +7,8 @@ import purescala.Trees._
 import purescala.TypeTrees.{TypeTree,TupleType}
 import purescala.Definitions._
 import purescala.TreeOps._
-import xlang.Trees.LetDef
-import xlang.TreeOps.{ScopeSimplifier => XLangScopeSimplifier}
-import solvers.z3.UninterpretedZ3Solver
+import solvers.z3._
+import solvers._
 
 // Defines a synthesis solution of the form:
 // ⟨ P | T ⟩
@@ -32,8 +31,7 @@ class Solution(val pre: Expr, val defs: Set[FunDef], val term: Expr) {
     defs.foldLeft(term){ case (t, fd) => LetDef(fd, t) }
 
   def toSimplifiedExpr(ctx: LeonContext, p: Program): Expr = {
-    val uninterpretedZ3 = new UninterpretedZ3Solver(ctx.copy(reporter = new SilentReporter))
-    uninterpretedZ3.setProgram(p)
+    val uninterpretedZ3 = SolverFactory(() => new UninterpretedZ3Solver(ctx, p))
 
     val simplifiers = List[Expr => Expr](
       simplifyTautologies(uninterpretedZ3)(_),
@@ -45,7 +43,7 @@ class Solution(val pre: Expr, val defs: Set[FunDef], val term: Expr) {
       simplifyTautologies(uninterpretedZ3)(_),
       simplifyLets _,
       rewriteTuples _,
-      (new ScopeSimplifier with XLangScopeSimplifier).transform _
+      (new ScopeSimplifier).transform _
     )
 
     simplifiers.foldLeft(toExpr){ (x, sim) => sim(x) }

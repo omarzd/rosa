@@ -10,40 +10,25 @@ import leon.purescala.Common._
 import leon.purescala.Trees._
 import leon.purescala.Definitions._
 import leon.purescala.TypeTrees._
-import leon.purescala.DataGen._
+import leon.datagen._
 
 import leon.evaluators._
 
 import org.scalatest.FunSuite
 
-class DataGen extends FunSuite {
-  private implicit lazy val leonContext = LeonContext(
-    settings = Settings(
-      synthesis = false,
-      xlang     = false,
-      verify    = false
-    ),
-    files = List(),
-    reporter = new SilentReporter
-  )
-
+class DataGen extends LeonTestSuite {
   private def parseString(str : String) : Program = {
     val pipeline = TemporaryInputPhase andThen ExtractionPhase
 
-    val errorsBefore   = leonContext.reporter.errorCount
-    val warningsBefore = leonContext.reporter.warningCount
+    val errorsBefore   = testContext.reporter.errorCount
+    val warningsBefore = testContext.reporter.warningCount
 
-    val program = pipeline.run(leonContext)((str, Nil))
+    val program = pipeline.run(testContext)((str, Nil))
   
-    assert(leonContext.reporter.errorCount   === errorsBefore)
-    assert(leonContext.reporter.warningCount === warningsBefore)
+    assert(testContext.reporter.errorCount   === errorsBefore)
+    assert(testContext.reporter.warningCount === warningsBefore)
 
     program
-  }
-
-  test("Booleans") {
-    generate(BooleanType).toSet.size === 2
-    generate(TupleType(Seq(BooleanType,BooleanType))).toSet.size === 4
   }
 
   test("Lists") {
@@ -75,6 +60,12 @@ class DataGen extends FunSuite {
 
     val prog = parseString(p)
 
+    val eval      = new DefaultEvaluator(testContext, prog)
+    val generator = new NaiveDataGen(testContext, prog, eval)
+
+    generator.generate(BooleanType).toSet.size === 2
+    generator.generate(TupleType(Seq(BooleanType,BooleanType))).toSet.size === 4
+
     val listType : TypeTree = classDefToClassType(prog.mainObject.classHierarchyRoots.head)
     val sizeDef    : FunDef = prog.definedFunctions.find(_.id.name == "size").get
     val sortedDef  : FunDef = prog.definedFunctions.find(_.id.name == "isSorted").get
@@ -83,9 +74,9 @@ class DataGen extends FunSuite {
 
     val consDef : CaseClassDef = prog.mainObject.caseClassDef("Cons")
 
-    generate(listType).take(100).toSet.size === 100
+    generator.generate(listType).take(100).toSet.size === 100
 
-    val evaluator = new CodeGenEvaluator(leonContext, prog)
+    val evaluator = new CodeGenEvaluator(testContext, prog)
 
     val a = Variable(FreshIdentifier("a").setType(Int32Type))
     val b = Variable(FreshIdentifier("b").setType(Int32Type))
@@ -98,34 +89,34 @@ class DataGen extends FunSuite {
     val sortedX  = FunctionInvocation(sortedDef, Seq(x))
     val sortedY  = FunctionInvocation(sortedDef, Seq(y))
 
-    assert(findModels(
+    assert(generator.generateFor(
+      Seq(x.id),
       GreaterThan(sizeX, IntLiteral(0)),
-      evaluator,
       10,
       500
     ).size === 10)
 
-    assert(findModels(
+    assert(generator.generateFor(
+      Seq(x.id, y.id),
       And(Equals(contentX, contentY), sortedY),
-      evaluator,
       10,
       500
     ).size === 10)
 
-    assert(findModels(
+    assert(generator.generateFor(
+      Seq(x.id, y.id),
       And(Seq(Equals(contentX, contentY), sortedX, sortedY, Not(Equals(x, y)))),
-      evaluator,
       1,
       500
     ).isEmpty, "There should be no models for this problem")
 
-    assert(findModels(
+    assert(generator.generateFor(
+      Seq(x.id, y.id, b.id, a.id),
       And(Seq(
         LessThan(a, b),
         FunctionInvocation(sortedDef, Seq(CaseClass(consDef, Seq(a, x)))),
         FunctionInvocation(insSpecDef, Seq(b, x, y))
       )),
-      evaluator,
       10,
       500
     ).size >= 5, "There should be at least 5 models for this problem.")

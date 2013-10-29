@@ -25,6 +25,8 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
   val name = "Real compilation"
   val description = "compilation of real programs"
 
+  implicit val debugSection = DebugSectionVerification
+
   var verbose = false
   var reporter: Reporter = null
 
@@ -49,10 +51,10 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
 
     for (opt <- ctx.options) opt match {
       case LeonValueOption("functions", ListValue(fs)) => fncNamesToAnalyse = Set() ++ fs
-      case LeonFlagOption("simulation") => options = options.copy(simulation = true)
-      case LeonFlagOption("z3Only") => options = options.copy(z3Only = true)
-      case LeonFlagOption("pathError") => options = options.copy(pathError = true)
-      case LeonFlagOption("specGen") => options = options.copy(specGen = true)
+      case LeonFlagOption("simulation", v) => options = options.copy(simulation = v)
+      case LeonFlagOption("z3Only", v) => options = options.copy(z3Only = v)
+      case LeonFlagOption("pathError", v) => options = options.copy(pathError = v)
+      case LeonFlagOption("specGen", v) => options = options.copy(specGen = v)
       case LeonValueOption("z3Timeout", ListValue(tm)) => options = options.copy(z3Timeout = tm.head.toLong)
       case LeonValueOption("precision", ListValue(ps)) => options = options.copy(precision = ps.head match {
         case "single" => List(Float32)
@@ -125,13 +127,18 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
             if (verbose) reporter.debug("precondition: " + precondition)
             
             val (body, bodyWORes, postcondition) = funDef.postcondition match {
-              case Some(ResultVariable()) =>
+              //Option[(Identifier, Expr)]
+              // TODO: invariant
+              /*case Some((ResultVariable()) =>
                 val posts = getInvariantCondition(funDef.body.get)
                 val bodyWOLets = convertLetsToEquals(funDef.body.get)
                 val body = replace(posts.map(p => (p, True)).toMap, bodyWOLets)
-                (body, body, Or(posts))
-              case Some(p) =>
-                (convertLetsToEquals(addResult(funDef.body.get)), convertLetsToEquals(funDef.body.get), p)
+                (body, body, Or(posts))*/
+
+              // TODO: ResultVariable is a hack
+              case Some((resId, postExpr)) =>
+                (convertLetsToEquals(addResult(funDef.body.get)), convertLetsToEquals(funDef.body.get),
+                  replace(Map(Variable(resId) -> ResultVariable()), postExpr))
 
               case None => // only want to generate specs
                 (convertLetsToEquals(addResult(funDef.body.get)), convertLetsToEquals(funDef.body.get), True)
@@ -181,10 +188,11 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
 
       funDef.precondition = f.precondition
 
-      vc.spec(precision) match {
+      // TODO: fix code generation
+      /*vc.spec(precision) match {
         case Some(spec) => funDef.postcondition = Some(specToExpr(spec))
         case _ =>
-      }
+      }*/
 
       defs = defs :+ funDef
     }

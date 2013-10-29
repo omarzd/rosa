@@ -5,14 +5,15 @@ package leon
 import purescala.Definitions.Definition
 import purescala.Trees.Expr
 import purescala.PrettyPrinter
+import scala.annotation.implicitNotFound
 
-abstract class Reporter {
-  def infoFunction(msg: Any) : Unit 
-  def warningFunction(msg: Any) : Unit 
+abstract class Reporter(settings: Settings) {
+  def infoFunction(msg: Any) : Unit
+  def warningFunction(msg: Any) : Unit
   def errorFunction(msg: Any) : Unit
-  def fatalErrorFunction(msg: Any) : Nothing
   def debugFunction(msg: Any) : Unit
-
+  def fatalErrorFunction(msg: Any) : Nothing
+  
   // This part of the implementation is non-negociable.
   private var _errorCount : Int = 0
   private var _warningCount : Int = 0
@@ -33,10 +34,29 @@ abstract class Reporter {
     _errorCount += 1
     fatalErrorFunction(msg)
   }
-  final def debug(msg: Any) = debugFunction(msg)
+
+  private val debugMask = settings.debugSections.foldLeft(0){ _ | _.mask }
+
+  def ifDebug(body: (Any => Unit) => Any)(implicit section: DebugSection) = {
+    if ((debugMask & section.mask) == section.mask) {
+      body(debugFunction)
+    }
+  }
+
+  def whenDebug(section: DebugSection)(body: (Any => Unit) => Any) {
+    if ((debugMask & section.mask) == section.mask) {
+      body(debugFunction)
+    }
+  }
+
+  def debug(msg: => Any)(implicit section: DebugSection) = {
+    ifDebug{ debug =>
+      debug(msg)
+    }(section)
+  }
 }
 
-class DefaultReporter extends Reporter {
+class DefaultReporter(settings: Settings) extends Reporter(settings) {
   protected val errorPfx   = "[ Error ] "
   protected val warningPfx = "[Warning] "
   protected val infoPfx    = "[ Info  ] "
@@ -46,10 +66,12 @@ class DefaultReporter extends Reporter {
   def output(msg: String) : Unit = println(msg)
 
   protected def reline(pfx: String, msg: String) : String = {
-    val color = if(pfx == errorPfx || pfx == warningPfx || pfx == fatalPfx) {
+    val color = if(pfx == errorPfx || pfx == fatalPfx) {
       Console.RED
-    } else if (pfx == debugPfx) {
+    } else if(pfx == warningPfx) {
       Console.YELLOW
+    } else if(pfx == debugPfx) {
+      Console.MAGENTA
     } else {
       Console.BLUE
     }
@@ -57,20 +79,33 @@ class DefaultReporter extends Reporter {
     msg.replaceAll("\n", "\n" + (" " * (pfx.size)))
   }
 
-  def errorFunction(msg: Any) = output(reline(errorPfx, msg.toString))
+  def errorFunction(msg: Any)   = output(reline(errorPfx, msg.toString))
   def warningFunction(msg: Any) = output(reline(warningPfx, msg.toString))
-  def infoFunction(msg: Any) = output(reline(infoPfx, msg.toString))
-  def fatalErrorFunction(msg: Any) = { output(reline(fatalPfx, msg.toString)); throw LeonFatalError() }
-  def debugFunction(msg: Any) = output(reline(debugPfx, msg.toString))
+  def infoFunction(msg: Any)    = output(reline(infoPfx, msg.toString))
+  def debugFunction(msg: Any)   = output(reline(debugPfx, msg.toString))
+  def fatalErrorFunction(msg: Any) = {
+    output(reline(fatalPfx, msg.toString));
+    throw LeonFatalError()
+  }
 }
 
-class QuietReporter extends DefaultReporter {
-  override def warningFunction(msg : Any) = {}
-  override def infoFunction(msg : Any) = {}
-  override def debugFunction(msg : Any) = {}
-}
+@implicitNotFound("No implicit debug section found in scope. You need define an implicit DebugSection to use debug/ifDebug")
+sealed abstract class DebugSection(val name: String, val mask: Int)
 
-class SilentReporter extends QuietReporter {
-  override def errorFunction(msg : Any) = {}
-  override def fatalErrorFunction(msg: Any) = throw LeonFatalError()
+case object DebugSectionSolver       extends DebugSection("solver",       1 << 0)
+case object DebugSectionSynthesis    extends DebugSection("synthesis",    1 << 1)
+case object DebugSectionTimers       extends DebugSection("timers",       1 << 2)
+case object DebugSectionOptions      extends DebugSection("options",      1 << 3)
+case object DebugSectionVerification extends DebugSection("verification", 1 << 4)
+case object DebugSectionReals        extends DebugSection("reals", 1 << 5)
+
+object DebugSections {
+  val all = Set[DebugSection](
+    DebugSectionSolver,
+    DebugSectionSynthesis,
+    DebugSectionTimers,
+    DebugSectionOptions,
+    DebugSectionVerification,
+    DebugSectionReals
+  )
 }

@@ -3,7 +3,10 @@
 package leon
 package solvers.z3
 
+import leon.utils._
+
 import z3.scala._
+import solvers._
 import purescala.Common._
 import purescala.Definitions._
 import purescala.Trees._
@@ -20,20 +23,54 @@ import scala.collection.mutable.{Set => MutableSet}
 
 // This is just to factor out the things that are common in "classes that deal
 // with a Z3 instance"
-trait AbstractZ3Solver extends solvers.IncrementalSolverBuilder {
-  self: leon.solvers.Solver =>
+trait AbstractZ3Solver
+  extends Solver
+     with TimeoutAssumptionSolver
+     with AssumptionSolver
+     with IncrementalSolver {
 
   val context : LeonContext
+  val program : Program
+
   protected[z3] val reporter : Reporter = context.reporter
+
+  context.interruptManager.registerForInterrupts(this)
+
+  private[this] var freed = false
+  val traceE = new Exception()
+
+  override def finalize() {
+    if (!freed) {
+      println("!! Solver "+this.getClass.getName+"["+this.hashCode+"] not freed properly prior to GC:")
+      traceE.printStackTrace()
+      free()
+    }
+  }
 
   class CantTranslateException(t: Z3AST) extends Exception("Can't translate from Z3 tree: " + t)
 
   protected[leon] val z3cfg : Z3Config
   protected[leon] var z3 : Z3Context    = null
-  protected[leon] var program : Program = null
 
-  override def setProgram(prog: Program): Unit = {
-    program = prog
+  override def free() {
+    freed = true
+    if (z3 ne null) {
+      z3.delete()
+      z3 = null;
+    }
+  }
+
+  protected[z3] var interrupted = false;
+
+  override def interrupt() {
+    interrupted = true
+    if(z3 ne null) {
+      z3.interrupt
+    }
+  }
+
+  override def recoverInterrupt() {
+    interrupted = false
   }
 
   protected[leon] def prepareFunctions : Unit
@@ -102,14 +139,19 @@ trait AbstractZ3Solver extends solvers.IncrementalSolverBuilder {
   var isInitialized = false
   protected[leon] def initZ3() {
     if (!isInitialized) {
+      val initTime     = new Timer().start
       counter = 0
 
+      println("initializing Z3 with config: " + z3cfg)
       z3 = new Z3Context(z3cfg)
 
       prepareSorts
       prepareFunctions
 
       isInitialized = true
+
+      initTime.stop
+      context.timers.get("Z3Solver init") += initTime
     }
   }
 
@@ -434,7 +476,7 @@ trait AbstractZ3Solver extends solvers.IncrementalSolverBuilder {
         case RealLiteral(r) =>
           z3.mkNumeral(r.n.toString + "/" + r.d.toString, realSort)
         case UnitLiteral => unitValue
-        case Equals(l, r) => z3.mkEq(rec(l), rec(r))
+        case Equals(l, r) => z3.mkEq(rec( l ), rec( r ) )
         case Plus(l, r) => z3.mkAdd(rec(l), rec(r))
         case Minus(l, r) => z3.mkSub(rec(l), rec(r))
         case Times(l, r) => z3.mkMul(rec(l), rec(r))
@@ -704,9 +746,9 @@ trait AbstractZ3Solver extends solvers.IncrementalSolverBuilder {
             }
           }
 
-          case Z3NumeralAST(Some(v)) => IntLiteral(v)
+          case Z3NumeralIntAST(Some(v)) => IntLiteral(v)
           //case Z3NumeralRealAST(num, den) => RealLiteral(Rational(num, den))
-          case Z3NumeralAST(None) => {
+          case Z3NumeralIntAST(None) => {
             reporter.info("Cannot read exact model from Z3: Integer does not fit in machine word")
             reporter.info("Exiting procedure now")
             sys.exit(0)
@@ -751,7 +793,7 @@ trait AbstractZ3Solver extends solvers.IncrementalSolverBuilder {
           }
         }
       }
-      case Z3NumeralAST(Some(v)) => IntLiteral(v)
+      case Z3NumeralIntAST(Some(v)) => IntLiteral(v)
       case _ => throw e
     }
 

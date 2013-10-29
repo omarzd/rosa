@@ -14,6 +14,8 @@ import cafebabe.ByteCodes._
 import cafebabe.ClassFileTypes._
 import cafebabe.Flags._
 
+import runtime.LeonCodeGenRuntimeMonitor
+
 import java.lang.reflect.InvocationTargetException
 
 class CompiledExpression(unit: CompilationUnit, cf: ClassFile, expression : Expr, argsDecl: Seq[Identifier]) {
@@ -22,25 +24,45 @@ class CompiledExpression(unit: CompilationUnit, cf: ClassFile, expression : Expr
 
   private val exprType = expression.getType
 
-  protected[codegen] def evalToJVM(args: Seq[Expr]): AnyRef = {
+  private val params = unit.env.params
+
+  def argsToJVM(args: Seq[Expr]): Seq[AnyRef] = {
+    args.map(unit.valueToJVM)
+  }
+
+  def evalToJVM(args: Seq[AnyRef]): AnyRef = {
     assert(args.size == argsDecl.size)
 
-    if (args.isEmpty) {
+    val realArgs = if (params.requireMonitor) {
+      new LeonCodeGenRuntimeMonitor(params.maxFunctionInvocations) +: args
+    } else {
+      args
+    }
+
+    if (realArgs.isEmpty) {
       meth.invoke(null)
     } else {
-      meth.invoke(null, args.map(unit.valueToJVM).toArray : _*)
+      meth.invoke(null, realArgs.toArray : _*)
     }
   }
 
   // This may throw an exception. We unwrap it if needed.
   // We also need to reattach a type in some cases (sets, maps).
-  def eval(args: Seq[Expr]) : Expr = {
+  def evalFromJVM(args: Seq[AnyRef]) : Expr = {
     try {
       val result = unit.jvmToValue(evalToJVM(args))
       if(!result.isTyped) {
         result.setType(exprType)
       }
       result
+    } catch {
+      case ite : InvocationTargetException => throw ite.getCause()
+    }
+  }
+
+  def eval(args: Seq[Expr]) : Expr = {
+    try {
+      evalFromJVM(argsToJVM(args))
     } catch {
       case ite : InvocationTargetException => throw ite.getCause()
     }

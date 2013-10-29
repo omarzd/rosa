@@ -7,6 +7,7 @@ target
 /leon
 /setupenv
 /leon-bench
+/.test-history
 
 # synthesis
 derivation*.dot
@@ -21,3 +22,6 @@ lib-bin/64/libz3.so
 
 #numerics
 generated/
+
+# leon
+last.log
