@@ -23,7 +23,7 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
 
   implicit val debugSection = DebugSectionVerification
 
-  var verbose = false
+  var verbose = true
   var reporter: Reporter = null
 
   override val definedOptions: Set[LeonOptionDef] = Set(

@@ -27,7 +27,7 @@ package object real {
 
   case class Fnc(pre: Expr, body: Expr, post: Expr)
 
-  case class Path(condition: Expr, body: Expr)
+  case class Path(condition: Expr, bodyReal: Expr, bodyFinite: Expr)
 
 
   def formatOption[T](res: Option[T]): String = res match {

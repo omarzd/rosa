@@ -7,7 +7,10 @@ import purescala.Trees.Expr
 
 object Approximations {
 
-  case class Approximation(kind: ApproxKind, cnstrs: Seq[Expr], sanityChecks: Seq[Expr], spec: Option[Spec])
+  case class Constraint(precondition: Expr, realComp: Expr, finiteComp: Expr, postcondition: Expr)
+
+  // Spec is the overall computed postcondition
+  case class Approximation(kind: ApproxKind, constraints: Seq[Constraint], spec: Option[Spec])
 
   case class ApproxKind(fncHandling: FncHandling.Value, pathHandling: PathHandling.Value, arithmApprox: ArithmApprox.Value)
 

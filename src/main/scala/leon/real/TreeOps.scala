@@ -60,9 +60,8 @@ object TreeOps {
   /* -----------------------
              Paths
    ------------------------- */
-  def getPaths(expr: Expr): Set[Path] = {
-    val partialPaths = collectPaths(expr)
-    partialPaths.map(p => Path(p.condition, And(p.expression)))
+  def getPaths(expr: Expr): Set[(Expr, Expr)] = { 
+    collectPaths(expr).map(p => (p.condition, And(p.expression)))
   }
 
   case class PartialPath(condition: Expr, expression: Seq[Expr]) {
