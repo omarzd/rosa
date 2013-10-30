@@ -9,9 +9,6 @@ import collection.mutable.Queue
 
 object FixedPointFormat {
 
-  // TODO: make this default options with FixedPointFormat class
-  /** Default bitvector length. */
-  var globalBitLength = 16
   /** Default rounding mode. */
   var globalRounding = false
   /** Default setting for whether to allow unsigned format .*/
@@ -41,51 +38,12 @@ object FixedPointFormat {
     return new FixedPointFormat(signed, bits, fracBits, globalRounding)
   }
 
-  /**
-    Computes the best format for an interval of values while avoiding overflow.
-    Will return an unsigned format, if possible and uses default rounding.
-    Uses the default bit length set in the globalBitLength variable.
-    @param a lower bound of range of values
-    @param b upper bound of range of values
-   */
-  def getFormat(a: Rational, b: Rational): FixedPointFormat = getFormat(a, b, globalBitLength)
-
-  // Computes the format for the queue as given and then checks that this format can also hold
-  // the new quantization error, if not, a larger format is returned.
-  // TODO: do we need this?
-  /*private def getFormat(x0: Rational, queue1: Queue[Deviation], queue2: Queue[Deviation],
-    bits: Int): FixedPointFormat = {
-    val radius = sumQueue(queue1) + sumQueue(queue2)
-
-    // preliminary format, without quantization errors
-    val prelim = getFormat(x0 - radius, x0 + radius, bits)
-    val newRadius = radius + prelim.quantError
-    val secondary = getFormat(x0 - newRadius, x0 + newRadius)
-    if (prelim != secondary) {
-      return secondary
-    }
-    else {
-      return prelim
-    }
-  }*/
-
   def getFormat(i: RationalInterval, bits: Int): FixedPointFormat = {
     val prelim = getFormat(i.xlo, i.xhi, bits)
-    val secondary = getFormat(i.xlo - prelim.quantError, i.xhi + prelim.quantError)
+    val secondary = getFormat(i.xlo - prelim.quantError, i.xhi + prelim.quantError, bits)
     if (prelim != secondary) secondary
     else prelim
   }
-
-  /**
-    Computes the best format needed to represent a rational number (i.e. a constant).
-    The result is always a signed format, uses the default bit length
-    set in the globalBitLength variable.
-   @param r rational to be represented
-   */
-  /*def getFormat(r: Rational): FixedPointFormat = {
-    val tmp = getFormat(r, globalBitLength)
-    return tmp
-  }*/
 
   /**
     Computes the best format needed to represent a rational number (i.e. a constant).

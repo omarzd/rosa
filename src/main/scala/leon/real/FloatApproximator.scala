@@ -55,18 +55,12 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
   
   val initialCondition: Expr = leonToZ3.getZ3Expr(noiseRemover.transform(precondition), precision)
 
-  // config with the initial precondition
   val config = XConfig(solver, initialCondition, solverMaxIterMedium, solverPrecisionMedium)
 
   val (machineEps, bits) = precision match {
     case FPPrecision(bts) => (Rational.zero, bts)
     case _ => (getUnitRoundoff(precision), 0)
   }
-
-  // TODO: float config
-  //val config = XFloatConfig(solver, initialCondition, 
-  //val config = XFloatConfig(solver, leonToZ3.getZ3Expr(noiseRemover.transform(precondition), precision), 
-  //  precision, getUnitRoundoff(precision), solverMaxIterMedium, solverPrecisionMedium)
 
   if (verboseLocal) println("initial config: " + config)
 

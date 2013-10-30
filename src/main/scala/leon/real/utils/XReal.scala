@@ -34,7 +34,6 @@ class XReal(val tree: Expr, val approxInterval: RationalInterval, val error: XRa
     max(abs(i.xlo), abs(i.xhi))
   }
 
-  /*  TODO: Ignores any (new??) errors */
   def unary_-(): XReal = new XReal(this.negate)
 
   def +(y: XReal): XReal = new XReal(this.add(y))

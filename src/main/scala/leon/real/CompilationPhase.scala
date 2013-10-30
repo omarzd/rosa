@@ -37,7 +37,6 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
     LeonFlagOptionDef("specGen", "--specGen", "Generate specs also for functions without postconditions")
   )
 
-  // TODO check code generation
   def run(ctx: LeonContext)(program: Program): CompilationReport = { 
     reporter = ctx.reporter
     reporter.info("Running Compilation phase")
@@ -57,7 +56,8 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
         case "double" => List(Float64)
         case "doubledouble" => List(DoubleDouble)
         case "quaddouble" => List(QuadDouble)
-        case "all" => List(Float32, Float64, DoubleDouble, QuadDouble)
+        // TODO: binary search?
+        case "all" => List(FPPrecision(8), FPPrecision(16), FPPrecision(32), FPPrecision(64), Float32, Float64, DoubleDouble, QuadDouble)
         case x => List(FPPrecision(x.toInt))
       })
       case _ =>
@@ -88,8 +88,9 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
       val prover = new Prover(ctx, options, program, fncs, verbose)
       val finalPrecision = prover.check(vcs)
 
-      val codeGenerator = new CodeGenerator(reporter, ctx, options, program)
-      val newProgram = codeGenerator.specToCode(program.id, program.mainObject.id, vcs, finalPrecision) 
+      // TODO: don't generate anything is prover wasn't successfull
+      val codeGenerator = new CodeGenerator(reporter, ctx, options, program, finalPrecision)
+      val newProgram = codeGenerator.specToCode(program.id, program.mainObject.id, vcs) 
       val newProgramAsString = ScalaPrinter(newProgram)
       reporter.info("Generated program with %d lines.".format(newProgramAsString.lines.length))
       //reporter.info(newProgramAsString)

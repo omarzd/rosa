@@ -10,14 +10,9 @@ import leon.purescala.Common._
 
 case class Spec(bounds: RationalInterval, absError: Rational)
 
-//object VerificationCondition {
-//  val initialValueMap = Map(Float32 -> None, Float64 -> None, DoubleDouble -> None, QuadDouble -> None)/
-//}
-
 // The condition is pre => post
 class VerificationCondition(val funDef: FunDef, val kind: VCKind.Value, val pre: Expr, val body: Expr,  
   val post: Expr, val variables: VariablePool, precisions: List[Precision]) extends ScalacPositional {
-  //import VerificationCondition._
 
   var allFncCalls = Set[String]()
 
