@@ -5,6 +5,7 @@ package real
 
 import purescala.Definitions._
 import purescala.Trees._
+import purescala.TreeOps._
 import purescala.Common._
 import purescala.TypeTrees._
 
@@ -45,11 +46,12 @@ class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, 
 
       funDef.precondition = f.precondition
 
-      // TODO: fix this
-      /*vc.spec(precision) match {
-        case Some(spec) => funDef.postcondition = Some(specToExpr(spec))
+      vc.spec(precision) match {
+        case Some(spec) =>
+          val resId = FreshIdentifier("res")
+          funDef.postcondition = Some((resId, replace(Map(ResultVariable() -> Variable(resId).setType(RealType)), specToExpr(spec))))
         case _ =>
-      }*/
+      }
 
       defs = defs :+ funDef
     }

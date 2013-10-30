@@ -172,43 +172,6 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
     else true
   }
 
-
-  /*private def specToCode(programId: Identifier, objectId: Identifier, vcs: Seq[VerificationCondition], precision: Precision): Program = {
-    var defs: Seq[Definition] = Seq.empty
-
-    for (vc <- vcs) {
-      val f = vc.funDef
-      val id = f.id
-      val floatType = getNonRealType(precision)
-      val returnType = floatType // FIXME: check that this is actually RealType
-      val args: Seq[VarDecl] = f.args.map(decl => VarDecl(decl.id, floatType))
-
-      val funDef = new FunDef(id, returnType, args)
-      funDef.body = f.body
-
-      funDef.precondition = f.precondition
-
-      // TODO: fix code generation
-      /*vc.spec(precision) match {
-        case Some(spec) => funDef.postcondition = Some(specToExpr(spec))
-        case _ =>
-      }*/
-
-      defs = defs :+ funDef
-    }
-    val invariants: Seq[Expr] = Seq.empty
-
-    val newProgram = Program(programId, ObjectDef(objectId, defs, invariants))
-    newProgram
-  }*/
-
-  /*private def getNonRealType(precision: Precision): TypeTree = precision match {
-    case Float64 => Float64Type
-    case Float32 => Float32Type
-    case DoubleDouble => FloatDDType
-    case QuadDouble => FloatQDType
-  }*/
-
   /*
   class AssertionRemover extends TransformerWithPC {
     type C = Seq[Expr]
