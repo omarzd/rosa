@@ -223,10 +223,7 @@ class LeonToZ3Transformer(variables: VariablePool) extends TransformerWithPC {
       val z3Expr = replace(Map(ResultVariable() -> res, FResVariable() -> fres), this.transform(e)) 
       
       if (epsUsed) {
-        println("\neps used, constraing: ")
-        println(And(And(extraConstraints), z3Expr))
         And(And(extraConstraints :+ Equals(machineEps, RealLiteral(getUnitRoundoff(precision)))), z3Expr)
-
       }
       else
         And(And(extraConstraints), z3Expr)

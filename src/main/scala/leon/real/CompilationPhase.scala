@@ -59,7 +59,7 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
         case "quaddouble" => List(QuadDouble)
         case "all" => List(Float32, Float64, DoubleDouble, QuadDouble)
         case x => List(FPPrecision(x.toInt))
-      }
+      })
       case _ =>
     }
 
@@ -74,7 +74,7 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
         toAnalyze
       }
         
-    val (vcs, fncs) = analyzeThis(fncsToAnalyse)
+    val (vcs, fncs) = analyzeThis(fncsToAnalyse, options.precision)
     if (reporter.errorCount > 0) throw LeonFatalError()
     
     reporter.info("--- Analysis complete ---")
@@ -105,7 +105,7 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
 
   
 
-  private def analyzeThis(sortedFncs: Seq[FunDef]): (Seq[VerificationCondition], Map[FunDef, Fnc]) = {
+  private def analyzeThis(sortedFncs: Seq[FunDef], precisions: List[Precision]): (Seq[VerificationCondition], Map[FunDef, Fnc]) = {
     var vcs = Seq[VerificationCondition]()
     var fncs = Map[FunDef, Fnc]()
     
@@ -128,7 +128,7 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
             
             val (body, bodyWORes, postcondition) = funDef.postcondition match {
               //Option[(Identifier, Expr)]
-              // TODO: invariant
+              // TODO: invariants (got broken because of missing ResultVariable)
               /*case Some((ResultVariable()) =>
                 val posts = getInvariantCondition(funDef.body.get)
                 val bodyWOLets = convertLetsToEquals(funDef.body.get)
@@ -144,12 +144,12 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
                 (convertLetsToEquals(addResult(funDef.body.get)), convertLetsToEquals(funDef.body.get), True)
             }
             if (postcondition == True)
-              vcs :+= new VerificationCondition(funDef, SpecGen, precondition, body, postcondition, allFncCalls, variables)
+              vcs :+= new VerificationCondition(funDef, SpecGen, precondition, body, postcondition, allFncCalls, variables, precisions)
             else  
-              vcs :+= new VerificationCondition(funDef, Postcondition, precondition, body, postcondition, allFncCalls, variables)
+              vcs :+= new VerificationCondition(funDef, Postcondition, precondition, body, postcondition, allFncCalls, variables, precisions)
 
             // VCs for preconditions of fnc calls and assertions
-            val assertionCollector = new AssertionCollector(funDef, precondition, variables)
+            val assertionCollector = new AssertionCollector(funDef, precondition, variables, precisions)
             assertionCollector.transform(body)
             vcs ++= assertionCollector.vcs
 
@@ -173,7 +173,7 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
   }
 
 
-  private def specToCode(programId: Identifier, objectId: Identifier, vcs: Seq[VerificationCondition], precision: Precision): Program = {
+  /*private def specToCode(programId: Identifier, objectId: Identifier, vcs: Seq[VerificationCondition], precision: Precision): Program = {
     var defs: Seq[Definition] = Seq.empty
 
     for (vc <- vcs) {
@@ -200,14 +200,14 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
 
     val newProgram = Program(programId, ObjectDef(objectId, defs, invariants))
     newProgram
-  }
+  }*/
 
-  private def getNonRealType(precision: Precision): TypeTree = precision match {
+  /*private def getNonRealType(precision: Precision): TypeTree = precision match {
     case Float64 => Float64Type
     case Float32 => Float32Type
     case DoubleDouble => FloatDDType
     case QuadDouble => FloatQDType
-  }
+  }*/
 
   /*
   class AssertionRemover extends TransformerWithPC {

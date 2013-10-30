@@ -46,7 +46,7 @@ object Trees {
     def this(i: Int) = this(Rational(i), true)
     
     def printWith(lvl: Int, printer: PrettyPrinter) {
-      printer.append(value.toString)
+      printer.append(value.toString + "f")
     }
   }
 

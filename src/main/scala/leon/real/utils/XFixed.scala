@@ -88,6 +88,7 @@ object XFixed {
 /*
   Assumes that all operands always have the same bitlength.
 */
+// TODO: make this consistent with XFloat and put format at the end of the parameter list
 class XFixed(val format: FixedPointFormat, val tr: Expr, val appInt: RationalInterval, val err: XRationalForm,
   val cnfg: XConfig) extends XReal(tr, appInt, err, cnfg) {
 
@@ -131,7 +132,7 @@ class XFixed(val format: FixedPointFormat, val tr: Expr, val appInt: RationalInt
 
   override def *(y: XReal): XReal = {
     assert(y.getClass == this.getClass)
-    assert(this.format.bits == y.asInstanceOf[XFixed].format.bits)
+    assert(this.format.bits == y.asInstanceOf[XFixed].format.bits, "bits do not match: " + this.format.bits + "  " + y.asInstanceOf[XFixed].format.bits)
     if (verbose) println("*fl " + this.tree + " with " + y.tree)
     if (verbose) println("x.error: " + this.error.longString)
     if (verbose) println("y.error: " + y.error.longString)
@@ -170,6 +171,6 @@ class XFixed(val format: FixedPointFormat, val tr: Expr, val appInt: RationalInt
   }
 
 
-  override def toString: String = "%s - (%.16g,%s)".format(this.interval.toString, this.maxError.toDouble, this.format)
+  override def toString: String = "%s -x (%.16g,%s)".format(this.interval.toString, this.maxError.toDouble, this.format)
 
 }

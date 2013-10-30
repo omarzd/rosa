@@ -10,29 +10,29 @@ import leon.purescala.Common._
 
 case class Spec(bounds: RationalInterval, absError: Rational)
 
-object VerificationCondition {
-  val initialValueMap = Map(Float32 -> None, Float64 -> None, DoubleDouble -> None, QuadDouble -> None)
-}
+//object VerificationCondition {
+//  val initialValueMap = Map(Float32 -> None, Float64 -> None, DoubleDouble -> None, QuadDouble -> None)/
+//}
 
 // The condition is pre => post
 class VerificationCondition(val funDef: FunDef, val kind: VCKind.Value, val pre: Expr, val body: Expr,  
-  val post: Expr, val variables: VariablePool) extends ScalacPositional {
-  import VerificationCondition._
+  val post: Expr, val variables: VariablePool, precisions: List[Precision]) extends ScalacPositional {
+  //import VerificationCondition._
 
   var allFncCalls = Set[String]()
 
   val fncId = funDef.id.toString // not unique
 
   // (lowerBnd, upperBnd) absError
-  var spec: Map[Precision, Option[Spec]] = initialValueMap
+  var spec: Map[Precision, Option[Spec]] = precisions.map(p => (p, None)).toMap
 
   // None = still unknown
   // Some(true) = valid
   // Some(false) = invalid
-  var value: Map[Precision, Option[Boolean]] = initialValueMap
+  var value: Map[Precision, Option[Boolean]] = precisions.map(p => (p, None)).toMap
 
-  def this(fD: FunDef, k:VCKind.Value, pe: Expr, b: Expr, po: Expr, fncCalls: Set[String], vars: VariablePool) = {
-    this(fD, k, pe, b, po, vars)
+  def this(fD: FunDef, k:VCKind.Value, pe: Expr, b: Expr, po: Expr, fncCalls: Set[String], vars: VariablePool, precs: List[Precision]) = {
+    this(fD, k, pe, b, po, vars, precs)
     allFncCalls = fncCalls
   }
 

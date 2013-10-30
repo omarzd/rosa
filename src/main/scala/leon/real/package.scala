@@ -69,7 +69,6 @@ package object real {
   // Since we don't know which precision we may test, returns, for now, true only for integers
   def isExact(r: Rational): Boolean = r.isWhole
 
-
   object Sat extends Enumeration {
     type Sat = Value
     val SAT = Value("SAT")

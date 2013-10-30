@@ -3,7 +3,7 @@
 package leon
 package real
 
-import Precision._
+//import Precision._
 
 case class RealOptions(
   simulation: Boolean           = false,        // determine ranges and errors with simulation

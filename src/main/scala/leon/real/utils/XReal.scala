@@ -42,27 +42,26 @@ class XReal(val tree: Expr, val approxInterval: RationalInterval, val error: XRa
   def *(y: XReal): XReal = new XReal(this.multiply(y))
   def /(y: XReal): XReal = new XReal(this.divide(y))
   def squareRoot: XReal = new XReal(this.takeSqrtRoot)
-
+  
   /*
     Propagation
    */
-  def negate: (Expr, RationalInterval, XRationalForm, XConfig) = (UMinus(tree), -approxInterval, -error, config)
+  def negate: (Expr, RationalInterval, XRationalForm, XConfig) = (UMinusR(tree), -approxInterval, -error, config)
 
   def add(y: XReal): (Expr, RationalInterval, XRationalForm, XConfig) = {
     if (verbose) println("Adding " + this + " to " + y)
     val newConfig = config.and(y.config)
-    val newTree = Plus(this.tree, y.tree)
+    val newTree = PlusR(this.tree, y.tree)
     val newInterval = this.approxInterval + y.approxInterval
     var newError = this.error + y.error
     val newRealRange = getTightInterval(newTree, newInterval, newConfig.getCondition)
-    
     (newTree, newRealRange, newError, newConfig)
   }
 
   def subtract(y: XReal): (Expr, RationalInterval, XRationalForm, XConfig)  = {
     if (verbose) println("Subtracting " + this + " from " + y)
     val newConfig = config.and(y.config)
-    val newTree = Minus(this.tree, y.tree)
+    val newTree = MinusR(this.tree, y.tree)
     val newInterval = this.approxInterval - y.approxInterval
     var newError = this.error - y.error
     val newRealRange = getTightInterval(newTree, newInterval, newConfig.getCondition)
@@ -74,7 +73,7 @@ class XReal(val tree: Expr, val approxInterval: RationalInterval, val error: XRa
     if (verbose) println("x.error: " + this.error.longString)
     if (verbose) println("y.error: " + y.error.longString)
     val newConfig = config.and(y.config)
-    val newTree = Times(this.tree, y.tree)
+    val newTree = TimesR(this.tree, y.tree)
     val newInterval = this.approxInterval * y.approxInterval
 
     val xAA = XRationalForm(this.realInterval)
@@ -92,7 +91,7 @@ class XReal(val tree: Expr, val approxInterval: RationalInterval, val error: XRa
 
     // Compute approximation
     //val tightInverse = getTightInterval(Division(new RealLiteral(1), y.tree), y.approxRange.inverse)
-    val tightInverse = getTightInterval(Division(new RealLiteral(1), y.tree), RationalInterval(one, one)/y.approxInterval, y.config.getCondition)
+    val tightInverse = getTightInterval(DivisionR(new RealLiteral(1), y.tree), RationalInterval(one, one)/y.approxInterval, y.config.getCondition)
     val kAA = XRationalForm(tightInverse)
     val xAA = XRationalForm(this.realInterval)
     val xErr = this.error
@@ -104,7 +103,7 @@ class XReal(val tree: Expr, val approxInterval: RationalInterval, val error: XRa
 
     // Now do the multiplication x * (1/y)
     val newConfig = config.and(y.config)
-    val newTree = Division(this.tree, y.tree)
+    val newTree = DivisionR(this.tree, y.tree)
     val newInterval = this.approxInterval / y.approxInterval
 
     var newError = xAA*gErr + kAA*xErr + xErr*gErr
@@ -122,7 +121,7 @@ class XReal(val tree: Expr, val approxInterval: RationalInterval, val error: XRa
     //val newTree = Sqrt(this.tree)
     val (sqrtVar, n) = getNewSqrtVariablePair
     val newTree = sqrtVar
-    val newCondition = And(Equals(Times(sqrtVar, sqrtVar), this.tree), LessEquals(RealLiteral(zero), sqrtVar))
+    val newCondition = And(Equals(TimesR(sqrtVar, sqrtVar), this.tree), LessEquals(RealLiteral(zero), sqrtVar))
     val newConfig = config.addCondition(newCondition)
 
     val newInterval = RationalInterval(sqrtDown(this.approxInterval.xlo), sqrtUp(this.approxInterval.xhi))

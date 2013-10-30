@@ -94,6 +94,9 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
             case e: RealArithmeticException =>
               reporter.warning("Failed to compute approximation: " + e.getMessage)
               false
+            case e: FixedPointOverflowException =>
+              reporter.warning("Insufficient bitwidth: " + e.getMessage)
+              false
           }
 
         }) match {

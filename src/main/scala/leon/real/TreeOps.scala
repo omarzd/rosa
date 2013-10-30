@@ -129,7 +129,7 @@ object TreeOps {
   /* -----------------------
         Function calls
    ------------------------- */
-  class AssertionCollector(outerFunDef: FunDef, precondition: Expr, variables: VariablePool) extends TransformerWithPC {
+  class AssertionCollector(outerFunDef: FunDef, precondition: Expr, variables: VariablePool, precisions: List[Precision]) extends TransformerWithPC {
     type C = Seq[Expr]
     val initC = Nil
 
@@ -146,13 +146,13 @@ object TreeOps {
         val toProve = replace(arguments, roundoffRemover.transform(funDef.precondition.get))
 
         val allFncCalls = functionCallsOf(pathToFncCall).map(invc => invc.funDef.id.toString)
-        vcs :+= new VerificationCondition(outerFunDef, Precondition, precondition, pathToFncCall, toProve, allFncCalls, variables)
+        vcs :+= new VerificationCondition(outerFunDef, Precondition, precondition, pathToFncCall, toProve, allFncCalls, variables, precisions)
         e               
 
       case Assertion(toProve) =>
         val pathToAssertion = And(path)
         val allFncCalls = functionCallsOf(pathToAssertion).map(invc => invc.funDef.id.toString)
-        vcs :+= new VerificationCondition(outerFunDef, Assert, precondition, pathToAssertion, toProve, allFncCalls, variables)
+        vcs :+= new VerificationCondition(outerFunDef, Assert, precondition, pathToAssertion, toProve, allFncCalls, variables, precisions)
         e
       case _ =>
         super.rec(e, path)
@@ -208,9 +208,7 @@ object TreeOps {
         val arguments: Map[Expr, Expr] = funDef.args.map(decl => decl.toVariable).zip(args).toMap
         val fncBody = fncs(funDef).body
         
-        println("fnc body before: " + fncBody)
         val newBody = replace(arguments, fncBody)
-        println("newBody: " + newBody)
         FncBody(funDef.id.name, newBody)
         
       case _ =>

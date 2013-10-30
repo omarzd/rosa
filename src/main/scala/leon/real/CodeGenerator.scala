@@ -45,10 +45,11 @@ class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, 
 
       funDef.precondition = f.precondition
 
-      vc.spec(precision) match {
+      // TODO: fix this
+      /*vc.spec(precision) match {
         case Some(spec) => funDef.postcondition = Some(specToExpr(spec))
         case _ =>
-      }
+      }*/
 
       defs = defs :+ funDef
     }
@@ -64,7 +65,7 @@ class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, 
 
     val solver = new RealSolver(ctx, prog, options.z3Timeout)
 
-    for (vc <- vcs) {
+    /*for (vc <- vcs) {
       val f = vc.funDef
       val id = f.id
       val args: Seq[VarDecl] = f.args.map(decl => VarDecl(decl.id, Int32Type))
@@ -86,7 +87,7 @@ class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, 
       funDef.body = f.body
 
       defs = defs :+ funDef
-    }
+    }*/
 
     val newProgram = Program(programId, ObjectDef(objectId, defs, invariants))
     newProgram
