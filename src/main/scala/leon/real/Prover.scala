@@ -43,7 +43,9 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
         else (vc, list)
       }.toMap
   
-  def check(vcs: Seq[VerificationCondition]): Precision = {
+  // Returns the precision with which we can satisfy all constraints, or the last one tried,
+  // as well as an indication whether verification was successfull.
+  def check(vcs: Seq[VerificationCondition]): (Precision, Boolean) = {
     val validApproximations = getApplicableApproximations(vcs)
 
     if (verbose) {
@@ -119,10 +121,9 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
       })
 
     }) match {
-      case Some(p) => p
-      case None => options.precision.last
-    }
-    
+      case Some(p) => (p, true)  // succeeded with given precision
+      case None => (options.precision.last, false)
+    }    
   }
 
   def checkValid(app: Approximation, variables: VariablePool, precision: Precision): Option[Boolean] = {

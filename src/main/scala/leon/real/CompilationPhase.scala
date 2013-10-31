@@ -86,19 +86,23 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
       new CompilationReport(List(), prec)
     } else {
       val prover = new Prover(ctx, options, program, fncs, verbose)
-      val finalPrecision = prover.check(vcs)
+      
+      val (finalPrecision, success) = prover.check(vcs)
+      if (success) {
+        val codeGenerator = new CodeGenerator(reporter, ctx, options, program, finalPrecision)
+        val newProgram = codeGenerator.specToCode(program.id, program.mainObject.id, vcs) 
+        val newProgramAsString = ScalaPrinter(newProgram)
+        reporter.info("Generated program with %d lines.".format(newProgramAsString.lines.length))
+        //reporter.info(newProgramAsString)
 
-      // TODO: don't generate anything is prover wasn't successfull
-      val codeGenerator = new CodeGenerator(reporter, ctx, options, program, finalPrecision)
-      val newProgram = codeGenerator.specToCode(program.id, program.mainObject.id, vcs) 
-      val newProgramAsString = ScalaPrinter(newProgram)
-      reporter.info("Generated program with %d lines.".format(newProgramAsString.lines.length))
-      //reporter.info(newProgramAsString)
-
-      val writer = new PrintWriter(new File("generated/" + newProgram.mainObject.id +".scala"))
-      writer.write(newProgramAsString)
-      writer.close()
-    
+        val writer = new PrintWriter(new File("generated/" + newProgram.mainObject.id +".scala"))
+        writer.write(newProgramAsString)
+        writer.close()
+      }
+      else {// verification did not succeed for any precision
+        reporter.warning("Could not find data type that works for all methods.")
+      }
+      
       new CompilationReport(vcs.sortWith((vc1, vc2) => vc1.fncId < vc2.fncId), finalPrecision)
     }
     
