@@ -81,8 +81,8 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
                   vc.value += (precision -> Some(true))
                   true
                 case Some(false) =>
-                  // TODO: figure out if we can find invalid
                   reporter.info("=== INVALID ===")
+                  vc.value += (precision -> Some(false))
                   true
                 case None =>
                   reporter.info("---- Unknown ----")
@@ -128,47 +128,39 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
   def checkValid(app: Approximation, variables: VariablePool, precision: Precision): Option[Boolean] = {
     if (verbose) reporter.debug("checking for valid: " + app.constraints)
 
-    // I think we can keep one, TODO: precision is fixed so can be a parameter
-    val transformer = new LeonToZ3Transformer(variables)
+    val transformer = new LeonToZ3Transformer(variables, precision)
     var valid: Option[Boolean] = None
-
     
     for ((cnstr, index) <- app.constraints.zipWithIndex) {
       val sanityConstraint = And(cnstr.precondition, And(cnstr.realComp, cnstr.finiteComp))
       val toCheck = And(sanityConstraint, negate(cnstr.postcondition))
       
+      val z3constraint = massageArithmetic(transformer.getZ3Expr(toCheck))
+      val sanityExpr = massageArithmetic(transformer.getZ3Expr(sanityConstraint))
 
-      val (z3constraint, sanityExpr) = precision match {
-        case FPPrecision(bts) =>
-          (massageArithmetic(transformer.getZ3ExprFP(toCheck)),
-            massageArithmetic(transformer.getZ3ExprFP(sanityConstraint)))
-
-        case _ =>
-          (massageArithmetic(transformer.getZ3Expr(toCheck, precision)),
-            massageArithmetic(transformer.getZ3Expr(sanityConstraint, precision)))
-      }
       if (verbose) reporter.debug("z3constraint ("+index+"): " + z3constraint)
 
-      println("sanity expr: " + sanityExpr)
-      println("sanity check: " + sanityCheck(sanityExpr))
       if (reporter.errorCount == 0 && sanityCheck(sanityExpr)) {
         solver.checkSat(z3constraint) match {
           case (UNSAT, _) => valid = Some(true);
           case (SAT, model) =>
-            // TODO: print the models that are actually useful, once we figure out which ones those are
-            // Return Some(false) if we have a valid model (without approximation on the real part)
-            // Idea: check if we get a counterexample for the real part only, that is then a possible counterexample, (depends on the approximation)
-            /*val realFilter = new RealFilter
-            val realOnlyConstraint = realFilter.transform(And(And(cnstr.precondition, cnstr.realComp), negate(cnstr.postcondition)))
-            println("\nreal only: " + realOnlyConstraint)
-            val massaged = massageArithmetic(transformer.getZ3Expr(realOnlyConstraint, precision))
-            println("real only constraint: " + massaged)
-            solver.checkSat(massaged) match {
-              case (SAT, model) =>
-                println("model: " + model)
-              case (UNSAT, _) => // this could mean that the floating-point part is not working
-              case _ =>
-            }*/
+            if (app.kind.allowsRealModel) {
+              // Idea: check if we get a counterexample for the real part only, that is then a possible counterexample, (depends on the approximation)
+              val realFilter = new RealFilter
+              val realOnlyConstraint = realFilter.transform(And(And(cnstr.precondition, cnstr.realComp), negate(cnstr.postcondition)))
+              //println("\nreal only: " + realOnlyConstraint)
+              val massaged = massageArithmetic(transformer.getZ3Expr(realOnlyConstraint))
+              //println("real only constraint: " + massaged)
+              solver.checkSat(massaged) match {
+                case (SAT, model) =>
+                  // TODO: pretty print the models
+                  reporter.info("counterexample: " + model)
+                  valid = Some(false)
+                case (UNSAT, _) =>
+                case _ =>
+              }
+            }
+
 
           case _ =>;
         }

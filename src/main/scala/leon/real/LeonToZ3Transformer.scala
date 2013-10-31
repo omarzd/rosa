@@ -13,13 +13,19 @@ import VariableShop._
 import Rational._
 import TreeOps._
 
-class LeonToZ3Transformer(variables: VariablePool) extends TransformerWithPC {
+class LeonToZ3Transformer(variables: VariablePool, precision: Precision) extends TransformerWithPC {
     type C = Seq[Expr]
     val initC = Nil
 
     // TODO Make sure this is unique, i.e. we don't create it twice in the same constraint
     var epsUsed = false
-    lazy val machineEps = { epsUsed = true; Variable(FreshIdentifier("#eps")).setType(RealType) }
+    var epsVariable: Variable = Variable(FreshIdentifier("#eps")).setType(RealType)
+    def machineEps = { epsUsed = true; epsVariable }
+
+    def initEps = {
+      epsUsed = false
+      epsVariable = Variable(FreshIdentifier("#eps")).setType(RealType)
+    }
 
     var extraConstraints = Seq[Expr]()
     def addExtra(e: Expr) = extraConstraints = extraConstraints :+ e
@@ -37,9 +43,7 @@ class LeonToZ3Transformer(variables: VariablePool) extends TransformerWithPC {
     
     def register(e: Expr, path: C) = path :+ e
 
-    private def constrainDelta(delta: Variable): Expr = {
-      And(Seq(LessEquals(UMinusR(machineEps), delta), LessEquals(delta, machineEps)))
-    }
+    private def constrainDelta(delta: Variable): Expr = And(Seq(LessEquals(UMinusR(machineEps), delta), LessEquals(delta, machineEps)))
 
     override def rec(e: Expr, path: C) = e match {
       case Roundoff(v @ Variable(_)) =>
@@ -216,31 +220,24 @@ class LeonToZ3Transformer(variables: VariablePool) extends TransformerWithPC {
       And(And(extraConstraints), z3Expr)
     }
 
-    // TODO: don't need 2 functions, can figure it out based on precision
-    def getZ3Expr(e: Expr, precision: Precision): Expr = {
+    def getZ3Expr(e: Expr): Expr = {
       extraConstraints = Seq[Expr]()
+      initEps
       val res = Variable(FreshIdentifier("#res")).setType(RealType)
       val fres = Variable(FreshIdentifier("#fres")).setType(RealType)
-      val z3Expr = replace(Map(ResultVariable() -> res, FResVariable() -> fres), this.transform(e)) 
-      
-      if (epsUsed) {
-        And(And(extraConstraints :+ Equals(machineEps, RealLiteral(getUnitRoundoff(precision)))), z3Expr)
+
+      precision match {
+        case FPPrecision(bts) =>
+          val noiseRemover = new NoiseRemover
+          val eWoRoundoff = noiseRemover.transform(e)
+          val z3Expr = replace(Map(ResultVariable() -> res, FResVariable() -> fres), this.transform(eWoRoundoff)) 
+          assert (!epsUsed)
+          And(And(extraConstraints), z3Expr)
+
+        case _ =>
+          val z3Expr = replace(Map(ResultVariable() -> res, FResVariable() -> fres), this.transform(e)) 
+          if (epsUsed) And(And(extraConstraints :+ Equals(machineEps, RealLiteral(getUnitRoundoff(precision)))), z3Expr)
+          else And(And(extraConstraints), z3Expr)          
       }
-      else
-        And(And(extraConstraints), z3Expr)
-    }
-
-    // for fixedpoint arithmetic
-    def getZ3ExprFP(e: Expr): Expr = {      
-      extraConstraints = Seq[Expr]()
-      val noiseRemover = new NoiseRemover
-      val eWoRoundoff = noiseRemover.transform(e)
-
-      val res = Variable(FreshIdentifier("#res")).setType(RealType)
-      val fres = Variable(FreshIdentifier("#fres")).setType(RealType)
-      val z3Expr = replace(Map(ResultVariable() -> res, FResVariable() -> fres), this.transform(eWoRoundoff)) 
-      
-      assert (!epsUsed)
-      And(And(extraConstraints), z3Expr)
-    }    
+    } 
   }

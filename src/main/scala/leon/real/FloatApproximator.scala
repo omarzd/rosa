@@ -43,7 +43,7 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
 
   val verboseLocal = false // TODO figure out which verbose that is if we call this 'verbose'
 
-  val leonToZ3 = new LeonToZ3Transformer(inputs)
+  val leonToZ3 = new LeonToZ3Transformer(inputs, precision)
   val noiseRemover = new NoiseRemover
   val (minVal, maxVal) = precision match { // TODO: alright, this is not exact
     case Float32 => (-Rational(Float.MaxValue), Rational(Float.MaxValue))
@@ -53,7 +53,7 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
     case FPPrecision(bits) => FixedPointFormat(true, bits, 0, false).range
   }
   
-  val initialCondition: Expr = leonToZ3.getZ3Expr(noiseRemover.transform(precondition), precision)
+  val initialCondition: Expr = leonToZ3.getZ3Expr(noiseRemover.transform(precondition))
 
   val config = XConfig(solver, initialCondition, solverMaxIterMedium, solverPrecisionMedium)
 
@@ -476,7 +476,7 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
 
   private def isFeasible(pre: Seq[Expr]): Boolean = {
     import Sat._
-    solver.checkSat(leonToZ3.getZ3Expr(And(pre), precision)) match {
+    solver.checkSat(leonToZ3.getZ3Expr(And(pre))) match {
       case (SAT, model) => true
       case (UNSAT, model) => false
       case _ =>

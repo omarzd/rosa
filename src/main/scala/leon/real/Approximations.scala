@@ -12,8 +12,6 @@ object Approximations {
   // Spec is the overall computed postcondition
   case class Approximation(kind: ApproxKind, constraints: Seq[Constraint], spec: Option[Spec])
 
-  case class ApproxKind(fncHandling: FncHandling.Value, pathHandling: PathHandling.Value, arithmApprox: ArithmApprox.Value)
-
   object FncHandling extends Enumeration {
     type FncHandling = Value
     val Uninterpreted = Value("Uninterpreted")
@@ -36,6 +34,12 @@ object Approximations {
     val FloatNRange = Value("Float'n'Range") // also replace the real with an approx. of the range
   }
   import ArithmApprox._
+
+  case class ApproxKind(fncHandling: FncHandling.Value, pathHandling: PathHandling.Value, arithmApprox: ArithmApprox.Value) {
+    val allowsRealModel = (fncHandling == Uninterpreted && arithmApprox == JustFloat) || // no functions 
+                          (fncHandling == Inlining && arithmApprox == JustFloat) || // with fncs
+                          (fncHandling == Inlining && arithmApprox == Z3Only) // with fncs
+  }
 
   val a_FncIf = List(
     ApproxKind(Uninterpreted, Merging, Z3Only),
