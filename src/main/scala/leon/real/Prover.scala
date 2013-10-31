@@ -7,6 +7,7 @@ import purescala.Trees._
 import purescala.Definitions._
 import purescala.TreeOps._
 
+import real.Trees.{FResVariable, ResultVariable, Noise, Roundoff, Actual}
 import real.TreeOps._
 import Sat._
 import Approximations._
@@ -129,94 +130,54 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
 
     // I think we can keep one, TODO: precision is fixed so can be a parameter
     val transformer = new LeonToZ3Transformer(variables)
-    var valid: Option[Boolean] = Some(true)
+    var valid: Option[Boolean] = None
 
-    //case class Constraint(precondition: Expr, realComp: Expr, finiteComp: Expr, postcondition: Expr)
-
+    
     for ((cnstr, index) <- app.constraints.zipWithIndex) {
+      val sanityConstraint = And(cnstr.precondition, And(cnstr.realComp, cnstr.finiteComp))
+      val toCheck = And(sanityConstraint, negate(cnstr.postcondition))
+      
+
       val (z3constraint, sanityExpr) = precision match {
         case FPPrecision(bts) =>
-          val sanityConstraint = massageArithmetic(
-            transformer.getZ3ExprForFixedpoint(And(cnstr.precondition, And(cnstr.realComp, cnstr.finiteComp))))
-          (And(sanityConstraint, massageArithmetic(transformer.getZ3ExprForFixedpoint(negate(cnstr.postcondition)))),
-            sanityConstraint)
+          (massageArithmetic(transformer.getZ3ExprFP(toCheck)),
+            massageArithmetic(transformer.getZ3ExprFP(sanityConstraint)))
 
         case _ =>
-          val sanityConstraint = massageArithmetic(
-            transformer.getZ3Expr(And(cnstr.precondition, And(cnstr.realComp, cnstr.finiteComp)), precision))
-          (And(sanityConstraint, massageArithmetic(transformer.getZ3Expr(negate(cnstr.postcondition), precision))),
-            sanityConstraint)
+          (massageArithmetic(transformer.getZ3Expr(toCheck, precision)),
+            massageArithmetic(transformer.getZ3Expr(sanityConstraint, precision)))
       }
       if (verbose) reporter.debug("z3constraint ("+index+"): " + z3constraint)
 
+      println("sanity expr: " + sanityExpr)
+      println("sanity check: " + sanityCheck(sanityExpr))
       if (reporter.errorCount == 0 && sanityCheck(sanityExpr)) {
         solver.checkSat(z3constraint) match {
-          case (UNSAT, _) =>;
+          case (UNSAT, _) => valid = Some(true);
           case (SAT, model) =>
-            //println("Model found: " + model)
             // TODO: print the models that are actually useful, once we figure out which ones those are
-            // Return Some(false) if we have a valid model
+            // Return Some(false) if we have a valid model (without approximation on the real part)
+            // Idea: check if we get a counterexample for the real part only, that is then a possible counterexample, (depends on the approximation)
+            /*val realFilter = new RealFilter
+            val realOnlyConstraint = realFilter.transform(And(And(cnstr.precondition, cnstr.realComp), negate(cnstr.postcondition)))
+            println("\nreal only: " + realOnlyConstraint)
+            val massaged = massageArithmetic(transformer.getZ3Expr(realOnlyConstraint, precision))
+            println("real only constraint: " + massaged)
+            solver.checkSat(massaged) match {
+              case (SAT, model) =>
+                println("model: " + model)
+              case (UNSAT, _) => // this could mean that the floating-point part is not working
+              case _ =>
+            }*/
 
-            // Idea: check if we get a counterexample for the real part only, that is then a true counterexample
-            //println("constraint: " + z3constraint)
-            //println("model: " + model)
-            valid = None
-          case _ =>
-            valid = None
+          case _ =>;
         }
-      } else
-        valid = None
-    }
-
-    /*for (((constraint, sanityExpr), index) <- app.cnstrs.zip(app.sanityChecks).view.zipWithIndex) {
-      //println("constraint: " + constraint)
-
-      val (z3constraint, sane) = precision match {
-        case FPPrecision(bts) =>
-          (massageArithmetic(transformer.getZ3ExprForFixedpoint(constraint)),
-            sanityCheck(transformer.getZ3ExprForFixedpoint(sanityExpr)))
-        case _ =>
-          (massageArithmetic(transformer.getZ3Expr(constraint, precision)),
-            sanityCheck(transformer.getZ3Expr(sanityExpr, precision)))
       }
-      if (verbose) reporter.debug("z3constraint ("+index+"): " + z3constraint)
-
-      if (reporter.errorCount == 0 && sane)
-        solver.checkSat(z3constraint) match {
-          case (UNSAT, _) =>;
-          case (SAT, model) =>
-            //println("Model found: " + model)
-            // TODO: print the models that are actually useful, once we figure out which ones those are
-            // Return Some(false) if we have a valid model
-
-            // Idea: check if we get a counterexample for the real part only, that is then a true counterexample
-            println("constraint: " + z3constraint)
-            println("model: " + model)
-            valid = None
-          case _ =>
-            valid = None
-        }
-      else
-        valid = None
-    }*/
+    }
     valid
   }
 
-  /*class RealFilter extends TransformerWithPC {
-    type C = Seq[Expr]
-    val initC = Nil
-
-    def register(e: Expr, path: C) = path :+ e
-
-    override def rec(e: Expr, path: C) = e match {
-      case Noise(_,_) | Roundoff(_,_) => true
-      case EqualsF(_) => true
-      case LessEquals(l, r) if (l.getType == FloatType || r.getType == FloatType) => true
-      case 
-      case _ =>
-          super.rec(e, path)
-    }
-  }*/
+  
 
   // DOC: we only support function calls in fnc bodies, not in pre and post
   def getApproximation(vc: VerificationCondition, kind: ApproxKind, precision: Precision): Approximation = {

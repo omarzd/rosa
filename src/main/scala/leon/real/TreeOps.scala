@@ -367,6 +367,22 @@ object TreeOps {
   /* -----------------------
              Misc
    ------------------------- */
+  // This is like NoiseRemover, but we also remove the Actual. Check if they can be merged
+  class RealFilter extends TransformerWithPC {
+    type C = Seq[Expr]
+    val initC = Nil
+
+    def register(e: Expr, path: C) = path :+ e
+
+    override def rec(e: Expr, path: C) = e match {
+      case Noise(_, _) => True
+      case Roundoff(_) => True
+      case Actual(e) => e
+      case _ =>
+        super.rec(e, path)
+    }
+  }
+
   class NoiseRemover extends TransformerWithPC {
     type C = Seq[Expr]
     val initC = Nil

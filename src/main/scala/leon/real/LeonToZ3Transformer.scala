@@ -216,6 +216,7 @@ class LeonToZ3Transformer(variables: VariablePool) extends TransformerWithPC {
       And(And(extraConstraints), z3Expr)
     }
 
+    // TODO: don't need 2 functions, can figure it out based on precision
     def getZ3Expr(e: Expr, precision: Precision): Expr = {
       extraConstraints = Seq[Expr]()
       val res = Variable(FreshIdentifier("#res")).setType(RealType)
@@ -230,7 +231,7 @@ class LeonToZ3Transformer(variables: VariablePool) extends TransformerWithPC {
     }
 
     // for fixedpoint arithmetic
-    def getZ3ExprForFixedpoint(e: Expr): Expr = {      
+    def getZ3ExprFP(e: Expr): Expr = {      
       extraConstraints = Seq[Expr]()
       val noiseRemover = new NoiseRemover
       val eWoRoundoff = noiseRemover.transform(e)
