@@ -7,6 +7,7 @@ import purescala.Trees._
 import purescala.Definitions._
 import purescala.TreeOps._
 
+import real.Trees.{FResVariable, ResultVariable, Noise, Roundoff, Actual}
 import real.TreeOps._
 import Sat._
 import Approximations._
@@ -125,48 +126,65 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
   }
 
   def checkValid(app: Approximation, variables: VariablePool, precision: Precision): Option[Boolean] = {
-    if (verbose) reporter.debug("checking for valid: " + app.cnstrs)
+    if (verbose) reporter.debug("checking for valid: " + app.constraints)
 
-    // I think we can keep one
+    // I think we can keep one, TODO: precision is fixed so can be a parameter
     val transformer = new LeonToZ3Transformer(variables)
-    var valid: Option[Boolean] = Some(true)
+    var valid: Option[Boolean] = None
 
-    for (((constraint, sanityExpr), index) <- app.cnstrs.zip(app.sanityChecks).view.zipWithIndex) {
-      //println("constraint: " + constraint)
+    
+    for ((cnstr, index) <- app.constraints.zipWithIndex) {
+      val sanityConstraint = And(cnstr.precondition, And(cnstr.realComp, cnstr.finiteComp))
+      val toCheck = And(sanityConstraint, negate(cnstr.postcondition))
+      
 
-      val (z3constraint, sane) = precision match {
+      val (z3constraint, sanityExpr) = precision match {
         case FPPrecision(bts) =>
-          (massageArithmetic(transformer.getZ3ExprForFixedpoint(constraint)),
-            sanityCheck(transformer.getZ3ExprForFixedpoint(sanityExpr)))
+          (massageArithmetic(transformer.getZ3ExprFP(toCheck)),
+            massageArithmetic(transformer.getZ3ExprFP(sanityConstraint)))
+
         case _ =>
-          (massageArithmetic(transformer.getZ3Expr(constraint, precision)),
-            sanityCheck(transformer.getZ3Expr(sanityExpr, precision)))
+          (massageArithmetic(transformer.getZ3Expr(toCheck, precision)),
+            massageArithmetic(transformer.getZ3Expr(sanityConstraint, precision)))
       }
       if (verbose) reporter.debug("z3constraint ("+index+"): " + z3constraint)
 
-      if (reporter.errorCount == 0 && sane)
+      println("sanity expr: " + sanityExpr)
+      println("sanity check: " + sanityCheck(sanityExpr))
+      if (reporter.errorCount == 0 && sanityCheck(sanityExpr)) {
         solver.checkSat(z3constraint) match {
-          case (UNSAT, _) =>;
+          case (UNSAT, _) => valid = Some(true);
           case (SAT, model) =>
-            //println("Model found: " + model)
             // TODO: print the models that are actually useful, once we figure out which ones those are
-            // Return Some(false) if we have a valid model
-            valid = None
-          case _ =>
-            valid = None
+            // Return Some(false) if we have a valid model (without approximation on the real part)
+            // Idea: check if we get a counterexample for the real part only, that is then a possible counterexample, (depends on the approximation)
+            /*val realFilter = new RealFilter
+            val realOnlyConstraint = realFilter.transform(And(And(cnstr.precondition, cnstr.realComp), negate(cnstr.postcondition)))
+            println("\nreal only: " + realOnlyConstraint)
+            val massaged = massageArithmetic(transformer.getZ3Expr(realOnlyConstraint, precision))
+            println("real only constraint: " + massaged)
+            solver.checkSat(massaged) match {
+              case (SAT, model) =>
+                println("model: " + model)
+              case (UNSAT, _) => // this could mean that the floating-point part is not working
+              case _ =>
+            }*/
+
+          case _ =>;
         }
-      else
-        valid = None
+      }
     }
     valid
   }
+
+  
 
   // DOC: we only support function calls in fnc bodies, not in pre and post
   def getApproximation(vc: VerificationCondition, kind: ApproxKind, precision: Precision): Approximation = {
     val postInliner = new PostconditionInliner
     val fncInliner = new FunctionInliner(fncs)
 
-    val (preFnc, bodyFnc, postFnc) = kind.fncHandling match {
+    val (pre, bodyFnc, post) = kind.fncHandling match {
       case Uninterpreted =>
         (vc.pre, vc.body, vc.post)
 
@@ -176,56 +194,56 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
       case Inlining =>
         (vc.pre, fncInliner.transform(vc.body), vc.post)
     }
-    if (verbose)
-      reporter.debug("after FNC handling:\npre: %s\nbody: %s\npost: %s".format(preFnc,bodyFnc,postFnc))
+    if (verbose) reporter.debug("after FNC handling:\npre: %s\nbody: %s\npost: %s".format(pre,bodyFnc,post))
 
 
-    val (pre, body, post): (Expr, Set[Path], Expr) = kind.pathHandling match {
-      case Pathwise =>
-        ( preFnc,
-          getPaths(bodyFnc).map(p => Path(p.condition, And(p.body, idealToActual(p.body, vc.variables)))), 
-          postFnc )
-      case Merging =>
-        ( preFnc,
-          Set(Path(True, And(bodyFnc, idealToActual(bodyFnc, vc.variables)))),
-          postFnc )
+    val paths: Set[Path] = kind.pathHandling match {
+      case Pathwise => getPaths(bodyFnc).map {
+        case (cond, expr) => Path(cond, expr, idealToActual(expr, vc.variables))
+      }
+        
+      case Merging =>  Set(Path(True, bodyFnc, idealToActual(bodyFnc, vc.variables)))
     }
-    if (verbose)
-      reporter.debug("after PATH handling:\npre: %s\nbody: %s\npost: %s".format(pre,body.mkString("\n"),post))
+    if (verbose) reporter.debug("after PATH handling:\nbody: %s".format(paths.mkString("\n")))
 
     
     kind.arithmApprox match {
       case Z3Only =>
-        var approx = Seq[Expr]()
-        var sanity = Seq[Expr]()
-        for (path <- body) {
-          approx :+= And(And(pre, And(path.condition, path.body)), negate(post))  // Implies(And(vc.pre, vc.body), vc.post)))
-          sanity :+= And(pre, And(path.condition, path.body))
+        var constraints = Seq[Constraint]()
+        //var approx = Seq[Expr]()
+        //var sanity = Seq[Expr]()
+        for (path <- paths) {
+          //approx :+= And(And(pre, And(path.condition, path.body)), negate(post))  // Implies(And(vc.pre, vc.body), vc.post)))
+          //sanity :+= And(pre, And(path.condition, path.body))
+          constraints :+= Constraint(And(pre, path.condition), path.bodyReal, path.bodyFinite, post)
         }
-        Approximation(kind, approx, sanity, None)
+        Approximation(kind, constraints, None)
 
       case JustFloat =>
-        var approx = Seq[Expr]()
-        var sanity = Seq[Expr]()
+        var constraints = Seq[Constraint]()
+        //var approx = Seq[Expr]()
+        //var sanity = Seq[Expr]()
         var spec: Option[Spec] = None
   
-        for ( path <- body ) {
+        for ( path <- paths ) {
           //println("\nfor path: " + path)
           // Hmm, this uses the same solver as the check...
-          val transformer = new FloatApproximator(reporter, solver, precision, And(pre, path.condition),
-            vc.variables, options.pathError)
-          val (newBody, newSpec) = transformer.transformWithSpec(path.body)
-          spec = merge(spec, newSpec)
-          if (verbose) reporter.debug("body after approx: " + newBody)
-          approx :+= And(And(pre, And(path.condition, newBody)), negate(post))
-          sanity :+= And(pre, newBody)
+          // TODO: one for all?
+          val transformer = new FloatApproximator(reporter, solver, precision, And(pre, path.condition), vc.variables, options.pathError)
+          val (bodyFiniteApprox, nextSpec) = transformer.transformWithSpec(path.bodyFinite)
+          spec = merge(spec, nextSpec)
+          if (verbose) reporter.debug("body after approx: " + bodyFiniteApprox)
+          //approx :+= And(And(pre, And(path.condition, newBody)), negate(post))
+          //sanity :+= And(pre, newBody)
+          //precondition: Expr, realComp: Expr, finiteComp: Expr, postcondition: Expr)
+          constraints :+= Constraint(And(pre, path.condition), path.bodyReal, bodyFiniteApprox, post)
         }
-        Approximation(kind, approx, sanity, spec)
+        Approximation(kind, constraints, spec)
 
       case FloatNRange => 
         // TODO: real range approximation
         throw new Exception("FloatNRange doesn't exist yet")
-        Approximation(kind, List(), List(), None)
+        Approximation(kind, List(), None)
     }
   }
 
