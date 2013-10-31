@@ -23,7 +23,7 @@ object RealSolver {
   var verbose = false
 }
 
-// This is not an ideal construction as we are duplicating everything in UninterpretedSolver,
+// TODO: This is not an ideal construction as we are duplicating everything in UninterpretedSolver,
 // except the Z3Config, where we have to set the timeout.
 class RealSolver(val context: LeonContext, val program: Program, timeout: Long)
   extends AbstractZ3Solver
