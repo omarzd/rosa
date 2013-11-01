@@ -288,6 +288,7 @@ class Rational private(val n: BigInt, val d: BigInt) extends ScalaNumber with Sc
   def toFractionString: String = "(%s)/(%s)".format(n.toString, d.toString)
 
   def integerPart: Int = doubleValue.toInt
+  def longPart: Long = doubleValue.toLong
 
   def compare(other: Rational): Int = {
     val xNom = this.n * other.d
@@ -303,6 +304,16 @@ class Rational private(val n: BigInt, val d: BigInt) extends ScalaNumber with Sc
     } else {
       if (this - Rational(this.integerPart) > Rational(1l, 2l)) this.integerPart
       else this.integerPart - 1
+    }
+  }
+
+  def roundToLong: Long = {
+    if (n >= zeroBigInt) { // positive number
+      if (this - Rational(this.longPart) < Rational(1l, 2l)) this.longPart
+      else this.longPart + 1
+    } else {
+      if (this - Rational(this.longPart) > Rational(1l, 2l)) this.longPart
+      else this.longPart - 1
     }
   }
 

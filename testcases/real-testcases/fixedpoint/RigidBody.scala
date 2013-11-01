@@ -11,8 +11,8 @@ object RigidBody {
   }
 
   // apparently this needs 17 bits, or we've not been accurate enough
-  /*def out2(x1: Real, x2: Real, x3: Real): Real = {
+  def out2(x1: Real, x2: Real, x3: Real): Real = {
     require(-15 <= x1 && x1 <= 15 && -15 <= x2 && x2 <= 15 && -15 <= x3 && x3 <= 15)
     2*x1*x2*x3 + 3*x3*x3 - x2*x1*x2*x3 + 3*x3*x3 - x2
-  }*/
+  }
 }

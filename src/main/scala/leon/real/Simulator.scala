@@ -9,10 +9,12 @@ import purescala.Definitions._
 import ceres.common.{Interval, EmptyInterval, NormalInterval}
 
 import real.Trees._
+import real.TreeOps._
+import real.{FixedPointFormat => FPFormat}
 
-class Simulator(reporter: Reporter) {
+class Simulator(ctx: LeonContext, options: RealOptions, prog: Program, reporter: Reporter) {
 
-  val simSize = 10//000000//00
+  val simSize = 10000000//00
   reporter.info("Simulation size: " + simSize + "\n")
 
   def simulateThis(vc: VerificationCondition, precision: Precision) = {
@@ -22,11 +24,12 @@ class Simulator(reporter: Reporter) {
     val body = vc.body
 
     val inputs: Map[Variable, (RationalInterval, Rational)] = inputs2intervals(vc.variables)
-    println("Inputs: " + inputs)
+    //println("Inputs: " + inputs)
 
     val (maxRoundoff, resInterval) = precision match {
       case Float32 => runFloatSimulation(inputs, body)
       case Float64 => runDoubleSimulation(inputs, body)
+      case FPPrecision(bits) => runFixedpointSimulation(inputs, vc, precision)
       case _=> reporter.warning("Cannot handle this precision: " + precision)
     }
     //val (maxRoundoff, resInterval) = (0.0, Interval(0.0) )
@@ -40,6 +43,71 @@ class Simulator(reporter: Reporter) {
     reporter.info("Simulated interval: " + resInterval)
     reporter.info("Max error: " + maxRoundoff)
   }
+
+  private def runFixedpointSimulation(inputs: Map[Variable, (RationalInterval, Rational)], vc: VerificationCondition,
+    precision: Precision): (Double, Interval) = {
+
+    val bitlength = precision.asInstanceOf[FPPrecision].bitlength
+    def doubleToLong(d: Double, f: Int): Long = (d * math.pow(2, f)).round.toLong
+    def longToDouble(i: Long, f: Int): Double = i.toDouble / math.pow(2, f)
+    def rationalToLong(r: Rational, f: Int): Long = (r * Rational(math.pow(2, f))).roundToLong
+    def longToRational(i: Long, f: Int): Rational = Rational(i) / Rational(math.pow(2, f))
+
+    // first generate the comparison code
+    val solver = new RealSolver(ctx, prog, options.z3Timeout)
+    val ssaBody = idealToActual(toSSA(vc.body), vc.variables)
+    val transformer = new FloatApproximator(reporter, solver, precision, vc.pre, vc.variables)
+    val (newBody, newSpec) = transformer.transformWithSpec(ssaBody)
+      
+    val formats = transformer.variables.map {
+      case (v, r) => (v, FPFormat.getFormat(r.interval.xlo, r.interval.xhi, bitlength))
+    }
+    val fpBody = translateToFP(ssaBody, formats, bitlength)
+    val fixedBody = actualToIdealVars(fpBody, vc.variables)
+
+    val realBody = vc.body
+    //println("\nfixedBody: " + fixedBody)
+    //println("\nrealBody: " + realBody)
+
+    // Now do the actual simulation
+    val r = new scala.util.Random(System.currentTimeMillis)
+    var counter = 0
+    var resInterval: Interval = EmptyInterval
+    var maxRoundoff: Double = 0.0
+
+    var inputFormats = inputs.map {
+      case (v, (interval, error)) => (v -> FPFormat.getFormat(interval.xlo, interval.xhi, bitlength))
+    }
+    var resFracBits = formats(FResVariable()).f
+
+    while(counter < simSize) {
+      var randomInputsRational = new collection.immutable.HashMap[Expr, Rational]()
+      var randomInputsFixed = new collection.immutable.HashMap[Expr, Long]()
+
+      for ((k, ((i, n))) <- inputs) {
+        val ideal = i.xlo + Rational(r.nextDouble) * (i.xhi - i.xlo)
+        val actual: Rational =
+          if (n == Rational.zero) ideal // only roundoff
+          else if (r.nextBoolean) ideal - Rational(r.nextDouble) * n
+          else ideal + Rational(r.nextDouble) * n
+
+        assert(Rational.abs(ideal - actual) <= n)
+        randomInputsRational += ((k, ideal))
+        randomInputsFixed += ((k, rationalToLong(ideal, inputFormats(k).f)))
+      }
+      try {
+        val resRat = evaluateRational(realBody, randomInputsRational)
+        val resFixed = evaluateFixedpoint(fixedBody, randomInputsFixed)
+        maxRoundoff = math.max(maxRoundoff, math.abs((longToRational(resFixed, resFracBits) - resRat).toDouble))
+        resInterval = extendInterval(resInterval, longToDouble(resFixed, resFracBits))
+      } catch {
+        case e: Exception =>;
+        case _: Throwable =>;
+      }
+      counter += 1
+    }
+    (maxRoundoff, resInterval)
+  } 
 
   private def runDoubleSimulation(inputs: Map[Variable, (RationalInterval, Rational)], body: Expr): (Double, Interval) = {
     val r = new scala.util.Random(System.currentTimeMillis)
@@ -104,6 +172,36 @@ class Simulator(reporter: Reporter) {
     }
     (maxRoundoff, resInterval)
   }
+
+
+
+  private def evaluateFixedpoint(expr: Expr, vars: Map[Expr, Long]): Long = {
+    val exprs: Seq[Expr] = expr match {
+      case And(args) => args
+      case _ => Seq(expr)
+    }
+    var currentVars: Map[Expr, Long] = vars
+    for (e <- exprs) e match {
+      case Equals(variable, value) => currentVars = currentVars + (variable -> evalFixed(value, currentVars))
+      case BooleanLiteral(true) => ;
+      case _ => reporter.error("Simulation cannot handle: " + expr)
+    }
+    currentVars(ResultVariable())
+  }
+
+  private def evaluateRational(expr: Expr, vars: Map[Expr, Rational]): Rational = {
+    val exprs: Seq[Expr] = expr match {
+      case And(args) => args
+      case _ => Seq(expr)
+    }
+    var currentVars: Map[Expr, Rational] = vars
+    for (e <- exprs) e match {
+      case Equals(variable, value) => currentVars = currentVars + (variable -> evalRational(value, currentVars))
+      case BooleanLiteral(true) => ;
+      case _ => reporter.error("Simulation cannot handle: " + expr)
+    }
+    currentVars(ResultVariable())
+  }  
 
   // Returns the double value and range of the ResultVariable
   private def evaluate(expr: Expr, vars: Map[Expr, (Double, Rational)]): (Double, Rational) = {
@@ -194,6 +292,29 @@ class Simulator(reporter: Reporter) {
     case _ =>
       throw UnsupportedRealFragmentException("Can't handle: " + tree.getClass)
       (Double.NaN, Rational(0))
+  }
+
+  private def evalRational(tree: Expr, vars: Map[Expr, Rational]): Rational = tree match {
+    case v @ Variable(id) =>  vars(v)
+    case RealLiteral(v) => v
+    case UMinusR(e) => - evalRational(e, vars)
+    case PlusR(lhs, rhs) => evalRational(lhs, vars) + evalRational(rhs, vars)
+    case MinusR(lhs, rhs) => evalRational(lhs, vars) - evalRational(rhs, vars)
+    case TimesR(lhs, rhs) => evalRational(lhs, vars) * evalRational(rhs, vars)
+    case DivisionR(lhs, rhs) => evalRational(lhs, vars) / evalRational(rhs, vars)
+    //case SqrtR(e) => Rational(math.sqrt(evalRational(e, vars).toDouble)))
+  }
+
+  private def evalFixed(tree: Expr, vars: Map[Expr, Long]): Long = tree match {
+    case v @ Variable(id) => vars(v)
+    case LongLiteral(value) => value
+    case UMinus(rhs) => - evalFixed(rhs, vars)
+    case Plus(lhs, rhs) => evalFixed(lhs, vars) + evalFixed(rhs, vars)
+    case Minus(lhs, rhs) => evalFixed(lhs, vars) - evalFixed(rhs, vars)
+    case Times(lhs, rhs) => evalFixed(lhs, vars) * evalFixed(rhs, vars)
+    case Division(lhs, rhs) => evalFixed(lhs, vars) / evalFixed(rhs, vars)
+    case RightShift(e, bits) => evalFixed(e, vars) >> bits
+    case LeftShift(e, bits) => evalFixed(e, vars) << bits
   }
 
   private def evalSingle(tree: Expr, vars: Map[Expr, (Float, Rational)]): (Float, Rational) = tree match {

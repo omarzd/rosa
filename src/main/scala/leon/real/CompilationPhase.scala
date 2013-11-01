@@ -80,7 +80,7 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
     reporter.info("--- Analysis complete ---")
     reporter.info("")
     if (options.simulation) {
-      val simulator = new Simulator(reporter)
+      val simulator = new Simulator(ctx, options, program, reporter)
       val prec = if (options.precision.size == 1) options.precision.head else Float64
       for(vc <- vcs) simulator.simulateThis(vc, prec)
       new CompilationReport(List(), prec)

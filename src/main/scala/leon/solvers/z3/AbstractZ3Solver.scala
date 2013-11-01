@@ -142,7 +142,6 @@ trait AbstractZ3Solver
       val initTime     = new Timer().start
       counter = 0
 
-      println("initializing Z3 with config: " + z3cfg)
       z3 = new Z3Context(z3cfg)
 
       prepareSorts
