@@ -32,7 +32,7 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
     LeonFlagOptionDef("z3Only", "--z3Only", "Let Z3 loose on the full constraint - at your own risk."),
     LeonValueOptionDef("z3Timeout", "--z3Timeout=1000", "Timeout for Z3 in milliseconds."),
     LeonValueOptionDef("precision", "--precision=single", "Which precision to assume of the underlying"+
-      "floating-point arithmetic: single, double, doubledouble, quaddouble or all (finds the best one)."),
+      "floating-point arithmetic: single, double, doubledouble, quaddouble or all (sorted from smallest)."),
     LeonFlagOptionDef("pathError", "--pathError", "Check also the path error (default is to not check)"),
     LeonFlagOptionDef("specGen", "--specGen", "Generate specs also for functions without postconditions")
   )
@@ -51,7 +51,7 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
       case LeonFlagOption("pathError", v) => options = options.copy(pathError = v)
       case LeonFlagOption("specGen", v) => options = options.copy(specGen = v)
       case LeonValueOption("z3Timeout", ListValue(tm)) => options = options.copy(z3Timeout = tm.head.toLong)
-      case LeonValueOption("precision", ListValue(ps)) => options = options.copy(precision = ps.head match {
+      case LeonValueOption("precision", ListValue(ps)) => options = options.copy(precision = ps.flatMap {
         case "single" => List(Float32)
         case "double" => List(Float64)
         case "doubledouble" => List(DoubleDouble)
@@ -59,7 +59,7 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
         // TODO: binary search?
         case "all" => List(FPPrecision(8), FPPrecision(16), FPPrecision(32), FPPrecision(64), Float32, Float64, DoubleDouble, QuadDouble)
         case x => List(FPPrecision(x.toInt))
-      })
+      }.toList)
       case _ =>
     }
 

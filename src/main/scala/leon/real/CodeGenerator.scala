@@ -34,7 +34,7 @@ class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, 
     var defs: Seq[Definition] = Seq.empty
     val invariants: Seq[Expr] = Seq.empty
 
-    for (vc <- vcs) {
+    for (vc <- vcs if (vc.kind == VCKind.Postcondition || vc.kind == VCKind.SpecGen)) {
       val f = vc.funDef
       val id = f.id
       val floatType = nonRealType
@@ -67,12 +67,16 @@ class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, 
 
     val solver = new RealSolver(ctx, prog, options.z3Timeout)
 
-    for (vc <- vcs) {
+    for (vc <- vcs if (vc.kind == VCKind.Postcondition || vc.kind == VCKind.SpecGen)) {
       val f = vc.funDef
       val id = f.id
       val args: Seq[VarDecl] = f.args.map(decl => VarDecl(decl.id, Int32Type))
       val funDef = new FunDef(id, Int32Type, args)
       
+      println("\n ==== \nfnc id: " + id)
+      println("vc.kind " + vc.kind)
+      println("generating code for: " + vc.body)
+
       // convert to SSA form, then run through FloatApproximator to get ranges of all intermediate variables
       val ssaBody = idealToActual(toSSA(vc.body), vc.variables)
       val transformer = new FloatApproximator(reporter, solver, precision, vc.pre, vc.variables)
@@ -81,6 +85,8 @@ class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, 
       val formats = transformer.variables.map {
         case (v, r) => (v, FPFormat.getFormat(r.interval.xlo, r.interval.xhi, bitlength))
       }
+
+      println("ssaBody: " + ssaBody)
       val fpBody = translateToFP(ssaBody, formats, bitlength)
       
       funDef.body = Some(actualToIdealVars(removeResAssignment(andToBlocks(fpBody)), vc.variables))

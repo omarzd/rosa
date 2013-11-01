@@ -48,82 +48,104 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
   def check(vcs: Seq[VerificationCondition]): (Precision, Boolean) = {
     val validApproximations = getApplicableApproximations(vcs)
 
+    val precisions = options.precision
+    println("precisions: " + precisions)
+
+    def findPrecision(precIndex: Int): (Precision, Boolean) = {
+      println("index: " + precIndex)
+      if (precIndex < 0) (precisions.head, false)
+      else if (precIndex >= precisions.length) (precisions.last, false)
+      else {
+        if (checkVCsInPrecision(vcs, precisions(precIndex - 1), validApproximations)) {
+          // we could solve it, so try a smaller precision if it exists
+          //val newPrec = precIndex / 2
+          (precisions(precIndex), true)
+        } else {
+          // verification unsuccessfull, try higher
+          println("unsuccessfull")
+          val newPrec = precIndex + ((precisions.length - precIndex - 1) / 2 + 1)
+          findPrecision(newPrec)
+        }
+      }
+    }
+
     if (verbose) {
       reporter.debug("approximation kinds:")
       validApproximations.foreach(x => reporter.debug(x._1 + ": " + x._2))
     }
-    options.precision.find( precision => {
-      reporter.info("Trying precision: " + precision)
+    
+    findPrecision(1)
+    //findPrecision((precisions.length - 1) / 2 + 1)
+  }
 
-      for (vc <- vcs if (options.specGen || vc.kind != VCKind.SpecGen)) {
-        reporter.info("Verification condition  ==== %s (%s) ====".format(vc.fncId, vc.kind))
-        if (verbose) reporter.debug("pre: " + vc.pre)
-        if (verbose) reporter.debug("body: " + vc.body)
-        if (verbose) reporter.debug("post: " + vc.post)
-        
-        val start = System.currentTimeMillis
-        var spec: Option[Spec] = None
-
-        val approximations = validApproximations(vc)
-        
-        // TODO: re-use some of the approximation work across precision?
-        approximations.find(aKind => {
-          reporter.info("approx: " + aKind)
-
-          try {
-            val currentApprox = getApproximation(vc, aKind, precision)
-            spec = merge(spec, currentApprox.spec)
-          
-            //if (verbose) println(currentApprox.cnstrs)
-            if (vc.kind == VCKind.SpecGen) true  // only uses first approximation
-            else
-              checkValid(currentApprox, vc.variables, precision) match {
-                case Some(true) =>
-                  reporter.info("==== VALID ====")
-                  vc.value += (precision -> Some(true))
-                  true
-                case Some(false) =>
-                  reporter.info("=== INVALID ===")
-                  vc.value += (precision -> Some(false))
-                  true
-                case None =>
-                  reporter.info("---- Unknown ----")
-                  false
-              } 
-          } catch {
-            case PostconditionInliningFailedException(msg) =>
-              reporter.info("failed to compute approximation: " + msg)
-              false
-            case e: RealArithmeticException =>
-              reporter.warning("Failed to compute approximation: " + e.getMessage)
-              false
-            case e: FixedPointOverflowException =>
-              reporter.warning("Insufficient bitwidth: " + e.getMessage)
-              false
-          }
-
-        }) match {
-          case None =>
-          case _ =>
-        }
-        
-        vc.spec += (precision -> spec)
+  // TODO: align code
+  def checkVCsInPrecision(vcs: Seq[VerificationCondition], precision: Precision,
+    validApproximations: Map[VerificationCondition, List[ApproxKind]]): Boolean = {
+    for (vc <- vcs if (options.specGen || vc.kind != VCKind.SpecGen)) {
+      reporter.info("Verification condition  ==== %s (%s) ====".format(vc.fncId, vc.kind))
+      if (verbose) reporter.debug("pre: " + vc.pre)
+      if (verbose) reporter.debug("body: " + vc.body)
+      if (verbose) reporter.debug("post: " + vc.post)
       
-        val end = System.currentTimeMillis
-        vc.time = Some(end - start)
-        reporter.info("generated spec: " + spec + " in " + (vc.time.get / 1000.0))
-      }
-      vcs.forall( vc => {
-        vc.value(precision) match {
-          case None => false 
-          case _ => true
-        }
-      })
+      val start = System.currentTimeMillis
+      var spec: Option[Spec] = None
 
-    }) match {
-      case Some(p) => (p, true)  // succeeded with given precision
-      case None => (options.precision.last, false)
-    }    
+      val approximations = validApproximations(vc)
+      
+      // TODO: re-use some of the approximation work across precision?
+      approximations.find(aKind => {
+        reporter.info("approx: " + aKind)
+
+        try {
+          val currentApprox = getApproximation(vc, aKind, precision)
+          spec = merge(spec, currentApprox.spec)
+        
+          //if (verbose) println(currentApprox.cnstrs)
+          if (vc.kind == VCKind.SpecGen) true  // only uses first approximation
+          else
+            checkValid(currentApprox, vc.variables, precision) match {
+              case Some(true) =>
+                reporter.info("==== VALID ====")
+                vc.value += (precision -> Some(true))
+                true
+              case Some(false) =>
+                reporter.info("=== INVALID ===")
+                vc.value += (precision -> Some(false))
+                true
+              case None =>
+                reporter.info("---- Unknown ----")
+                false
+            } 
+        } catch {
+          case PostconditionInliningFailedException(msg) =>
+            reporter.info("failed to compute approximation: " + msg)
+            false
+          case e: RealArithmeticException =>
+            reporter.warning("Failed to compute approximation: " + e.getMessage)
+            false
+          case e: FixedPointOverflowException =>
+            reporter.warning("Insufficient bitwidth: " + e.getMessage)
+            false
+        }
+
+      }) match {
+        case None =>
+        case _ =>
+      }
+      
+      vc.spec += (precision -> spec)
+    
+      val end = System.currentTimeMillis
+      vc.time = Some(end - start)
+      reporter.info("generated spec: " + spec + " in " + (vc.time.get / 1000.0))
+    }
+
+    vcs.forall( vc => {
+      vc.value(precision) match {
+        case None => false 
+        case _ => true
+      }
+    })
   }
 
   def checkValid(app: Approximation, variables: VariablePool, precision: Precision): Option[Boolean] = {
@@ -139,7 +161,8 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
       val z3constraint = massageArithmetic(transformer.getZ3Expr(toCheck))
       val sanityExpr = massageArithmetic(transformer.getZ3Expr(sanityConstraint))
 
-      if (verbose) reporter.debug("z3constraint ("+index+"): " + z3constraint)
+      //if (verbose) 
+      reporter.debug("z3constraint ("+index+"): " + z3constraint)
 
       if (reporter.errorCount == 0 && sanityCheck(sanityExpr)) {
         solver.checkSat(z3constraint) match {

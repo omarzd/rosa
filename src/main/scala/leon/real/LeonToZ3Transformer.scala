@@ -228,8 +228,10 @@ class LeonToZ3Transformer(variables: VariablePool, precision: Precision) extends
 
       precision match {
         case FPPrecision(bts) =>
-          val noiseRemover = new NoiseRemover
-          val eWoRoundoff = noiseRemover.transform(e)
+          // Only remove roundoffs from the precondition, since our translation (for now) cannot handle it,
+          // and we don't need them since we use the approximation anyway
+          val roundoffRemover = new RoundoffRemover
+          val eWoRoundoff = roundoffRemover.transform(e)
           val z3Expr = replace(Map(ResultVariable() -> res, FResVariable() -> fres), this.transform(eWoRoundoff)) 
           assert (!epsUsed)
           And(And(extraConstraints), z3Expr)

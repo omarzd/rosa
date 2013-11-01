@@ -43,10 +43,10 @@ package object real {
   }
 
   sealed abstract class Precision
-  object Float64 extends Precision // = Value("Float64")
-  object Float32 extends Precision //= Value("Float32")
-  object DoubleDouble extends Precision //= Value("DoubleDouble")
-  object QuadDouble extends Precision //= Value("QuadDouble")
+  case object Float64 extends Precision // = Value("Float64")
+  case object Float32 extends Precision //= Value("Float32")
+  case object DoubleDouble extends Precision //= Value("DoubleDouble")
+  case object QuadDouble extends Precision //= Value("QuadDouble")
   case class FPPrecision(bitlength: Int) extends Precision
   //import Precision._
 
