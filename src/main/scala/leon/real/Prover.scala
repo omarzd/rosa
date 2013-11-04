@@ -54,12 +54,12 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
     def findPrecision(precIndex: Int): (Precision, Boolean) = {
       println("index: " + precIndex)
       if (precIndex < 0) (precisions.head, false)
-      else if (precIndex >= precisions.length) (precisions.last, false)
+      else if (precIndex > precisions.length) (precisions.last, false)
       else {
         if (checkVCsInPrecision(vcs, precisions(precIndex - 1), validApproximations)) {
           // we could solve it, so try a smaller precision if it exists
           //val newPrec = precIndex / 2
-          (precisions(precIndex), true)
+          (precisions(precIndex - 1), true)
         } else {
           // verification unsuccessfull, try higher
           println("unsuccessfull")
@@ -101,7 +101,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
           spec = merge(spec, currentApprox.spec)
         
           //if (verbose) println(currentApprox.cnstrs)
-          if (vc.kind == VCKind.SpecGen) true  // only uses first approximation
+          if (vc.kind == VCKind.SpecGen) true  // specGen, no need to check, only uses first approximation
           else
             checkValid(currentApprox, vc.variables, precision) match {
               case Some(true) =>
