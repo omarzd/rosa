@@ -171,8 +171,6 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
 
   private def lt(vc1: VerificationCondition, vc2: VerificationCondition): Boolean = {
     if (vc1.allFncCalls.isEmpty) true
-    else if (vc2.allFncCalls.isEmpty) false
-    else if (vc2.allFncCalls.contains(vc1.fncId)) true
     else if (vc1.allFncCalls.contains(vc2.fncId)) false
     else true
   }

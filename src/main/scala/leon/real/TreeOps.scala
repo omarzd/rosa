@@ -163,11 +163,11 @@ object TreeOps {
     Replace the function call with its specification. For translation to Z3 FncValue needs to be translated
     with a fresh variable. For approximation, translate the spec into an XFloat.
   */
-  class PostconditionInliner extends TransformerWithPC { //(reporter: Reporter, vcMap: Map[FunDef, VerificationCondition]) extends TransformerWithPC {
+  class PostconditionInliner(precision: Precision, postMap: Map[FunDef, Option[Spec]]) extends TransformerWithPC {
     type C = Seq[Expr]
     val initC = Nil
 
-    //val postComplete = new CompleteSpecChecker
+    val postComplete = new CompleteSpecChecker
 
     def register(e: Expr, path: C) = path :+ e
 
@@ -175,24 +175,53 @@ object TreeOps {
       case FunctionInvocation(funDef, args) =>
         val arguments: Map[Expr, Expr] = funDef.args.map(decl => decl.toVariable).zip(args).toMap
         
-        // TODO: enable using postconditions that we have computed ourselves
-        /*val firstChoice = funDef.postcondition
-        val secondChoice = vcMap(funDef).spec
-        val post = firstChoice match {
-          case Some(post) if (postComplete.check(post)) => Some(post)
-          case _ => secondChoice match {
-            case Some(post) if (postComplete.check(post)) => Some(post)
-            case _ => None
+        val givenPostcondition = funDef.postcondition match {
+          case Some((resId, postExpr)) =>
+            val post = replace(Map(Variable(resId) -> ResultVariable()), postExpr)
+            if (postComplete.check(post)) Some(post)
+            else None
+          case None => None
+        }
+
+        givenPostcondition match {
+          case Some(post) => FncValue(replace(arguments, post))
+
+          case _ => postMap(funDef) match {
+            case Some(spec) => FncValue(replace(arguments, specToExpr(spec)))
+            case _ =>
+              throw PostconditionInliningFailedException("missing postcondition for " + funDef.id.name); null
           }
-        }*/
-        funDef.postcondition match {
-          case Some((resId, postExpr)) => FncValue(replace(arguments + (Variable(resId) -> ResultVariable()), postExpr))
-          case None =>
-            throw PostconditionInliningFailedException("missing postcondition for " + funDef.id.name)
         }
         
       case _ =>
           super.rec(e, path)
+    }
+  }
+
+  class CompleteSpecChecker extends TransformerWithPC {
+    type C = Seq[Expr]
+    val initC = Nil
+
+    var lwrBound = false
+    var upBound = false
+    var noise = false
+
+    def register(e: Expr, path: C) = path :+ e
+
+    override def rec(e: Expr, path: C) = e match {
+      case LessEquals(RealLiteral(lwrBnd), ResultVariable()) => lwrBound = true; e
+      case LessThan(RealLiteral(lwrBnd), ResultVariable()) => lwrBound = true; e
+      case LessEquals(ResultVariable(), RealLiteral(upBnd)) => upBound = true; e
+      case LessThan(ResultVariable(), RealLiteral(upBnd)) => upBound = true; e
+      case Noise(ResultVariable(), _) => noise = true; e
+      case _ =>
+        super.rec(e, path)
+    }
+
+    def check(e: Expr): Boolean = {
+      lwrBound = false; upBound = false; noise = false
+      rec(e, initC)
+      lwrBound && upBound && noise
     }
   }
 
@@ -216,33 +245,7 @@ object TreeOps {
     }
   }
 
-  // Overkill?
-  /*class CompleteSpecChecker extends TransformerWithPC {
-    type C = Seq[Expr]
-    val initC = Nil
-
-    var lwrBound = false
-    var upBound = false
-    var noise = false
-
-    def register(e: Expr, path: C) = path :+ e
-
-    override def rec(e: Expr, path: C) = e match {
-      case LessEquals(RationalLiteral(lwrBnd), ResultVariable()) => lwrBound = true; e
-      case LessThan(RationalLiteral(lwrBnd), ResultVariable()) => lwrBound = true; e
-      case LessEquals(ResultVariable(), RationalLiteral(upBnd)) => upBound = true; e
-      case LessThan(ResultVariable(), RationalLiteral(upBnd)) => upBound = true; e
-      case Noise(ResultVariable(), _) => noise = true; e
-      case _ =>
-        super.rec(e, path)
-    }
-
-    def check(e: Expr): Boolean = {
-      lwrBound = false; upBound = false; noise = false
-      rec(e, initC)
-      lwrBound && upBound && noise
-    }
-  }*/
+  
 
   //@param (bounds, errors, extra specs)
   def getResultSpec(expr: Expr): (RationalInterval, Rational, Expr) = {

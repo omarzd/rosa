@@ -51,7 +51,6 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
     val precisions = options.precision
     
     def findPrecision(lowerBnd: Int, upperBnd: Int): (Precision, Boolean) = {
-      //println(lowerBnd + "  " + upperBnd)
       if (lowerBnd > upperBnd) (precisions.last, false)
       else {
         val mid = lowerBnd + (upperBnd - lowerBnd) / 2// ceiling int division
@@ -77,12 +76,14 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
     }
     
     findPrecision(0, precisions.length - 1)
-    //findPrecision((precisions.length - 1) / 2 + 1)
   }
 
-  // TODO: align code
   def checkVCsInPrecision(vcs: Seq[VerificationCondition], precision: Precision,
     validApproximations: Map[VerificationCondition, List[ApproxKind]]): Boolean = {
+    var postMap: Map[FunDef, Option[Spec]] = vcs.map(vc => (vc.funDef -> None)).toMap
+
+    //println("checking vcs: ")
+
     for (vc <- vcs if (options.specGen || vc.kind != VCKind.SpecGen)) {
       reporter.info("Verification condition  ==== %s (%s) ====".format(vc.fncId, vc.kind))
       if (verbose) reporter.debug("pre: " + vc.pre)
@@ -99,8 +100,9 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
         reporter.info("approx: " + aKind)
 
         try {
-          val currentApprox = getApproximation(vc, aKind, precision)
+          val currentApprox = getApproximation(vc, aKind, precision, postMap)
           spec = merge(spec, currentApprox.spec)
+          postMap += (vc.funDef -> currentApprox.spec)
         
           if (vc.kind == VCKind.SpecGen) true  // specGen, no need to check, only uses first approximation
           else
@@ -141,12 +143,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
       reporter.info("generated spec: " + spec + " in " + (vc.time.get / 1000.0))
     }
 
-    vcs.forall( vc => {
-      vc.value(precision) match {
-        case None => false 
-        case _ => true
-      }
-    })
+    vcs.forall( vc => vc.kind == VCKind.SpecGen || !vc.value(precision).isEmpty )
   }
 
   def checkValid(app: Approximation, variables: VariablePool, precision: Precision): Option[Boolean] = {
@@ -197,8 +194,8 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
   
 
   // DOC: we only support function calls in fnc bodies, not in pre and post
-  def getApproximation(vc: VerificationCondition, kind: ApproxKind, precision: Precision): Approximation = {
-    val postInliner = new PostconditionInliner
+  def getApproximation(vc: VerificationCondition, kind: ApproxKind, precision: Precision, postMap: Map[FunDef, Option[Spec]]): Approximation = {
+    val postInliner = new PostconditionInliner(precision, postMap)
     val fncInliner = new FunctionInliner(fncs)
 
     val (pre, bodyFnc, post) = kind.fncHandling match {
