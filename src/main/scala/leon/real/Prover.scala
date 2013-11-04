@@ -159,8 +159,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
       val z3constraint = massageArithmetic(transformer.getZ3Expr(toCheck))
       val sanityExpr = massageArithmetic(transformer.getZ3Expr(sanityConstraint))
 
-      //if (verbose) 
-      reporter.debug("z3constraint ("+index+"): " + z3constraint)
+      if (verbose) reporter.debug("z3constraint ("+index+"): " + z3constraint)
 
       if (reporter.errorCount == 0 && sanityCheck(sanityExpr)) {
         solver.checkSat(z3constraint) match {
@@ -199,14 +198,9 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
     val fncInliner = new FunctionInliner(fncs)
 
     val (pre, bodyFnc, post) = kind.fncHandling match {
-      case Uninterpreted =>
-        (vc.pre, vc.body, vc.post)
-
-      case Postcondition =>
-        (vc.pre, postInliner.transform(vc.body), vc.post)
-
-      case Inlining =>
-        (vc.pre, fncInliner.transform(vc.body), vc.post)
+      case Uninterpreted => (vc.pre, vc.body, vc.post)
+      case Postcondition => (vc.pre, postInliner.transform(vc.body), vc.post)
+      case Inlining => (vc.pre, fncInliner.transform(vc.body), vc.post)
     }
     if (verbose) reporter.debug("after FNC handling:\npre: %s\nbody: %s\npost: %s".format(pre,bodyFnc,post))
 
@@ -215,7 +209,6 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
       case Pathwise => getPaths(bodyFnc).map {
         case (cond, expr) => Path(cond, expr, idealToActual(expr, vc.variables))
       }
-        
       case Merging =>  Set(Path(True, bodyFnc, idealToActual(bodyFnc, vc.variables)))
     }
     if (verbose) reporter.debug("after PATH handling:\nbody: %s".format(paths.mkString("\n")))
@@ -224,40 +217,47 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
     kind.arithmApprox match {
       case Z3Only =>
         var constraints = Seq[Constraint]()
-        //var approx = Seq[Expr]()
-        //var sanity = Seq[Expr]()
         for (path <- paths) {
-          //approx :+= And(And(pre, And(path.condition, path.body)), negate(post))  // Implies(And(vc.pre, vc.body), vc.post)))
-          //sanity :+= And(pre, And(path.condition, path.body))
           constraints :+= Constraint(And(pre, path.condition), path.bodyReal, path.bodyFinite, post)
         }
         Approximation(kind, constraints, None)
 
       case JustFloat =>
         var constraints = Seq[Constraint]()
-        //var approx = Seq[Expr]()
-        //var sanity = Seq[Expr]()
+        var specsPerPath = Seq[Spec]()
         var spec: Option[Spec] = None
   
         for ( path <- paths ) {
-          //println("\nfor path: " + path)
-          // Hmm, this uses the same solver as the check...
-          // TODO: one for all?
+          // TODO: one FloatApproximator for all?
           val transformer = new FloatApproximator(reporter, solver, precision, And(pre, path.condition), vc.variables, options.pathError)
           val (bodyFiniteApprox, nextSpec) = transformer.transformWithSpec(path.bodyFinite)
           spec = merge(spec, nextSpec)
+          if(!nextSpec.isEmpty) specsPerPath :+= nextSpec.get else specsPerPath :+= DummySpec
           if (verbose) reporter.debug("body after approx: " + bodyFiniteApprox)
-          //approx :+= And(And(pre, And(path.condition, newBody)), negate(post))
-          //sanity :+= And(pre, newBody)
-          //precondition: Expr, realComp: Expr, finiteComp: Expr, postcondition: Expr)
           constraints :+= Constraint(And(pre, path.condition), path.bodyReal, bodyFiniteApprox, post)
         }
-        Approximation(kind, constraints, spec)
+        val approx = Approximation(kind, constraints, spec)
+        vc.approximations += (precision -> (vc.approximations(precision) :+ approx))
+        approx.specsPerPath = specsPerPath
+        approx
 
-      case FloatNRange => 
-        // TODO: real range approximation
-        throw new Exception("FloatNRange doesn't exist yet")
-        Approximation(kind, List(), None)
+      case FloatNRange => // assumes that a JustFloat approximation has already been computed
+        val justFloatApprox = vc.approximations(precision).find(a =>
+          a.kind.fncHandling == kind.fncHandling && a.kind.pathHandling == kind.pathHandling && a.kind.arithmApprox == JustFloat
+          )
+        
+        justFloatApprox match {
+          case Some(approx) =>
+            val newConstraints = 
+              for (
+                (cnstr, spec) <- approx.constraints.zip(approx.specsPerPath)
+              ) yield
+                Constraint(cnstr.precondition, specToRealExpr(spec), cnstr.finiteComp, cnstr.postcondition)
+            Approximation(kind, newConstraints, approx.spec)
+          case None =>
+            throw new RealArithmeticException("Cannot compute Float'n'Range approximation because JustFloat approximation is missing.")
+            null
+        }  
     }
   }
 

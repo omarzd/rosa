@@ -56,7 +56,6 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
         case "double" => List(Float64)
         case "doubledouble" => List(DoubleDouble)
         case "quaddouble" => List(QuadDouble)
-        // TODO: binary search?
         case "all" => List(FPPrecision(8), FPPrecision(16), FPPrecision(32), FPPrecision(64), Float32, Float64, DoubleDouble, QuadDouble)
         case x => List(FPPrecision(x.toInt))
       }.toList)

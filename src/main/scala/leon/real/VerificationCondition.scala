@@ -7,8 +7,11 @@ import leon.purescala.Trees._
 import leon.purescala.Definitions._
 import leon.purescala.Common._
 
+import Approximations._
+
 
 case class Spec(bounds: RationalInterval, absError: Rational)
+
 
 // The condition is pre => post
 class VerificationCondition(val funDef: FunDef, val kind: VCKind.Value, val pre: Expr, val body: Expr,  
@@ -38,6 +41,7 @@ class VerificationCondition(val funDef: FunDef, val kind: VCKind.Value, val pre:
     case Some(false) => "invalid"
   }
 
+  var approximations: Map[Precision, List[Approximation]] = precisions.map(p => (p, List())).toMap
 
 
   var time : Option[Double] = None

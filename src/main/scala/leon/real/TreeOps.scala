@@ -463,6 +463,11 @@ object TreeOps {
             Noise(ResultVariable(), RealLiteral(s.absError)))
   }
 
+  def specToRealExpr(s: Spec): Expr = {
+    And(LessEquals(RealLiteral(s.bounds.xlo), ResultVariable()),
+            LessEquals(ResultVariable(), RealLiteral(s.bounds.xhi)))
+  }
+
   /* --------------------
         Arithmetic ops
    ---------------------- */

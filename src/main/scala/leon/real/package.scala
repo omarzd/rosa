@@ -12,6 +12,8 @@ package object real {
   val True = BooleanLiteral(true)
   val False = BooleanLiteral(false)
 
+  val DummySpec = Spec(RationalInterval(Rational.zero, Rational.zero), Rational.zero)
+
   val useMassageArithmetic = true
 
   case class UnsupportedRealFragmentException(msg: String) extends Exception(msg)

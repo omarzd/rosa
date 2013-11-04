@@ -42,10 +42,11 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
   val initC = Nil
 
   val verboseLocal = false // TODO figure out which verbose that is if we call this 'verbose'
+  val compactingThreshold = 100
 
   val leonToZ3 = new LeonToZ3Transformer(inputs, precision)
   val noiseRemover = new NoiseRemover
-  val (minVal, maxVal) = precision match { // TODO: alright, this is not exact
+  val (minVal, maxVal) = precision match {
     case Float32 => (-Rational(Float.MaxValue), Rational(Float.MaxValue))
     case Float64 => (-Rational(Double.MaxValue), Rational(Double.MaxValue))
     case DoubleDouble => (-Rational(Double.MaxValue), Rational(Double.MaxValue))  // same range as Double
@@ -98,7 +99,6 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
       case And(args) => getXReal(args.last)
     }
 
-    // TODO: try this also with the pre-transformation to c(x) < 0 (as in the paper)?
     // the float condition is to be used with the negation of the actual condition to get only 
     // the values that are off-path
     def getOffPathConditions(cond: Expr): (Expr, Expr) = {
@@ -315,35 +315,34 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
         val fncValue = rec(body, path)
         ApproxNode(getXReal(fncValue))
 
-      /*case Times(_, _) | Plus(_, _) | Division(_, _) | Minus(_, _) | UMinus(_) =>
-        throw new Exception("found integer arithmetic in FloatApproximator")
-        null*/
-
-      // TODO: for the real-valued part we may want to cut it off here, so we don't recurse unnecessarily
       case _ =>
         super.rec(e, path)
     }
     newExpr match {
       case ApproxNode(x) if (overflowPossible(x.interval)) =>
         reporter.warning("Possible overflow detected at: " + newExpr)
-      case _ =>
-    }
-    newExpr
-  }
-  /*if (formulaSize(xfloat.tree) > compactingThreshold) {
-    reporter.warning("compacting, size: " + formulaSize(xfloat.tree))
-    val fresh = getNewXFloatVar
-    compactXFloat(xfloat, fresh)
-  } else {
-    xfloat
-  }*/
+        newExpr
+      case ApproxNode(x) if (formulaSize(x.tree) > compactingThreshold) =>
+        reporter.warning("compacting, size: " + formulaSize(x.tree))
+        val fresh = getNewXFloatVar
+        ApproxNode(compactXFloat(x, fresh))
 
-  // TODO: compacting of xfloats
-  /*private def compactXFloat(xfloat: XFloat, newTree: Expr): XFloat = {
-    val newConfig = xfloat.config.addCondition(rangeConstraint(newTree, xfloat.realInterval))
-    val (newXFloat, index) = xFloatWithUncertain(newTree, xfloat.realInterval, newConfig, xfloat.maxError, false)
-    newXFloat
-  }*/
+      case _ =>
+        newExpr
+    }
+  }
+  
+  private def compactXFloat(xreal: XReal, newTree: Expr): XReal = {
+    val newConfig = xreal.config.addCondition(rangeConstraint(newTree, xreal.realInterval))
+    val (newXReal, index) = xreal match {  
+      case xf: XFloat =>
+        xFloatWithUncertain(newTree, xreal.approxInterval, newConfig, xreal.maxError, false, xf.machineEps)
+      //v: Expr, range: RationalInterval, config: XConfig,uncertain: Rational, withRoundoff: Boolean, bits: Int
+      case xfp: XFixed =>
+        xFixedWithUncertain(newTree, xreal.approxInterval, newConfig, xreal.maxError, false, xfp.format.bits)
+    }
+    newXReal
+  }
 
 
 
@@ -425,14 +424,6 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
     And(LessEquals(RealLiteral(i.xlo), v), LessEquals(v, RealLiteral(i.xhi)))
   }
   
-  
- /*if (formulaSize(xfloat.tree) > compactingThreshold) {
-    reporter.warning("compacting, size: " + formulaSize(xfloat.tree))
-    val fresh = getNewXFloatVar
-    compactXFloat(xfloat, fresh)
-  } else {
-    xfloat
-  }*/
 
   private def constraintFromXFloats(results: Map[Expr, XReal]): Expr = {
     And(results.foldLeft(Seq[Expr]())(
