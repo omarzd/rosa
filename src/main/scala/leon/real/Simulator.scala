@@ -38,7 +38,11 @@ class Simulator(ctx: LeonContext, options: RealOptions, prog: Program, reporter:
     val xratInputs: Map[Expr, XRationalForm] = inputs.map ( x => (x._1 -> XRationalForm(x._2._1) ) )
 
     //vc.affineRange = Some(evaluateXRationalForm(body, xratInputs).interval)
-    reporter.info("Interval range: " + evaluateInterval(body, intInputs))
+    try {
+      reporter.info("Interval range: " + evaluateInterval(body, intInputs))
+    } catch {
+      case e: Exception => reporter.info("Failed to compute interval due to " + e.getClass)
+    }
     //reporter.info("Affine range:   " + evaluateXRationalForm(body, xratInputs).interval)
     reporter.info("Simulated interval: " + resInterval)
     reporter.info("Max error: " + maxRoundoff)

@@ -168,7 +168,7 @@ object ApproximationBenchmarks {
   }
 
   def sine(x: Real): Real = {
-    require(-2.0 < x && x < 2.0)
+    require(x > -1.57079632679 && x < 1.57079632679)
     x - (x*x*x)/6.0 + (x*x*x*x*x)/120.0 - (x*x*x*x*x*x*x)/5040.0 
   }
 

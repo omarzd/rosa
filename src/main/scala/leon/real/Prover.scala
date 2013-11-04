@@ -49,22 +49,24 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
     val validApproximations = getApplicableApproximations(vcs)
 
     val precisions = options.precision
-    println("precisions: " + precisions)
-
-    def findPrecision(precIndex: Int): (Precision, Boolean) = {
-      println("index: " + precIndex)
-      if (precIndex < 0) (precisions.head, false)
-      else if (precIndex > precisions.length) (precisions.last, false)
+    
+    def findPrecision(lowerBnd: Int, upperBnd: Int): (Precision, Boolean) = {
+      //println(lowerBnd + "  " + upperBnd)
+      if (lowerBnd > upperBnd) (precisions.last, false)
       else {
-        if (checkVCsInPrecision(vcs, precisions(precIndex - 1), validApproximations)) {
-          // we could solve it, so try a smaller precision if it exists
-          //val newPrec = precIndex / 2
-          (precisions(precIndex - 1), true)
-        } else {
-          // verification unsuccessfull, try higher
-          println("unsuccessfull")
-          val newPrec = precIndex + ((precisions.length - precIndex - 1) / 2 + 1)
-          findPrecision(newPrec)
+        val mid = lowerBnd + (upperBnd - lowerBnd) / 2// ceiling int division
+        reporter.info("Checking precision: " + precisions(mid))
+        if (checkVCsInPrecision(vcs, precisions(mid), validApproximations)) {
+          if (lowerBnd == mid) (precisions(lowerBnd), true)
+          else {
+            findPrecision(lowerBnd, mid)
+          }
+        }
+        else {
+          if (lowerBnd == mid && upperBnd < precisions.length - 1) (precisions(upperBnd), true)
+          else {
+            findPrecision(mid + 1, upperBnd)
+          }
         }
       }
     }
@@ -74,7 +76,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
       validApproximations.foreach(x => reporter.debug(x._1 + ": " + x._2))
     }
     
-    findPrecision(1)
+    findPrecision(0, precisions.length - 1)
     //findPrecision((precisions.length - 1) / 2 + 1)
   }
 
@@ -100,7 +102,6 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
           val currentApprox = getApproximation(vc, aKind, precision)
           spec = merge(spec, currentApprox.spec)
         
-          //if (verbose) println(currentApprox.cnstrs)
           if (vc.kind == VCKind.SpecGen) true  // specGen, no need to check, only uses first approximation
           else
             checkValid(currentApprox, vc.variables, precision) match {

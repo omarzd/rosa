@@ -14,11 +14,11 @@ object Fixedpoint {
     -x1*x2 - 2*x2*x3 - x1 - x3
   }
 
-  def rigidBody1_roundoff(x1: Real, x2: Real, x3: Real): Real = {
+  /*def rigidBody1_roundoff(x1: Real, x2: Real, x3: Real): Real = {
     require(x1 >< (-15, 15) && x2 >< (-15, 15) && x3 >< (-15, 15))
 
     -x1*x2 - 2*x2*x3 - x1 - x3
-  }
+  }*/
 
   def rigidBody2(x1: Real, x2: Real, x3: Real): Real = {
     require(x1 >< (-15, 15) && x2 >< (-15, 15) && x3 >< (-15, 15) && x1 +/- 1e-8 && x2 +/- 1e-8 && x3 +/- 1e-8)
