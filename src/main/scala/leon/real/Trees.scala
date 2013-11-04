@@ -114,14 +114,38 @@ object Trees {
     }
   }
 
-  /*
-  case class InitialNoise(expr: Expr) extends Expr with FixedType {
+  
+  case class InitialNoise(expr: Expr) extends Expr with FixedType with UnaryExtractable with PrettyPrintable {
     val fixedType = RealType
-  }*/
-  /*
-  case class RelError(expr: Expr, err: Expr) extends Expr with FixedType {
+
+    def extract: Option[(Expr, (Expr)=>Expr)] = {
+      Some((expr, (e) => InitialNoise(e)))
+    }
+    def printWith(lvl: Int, printer: PrettyPrinter) {
+      printer.append("!")
+      printer.pp(expr,lvl)
+    }
+  }
+  
+  case class RelError(expr: Expr, err: Expr) extends Expr with FixedType with BinaryExtractable with PrettyPrintable {
     val fixedType = BooleanType
-  } */ 
+
+    err match {
+      case RealLiteral(value) => assert(value > Rational.zero)
+    }
+
+    def extract: Option[(Expr, Expr, (Expr, Expr)=>Expr)] = {
+      Some((expr, err, (t1, t2) => RelError(t1, t2)))
+    }
+
+    def printWith(lvl: Int, printer: PrettyPrinter) {
+      printer.append("relError(")
+      printer.pp(expr,lvl)
+      printer.append(", ")
+      printer.pp(err,lvl)
+      printer.append(")")
+    }
+  } 
 
   case class Assertion(expr: Expr) extends Expr with FixedType  with UnaryExtractable with PrettyPrintable {
     val fixedType = BooleanType

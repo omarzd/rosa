@@ -720,10 +720,25 @@ trait CodeExtraction extends Extractors {
         case ExPlusMinus(l, r) =>
           val rl = extractTree(l)
           rl match {
-            case Variable(_) | ResultVariable() => Noise(rl, extractTree(r))
+            case Variable(_) | ResultVariable() =>
+            extractTree(r) match {
+              case Times(r @ RealLiteral(_), vv @ Variable(_)) if (rl == vv) =>
+                RelError(rl, r).setType(BooleanType)
+              case Times(IntLiteral(i), vv @ Variable(_)) if (rl == vv) =>
+                RelError(rl, new RealLiteral(i)).setType(BooleanType)
+              case rr =>
+                Noise(rl, rr).setType(BooleanType)
+            }
             case _ =>
               unsupported(tr, "+/- only supported for variables")
           }
+        case ExInitialNoise(e) =>
+            val rTree = extractTree(e)
+            rTree match {
+              case Variable(_) => InitialNoise(rTree).setType(RealType)
+              case _ =>
+                unsupported(tr, "initial uncertainty (!) only defined for variables")
+            }
         case ExActual(e) => Actual(extractTree(e))
           /*val re = extractTree(e)
           re match {

@@ -656,6 +656,14 @@ trait Extractors {
       }
     }
 
+    object ExInitialNoise {
+      def unapply(tree: Apply): Option[Tree] = tree match {
+        case Apply(Select(lhs, n), List()) if (n.toString == "unary_$bang") => Some(lhs)
+        case _=> None
+      }
+    }
+
+
     object ExAssertion {
       def unapply(tree: Apply): Option[Tree] = tree match {
         case Apply(select, List(arg)) if (select.toString == "scala.this.Predef.assert") => Some(arg)

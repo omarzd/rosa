@@ -378,6 +378,7 @@ object TreeOps {
     override def rec(e: Expr, path: C) = e match {
       case Noise(_, _) => True
       case Roundoff(_) => True
+      case RelError(_,_) => True
       case Actual(e) => e
       case _ =>
         super.rec(e, path)
@@ -393,6 +394,7 @@ object TreeOps {
     override def rec(e: Expr, path: C) = e match {
       case Noise(_, _) => True
       case Roundoff(_) => True
+      case RelError(_,_) => True
       case _ =>
         super.rec(e, path)
     }
@@ -406,6 +408,7 @@ object TreeOps {
 
     override def rec(e: Expr, path: C) = e match {
       case Roundoff(_) => True
+      //case RelError(_,_) =>  TODO: remove relError here or not?
       case _ =>
         super.rec(e, path)
     }

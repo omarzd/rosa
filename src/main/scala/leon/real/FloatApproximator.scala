@@ -254,6 +254,8 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
         variables = variables + (lhs -> x)
         constraintFromXFloats(Map(lhs -> x))
 
+      // TODO: do we need this? this should only appear in the postcondition which we do not evaluate
+      //case InitialNoise(v @ Variable(_)) => vars(v).maxError
       case UMinusF(t) =>        ApproxNode(-getXReal(rec(t, path)))
       case PlusF(lhs, rhs) =>   ApproxNode(getXReal(rec(lhs, path)) + getXReal(rec(rhs, path)))
       case MinusF(lhs, rhs) =>  ApproxNode(getXReal(rec(lhs, path)) - getXReal(rec(rhs, path)))

@@ -31,12 +31,12 @@ object XFloat {
 
     for(rec <- vars.getValidRecords) {
       rec match {
-        case Record(v @ Variable(_), a @ Variable(_), Some(lo), Some(up), Some(unc)) =>
-          val (xfloat, index) = XFloat.xFloatWithUncertain(v, RationalInterval(lo, up), config, unc, withRoundoff, machineEps)
+        case r @ Record(v @ Variable(_), a @ Variable(_), Some(lo), Some(up), _, _) if (!r.uncertainty.isEmpty) =>
+          val (xfloat, index) = XFloat.xFloatWithUncertain(v, RationalInterval(lo, up), config, r.uncertainty.get, withRoundoff, machineEps)
           variableMap = variableMap + (a -> xfloat)
           indexMap = indexMap + (index -> a)
 
-        case Record(v @ Variable(_), a @ Variable(_), Some(lo), Some(up), None) =>
+        case Record(v @ Variable(_), a @ Variable(_), Some(lo), Some(up), None, None) =>
           val (xfloat, index) = XFloat.xFloatWithRoundoff(v, RationalInterval(lo, up), config, machineEps)
           variableMap = variableMap + (a -> xfloat)
           indexMap = indexMap + (index -> a)

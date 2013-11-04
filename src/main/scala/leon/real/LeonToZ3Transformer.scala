@@ -115,6 +115,28 @@ class LeonToZ3Transformer(variables: VariablePool, precision: Precision) extends
             And(LessEquals(value, freshErrorVar), LessEquals(freshErrorVar, UMinusR(value)))
           )
         ))*/
+  
+      case RelError(v @ Variable(_), r @  RealLiteral(value)) =>
+        val freshErrorVar = getErrorVar(v)
+        And(Seq(Equals(variables.buddy(v), PlusR(v, freshErrorVar)),
+          Or(
+            And(LessEquals(UMinusR(TimesR(r, v)), freshErrorVar),LessEquals(freshErrorVar, TimesR(r, v))),
+            And(LessEquals(TimesR(r, v), freshErrorVar),LessEquals(freshErrorVar, UMinusR(TimesR(r, v))))
+          )
+        ))
+      
+
+      case RelError(ResultVariable(), r @ RealLiteral(value)) =>
+        val freshErrorVar = getErrorVar(ResultVariable())
+        And(Seq(Equals(FResVariable(), PlusR(ResultVariable(), freshErrorVar)),
+          Or(
+            And(LessEquals(UMinusR(TimesR(r, ResultVariable())), freshErrorVar),LessEquals(freshErrorVar, TimesR(r, ResultVariable()))),
+            And(LessEquals(TimesR(r, ResultVariable()), freshErrorVar),LessEquals(freshErrorVar, UMinusR(TimesR(r, ResultVariable()))))
+          )
+        ))
+
+      case InitialNoise(v @ Variable(_)) => getErrorVar(v)
+      
       
       case SqrtR(x) =>
         val r = getNewSqrtVariable

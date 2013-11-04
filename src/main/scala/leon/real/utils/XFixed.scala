@@ -18,12 +18,12 @@ object XFixed {
 
     for(rec <- vars.getValidRecords) {
       rec match {
-        case Record(v @ Variable(_), a @ Variable(_), Some(lo), Some(up), Some(unc)) =>
-          val (xfixed, index) = xFixedWithUncertain(v, RationalInterval(lo, up), config, unc, withRoundoff, bits)
+        case r @ Record(v @ Variable(_), a @ Variable(_), Some(lo), Some(up), _, _) if (!r.uncertainty.isEmpty) =>
+          val (xfixed, index) = xFixedWithUncertain(v, RationalInterval(lo, up), config, r.uncertainty.get, withRoundoff, bits)
           variableMap = variableMap + (a -> xfixed)
           indexMap = indexMap + (index -> a)
 
-        case Record(v @ Variable(_), a @ Variable(_), Some(lo), Some(up), None) =>
+        case Record(v @ Variable(_), a @ Variable(_), Some(lo), Some(up), None, None) =>
           val (xfixed, index) = xFixedWithRoundoff(v, RationalInterval(lo, up), config, bits)
           variableMap = variableMap + (a -> xfixed)
           indexMap = indexMap + (index -> a)
