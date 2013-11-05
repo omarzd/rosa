@@ -85,6 +85,7 @@ class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, 
       val formats = transformer.variables.map {
         case (v, r) => (v, FPFormat.getFormat(r.interval.xlo, r.interval.xhi, bitlength))
       }
+      println("formats: " + formats)
 
       println("ssaBody: " + ssaBody)
       val fpBody = translateToFP(ssaBody, formats, bitlength)

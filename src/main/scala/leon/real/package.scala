@@ -6,6 +6,7 @@ import purescala.Trees._
 
 import ceres.common.{DirectedRounding}
 import java.math.{BigInteger}
+import real.Rational.{double2Fraction,zero}
 
 package object real {
 
@@ -44,12 +45,57 @@ package object real {
     else "%.16f".format(f)
   }
 
-  sealed abstract class Precision
-  case object Float64 extends Precision // = Value("Float64")
-  case object Float32 extends Precision //= Value("Float32")
-  case object DoubleDouble extends Precision //= Value("DoubleDouble")
-  case object QuadDouble extends Precision //= Value("QuadDouble")
-  case class FPPrecision(bitlength: Int) extends Precision
+  sealed abstract class Precision {
+    def range: (Rational, Rational)
+    def minNormal: Rational
+  }
+  case object Float32 extends Precision {
+    val range: (Rational, Rational) = {
+      val rationalMaxValue = double2Fraction(Float.MaxValue)
+      (-Rational(rationalMaxValue._1, rationalMaxValue._2), Rational(rationalMaxValue._1, rationalMaxValue._2))
+    }
+    val minNormal: Rational = {
+      val rationalMinNormal = double2Fraction(java.lang.Float.MIN_NORMAL)
+      Rational(rationalMinNormal._1, rationalMinNormal._2)
+    }
+  }
+  case object Float64 extends Precision {
+    val range: (Rational, Rational) = {
+      val rationalMaxValue = double2Fraction(Double.MaxValue)
+      (-Rational(rationalMaxValue._1, rationalMaxValue._2), Rational(rationalMaxValue._1, rationalMaxValue._2))
+    }
+    val minNormal: Rational = {
+      val rationalMinNormal = double2Fraction(java.lang.Double.MIN_NORMAL)
+      Rational(rationalMinNormal._1, rationalMinNormal._2)
+    }
+  }
+  
+  case object DoubleDouble extends Precision {
+    val range: (Rational, Rational) = {
+      val rationalMaxValue = double2Fraction(Double.MaxValue)
+      (-Rational(rationalMaxValue._1, rationalMaxValue._2), Rational(rationalMaxValue._1, rationalMaxValue._2))
+    }
+    val minNormal: Rational = {
+      val rationalMinNormal = double2Fraction(math.pow(2, -969))
+      Rational(rationalMinNormal._1, rationalMinNormal._2)
+    } 
+    // 2.0041683600089728e-292;  // = 2^(-1022 + 53) = 2^(-969)
+  }
+  case object QuadDouble extends Precision {
+    val range: (Rational, Rational) = {
+      val rationalMaxValue = double2Fraction(Double.MaxValue)
+      (-Rational(rationalMaxValue._1, rationalMaxValue._2), Rational(rationalMaxValue._1, rationalMaxValue._2))
+    }
+    val minNormal: Rational = {
+      val rationalMinNormal = double2Fraction(math.pow(2, -863))
+      Rational(rationalMinNormal._1, rationalMinNormal._2)
+    }
+     //1.6259745436952323e-260; // = 2^(-1022 + 3*53) = 2^(-863)
+  }
+  case class FPPrecision(bitlength: Int) extends Precision {
+    val range: (Rational, Rational) = FixedPointFormat(true, bitlength, 0, false).range
+    val minNormal: Rational = zero // dummy
+  }
   //import Precision._
 
   def getUnitRoundoff(precision: Precision): Rational = (precision: @unchecked) match {

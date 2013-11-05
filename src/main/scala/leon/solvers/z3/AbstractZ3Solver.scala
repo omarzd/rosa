@@ -15,9 +15,6 @@ import real.Trees._
 import purescala.TreeOps._
 import purescala.TypeTrees._
 
-//import numerics.affine.Rational
-//import Rational._
-
 import scala.collection.mutable.{Map => MutableMap}
 import scala.collection.mutable.{Set => MutableSet}
 

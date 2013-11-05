@@ -11,6 +11,7 @@ object Runner {
     benchmarks.foreach { _ match {
       case "sines" => CaliperRunner.main(classOf[Benchmark]) //args: _*)
       case "floatVsDouble" => CaliperRunner.main(classOf[FloatVsDoubleBenchmark])//args: _*)
+      case "floatVsFixed" => CaliperRunner.main(classOf[FloatVsFixedBenchmark])
       case _ => println("unknown benchmark")
     }}
     

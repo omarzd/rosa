@@ -341,6 +341,7 @@ class RealSolver(val context: LeonContext, val program: Program, timeout: Long)
 
 
   private def lowerBoundIsTight(exprInZ3: Z3AST, bound: Rational, prec: Rational): Boolean = {
+    // TODO: we're using push and pop, which prevents nlsat to be used, probably
     solver.push
     solver.assertCnstr(z3.mkLT(exprInZ3, z3.mkNumeral(getNumeralString(bound + prec), realSort)))
     if (verbose) println("checking if lower bound is tight: " + solver.getAssertions.toSeq.mkString(",\n"))
