@@ -135,7 +135,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
         case None =>
         case _ =>
       }
-      
+      // TODO: there is a bug where not the correct spec is printed, see the InitialExample
       vc.spec += (precision -> spec)
     
       val end = System.currentTimeMillis
