@@ -83,8 +83,8 @@ class RealSolver(val context: LeonContext, val program: Program, timeout: Long)
 
   initZ3
 
-  z3.enableTrace("nlarith")
-  Wrapper.openLog("z3Log.txt")
+  //z3.enableTrace("nlarith")
+  //Wrapper.openLog("z3Log.txt")
 
   val solver = z3.mkSolver
 
