@@ -11,14 +11,14 @@ object SineApproximations {
     val z1 = sineTaylor(x)
     val z2 = sineOrder3(x)
     z1 - z2
-  } ensuring(res => ~res <= 0.1)
+  } ensuring(res => res <= 0.1 && res +/- 5e-14)
 
-  /*def comparisonInvalid(x: Real): Real = {
+  def comparisonInvalid(x: Real): Real = {
     require(-2.0 < x && x < 2.0)
     val z1 = sineTaylor(x)
     val z2 = sineOrder3(x)
     z1 - z2
-  } ensuring(res => ~res <= 0.01) // counterexample: 1.0*/
+  } ensuring(res => res <= 0.01 && res +/- 5e-14) // counterexample: 1.875
   
   def sineTaylor(x: Real): Real = {
     require(-2.0 < x && x < 2.0)

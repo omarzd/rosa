@@ -42,17 +42,13 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
   val initC = Nil
 
   val verboseLocal = false // TODO figure out which verbose that is if we call this 'verbose'
-  val compactingThreshold = 100
+  val compactingThreshold = 200
 
   val leonToZ3 = new LeonToZ3Transformer(inputs, precision)
   val noiseRemover = new NoiseRemover
-  val (minVal, maxVal) = precision match {
-    case Float32 => (-Rational(Float.MaxValue), Rational(Float.MaxValue))
-    case Float64 => (-Rational(Double.MaxValue), Rational(Double.MaxValue))
-    case DoubleDouble => (-Rational(Double.MaxValue), Rational(Double.MaxValue))  // same range as Double
-    case QuadDouble => (-Rational(Double.MaxValue), Rational(Double.MaxValue)) // same range as Double
-    case FPPrecision(bits) => FixedPointFormat(true, bits, 0, false).range
-  }
+  val (minVal, maxVal) = precision.range 
+
+  val (maxNegNormal, minPosNormal) = (-precision.minNormal, precision.minNormal)
   
   val initialCondition: Expr = leonToZ3.getZ3Expr(noiseRemover.transform(precondition))
 
@@ -322,6 +318,9 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
       case ApproxNode(x) if (overflowPossible(x.interval)) =>
         reporter.warning("Possible overflow detected at: " + newExpr)
         newExpr
+      case ApproxNode(x) if (denormal(x.interval)) =>
+        throw RealArithmeticException("Denormal value detected for " + e)
+        null
       case ApproxNode(x) if (formulaSize(x.tree) > compactingThreshold) =>
         reporter.warning("compacting, size: " + formulaSize(x.tree))
         val fresh = getNewXFloatVar
@@ -435,15 +434,18 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
                                 Noise(inputs.getIdeal(kv._1), RealLiteral(kv._2.maxError)))))*/
   }
 
-  private def overflowPossible(interval: RationalInterval): Boolean =
-    if (interval.xlo < minVal || maxVal < interval.xhi) true else false
+  private def overflowPossible(interval: RationalInterval): Boolean = interval.xlo < minVal || maxVal < interval.xhi
   
-  private def possiblyZero(interval: RationalInterval): Boolean =
-    if (interval.xlo < Rational.zero && interval.xhi > Rational.zero) true else false
+  private def possiblyZero(interval: RationalInterval): Boolean = interval.xlo < Rational.zero && interval.xhi > Rational.zero
 
-  private def possiblyNegative(interval: RationalInterval): Boolean =
-    if (interval.xlo < Rational.zero || interval.xhi < Rational.zero) true else false
+  private def possiblyNegative(interval: RationalInterval): Boolean = interval.xlo < Rational.zero || interval.xhi < Rational.zero
 
+  // tests if the entire interval lies in the denormal range
+  private def denormal(interval: RationalInterval): Boolean = precision match {
+    case FPPrecision(_) => false
+    case _ => (maxNegNormal < interval.xlo && interval.xhi < minPosNormal)
+  }
+    
   private def addCondition(v: Expr, cond: Seq[Expr]): XReal = {
     v match {
       case v: Variable =>

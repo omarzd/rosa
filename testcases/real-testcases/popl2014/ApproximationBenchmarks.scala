@@ -14,7 +14,7 @@ object ApproximationBenchmarks {
     require(u >< (-100, 100) && v >< (20, 20000) && T >< (-30, 50))
     val t1 = 331.4 + 0.6 * T
     (- (t1) *v) / ((t1 + u)*(t1 + u))
-  }
+  } ensuring(res => res +/- 1e-12)
 
   def doppler2Star(u: Real, v: Real, T: Real): Real = {
     require(u >< (-125, 125) && v >< (15, 25000) && T >< (-40, 60) && u +/- 1e-12 && v +/- 1e-3 && T +/- 1e-5)
