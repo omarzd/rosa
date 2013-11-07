@@ -5,7 +5,9 @@ object Ellipsoid {
 
   // We don't have Tuples or Ints, so we return x*x + y*y
   def f(x: Real, y: Real, k: Real) : Real = {
-    require(k >= 0 && x*x + y*y < 100 && x >< (-100, 100) && y >< (-100, 100) && k >< (0, 100))
+    require(k >= 0 && x*x + y*y < 100 && x >< (-10, 10) && y >< (-10, 10) && k >< (0, 10) && 
+                          
+      && x +/- 1e-15 && y +/- 1e-15)
     if (k > 0) {
       val x1 = (9*x - y)/10
       val y1 = (9*y + x)/10

@@ -5,6 +5,7 @@ package real
 
 import scala.collection.immutable.HashMap
 
+import z3.{Z3Wrapper => Wrapper}
 import z3.scala._
 
 import purescala.Common._
@@ -81,6 +82,9 @@ class RealSolver(val context: LeonContext, val program: Program, timeout: Long)
   protected[leon] def isKnownDecl(decl: Z3FuncDecl) : Boolean = reverseFunctionMap.isDefinedAt(decl)
 
   initZ3
+
+  z3.enableTrace("nlarith")
+  Wrapper.openLog("z3Log.txt")
 
   val solver = z3.mkSolver
 
