@@ -522,5 +522,20 @@ object Trees {
     }
   }
 
+  case class ValAssignment(varId: Identifier, expr: Expr) extends Expr with FixedType with UnaryExtractable with PrettyPrintable {
+    val fixedType = UnitType
+
+    def extract: Option[(Expr, (Expr)=>Expr)] = {
+      Some((expr, ValAssignment(varId, _)))
+    }
+
+    def printWith(lvl: Int, printer: PrettyPrinter) {
+      printer.append("val ")
+      printer.append(varId.name)
+      printer.append(" = ")
+      printer.pp(expr,lvl)
+      printer.append("")
+    }
+  }
 
 }

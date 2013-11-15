@@ -8,7 +8,7 @@ import purescala.Trees._
 import purescala.TreeOps._
 import purescala.Common._
 import purescala.TypeTrees._
-import xlang.Trees.{Block, Assignment}
+import xlang.Trees.Block
 
 import real.TreeOps._
 import real.{FixedPointFormat => FPFormat}
@@ -133,7 +133,7 @@ class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, 
   // TODO: fp translation with if-then-else and function calls
   private def mathToCode(expr: Expr): Expr = expr match {
     case And(args) => Block(args.init.map(a => mathToCode(a)), mathToCode(args.last))
-    case Equals(Variable(id), rhs) => Assignment(id, rhs)
+    case Equals(Variable(id), rhs) => ValAssignment(id, rhs)
     case Equals(ResultVariable(), e) => e
     case _ => expr
   }
