@@ -140,6 +140,7 @@ object TypeTrees {
     case BooleanType => FiniteSize(2)
     case UnitType => FiniteSize(1)
     case Int32Type => InfiniteSize
+    case Int64Type => InfiniteSize
     case RealType => InfiniteSize
     
     case ListType(_) => InfiniteSize
@@ -179,6 +180,7 @@ object TypeTrees {
   case object BottomType extends TypeTree // This type is useful when we need an underlying type for None, Set.empty, etc. It should always be removed after parsing, though.
   case object BooleanType extends TypeTree
   case object Int32Type extends TypeTree
+  case object Int64Type extends TypeTree
   case object RealType extends TypeTree
   
   case object Float64Type extends TypeTree // code generation for reals

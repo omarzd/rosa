@@ -305,6 +305,7 @@ class ScalaPrinter(sb: StringBuffer = new StringBuffer) extends PrettyPrinter(sb
     case Untyped => sb.append("???")
     case UnitType => sb.append("Unit")
     case Int32Type => sb.append("Int")
+    case Int64Type => sb.append("Long")
     case Float64Type => sb.append("Double")   //code generation for real extension
     case Float32Type => sb.append("Float")
     case FloatDDType => sb.append("DoubleDouble")

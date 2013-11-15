@@ -68,6 +68,16 @@ object FixedPointFormat {
   private def bitsNeeded(value: Int): Int = {
     return 32 - Integer.numberOfLeadingZeros(value)
   }
+
+  // Conversion functions from rational to fixedpoint.
+    // The long version has to fit into 32 bit int, hence we can do this funny conversion.
+    //@param f # fractional bits
+  def doubleToLong(d: Double, f: Int): Long = (d * math.pow(2, f)).round.toLong
+  def longToDouble(i: Long, f: Int): Double = i.toDouble / math.pow(2, f)
+  def rationalToLong(r: Rational, f: Int): Long = (r * Rational(math.pow(2, f))).roundToLong
+  def longToRational(i: Long, f: Int): Rational = Rational(i) / Rational(math.pow(2, f))
+  def rationalToInt(r: Rational, f: Int): Int = (r * Rational(math.pow(2, f))).roundToInt
+
 }
 
 /**

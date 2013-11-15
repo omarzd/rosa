@@ -28,12 +28,14 @@ object Trees {
   }
 
   case class RealLiteral(value: Rational) extends Expr with Terminal with FixedType with PrettyPrintable {
+    var floatType = false // for code generation of single-precision floating-point constants
     val fixedType = RealType
     def this(d: Double) = this(Rational(d))
     def this(i: Int) = this(Rational(i))
     
     def printWith(lvl: Int, printer: PrettyPrinter) {
-      printer.append(value.toString)
+      if (floatType) printer.append(value.toString + "f")
+      else printer.append(value.toString)
     }
   }
 
@@ -51,9 +53,9 @@ object Trees {
   }
 
   case class LongLiteral(value: Long) extends Expr with Terminal with FixedType with PrettyPrintable {
-    val fixedType = Int32Type
+    val fixedType = Int64Type
     def printWith(lvl: Int, printer: PrettyPrinter) {
-      printer.append(value.toString)
+      printer.append(value.toString + "l")
     }
   }
 

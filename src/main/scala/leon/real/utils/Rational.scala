@@ -24,6 +24,7 @@ object Rational {
 
   val zero = Rational(zeroBigInt, oneBigInt)
   val one = Rational(oneBigInt, oneBigInt)
+
   
   /*
     Constructors for rationals.

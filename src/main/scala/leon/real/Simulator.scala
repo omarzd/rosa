@@ -11,6 +11,7 @@ import ceres.common.{Interval, EmptyInterval, NormalInterval}
 import real.Trees._
 import real.TreeOps._
 import real.{FixedPointFormat => FPFormat}
+import FPFormat._
 
 class Simulator(ctx: LeonContext, options: RealOptions, prog: Program, reporter: Reporter) {
 
@@ -52,10 +53,10 @@ class Simulator(ctx: LeonContext, options: RealOptions, prog: Program, reporter:
     precision: Precision): (Double, Interval) = {
 
     val bitlength = precision.asInstanceOf[FPPrecision].bitlength
-    def doubleToLong(d: Double, f: Int): Long = (d * math.pow(2, f)).round.toLong
-    def longToDouble(i: Long, f: Int): Double = i.toDouble / math.pow(2, f)
-    def rationalToLong(r: Rational, f: Int): Long = (r * Rational(math.pow(2, f))).roundToLong
-    def longToRational(i: Long, f: Int): Rational = Rational(i) / Rational(math.pow(2, f))
+    
+    val constConstructor =
+      if (bitlength <= 16) (r: Rational, f: Int) => { IntLiteral(rationalToInt(r, f)) }
+      else (r: Rational, f: Int) => { LongLiteral(rationalToLong(r, f)) }
 
     // first generate the comparison code
     val solver = new RealSolver(ctx, prog, options.z3Timeout)
@@ -66,7 +67,7 @@ class Simulator(ctx: LeonContext, options: RealOptions, prog: Program, reporter:
     val formats = transformer.variables.map {
       case (v, r) => (v, FPFormat.getFormat(r.interval.xlo, r.interval.xhi, bitlength))
     }
-    val fpBody = translateToFP(ssaBody, formats, bitlength)
+    val fpBody = translateToFP(ssaBody, formats, bitlength, constConstructor)
     val fixedBody = actualToIdealVars(fpBody, vc.variables)
 
     val realBody = vc.body
