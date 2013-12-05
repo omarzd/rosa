@@ -33,20 +33,13 @@ depending on which precision on the result you need (`6e-13` vs `0.163`).
 Rosa is written as part of the [Leon verification framework](https://github.com/epfl-lara/leon);
 this is why this repository contains more than just Rosa code.
 
-### Compiling ###
-
-
-
-
-
-
-
-
 
 ### Running rosa ###
 
+    $ sbt script
+    $ source setupenv
+    $ rosa --real --functions=doppler1 testcases/real-testcases/popl2014/ApproximationBenchmarks.scala
 
-
-
-
-### Running the produced program ###
+For command-line options,
+    
+    $ rosa --help

@@ -5,6 +5,7 @@
 target
 /project/build
 /leon
+/rosa
 /setupenv
 /leon-bench
 /.test-history
