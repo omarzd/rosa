@@ -15,13 +15,8 @@ derivation*.dot
 # Mac
 .DS_STORE
 
-# jars
-unmanaged/64/ceres_2.10-0.0.jar
-unmanaged/64/scalaz3_2.10-2.0.jar
-lib-bin/64/libz3.so
-
-#numerics
-generated/
-
 # leon
 last.log
+
+# generated file
+generated/*.scala
