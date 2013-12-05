@@ -14,7 +14,7 @@ object Trees {
 
   case class ResultVariable() extends Expr with Terminal with FixedType with PrettyPrintable {
     val fixedType = RealType
-    def printWith(lvl: Int, printer: PrettyPrinter) {
+    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
       printer.append("#res")
     }
   } 
@@ -22,7 +22,7 @@ object Trees {
   // represents the actual result in post-conditions
   case class FResVariable() extends Expr with Terminal with FixedType with PrettyPrintable {
     val fixedType = RealType
-    def printWith(lvl: Int, printer: PrettyPrinter) {
+    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
       printer.append("#fres")
     }
   }
@@ -33,7 +33,7 @@ object Trees {
     def this(d: Double) = this(Rational(d))
     def this(i: Int) = this(Rational(i))
     
-    def printWith(lvl: Int, printer: PrettyPrinter) {
+    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
       if (floatType) printer.append(value.toString + "f")
       else printer.append(value.toString)
     }
@@ -47,14 +47,14 @@ object Trees {
     def this(d: Double) = this(Rational(d))
     def this(i: Int) = this(Rational(i), true)
     
-    def printWith(lvl: Int, printer: PrettyPrinter) {
+    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
       printer.append(value.toString + "f")
     }
   }
 
   case class LongLiteral(value: Long) extends Expr with Terminal with FixedType with PrettyPrintable {
     val fixedType = Int64Type
-    def printWith(lvl: Int, printer: PrettyPrinter) {
+    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
       printer.append(value.toString + "l")
     }
   }
@@ -66,11 +66,11 @@ object Trees {
       Some((varr, error, (t1, t2) => Noise(t1, t2)))
     }
 
-    def printWith(lvl: Int, printer: PrettyPrinter) {
+    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
       printer.append("noise(")
-      printer.pp(varr,lvl)
+      printer.pp(varr, Some(this))
       printer.append(", ")
-      printer.pp(error,lvl)
+      printer.pp(error, Some(this))
       printer.append(")")
     }
   }
@@ -81,9 +81,9 @@ object Trees {
     def extract: Option[(Expr, (Expr)=>Expr)] = {
       Some((expr, (e) => Actual(e)))
     }
-    def printWith(lvl: Int, printer: PrettyPrinter) {
+    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
       printer.append("rndoof(")
-      printer.pp(expr,lvl)
+      printer.pp(expr, Some(this))
       printer.append(")")
     }
   }
@@ -94,9 +94,9 @@ object Trees {
     def extract: Option[(Expr, (Expr)=>Expr)] = {
       Some((expr, (e) => Actual(e)))
     }
-    def printWith(lvl: Int, printer: PrettyPrinter) {
+    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
       printer.append("~")
-      printer.pp(expr,lvl)
+      printer.pp(expr, Some(this))
     }
   }
 
@@ -106,8 +106,8 @@ object Trees {
     def extract: Option[(Expr, (Expr)=>Expr)] = {
       Some((varr, (e) => WithIn(e, lwrBnd, upBnd)))
     }
-    def printWith(lvl: Int, printer: PrettyPrinter) {
-      printer.pp(varr,lvl)
+    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
+      printer.pp(varr, Some(this))
       printer.append(" \u2208 [")
       printer.append(lwrBnd.toString)
       printer.append(",")
@@ -123,9 +123,9 @@ object Trees {
     def extract: Option[(Expr, (Expr)=>Expr)] = {
       Some((expr, (e) => InitialNoise(e)))
     }
-    def printWith(lvl: Int, printer: PrettyPrinter) {
+    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
       printer.append("!")
-      printer.pp(expr,lvl)
+      printer.pp(expr, Some(this))
     }
   }
   
@@ -140,11 +140,11 @@ object Trees {
       Some((expr, err, (t1, t2) => RelError(t1, t2)))
     }
 
-    def printWith(lvl: Int, printer: PrettyPrinter) {
+    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
       printer.append("relError(")
-      printer.pp(expr,lvl)
+      printer.pp(expr, Some(this))
       printer.append(", ")
-      printer.pp(err,lvl)
+      printer.pp(err, Some(this))
       printer.append(")")
     }
   } 
@@ -154,9 +154,9 @@ object Trees {
     def extract: Option[(Expr, (Expr)=>Expr)] = {
       Some((expr, (e) => Assertion(e)))
     }
-    def printWith(lvl: Int, printer: PrettyPrinter) {
+    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
       printer.append("assert(")
-      printer.pp(expr,lvl)
+      printer.pp(expr, Some(this))
       printer.append(")")
     }
   }
@@ -172,11 +172,11 @@ object Trees {
       Some((lhs, rhs, (t1, t2) => PlusR(t1, t2)))
     }
 
-    def printWith(lvl: Int, printer: PrettyPrinter) {
+    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
       printer.append("(")
-      printer.pp(lhs,lvl)
+      printer.pp(lhs, Some(this))
       printer.append(" + ")
-      printer.pp(rhs,lvl)
+      printer.pp(rhs, Some(this))
       printer.append(")")
     }
   }
@@ -185,11 +185,11 @@ object Trees {
     def extract: Option[(Expr, Expr, (Expr, Expr)=>Expr)] = {
       Some((lhs, rhs, (t1, t2) => MinusR(t1, t2)))
     }
-    def printWith(lvl: Int, printer: PrettyPrinter) {
+    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
       printer.append("(")
-      printer.pp(lhs,lvl)
+      printer.pp(lhs, Some(this))
       printer.append(" - ")
-      printer.pp(rhs,lvl)
+      printer.pp(rhs, Some(this))
       printer.append(")")
     }
   }
@@ -198,9 +198,9 @@ object Trees {
     def extract: Option[(Expr, (Expr)=>Expr)] = {
       Some((expr, (e) => UMinusR(e)))
     }
-    def printWith(lvl: Int, printer: PrettyPrinter) {
+    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
       printer.append("(-")
-      printer.pp(expr,lvl)
+      printer.pp(expr, Some(this))
       printer.append(")")
     }
   }
@@ -209,11 +209,11 @@ object Trees {
     def extract: Option[(Expr, Expr, (Expr, Expr)=>Expr)] = {
       Some((lhs, rhs, (t1, t2) => TimesR(t1, t2)))
     }
-    def printWith(lvl: Int, printer: PrettyPrinter) {
+    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
       printer.append("(")
-      printer.pp(lhs,lvl)
+      printer.pp(lhs, Some(this))
       printer.append(" * ")
-      printer.pp(rhs,lvl)
+      printer.pp(rhs, Some(this))
       printer.append(")")
     }
   }
@@ -222,11 +222,11 @@ object Trees {
     def extract: Option[(Expr, Expr, (Expr, Expr)=>Expr)] = {
       Some((lhs, rhs, (t1, t2) => DivisionR(t1, t2)))
     }
-    def printWith(lvl: Int, printer: PrettyPrinter) {
+    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
       printer.append("(")
-      printer.pp(lhs,lvl)
+      printer.pp(lhs, Some(this))
       printer.append(" / ")
-      printer.pp(rhs,lvl)
+      printer.pp(rhs, Some(this))
       printer.append(")")
     }
   }
@@ -235,11 +235,11 @@ object Trees {
     def extract: Option[(Expr, Expr, (Expr, Expr)=>Expr)] = {
       Some((lhs, rhs, (t1, t2) => PowerR(t1, t2)))
     }
-    def printWith(lvl: Int, printer: PrettyPrinter) {
+    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
       printer.append("(")
-      printer.pp(lhs,lvl)
+      printer.pp(lhs, Some(this))
       printer.append(" ^ ")
-      printer.pp(rhs,lvl)
+      printer.pp(rhs, Some(this))
       printer.append(")")
     }
   }
@@ -248,9 +248,9 @@ object Trees {
     def extract: Option[(Expr, (Expr)=>Expr)] = {
       Some((expr, (e) => SqrtR(e)))
     }
-    def printWith(lvl: Int, printer: PrettyPrinter) {
+    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
       printer.append("sqrt(")
-      printer.pp(expr,lvl)
+      printer.pp(expr, Some(this))
       printer.append(")")
     }
   }
@@ -281,13 +281,13 @@ object Trees {
     def extract: Option[(Seq[Expr], (Seq[Expr])=>Expr)] = {
       Some((exprs, (es) => Product(es)))
     }
-    def printWith(lvl: Int, printer: PrettyPrinter) {
+    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
       printer.append("(")
       (exprs.init).foreach(e => {
-        printer.pp(e, lvl)
+        printer.pp(e, Some(this))
         printer.append(" * ")
       })
-      printer.pp(exprs.last,lvl)
+      printer.pp(exprs.last, Some(this))
       printer.append(")")
     }
   }
@@ -301,11 +301,11 @@ object Trees {
       Some((lhs, rhs, (t1, t2) => PlusF(t1, t2)))
     }
 
-    def printWith(lvl: Int, printer: PrettyPrinter) {
+    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
       printer.append("(")
-      printer.pp(lhs,lvl)
+      printer.pp(lhs, Some(this))
       printer.append(" \u2295 ")
-      printer.pp(rhs,lvl)
+      printer.pp(rhs, Some(this))
       printer.append(")")
     }
   }
@@ -314,11 +314,11 @@ object Trees {
     def extract: Option[(Expr, Expr, (Expr, Expr)=>Expr)] = {
       Some((lhs, rhs, (t1, t2) => MinusF(t1, t2)))
     }
-    def printWith(lvl: Int, printer: PrettyPrinter) {
+    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
       printer.append("(")
-      printer.pp(lhs,lvl)
+      printer.pp(lhs, Some(this))
       printer.append(" \u2296 ")
-      printer.pp(rhs,lvl)
+      printer.pp(rhs, Some(this))
       printer.append(")")
     }
   }
@@ -327,9 +327,9 @@ object Trees {
     def extract: Option[(Expr, (Expr)=>Expr)] = {
       Some((expr, (e) => UMinusF(e)))
     }
-    def printWith(lvl: Int, printer: PrettyPrinter) {
+    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
       printer.append("(\u2296")
-      printer.pp(expr,lvl)
+      printer.pp(expr, Some(this))
       printer.append(")")
     }
   }
@@ -338,11 +338,11 @@ object Trees {
     def extract: Option[(Expr, Expr, (Expr, Expr)=>Expr)] = {
       Some((lhs, rhs, (t1, t2) => TimesF(t1, t2)))
     }
-    def printWith(lvl: Int, printer: PrettyPrinter) {
+    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
       printer.append("(")
-      printer.pp(lhs,lvl)
+      printer.pp(lhs, Some(this))
       printer.append(" \u2297 ")
-      printer.pp(rhs,lvl)
+      printer.pp(rhs, Some(this))
       printer.append(")")
     }
   }
@@ -351,11 +351,11 @@ object Trees {
     def extract: Option[(Expr, Expr, (Expr, Expr)=>Expr)] = {
       Some((lhs, rhs, (t1, t2) => DivisionF(t1, t2)))
     }
-    def printWith(lvl: Int, printer: PrettyPrinter) {
+    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
       printer.append("(")
-      printer.pp(lhs,lvl)
+      printer.pp(lhs, Some(this))
       printer.append(" \u2298 ")
-      printer.pp(rhs,lvl)
+      printer.pp(rhs, Some(this))
       printer.append(")")
     }
   }
@@ -364,9 +364,9 @@ object Trees {
     def extract: Option[(Expr, (Expr)=>Expr)] = {
       Some((expr, (e) => SqrtF(e)))
     }
-    def printWith(lvl: Int, printer: PrettyPrinter) {
+    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
       printer.append("sqrtF(")
-      printer.pp(expr,lvl)
+      printer.pp(expr, Some(this))
       printer.append(")")
     }
   }
@@ -377,9 +377,9 @@ object Trees {
     def extract: Option[(Expr, (Expr)=>Expr)] = {
       Some((spec, (e) => FncValue(e)))
     }
-    def printWith(lvl: Int, printer: PrettyPrinter) {
+    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
       printer.append("fncVal(")
-      printer.pp(spec,lvl)
+      printer.pp(spec, Some(this))
       printer.append(")")
     }
   }
@@ -389,9 +389,9 @@ object Trees {
     def extract: Option[(Expr, (Expr)=>Expr)] = {
       Some((spec, (e) => FncValueF(e)))
     }
-    def printWith(lvl: Int, printer: PrettyPrinter) {
+    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
       printer.append("fncVal_f(")
-      printer.pp(spec,lvl)
+      printer.pp(spec, Some(this))
       printer.append(")")
     }
   }
@@ -402,9 +402,9 @@ object Trees {
     def extract: Option[(Expr, (Expr)=>Expr)] = {
       Some((body, (e) => FncBody(name, e)))
     }
-    def printWith(lvl: Int, printer: PrettyPrinter) {
+    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
       printer.append("fnc_"+name+"(")
-      printer.pp(body,lvl)
+      printer.pp(body, Some(this))
       printer.append(")")
     }
   }
@@ -414,9 +414,9 @@ object Trees {
     def extract: Option[(Expr, (Expr)=>Expr)] = {
       Some((body, (e) => FncBodyF(name, e)))
     }
-    def printWith(lvl: Int, printer: PrettyPrinter) {
+    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
       printer.append("fnc_"+name+"_f(")
-      printer.pp(body,lvl)
+      printer.pp(body, Some(this))
       printer.append(")")
     }
   }
@@ -425,7 +425,7 @@ object Trees {
   // approximates some other expression
   case class ApproxNode(xfloat: XReal) extends Expr with FixedType with Terminal with PrettyPrintable {
     val fixedType = RealType
-    def printWith(lvl: Int, printer: PrettyPrinter) {
+    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
       printer.append("approx(")
       printer.append(xfloat.toString)
       printer.append(")")
@@ -439,17 +439,17 @@ object Trees {
       Some((Seq(cond, thenn, elze), (es) => FloatIfExpr(es(0), es(1), es(2))))
     }
 
-    def printWith(lvl: Int, printer: PrettyPrinter) {
+    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
       printer.append("iff (")
-      printer.pp(cond, lvl)
+      printer.pp(cond, Some(this))
       printer.append(")\n")
       printer.ind(lvl+1)
-      printer.pp(thenn, lvl+1)
+      printer.pp(thenn, Some(this))(lvl+1)
       printer.append("\n")
       printer.ind(lvl)
       printer.append("elsse\n")
       printer.ind(lvl+1)
-      printer.pp(elze, lvl+1)
+      printer.pp(elze, Some(this))(lvl+1)
     }
   }
 
@@ -461,13 +461,13 @@ object Trees {
       Some((args, (es) => FncInvocationF(funDef, es)))
     }
 
-    def printWith(lvl: Int, printer: PrettyPrinter) {
+    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
       printer.append(funDef.id.name + "_f(")
       (args.init).foreach(e => {
-        printer.pp(e, lvl)
+        printer.pp(e,  Some(this))
         printer.append(", ")
       })
-      printer.pp(args.last,lvl)
+      printer.pp(args.last, Some(this))
       printer.append(")")
     }
   }
@@ -485,11 +485,11 @@ object Trees {
     def extract: Option[(Expr, Expr, (Expr, Expr)=>Expr)] = {
       Some((left, right, (t1, t2) => EqualsF(t1, t2)))
     }
-    def printWith(lvl: Int, printer: PrettyPrinter) {
+    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
       printer.append("(")
-      printer.pp(left,lvl)
+      printer.pp(left, Some(this))
       printer.append(" === ")
-      printer.pp(right,lvl)
+      printer.pp(right, Some(this))
       printer.append(")")
     }
   }
@@ -499,9 +499,9 @@ object Trees {
     def extract: Option[(Expr, (Expr)=>Expr)] = {
       Some((expr, (e) => RightShift(e, bits)))
     }
-    def printWith(lvl: Int, printer: PrettyPrinter) {
+    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
       printer.append("(")
-      printer.pp(expr,lvl)
+      printer.pp(expr, Some(this))
       printer.append(" >> ")
       printer.append(bits.toString)
       printer.append(")")
@@ -513,9 +513,9 @@ object Trees {
     def extract: Option[(Expr, (Expr)=>Expr)] = {
       Some((expr, (e) => LeftShift(e, bits)))
     }
-    def printWith(lvl: Int, printer: PrettyPrinter) {
+    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
       printer.append("(")
-      printer.pp(expr,lvl)
+      printer.pp(expr, Some(this))
       printer.append(" << ")
       printer.append(bits.toString)
       printer.append(")")
@@ -529,11 +529,11 @@ object Trees {
       Some((expr, ValAssignment(varId, _)))
     }
 
-    def printWith(lvl: Int, printer: PrettyPrinter) {
+    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
       printer.append("val ")
       printer.append(varId.name)
       printer.append(" = ")
-      printer.pp(expr,lvl)
+      printer.pp(expr, Some(this))
       printer.append("")
     }
   }

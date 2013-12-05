@@ -6,6 +6,7 @@ package real
 import leon.purescala.Trees._
 import leon.purescala.Definitions._
 import leon.purescala.Common._
+import leon.utils.{Positioned}
 
 import Approximations._
 
@@ -15,7 +16,7 @@ case class Spec(bounds: RationalInterval, absError: Rational)
 
 // The condition is pre => post
 class VerificationCondition(val funDef: FunDef, val kind: VCKind.Value, val pre: Expr, val body: Expr,  
-  val post: Expr, val variables: VariablePool, precisions: List[Precision]) extends ScalacPositional {
+  val post: Expr, val variables: VariablePool, precisions: List[Precision]) extends Positioned {
 
   var allFncCalls = Set[String]()
 
