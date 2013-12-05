@@ -10,7 +10,7 @@ object Definitions {
   import Extractors._
   import TypeTrees._
 
-  sealed abstract class Definition extends Serializable {
+  sealed abstract class Definition extends Tree {
     val id: Identifier
     override def toString: String = PrettyPrinter(this)
     override def hashCode : Int = id.hashCode
@@ -21,7 +21,7 @@ object Definitions {
   }
 
   /** A VarDecl declares a new identifier to be of a certain type. */
-  case class VarDecl(id: Identifier, tpe: TypeTree) extends Typed {
+  case class VarDecl(id: Identifier, tpe: TypeTree) extends Definition with Typed {
     self: Serializable =>
 
     override def getType = tpe
@@ -55,7 +55,6 @@ object Definitions {
     def transitiveCallers(f1: FunDef) = mainObject.transitiveCallers.getOrElse(f1, Set())
     def transitiveCallees(f1: FunDef) = mainObject.transitiveCallees.getOrElse(f1, Set())
     def isRecursive(f1: FunDef) = mainObject.isRecursive(f1)
-    def isCatamorphism(f1: FunDef) = mainObject.isCatamorphism(f1)
     def caseClassDef(name: String) = mainObject.caseClassDef(name)
 
     def writeScalaFile(filename: String) {
@@ -65,6 +64,13 @@ object Definitions {
       val out = new BufferedWriter(fstream)
       out.write(ScalaPrinter(this))
       out.close
+    }
+
+    def duplicate = {
+      copy(mainObject = mainObject.copy(defs = mainObject.defs.collect {
+        case fd: FunDef => fd.duplicate
+        case d => d
+      }))
     }
   }
 
@@ -112,8 +118,8 @@ object Definitions {
       val resSet: CallGraph = (for(funDef <- definedFunctions) yield {
         funDef.precondition.map(treeCatamorphism[CallGraph](convert, combine, compute(funDef)_, _)).getOrElse(Set.empty) ++
         funDef.body.map(treeCatamorphism[CallGraph](convert, combine, compute(funDef)_, _)).getOrElse(Set.empty) ++
-        funDef.postcondition.map( pc => treeCatamorphism[CallGraph](convert, combine, compute(funDef)_, pc._2)).getOrElse(Set.empty)
-      }).reduceLeft(_ ++ _)
+        funDef.postcondition.map(pc => treeCatamorphism[CallGraph](convert, combine, compute(funDef)_, pc._2)).getOrElse(Set.empty)
+      }).foldLeft(Set[(FunDef, FunDef)]())(_ ++ _)
 
       var callers: Map[FunDef,Set[FunDef]] =
         new scala.collection.immutable.HashMap[FunDef,Set[FunDef]]
@@ -161,16 +167,6 @@ object Definitions {
     def transitivelyCalls(f1: FunDef, f2: FunDef) : Boolean = transitiveCallGraph((f1,f2))
 
     def isRecursive(f: FunDef) = transitivelyCalls(f, f)
-
-    def isCatamorphism(f : FunDef) : Boolean = {
-      val c = callees(f)
-      if(f.hasImplementation && f.args.size == 1 && c.size == 1 && c.head == f) f.body.get match {
-        case SimplePatternMatching(scrut, _, _) if (scrut == f.args.head.toVariable) => true
-        case _ => false
-      } else {
-        false
-      }
-    }
   }
 
   /** Useful because case classes and classes are somewhat unified in some
@@ -279,7 +275,7 @@ object Definitions {
   }
 
   /** Functions (= 'methods' of objects) */
-  class FunDef(val id: Identifier, val returnType: TypeTree, val args: VarDecls) extends Definition with ScalacPositional {
+  class FunDef(val id: Identifier, val returnType: TypeTree, val args: VarDecls) extends Definition {
     var body: Option[Expr] = None
     def implementation : Option[Expr] = body
     var precondition: Option[Expr] = None
@@ -288,6 +284,16 @@ object Definitions {
     // Metadata kept here after transformations
     var parent: Option[FunDef] = None
     var orig: Option[FunDef] = None
+
+    def duplicate: FunDef = {
+      val fd = new FunDef(id, returnType, args)
+      fd.body = body
+      fd.precondition = precondition
+      fd.postcondition = postcondition
+      fd.parent = parent
+      fd.orig = orig
+      fd
+    }
 
     def hasImplementation : Boolean = body.isDefined
     def hasBody                     = hasImplementation
