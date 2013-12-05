@@ -16,6 +16,8 @@ import purescala.Common._
 import purescala.TreeOps._
 import xlang.Trees.{Block => LeonBlock, _}
 import xlang.TreeOps._
+import real.Trees.{UMinusR, PlusR, MinusR, TimesR, DivisionR, SqrtR, RealLiteral, ResultVariable => RealResultVariable,
+  RelError, Noise, InitialNoise, Actual, Assertion, WithIn}
 
 import utils.{Position => LeonPosition, OffsetPosition => LeonOffsetPosition, RangePosition => LeonRangePosition}
 
@@ -732,7 +734,7 @@ trait CodeExtraction extends ASTExtractors {
         case ExPlusMinus(l, r) =>
           val rl = extractTree(l)
           rl match {
-            case Variable(_) | ResultVariable() =>
+            case Variable(_) | RealResultVariable() =>
             extractTree(r) match {
               case Times(r @ RealLiteral(_), vv @ Variable(_)) if (rl == vv) =>
                 RelError(rl, r).setType(BooleanType)
@@ -754,7 +756,7 @@ trait CodeExtraction extends ASTExtractors {
         case ExActual(e) => Actual(extractTree(e))
           /*val re = extractTree(e)
           re match {
-            case Variable(_) | ResultVariable() => Actual(re)
+            case Variable(_) | RealResultVariable() => Actual(re)
             case _ =>
               unsupported(tr, "~ only supported for variables")
           }*/
