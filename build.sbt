@@ -44,3 +44,5 @@ mainClass in (Compile, run) := Some("leon.Main")
 logBuffered in Test := false
 
 testOptions in Test += Tests.Argument("-oD")
+
+sourcesInBase in Compile := false

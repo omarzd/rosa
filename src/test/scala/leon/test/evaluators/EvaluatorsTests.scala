@@ -7,7 +7,8 @@ import leon._
 
 import leon.evaluators._
 
-import leon.plugin.{TemporaryInputPhase, ExtractionPhase}
+import leon.utils.TemporaryInputPhase
+import leon.frontends.scalac.ExtractionPhase
 
 import leon.purescala.Common._
 import leon.purescala.Definitions._
@@ -433,5 +434,40 @@ class EvaluatorsTests extends LeonTestSuite {
     for(e <- evaluators) {
       checkEvaluatorError(e, mkCall("c", IL(42)))
     }
+  }
+
+  test("Infinite Recursion") {
+    import codegen._
+
+    val p = """|object Program {
+               |  import leon.Utils._
+               |
+               |  def c(i : Int) : Int = c(i-1)
+               |}
+               |""".stripMargin
+
+    implicit val prog = parseString(p)
+
+    val e = new CodeGenEvaluator(leonContext, prog, CodeGenParams(maxFunctionInvocations = 32))
+    checkEvaluatorError(e, mkCall("c", IL(42)))
+  }
+
+  test("Wrong Contracts") {
+    import codegen._
+
+    val p = """|object Program {
+               |  import leon.Utils._
+               |
+               |  def c(i : Int) : Int = {
+               |    require(i > 0);
+               |    c(i-1)
+               |  }
+               |}
+               |""".stripMargin
+
+    implicit val prog = parseString(p)
+
+    val e = new CodeGenEvaluator(leonContext, prog, CodeGenParams(checkContracts = true))
+    checkError(e, mkCall("c", IL(-42)))
   }
 }
