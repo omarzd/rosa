@@ -13,15 +13,19 @@ vsl.cis.udel.edu/fevs
 object Diffusion {
   
   var k = 0.3 // thermal conductivity apparently
+  
   /* updates u for next time step. */
   def update(u: List[Double]): List[Double] = {
-  
+    require(0 <= u && u <= 100)  // should mean for all elements in u  
+    
     for(
       (elem, i) <- u.zipWithIndex
       uBefore <- u(i - 1)
       uAfter <- u(i + 1)
       ) yield elem + k * (uAfter + uBefore - 2 * elem)
-  }
+  
+  // this may fail, because of roundoff errors
+  } ensuring ( ??? res => 0 <= u && u <= 100)  
 
 
   def main = {

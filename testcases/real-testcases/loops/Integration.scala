@@ -18,12 +18,13 @@ vsl.cis.udel.edu/fevs
 
 object Integration {
 
+  
 
 // Recursive integration with the trapezoid rule.
   // In the original benchmark f was sin or cos and the interval of
   // integration [0, pi]
-  def integrate(a: Double, b: Double, fa: Double, fb: Double, area: Double,
-    tolerance: Double, f: Double => Double) {
+  def integrate(a: Real, b: Real, fa: Real, fb: Real, area: Real,
+    tolerance: Real, f: Real => Real) {
     val delta = b - a
     val c = a + delta/2.0
     val fc = f(c)

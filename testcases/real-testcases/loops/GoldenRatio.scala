@@ -5,11 +5,11 @@ vsl.cis.udel.edu/fevs
 */
 
 object GoldenRation {
-
+  // and another golden ratio
 
   // Computes an approximation of the golden ratio using Fibonacci numbers
-  def fibSpec(tol: Double) = {
-    require(tol > 0.0)
+  def fibSpec(tol: Real): Real = {
+    require(0.0 < tol && tol <= 0.5)
     var i = 1.0
     var j = 1.0
     var err = 0.0
