@@ -3,6 +3,7 @@
 package leon
 
 import purescala.Trees._
+import purescala.Common._
 
 import ceres.common.{DirectedRounding}
 import java.math.{BigInteger}
@@ -13,7 +14,7 @@ package object real {
   val True = BooleanLiteral(true)
   val False = BooleanLiteral(false)
 
-  val DummySpec = Spec(RationalInterval(Rational.zero, Rational.zero), Rational.zero)
+  val DummySpec = Spec(FreshIdentifier("dummyResult"),RationalInterval(Rational.zero, Rational.zero), Rational.zero)
 
   val useMassageArithmetic = true
 

@@ -5,15 +5,24 @@ import Real._
 
 object InitialExample {
 
-  def mainFunction(a: Real): Real = {
+  def mainFunctionStable(a: Real): Real = {
     require(4.500005 <= a && a <= 6.5)
 
     val b = 4.0
     val c = 8.5
     val area = triangleSorted(a, b, c)
-    //val area = triangleUnstable(a, b, c)
     area
   } ensuring(res => res +/- 1e-11)
+
+  def mainFunctionUnstable(a: Real): Real = {
+    require(4.500005 <= a && a <= 6.5)
+
+    val b = 4.0
+    val c = 8.5
+    val area = triangleUnstable(a, b, c)
+    area
+  } ensuring(res => res +/- 1e-11)
+
 
   def triangleUnstable(a: Real, b: Real, c: Real): Real = {
     require(1 < a && a < 9 && 1 < b && b < 9 && 1 < c && c < 9 &&

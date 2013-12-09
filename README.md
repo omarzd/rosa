@@ -38,6 +38,7 @@ this is why this repository contains more than just Rosa code.
 
     $ sbt script
     $ source setupenv
+    $ sbt package
     $ rosa --real --functions=doppler1 testcases/real-testcases/popl2014/ApproximationBenchmarks.scala
 
 For command-line options,

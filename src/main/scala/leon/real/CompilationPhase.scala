@@ -5,6 +5,7 @@ package real
 
 import java.io.{PrintWriter, File}
 
+import purescala.Common._
 import purescala.Definitions._
 import purescala.Trees._
 import purescala.TreeOps._
@@ -25,6 +26,9 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
 
   var verbose = true
   var reporter: Reporter = null
+  private def debug(msg: String): Unit = {
+    if (verbose) reporter.debug(msg)
+  }
 
   override val definedOptions: Set[LeonOptionDef] = Set(
     LeonValueOptionDef("functions", "--functions=f1:f2", "Limit verification to f1, f2,..."),
@@ -115,55 +119,56 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
     
     for (funDef <- sortedFncs if (funDef.body.isDefined)) {
       reporter.info("Analysing fnc:  %s".format(funDef.id.name))
-      if (verbose) reporter.debug("fnc body: " + funDef.body.get)
-      
-      funDef.precondition match {
-        case Some(pre) =>
-          val variables = VariablePool(pre)
-          if (verbose) reporter.debug("parameter: " + variables)
-          if (variables.hasValidInput(funDef.args)) {
-            if (verbose) reporter.debug("precondition is acceptable")
-            val allFncCalls = functionCallsOf(funDef.body.get).map(invc => invc.funDef.id.toString)
-              //functionCallsOf(pre).map(invc => invc.funDef.id.toString) ++
+      debug ("fnc body: " + funDef.body.get)
 
-            // Add default roundoff on inputs
-            val precondition = And(pre, And(variables.inputsWithoutNoise.map(i => Roundoff(i))))
-            if (verbose) reporter.debug("precondition: " + precondition)
-            
-            val (body, bodyWORes, postcondition) = funDef.postcondition match {
-              //Option[(Identifier, Expr)]
-              // TODO: invariants (got broken because of missing ResultVariable)
-              /*case Some((ResultVariable()) =>
-                val posts = getInvariantCondition(funDef.body.get)
-                val bodyWOLets = convertLetsToEquals(funDef.body.get)
-                val body = replace(posts.map(p => (p, True)).toMap, bodyWOLets)
-                (body, body, Or(posts))*/
+      funDef.precondition.map(pre => (pre, VariablePool(pre, funDef.returnType)) ).filter(p => p._2.hasValidInput(funDef.args)).map ({
+        case (pre, variables) => {
+          debug ("precondition is acceptable")
+          val allFncCalls = functionCallsOf(funDef.body.get).map(invc => invc.funDef.id.toString)
 
-              // TODO: ResultVariable is a hack
-              case Some((resId, postExpr)) =>
-                (convertLetsToEquals(addResult(funDef.body.get)), convertLetsToEquals(funDef.body.get),
-                  replace(Map(Variable(resId) -> ResultVariable()), postExpr))
+          // Add default roundoff on inputs
+          val precondition = And(pre, And(variables.inputsWithoutNoise.map(i => Roundoff(i))))
+          debug ("precondition: " + precondition)
 
-              case None => // only want to generate specs
-                (convertLetsToEquals(addResult(funDef.body.get)), convertLetsToEquals(funDef.body.get), True)
-            }
-            if (postcondition == True)
-              vcs :+= new VerificationCondition(funDef, SpecGen, precondition, body, postcondition, allFncCalls, variables, precisions)
-            else  
-              vcs :+= new VerificationCondition(funDef, Postcondition, precondition, body, postcondition, allFncCalls, variables, precisions)
+          val resFresh = variables.resId
+          val bodyWithRes = convertLetsToEquals(addResult(resFresh, funDef.body.get))
+          val bodyWORes = convertLetsToEquals(funDef.body.get)
+              
+          
+          funDef.postcondition match {
+            //Option[(Identifier, Expr)]
+            // TODO: invariants (got broken because of missing ResultVariable)
+            /*case Some((ResultVariable()) =>
+              val posts = getInvariantCondition(funDef.body.get)
+              val bodyWOLets = convertLetsToEquals(funDef.body.get)
+              val body = replace(posts.map(p => (p, True)).toMap, bodyWOLets)
+              (body, body, Or(posts))*/
 
-            // VCs for preconditions of fnc calls and assertions
-            val assertionCollector = new AssertionCollector(funDef, precondition, variables, precisions)
-            assertionCollector.transform(body)
-            vcs ++= assertionCollector.vcs
+            case Some((resId, postExpr)) =>
+              val postcondition = replace(Map(Variable(resId) -> Variable(resFresh)), postExpr)
 
-            // for function inlining
-            fncs += (funDef -> Fnc(precondition, bodyWORes, postcondition))
-          } else {
-            reporter.warning("Incomplete precondition! Skipping...")
+              val vcBody = new VerificationCondition(funDef, Postcondition, precondition, bodyWithRes, postcondition, resFresh, 
+                allFncCalls, variables, precisions)
+
+              val assertionCollector = new AssertionCollector(funDef, precondition, variables, precisions)
+              assertionCollector.transform(bodyWithRes)
+          
+              // for function inlining
+              (assertionCollector.vcs :+ vcBody, Fnc(precondition, bodyWORes, postcondition))
+
+            case None => // only want to generate specs
+              val vcBody = new VerificationCondition(funDef, SpecGen, precondition, bodyWithRes, True, resFresh, 
+                allFncCalls, variables, precisions)
+
+              (Seq(vcBody), Fnc(precondition, bodyWORes, True))
+
           }
-        case None =>
-      }
+        }
+      }).foreach({
+        case (conds, fnc) =>
+          vcs ++= conds
+          fncs += ((funDef -> fnc))
+        })
     }
     (vcs.sortWith((vc1, vc2) => lt(vc1, vc2)), fncs)
   }

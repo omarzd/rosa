@@ -34,12 +34,12 @@ object TreeOps {
 
   // Has to run before we removed the lets!
   // Basically the first free expression that is not an if or a let is the result
-  def addResult(expr: Expr): Expr = expr match {
-    case ifThen @ IfExpr(_, _, _) => Equals(ResultVariable(), ifThen)
-    case Let(binder, value, body) => Let(binder, value, addResult(body))
+  def addResult(resId: Identifier, expr: Expr): Expr = expr match {
+    case ifThen @ IfExpr(_, _, _) => Equals(Variable(resId), ifThen)
+    case Let(binder, value, body) => Let(binder, value, addResult(resId, body))
     case UMinusR(_) | PlusR(_, _) | MinusR(_, _) | TimesR(_, _) | DivisionR(_, _) | SqrtR(_) | FunctionInvocation(_, _) | Variable(_) =>
-      Equals(ResultVariable(), expr)
-    case Block(exprs, last) => Block(exprs, addResult(last))
+      Equals(Variable(resId), expr)
+    case Block(exprs, last) => Block(exprs, addResult(resId, last))
     case _ => expr
   }
 
@@ -167,7 +167,7 @@ object TreeOps {
     type C = Seq[Expr]
     val initC = Nil
 
-    val postComplete = new CompleteSpecChecker
+    
 
     def register(e: Expr, path: C) = path :+ e
 
@@ -175,19 +175,15 @@ object TreeOps {
       case FunctionInvocation(funDef, args) =>
         val arguments: Map[Expr, Expr] = funDef.args.map(decl => decl.toVariable).zip(args).toMap
         
-        val givenPostcondition = funDef.postcondition match {
-          case Some((resId, postExpr)) =>
-            val post = replace(Map(Variable(resId) -> ResultVariable()), postExpr)
-            if (postComplete.check(post)) Some(post)
+        funDef.postcondition.flatMap({
+          case (resId, postExpr) =>
+            val postComplete = new CompleteSpecChecker(resId)
+            if (postComplete.check(postExpr)) Some(FncValue(replace(arguments, postExpr), resId))
             else None
-          case None => None
-        }
-
-        givenPostcondition match {
-          case Some(post) => FncValue(replace(arguments, post))
-
+        }) match {
+          case Some(fncValue) => fncValue
           case _ => postMap(funDef) match {
-            case Some(spec) => FncValue(replace(arguments, specToExpr(spec)))
+            case Some(spec) => FncValue(replace(arguments, specToExpr(spec)), spec.id)
             case _ =>
               throw PostconditionInliningFailedException("missing postcondition for " + funDef.id.name); null
           }
@@ -198,7 +194,7 @@ object TreeOps {
     }
   }
 
-  class CompleteSpecChecker extends TransformerWithPC {
+  class CompleteSpecChecker(resId: Identifier) extends TransformerWithPC {
     type C = Seq[Expr]
     val initC = Nil
 
@@ -209,11 +205,11 @@ object TreeOps {
     def register(e: Expr, path: C) = path :+ e
 
     override def rec(e: Expr, path: C) = e match {
-      case LessEquals(RealLiteral(lwrBnd), ResultVariable()) => lwrBound = true; e
-      case LessThan(RealLiteral(lwrBnd), ResultVariable()) => lwrBound = true; e
-      case LessEquals(ResultVariable(), RealLiteral(upBnd)) => upBound = true; e
-      case LessThan(ResultVariable(), RealLiteral(upBnd)) => upBound = true; e
-      case Noise(ResultVariable(), _) => noise = true; e
+      case LessEquals(RealLiteral(lwrBnd), Variable(resId)) => lwrBound = true; e
+      case LessThan(RealLiteral(lwrBnd), Variable(resId)) => lwrBound = true; e
+      case LessEquals(Variable(resId), RealLiteral(upBnd)) => upBound = true; e
+      case LessThan(Variable(resId), RealLiteral(upBnd)) => upBound = true; e
+      case Noise(Variable(resId), _) => noise = true; e
       case _ =>
         super.rec(e, path)
     }
@@ -233,7 +229,6 @@ object TreeOps {
 
     override def rec(e: Expr, path: C) = e match {
       case FunctionInvocation(funDef, args) =>
-        // TODO: I think we'll have a problem with same named variables
         val arguments: Map[Expr, Expr] = funDef.args.map(decl => decl.toVariable).zip(args).toMap
         val fncBody = fncs(funDef).body
         
@@ -246,16 +241,16 @@ object TreeOps {
   }
 
   
-
-  //@param (bounds, errors, extra specs)
-  def getResultSpec(expr: Expr): (RationalInterval, Rational, Expr) = {
-    val rc = new ResultCollector
+  // Extracts the bounds, errors and any additional specification on the variable with `id` from an expression
+  //@return (bounds, errors, extra specs)
+  def getResultSpec(expr: Expr, id: Identifier): (RationalInterval, Rational, Expr) = {
+    val rc = new ResultCollector(id)
     rc.transform(expr)
     (RationalInterval(rc.lwrBound.get, rc.upBound.get), rc.error.get, And(rc.extras))
   }
 
   // Assume that the spec is complete
-  private class ResultCollector extends TransformerWithPC {
+  private class ResultCollector(id: Identifier) extends TransformerWithPC {
     type C = Seq[Expr]
     val initC = Nil
     var lwrBound: Option[Rational] = None
@@ -272,31 +267,31 @@ object TreeOps {
 
     // FIXME: this should probably be done in register
     override def rec(e: Expr, path: C) = e match {
-      case LessEquals(RealLiteral(lwrBnd), ResultVariable()) => lwrBound = Some(lwrBnd); e
-      case LessEquals(ResultVariable(), RealLiteral(uprBnd)) => upBound = Some(uprBnd); e
-      case LessEquals(IntLiteral(lwrBnd), ResultVariable()) => lwrBound = Some(Rational(lwrBnd)); e
-      case LessEquals(ResultVariable(), IntLiteral(uprBnd)) => upBound = Some(Rational(uprBnd)); e
-      case LessThan(RealLiteral(lwrBnd), ResultVariable()) => lwrBound = Some(lwrBnd); e
-      case LessThan(ResultVariable(), RealLiteral(uprBnd)) =>  upBound = Some(uprBnd); e
-      case LessThan(IntLiteral(lwrBnd), ResultVariable()) => lwrBound = Some(Rational(lwrBnd)); e
-      case LessThan(ResultVariable(), IntLiteral(uprBnd)) => upBound = Some(Rational(uprBnd)); e
-      case GreaterEquals(RealLiteral(uprBnd), ResultVariable()) =>  upBound = Some(uprBnd); e
-      case GreaterEquals(ResultVariable(), RealLiteral(lwrBnd)) => lwrBound = Some(lwrBnd); e
-      case GreaterEquals(IntLiteral(uprBnd), ResultVariable()) => upBound = Some(Rational(uprBnd)); e
-      case GreaterEquals(ResultVariable(), IntLiteral(lwrBnd)) => lwrBound = Some(Rational(lwrBnd)); e
-      case GreaterThan(RealLiteral(uprBnd), ResultVariable()) =>  upBound = Some(uprBnd); e
-      case GreaterThan(ResultVariable(), RealLiteral(lwrBnd)) => lwrBound = Some(lwrBnd); e
-      case GreaterThan(IntLiteral(uprBnd), ResultVariable()) => upBound = Some(Rational(uprBnd)); e
-      case GreaterThan(ResultVariable(), IntLiteral(lwrBnd)) => lwrBound = Some(Rational(lwrBnd)); e
+      case LessEquals(RealLiteral(lwrBnd), Variable(id)) => lwrBound = Some(lwrBnd); e
+      case LessEquals(Variable(id), RealLiteral(uprBnd)) => upBound = Some(uprBnd); e
+      case LessEquals(IntLiteral(lwrBnd), Variable(id)) => lwrBound = Some(Rational(lwrBnd)); e
+      case LessEquals(Variable(id), IntLiteral(uprBnd)) => upBound = Some(Rational(uprBnd)); e
+      case LessThan(RealLiteral(lwrBnd), Variable(id)) => lwrBound = Some(lwrBnd); e
+      case LessThan(Variable(id), RealLiteral(uprBnd)) =>  upBound = Some(uprBnd); e
+      case LessThan(IntLiteral(lwrBnd), Variable(id)) => lwrBound = Some(Rational(lwrBnd)); e
+      case LessThan(Variable(id), IntLiteral(uprBnd)) => upBound = Some(Rational(uprBnd)); e
+      case GreaterEquals(RealLiteral(uprBnd), Variable(id)) =>  upBound = Some(uprBnd); e
+      case GreaterEquals(Variable(id), RealLiteral(lwrBnd)) => lwrBound = Some(lwrBnd); e
+      case GreaterEquals(IntLiteral(uprBnd), Variable(id)) => upBound = Some(Rational(uprBnd)); e
+      case GreaterEquals(Variable(id), IntLiteral(lwrBnd)) => lwrBound = Some(Rational(lwrBnd)); e
+      case GreaterThan(RealLiteral(uprBnd), Variable(id)) =>  upBound = Some(uprBnd); e
+      case GreaterThan(Variable(id), RealLiteral(lwrBnd)) => lwrBound = Some(lwrBnd); e
+      case GreaterThan(IntLiteral(uprBnd), Variable(id)) => upBound = Some(Rational(uprBnd)); e
+      case GreaterThan(Variable(id), IntLiteral(lwrBnd)) => lwrBound = Some(Rational(lwrBnd)); e
 
-      case Noise(ResultVariable(), RealLiteral(value)) => error = Some(value); e
-      case Noise(ResultVariable(), IntLiteral(value)) => error = Some(Rational(value)); e
+      case Noise(Variable(id), RealLiteral(value)) => error = Some(value); e
+      case Noise(Variable(id), IntLiteral(value)) => error = Some(Rational(value)); e
 
       case Times(_, _) | Plus(_, _) | Division(_, _) | Minus(_, _) | UMinus(_) =>
         throw new Exception("found integer arithmetic in ResultCollector")
         null
 
-      //case Noise(ResultVariable(), x) => errorExpr = Some(x); e
+      //case Noise(Variable(id), x) => errorExpr = Some(x); e
       case _ =>
         // TODO: extras
         super.rec(e, path)
@@ -347,7 +342,7 @@ object TreeOps {
         val (seq, v) = arithToSSA(t)
         val tmpVar = getFreshValidTmp
         (seq :+ Equals(tmpVar, UMinusR(v)), tmpVar)
-      case RealLiteral(_) | Variable(_) | ResultVariable() => (Seq[Expr](), expr)
+      case RealLiteral(_) | Variable(_) => (Seq[Expr](), expr)
     }
     
     def register(e: Expr, path: C) = path :+ e
@@ -437,14 +432,14 @@ object TreeOps {
       case DivisionR(lhs, rhs) => DivisionF(rec(lhs, path), rec(rhs, path))
       case SqrtR(t) => SqrtF(rec(t, path))
       case v: Variable => variables.buddy(v)
-      case ResultVariable() => FResVariable()
+      //case ResultVariable() => FResVariable()
       case RealLiteral(r) => new FloatLiteral(r)
       case IfExpr(cond, thenn, elze) => FloatIfExpr(rec(cond, path), rec(thenn, path), rec(elze, path))
       case Equals(l, r) => EqualsF(rec(l, path), rec(r, path))
       // leave conditions on if-then-else in reals, as they will be passed as conditions to Z3
       case LessEquals(_,_) | LessThan(_,_) | GreaterEquals(_,_) | GreaterThan(_,_) => e
 
-      case FncValue(s) => FncValueF(s)
+      case FncValue(s, id) => FncValueF(s, id)
       case FncBody(n, b) => FncBodyF(n, rec(b, path))
       case FunctionInvocation(fundef, args) =>
         FncInvocationF(fundef, args.map(a => rec(a, path)))
@@ -458,14 +453,14 @@ object TreeOps {
   }
 
   def specToExpr(s: Spec): Expr = {
-    And(And(LessEquals(RealLiteral(s.bounds.xlo), ResultVariable()),
-            LessEquals(ResultVariable(), RealLiteral(s.bounds.xhi))),
-            Noise(ResultVariable(), RealLiteral(s.absError)))
+    And(And(LessEquals(RealLiteral(s.bounds.xlo), Variable(s.id)),
+            LessEquals(Variable(s.id), RealLiteral(s.bounds.xhi))),
+            Noise(Variable(s.id), RealLiteral(s.absError)))
   }
 
   def specToRealExpr(s: Spec): Expr = {
-    And(LessEquals(RealLiteral(s.bounds.xlo), ResultVariable()),
-            LessEquals(ResultVariable(), RealLiteral(s.bounds.xhi)))
+    And(LessEquals(RealLiteral(s.bounds.xlo), Variable(s.id)),
+            LessEquals(Variable(s.id), RealLiteral(s.bounds.xhi)))
   }
 
   /* --------------------
@@ -649,7 +644,7 @@ object TreeOps {
 
     override def rec(e: Expr, path: C) = e match {
       case v @ Variable(_) => variables.getIdeal(v)
-      case r @ FResVariable() => ResultVariable()
+      //case r @ FResVariable() => ResultVariable()
       case _ =>
           super.rec(e, path)
     }

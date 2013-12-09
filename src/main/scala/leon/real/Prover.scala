@@ -7,7 +7,7 @@ import purescala.Trees._
 import purescala.Definitions._
 import purescala.TreeOps._
 
-import real.Trees.{FResVariable, ResultVariable, Noise, Roundoff, Actual}
+import real.Trees.{Noise, Roundoff, Actual}
 import real.TreeOps._
 import Sat._
 import Approximations._
@@ -266,7 +266,8 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
       val lowerBnd = min(s1.bounds.xlo, s2.bounds.xlo)
       val upperBnd = max(s1.bounds.xhi, s2.bounds.xhi)
       val err = max(s1.absError, s2.absError)
-      Some(Spec(RationalInterval(lowerBnd, upperBnd), err))
+      assert(s1.id == s2.id)
+      Some(Spec(s1.id, RationalInterval(lowerBnd, upperBnd), err))
     case (None, Some(s)) => newSpec
     case _ => currentSpec
   }
