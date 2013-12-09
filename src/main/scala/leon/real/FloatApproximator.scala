@@ -77,9 +77,9 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
 
   def transformWithSpec(e: Expr): (Expr, Option[Spec]) = {
     val exprTransformed = this.transform(e)
-    variables.get(FResVariable()) match {
+    variables.get(inputs.fResultVar) match {
       case Some(resXFloat) =>
-        val spec = Spec(RationalInterval(resXFloat.realInterval.xlo, resXFloat.realInterval.xhi), resXFloat.maxError)
+        val spec = Spec(inputs.resultVar.id, RationalInterval(resXFloat.realInterval.xlo, resXFloat.realInterval.xhi), resXFloat.maxError)
         (exprTransformed, Some(spec))
       case None =>
         (exprTransformed, None)
@@ -293,16 +293,16 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
         }
         ApproxNode(mergeXRealWithExtraError(thenBranch, elseBranch, And(path), pathError))
 
-      case FncValueF(spec) =>
-        val (interval, error, constraints) = getResultSpec(spec)
+      case FncValueF(spec, resId) =>
+        val (interval, error, constraints) = getResultSpec(spec, resId)
         val fresh = getNewXFloatVar
 
         val tmp = precision match {
           case FPPrecision(bts) => ApproxNode(xFixedWithUncertain(fresh, interval,
-            config.addCondition(replace(Map(ResultVariable() -> fresh), leonToZ3.getZ3Condition(noiseRemover.transform(spec)))),
+            config.addCondition(replace(Map(Variable(resId) -> fresh), leonToZ3.getZ3Condition(noiseRemover.transform(spec)))),
             error, false, bts)._1)
           case _ => ApproxNode(xFloatWithUncertain(fresh, interval,
-            config.addCondition(replace(Map(ResultVariable() -> fresh), leonToZ3.getZ3Condition(noiseRemover.transform(spec)))),
+            config.addCondition(replace(Map(Variable(resId) -> fresh), leonToZ3.getZ3Condition(noiseRemover.transform(spec)))),
             error, false, machineEps)._1)
         }
         tmp

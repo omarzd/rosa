@@ -5,6 +5,7 @@ package real
 
 import purescala.Trees._
 import purescala.Definitions._
+import purescala.Common._
 
 import ceres.common.{Interval, EmptyInterval, NormalInterval}
 
@@ -28,8 +29,8 @@ class Simulator(ctx: LeonContext, options: RealOptions, prog: Program, reporter:
     //println("Inputs: " + inputs)
 
     val (maxRoundoff, resInterval) = precision match {
-      case Float32 => runFloatSimulation(inputs, body)
-      case Float64 => runDoubleSimulation(inputs, body)
+      case Float32 => runFloatSimulation(inputs, body, vc.variables.resId)
+      case Float64 => runDoubleSimulation(inputs, body, vc.variables.resId)
       case FPPrecision(bits) => runFixedpointSimulation(inputs, vc, precision)
       case _=> reporter.warning("Cannot handle this precision: " + precision)
     }
@@ -40,7 +41,7 @@ class Simulator(ctx: LeonContext, options: RealOptions, prog: Program, reporter:
 
     //vc.affineRange = Some(evaluateXRationalForm(body, xratInputs).interval)
     try {
-      reporter.info("Interval range: " + evaluateInterval(body, intInputs))
+      reporter.info("Interval range: " + evaluateInterval(vc.variables.resId, body, intInputs))
     } catch {
       case e: Exception => reporter.info("Failed to compute interval due to " + e.getClass)
     }
@@ -83,7 +84,7 @@ class Simulator(ctx: LeonContext, options: RealOptions, prog: Program, reporter:
     var inputFormats = inputs.map {
       case (v, (interval, error)) => (v -> FPFormat.getFormat(interval.xlo, interval.xhi, bitlength))
     }
-    var resFracBits = formats(FResVariable()).f
+    var resFracBits = formats(vc.variables.fResultVar).f
 
     while(counter < simSize) {
       var randomInputsRational = new collection.immutable.HashMap[Expr, Rational]()
@@ -101,8 +102,8 @@ class Simulator(ctx: LeonContext, options: RealOptions, prog: Program, reporter:
         randomInputsFixed += ((k, rationalToLong(ideal, inputFormats(k).f)))
       }
       try {
-        val resRat = evaluateRational(realBody, randomInputsRational)
-        val resFixed = evaluateFixedpoint(fixedBody, randomInputsFixed)
+        val resRat = evaluateRational(vc.variables.resId, realBody, randomInputsRational)
+        val resFixed = evaluateFixedpoint(vc.variables.resId, fixedBody, randomInputsFixed)
         maxRoundoff = math.max(maxRoundoff, math.abs((longToRational(resFixed, resFracBits) - resRat).toDouble))
         resInterval = extendInterval(resInterval, longToDouble(resFixed, resFracBits))
       } catch {
@@ -114,7 +115,7 @@ class Simulator(ctx: LeonContext, options: RealOptions, prog: Program, reporter:
     (maxRoundoff, resInterval)
   } 
 
-  private def runDoubleSimulation(inputs: Map[Variable, (RationalInterval, Rational)], body: Expr): (Double, Interval) = {
+  private def runDoubleSimulation(inputs: Map[Variable, (RationalInterval, Rational)], body: Expr, resId: Identifier): (Double, Interval) = {
     val r = new scala.util.Random(System.currentTimeMillis)
     var counter = 0
     var resInterval: Interval = EmptyInterval
@@ -134,7 +135,7 @@ class Simulator(ctx: LeonContext, options: RealOptions, prog: Program, reporter:
         randomInputs += ((k, (actual.toDouble, ideal)))
       }
       try {
-        val (resDouble, resRat) = evaluate(body, randomInputs)
+        val (resDouble, resRat) = evaluate(resId, body, randomInputs)
         maxRoundoff = math.max(maxRoundoff, math.abs(resDouble - resRat.toDouble))
         resInterval = extendInterval(resInterval, resDouble)
       } catch {
@@ -146,7 +147,7 @@ class Simulator(ctx: LeonContext, options: RealOptions, prog: Program, reporter:
     (maxRoundoff, resInterval)
   }
 
-  private def runFloatSimulation(inputs: Map[Variable, (RationalInterval, Rational)], body: Expr): (Double, Interval) = {
+  private def runFloatSimulation(inputs: Map[Variable, (RationalInterval, Rational)], body: Expr, resId: Identifier): (Double, Interval) = {
     val r = new scala.util.Random(System.currentTimeMillis)
     var counter = 0
     var resInterval: Interval = EmptyInterval
@@ -166,7 +167,7 @@ class Simulator(ctx: LeonContext, options: RealOptions, prog: Program, reporter:
         randomInputs += ((k, (actual.toFloat, ideal)))
       }
       try {
-        val (resDouble, resRat) = evaluateSingle(body, randomInputs)
+        val (resDouble, resRat) = evaluateSingle(resId, body, randomInputs)
         maxRoundoff = math.max(maxRoundoff, math.abs(resDouble - resRat.toDouble))
         resInterval = extendInterval(resInterval, resDouble)
       } catch {
@@ -180,7 +181,7 @@ class Simulator(ctx: LeonContext, options: RealOptions, prog: Program, reporter:
 
 
 
-  private def evaluateFixedpoint(expr: Expr, vars: Map[Expr, Long]): Long = {
+  private def evaluateFixedpoint(resId: Identifier, expr: Expr, vars: Map[Expr, Long]): Long = {
     val exprs: Seq[Expr] = expr match {
       case And(args) => args
       case _ => Seq(expr)
@@ -191,10 +192,10 @@ class Simulator(ctx: LeonContext, options: RealOptions, prog: Program, reporter:
       case BooleanLiteral(true) => ;
       case _ => reporter.error("Simulation cannot handle: " + expr)
     }
-    currentVars(ResultVariable())
+    currentVars(Variable(resId))
   }
 
-  private def evaluateRational(expr: Expr, vars: Map[Expr, Rational]): Rational = {
+  private def evaluateRational(resId: Identifier, expr: Expr, vars: Map[Expr, Rational]): Rational = {
     val exprs: Seq[Expr] = expr match {
       case And(args) => args
       case _ => Seq(expr)
@@ -205,11 +206,11 @@ class Simulator(ctx: LeonContext, options: RealOptions, prog: Program, reporter:
       case BooleanLiteral(true) => ;
       case _ => reporter.error("Simulation cannot handle: " + expr)
     }
-    currentVars(ResultVariable())
+    currentVars(Variable(resId))
   }  
 
   // Returns the double value and range of the ResultVariable
-  private def evaluate(expr: Expr, vars: Map[Expr, (Double, Rational)]): (Double, Rational) = {
+  private def evaluate(resId: Identifier, expr: Expr, vars: Map[Expr, (Double, Rational)]): (Double, Rational) = {
     val exprs: Seq[Expr] = expr match {
       case And(args) => args
       case _ => Seq(expr)
@@ -220,10 +221,10 @@ class Simulator(ctx: LeonContext, options: RealOptions, prog: Program, reporter:
       case BooleanLiteral(true) => ;
       case _ => reporter.error("Simulation cannot handle: " + expr)
     }
-    currentVars(ResultVariable())
+    currentVars(Variable(resId))
   }
 
-  private def evaluateSingle(expr: Expr, vars: Map[Expr, (Float, Rational)]): (Float, Rational) = {
+  private def evaluateSingle(resId: Identifier, expr: Expr, vars: Map[Expr, (Float, Rational)]): (Float, Rational) = {
     val exprs: Seq[Expr] = expr match {
       case And(args) => args
       case _ => Seq(expr)
@@ -234,10 +235,10 @@ class Simulator(ctx: LeonContext, options: RealOptions, prog: Program, reporter:
       case BooleanLiteral(true) => ;
       case _ => reporter.error("Simulation cannot handle: " + expr)
     }
-    currentVars(ResultVariable())
+    currentVars(Variable(resId))
   }
 
-  private def evaluateInterval(expr: Expr, vars: Map[Expr, RationalInterval]): RationalInterval = {
+  private def evaluateInterval(resId: Identifier, expr: Expr, vars: Map[Expr, RationalInterval]): RationalInterval = {
     val exprs: Seq[Expr] = expr match {
       case And(args) => args
       case _ => Seq(expr)
@@ -248,11 +249,11 @@ class Simulator(ctx: LeonContext, options: RealOptions, prog: Program, reporter:
       case BooleanLiteral(true) => ;
       case _ => reporter.error("Simulation cannot handle: " + expr)
     }
-    currentVars(ResultVariable())
+    currentVars(Variable(resId))
   }
 
   // Run with QuadDouble so that it works also with sqrt and later with sine etc.
-  private def evaluateXRationalForm(expr: Expr, vars: Map[Expr, XRationalForm]): XRationalForm = {
+  private def evaluateXRationalForm(resId: Identifier, expr: Expr, vars: Map[Expr, XRationalForm]): XRationalForm = {
     val exprs: Seq[Expr] = expr match {
       case And(args) => args
       case _ => Seq(expr)
@@ -263,7 +264,7 @@ class Simulator(ctx: LeonContext, options: RealOptions, prog: Program, reporter:
       case BooleanLiteral(true) => ;
       case _ => reporter.error("Simulation cannot handle: " + expr)
     }
-    currentVars(ResultVariable())
+    currentVars(Variable(resId))
   }
 
   private def eval(tree: Expr, vars: Map[Expr, (Double, Rational)]): (Double, Rational) = tree match {

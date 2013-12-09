@@ -74,7 +74,7 @@ class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, 
       vc.spec(precision) match {
         case Some(spec) =>
           val resId = FreshIdentifier("res")
-          funDef.postcondition = Some((resId, replace(Map(ResultVariable() -> Variable(resId).setType(RealType)), specToExpr(spec))))
+          funDef.postcondition = Some((resId, replace(Map(Variable(spec.id) -> Variable(resId).setType(RealType)), specToExpr(spec))))
         case _ =>
       }
 
@@ -134,7 +134,6 @@ class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, 
   private def mathToCode(expr: Expr): Expr = expr match {
     case And(args) => Block(args.init.map(a => mathToCode(a)), mathToCode(args.last))
     case Equals(Variable(id), rhs) => ValAssignment(id, rhs)
-    case Equals(ResultVariable(), e) => e
     case _ => expr
   }
 
