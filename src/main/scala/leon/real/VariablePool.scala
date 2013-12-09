@@ -41,12 +41,15 @@ case class Record(ideal: Expr, actual: Expr, lo: Option[Rational], up: Option[Ra
   and such things.
   @param map indexed by ideal variable
 */
-class VariablePool(inputs: Map[Expr, Record]) {
+class VariablePool(inputs: Map[Expr, Record], val resId: Identifier) {
   import VariablePool._
   private var allVars = inputs
 
-  allVars += (ResultVariable() -> Record(ResultVariable(), FResVariable(), None, None, None, None))
+  allVars += (Variable(resId) -> emptyRecord(Variable(resId)))
 
+  val resultVar = Variable(resId)
+  val fResultVar = buddy(resultVar)
+  
   def add(idSet: Set[Identifier]) = {
     for (i <- idSet) {
       val v = Variable(i)
@@ -101,10 +104,10 @@ object VariablePool {
     case _ => new Exception("bug!"); null
   }
 
-  def apply(expr: Expr): VariablePool = {
+  def apply(expr: Expr, returnType: TypeTree): VariablePool = {
     val collector = new VariableCollector
     collector.transform(expr)
-    new VariablePool(collector.recordMap)
+    new VariablePool(collector.recordMap, FreshIdentifier("result", true).setType(returnType))
   }
 
   private class VariableCollector extends TransformerWithPC {
@@ -163,44 +166,3 @@ object VariablePool {
   }
 
 }
-
-
-
-
-// a <= x
-      /*case LessEquals(IntLiteral(lwrBnd), x @ Variable(name)) =>
-        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).updateLo(Rational(lwrBnd))); e
-      // x <= b
-      case LessEquals(x @ Variable(name), IntLiteral(uprBnd)) =>
-        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).updateUp(Rational(uprBnd))); e
-
-      // a < x
-      case LessThan(IntLiteral(lwrBnd), x @ Variable(name)) =>
-        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).updateLo(Rational(lwrBnd))); e
-      // x < b
-      case LessThan(x @ Variable(name), IntLiteral(uprBnd)) =>
-        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).updateUp(Rational(uprBnd))); e
-      
-      // b >= x
-      case GreaterEquals(IntLiteral(uprBnd), x @ Variable(name)) =>
-        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).updateUp(Rational(uprBnd))); e
-      // x >= a
-      case GreaterEquals(x @ Variable(name), IntLiteral(lwrBnd)) =>
-        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).updateLo(Rational(lwrBnd))); e
-      
-      // b > x
-      case GreaterThan(IntLiteral(uprBnd), x @ Variable(name)) =>
-        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).updateUp(Rational(uprBnd))); e
-      // x > a
-      case GreaterThan(x @ Variable(name), IntLiteral(lwrBnd)) =>
-        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).updateLo(Rational(lwrBnd))); e
-
-      case Noise(x @ Variable(id), IntLiteral(value)) =>
-        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).newUncert(Rational(value))); e
-
-      case RelError(x @ Variable(id), RationalLiteral(value)) =>
-        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).updateRelNoise(value)); e
-
-      case Roundoff(x @ Variable(id)) =>
-        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).addRndoff); e
-      */

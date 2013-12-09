@@ -11,12 +11,12 @@ import leon.utils.{Positioned}
 import Approximations._
 
 
-case class Spec(bounds: RationalInterval, absError: Rational)
+case class Spec(id: Identifier, bounds: RationalInterval, absError: Rational)
 
 
 // The condition is pre => post
 class VerificationCondition(val funDef: FunDef, val kind: VCKind.Value, val pre: Expr, val body: Expr,  
-  val post: Expr, val variables: VariablePool, precisions: List[Precision]) extends Positioned {
+  val post: Expr, val resId: Option[Identifier], val variables: VariablePool, precisions: List[Precision]) extends Positioned {
 
   var allFncCalls = Set[String]()
 
@@ -30,11 +30,15 @@ class VerificationCondition(val funDef: FunDef, val kind: VCKind.Value, val pre:
   // Some(false) = invalid
   var value: Map[Precision, Option[Boolean]] = precisions.map(p => (p, None)).toMap
 
-  def this(fD: FunDef, k:VCKind.Value, pe: Expr, b: Expr, po: Expr, fncCalls: Set[String], vars: VariablePool, precs: List[Precision]) = {
-    this(fD, k, pe, b, po, vars, precs)
+  def this(fD: FunDef, k:VCKind.Value, pe: Expr, b: Expr, po: Expr, ri: Identifier, fncCalls: Set[String], vars: VariablePool, precs: List[Precision]) = {
+    this(fD, k, pe, b, po, Some(ri), vars, precs)
     allFncCalls = fncCalls
   }
 
+  def this(fD: FunDef, k:VCKind.Value, pe: Expr, b: Expr, po: Expr, fncCalls: Set[String], vars: VariablePool, precs: List[Precision]) = {
+    this(fD, k, pe, b, po, None, vars, precs)
+    allFncCalls = fncCalls
+  }
 
   def status(precision: Precision) : String = value(precision) match {
     case None => "unknown"

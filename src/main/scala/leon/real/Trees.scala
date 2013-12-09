@@ -12,7 +12,7 @@ import leon.purescala.{PrettyPrinter, PrettyPrintable, ScalaPrinter}
 
 object Trees {
 
-  case class ResultVariable() extends Expr with Terminal with FixedType with PrettyPrintable {
+  /*case class ResultVariable() extends Expr with Terminal with FixedType with PrettyPrintable {
     val fixedType = RealType
     def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
       printer.append("#res")
@@ -25,7 +25,7 @@ object Trees {
     def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
       printer.append("#fres")
     }
-  }
+  }*/
 
   case class RealLiteral(value: Rational) extends Expr with Terminal with FixedType with PrettyPrintable {
     var floatType = false // for code generation of single-precision floating-point constants
@@ -372,10 +372,10 @@ object Trees {
   }
 
   // A value returned from a function call desribed by it's specification
-  case class FncValue(spec: Expr) extends Expr with FixedType with UnaryExtractable with PrettyPrintable {
+  case class FncValue(spec: Expr, resId: Identifier) extends Expr with FixedType with UnaryExtractable with PrettyPrintable {
     val fixedType = RealType
     def extract: Option[(Expr, (Expr)=>Expr)] = {
-      Some((spec, (e) => FncValue(e)))
+      Some((spec, (e) => FncValue(e, resId)))
     }
     def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
       printer.append("fncVal(")
@@ -384,10 +384,10 @@ object Trees {
     }
   }
 
-  case class FncValueF(spec: Expr) extends Expr with FixedType with UnaryExtractable with PrettyPrintable {
+  case class FncValueF(spec: Expr, resId: Identifier) extends Expr with FixedType with UnaryExtractable with PrettyPrintable {
     val fixedType = RealType
     def extract: Option[(Expr, (Expr)=>Expr)] = {
-      Some((spec, (e) => FncValueF(e)))
+      Some((spec, (e) => FncValueF(e, resId)))
     }
     def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
       printer.append("fncVal_f(")
