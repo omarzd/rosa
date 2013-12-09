@@ -12,21 +12,6 @@ import leon.purescala.{PrettyPrinter, PrettyPrintable, ScalaPrinter}
 
 object Trees {
 
-  /*case class ResultVariable() extends Expr with Terminal with FixedType with PrettyPrintable {
-    val fixedType = RealType
-    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
-      printer.append("#res")
-    }
-  } 
-
-  // represents the actual result in post-conditions
-  case class FResVariable() extends Expr with Terminal with FixedType with PrettyPrintable {
-    val fixedType = RealType
-    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
-      printer.append("#fres")
-    }
-  }*/
-
   case class RealLiteral(value: Rational) extends Expr with Terminal with FixedType with PrettyPrintable {
     var floatType = false // for code generation of single-precision floating-point constants
     val fixedType = RealType
