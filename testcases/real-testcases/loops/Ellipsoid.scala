@@ -25,5 +25,5 @@ object Ellipsoid {
       x*x + y*y
     }
 
-  } ensuring(res => ~res < 100) // && res +/- 1e-12)  
+  } ensuring(res => ~res < 100 && res +/- 1e-12) // && res +/- 1e-12)  
 }
