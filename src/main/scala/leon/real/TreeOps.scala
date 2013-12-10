@@ -178,12 +178,15 @@ object TreeOps {
         funDef.postcondition.flatMap({
           case (resId, postExpr) =>
             val specExtractor = new SpecExtractor(resId)
-            specExtractor.getSpec(postExpr).map( {
-              case (spec, cleanedExpr) =>
-                FncValue(spec, replace(arguments, cleanedExpr))
+            specExtractor.getSpec(postExpr).map( spec => {
+              val transformer = new ActualToRealSpecTransformer(spec.id, spec.absError)
+              val cleanedExpr = transformer.transform(postExpr)
+              FncValue(spec, replace(arguments, cleanedExpr))
             })
         }) match {
-          case Some(fncValue) => fncValue
+          case Some(fncValue) =>
+            println("#### " + fncValue)
+            fncValue
           case _ => postMap(funDef) match {
             case Some(spec) => FncValue(spec, replace(arguments, specToExpr(spec)))
             case _ =>
@@ -219,30 +222,14 @@ object TreeOps {
       case GreaterThan(RealLiteral(uprBnd), Variable(id)) =>  upBoundReal = Some(uprBnd); e
       case GreaterThan(Variable(id), RealLiteral(lwrBnd)) => lwrBoundReal = Some(lwrBnd); e
       
-      case LessEquals(RealLiteral(lwrBnd), Actual(Variable(id))) =>
-        lwrBoundActual = Some(lwrBnd)
-        LessEquals(RealLiteral(lwrBnd), Variable(id))
-      case LessEquals(Actual(Variable(id)), RealLiteral(uprBnd)) =>
-        upBoundActual = Some(uprBnd)
-        LessEquals(Variable(id), RealLiteral(uprBnd))
-      case LessThan(RealLiteral(lwrBnd), Actual(Variable(id))) =>
-        lwrBoundActual = Some(lwrBnd)
-        LessThan(RealLiteral(lwrBnd), Variable(id))
-      case LessThan(Actual(Variable(id)), RealLiteral(uprBnd)) =>
-        upBoundActual = Some(uprBnd)
-        LessThan(Variable(id), RealLiteral(uprBnd))
-      case GreaterEquals(RealLiteral(uprBnd), Actual(Variable(id))) =>
-        upBoundActual = Some(uprBnd)
-        GreaterEquals(RealLiteral(uprBnd), Variable(id))
-      case GreaterEquals(Actual(Variable(id)), RealLiteral(lwrBnd)) =>
-        lwrBoundActual = Some(lwrBnd)
-        GreaterEquals(Variable(id), RealLiteral(lwrBnd))
-      case GreaterThan(RealLiteral(uprBnd), Actual(Variable(id))) =>
-        upBoundActual = Some(uprBnd)
-        GreaterThan(RealLiteral(uprBnd), Variable(id))
-      case GreaterThan(Actual(Variable(id)), RealLiteral(lwrBnd)) =>
-        lwrBoundActual = Some(lwrBnd)
-        GreaterThan(Variable(id), RealLiteral(lwrBnd))
+      case LessEquals(RealLiteral(lwrBnd), Actual(Variable(id))) => lwrBoundActual = Some(lwrBnd); e
+      case LessEquals(Actual(Variable(id)), RealLiteral(uprBnd)) => upBoundActual = Some(uprBnd); e 
+      case LessThan(RealLiteral(lwrBnd), Actual(Variable(id))) => lwrBoundActual = Some(lwrBnd); e
+      case LessThan(Actual(Variable(id)), RealLiteral(uprBnd)) => upBoundActual = Some(uprBnd); e
+      case GreaterEquals(RealLiteral(uprBnd), Actual(Variable(id))) => upBoundActual = Some(uprBnd); e 
+      case GreaterEquals(Actual(Variable(id)), RealLiteral(lwrBnd)) => lwrBoundActual = Some(lwrBnd); e 
+      case GreaterThan(RealLiteral(uprBnd), Actual(Variable(id))) => upBoundActual = Some(uprBnd); e 
+      case GreaterThan(Actual(Variable(id)), RealLiteral(lwrBnd)) => lwrBoundActual = Some(lwrBnd); e 
       
       case Noise(Variable(id), RealLiteral(value)) => error = Some(value); e
       
@@ -256,26 +243,44 @@ object TreeOps {
         super.rec(e, path)
     }
 
-    // TODO: make this more general
-    // Returns the spec, if the specification is complete, and also the expression where 
-    // all Actual(resVar) -> resVar (this is a sound overapproximation in our semantics)
-    // which is ~res \in [a, b] => res \in [a, b]
-    // in this case the computed Spec and the returned expression are consistent
-    def getSpec(e: Expr): Option[(Spec, Expr)] = {
+    def getSpec(e: Expr): Option[Spec] = {
       // TODO: should we allow no error specification in postcondition? What would be the meaning?
       //val err = error.getOrElse(Rational.zero)
-      val eWoActual = rec(e, initC)
+      rec(e, initC)
 
       error flatMap ( err => {
         if ((lwrBoundReal.nonEmpty || lwrBoundActual.nonEmpty) && (upBoundReal.nonEmpty || upBoundActual.nonEmpty)) {
-          Some((Spec(id, RationalInterval(lwrBoundReal.getOrElse(lwrBoundActual.get), 
-               upBoundReal.getOrElse(upBoundActual.get)), err), eWoActual))
+          Some(Spec(id, RationalInterval(lwrBoundReal.getOrElse(lwrBoundActual.get + err), 
+               upBoundReal.getOrElse(upBoundActual.get - err)), err))
         } else {
           None
         }
       })
     }
   }
+
+  class ActualToRealSpecTransformer(id: Identifier, delta: Rational) extends TransformerWithPC {
+    type C = Seq[Expr]
+    val initC = Nil
+
+    def register(e: Expr, path: C) = path :+ e
+
+    override def rec(e: Expr, path: C) = e match {
+      case LessEquals(RealLiteral(lwrBnd), Actual(Variable(id))) => LessEquals(RealLiteral(lwrBnd + delta), Variable(id))
+      case LessEquals(Actual(Variable(id)), RealLiteral(uprBnd)) => LessEquals(Variable(id), RealLiteral(uprBnd - delta))
+      case LessThan(RealLiteral(lwrBnd), Actual(Variable(id))) => LessThan(RealLiteral(lwrBnd + delta), Variable(id))
+      case LessThan(Actual(Variable(id)), RealLiteral(uprBnd)) => LessThan(Variable(id), RealLiteral(uprBnd - delta))
+
+      case GreaterEquals(RealLiteral(uprBnd), Actual(Variable(id))) => GreaterEquals(RealLiteral(uprBnd - delta), Variable(id))
+      case GreaterEquals(Actual(Variable(id)), RealLiteral(lwrBnd)) => GreaterEquals(Variable(id), RealLiteral(lwrBnd + delta))
+      case GreaterThan(RealLiteral(uprBnd), Actual(Variable(id))) => GreaterThan(RealLiteral(uprBnd - delta), Variable(id))
+      case GreaterThan(Actual(Variable(id)), RealLiteral(lwrBnd)) => GreaterThan(Variable(id), RealLiteral(lwrBnd + delta))
+      
+      case _ =>
+        super.rec(e, path)
+    }
+  }
+
 
   class FunctionInliner(fncs: Map[FunDef, Fnc]) extends TransformerWithPC { //(reporter: Reporter, vcMap: Map[FunDef, VerificationCondition]) extends TransformerWithPC {
     type C = Seq[Expr]
