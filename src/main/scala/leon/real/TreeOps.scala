@@ -177,13 +177,15 @@ object TreeOps {
         
         funDef.postcondition.flatMap({
           case (resId, postExpr) =>
-            val postComplete = new CompleteSpecChecker(resId)
-            if (postComplete.check(postExpr)) Some(FncValue(replace(arguments, postExpr), resId))
-            else None
+            val specExtractor = new SpecExtractor(resId)
+            specExtractor.getSpec(postExpr).map( {
+              case (spec, cleanedExpr) =>
+                FncValue(spec, replace(arguments, cleanedExpr))
+            })
         }) match {
           case Some(fncValue) => fncValue
           case _ => postMap(funDef) match {
-            case Some(spec) => FncValue(replace(arguments, specToExpr(spec)), spec.id)
+            case Some(spec) => FncValue(spec, replace(arguments, specToExpr(spec)))
             case _ =>
               throw PostconditionInliningFailedException("missing postcondition for " + funDef.id.name); null
           }
@@ -194,30 +196,84 @@ object TreeOps {
     }
   }
 
-  class CompleteSpecChecker(resId: Identifier) extends TransformerWithPC {
+  class SpecExtractor(id: Identifier) extends TransformerWithPC {
     type C = Seq[Expr]
     val initC = Nil
 
-    var lwrBound = false
-    var upBound = false
-    var noise = false
+    var lwrBoundReal: Option[Rational] = None
+    var upBoundReal: Option[Rational] = None
+    var lwrBoundActual: Option[Rational] = None
+    var upBoundActual: Option[Rational] = None
+    var error: Option[Rational] = None
+    var extras = List[Expr]()
 
     def register(e: Expr, path: C) = path :+ e
 
     override def rec(e: Expr, path: C) = e match {
-      case LessEquals(RealLiteral(lwrBnd), Variable(resId)) => lwrBound = true; e
-      case LessThan(RealLiteral(lwrBnd), Variable(resId)) => lwrBound = true; e
-      case LessEquals(Variable(resId), RealLiteral(upBnd)) => upBound = true; e
-      case LessThan(Variable(resId), RealLiteral(upBnd)) => upBound = true; e
-      case Noise(Variable(resId), _) => noise = true; e
+      case LessEquals(RealLiteral(lwrBnd), Variable(id)) => lwrBoundReal = Some(lwrBnd); e
+      case LessEquals(Variable(id), RealLiteral(uprBnd)) => upBoundReal = Some(uprBnd); e  
+      case LessThan(RealLiteral(lwrBnd), Variable(id)) => lwrBoundReal = Some(lwrBnd); e
+      case LessThan(Variable(id), RealLiteral(uprBnd)) =>  upBoundReal = Some(uprBnd); e
+      case GreaterEquals(RealLiteral(uprBnd), Variable(id)) =>  upBoundReal = Some(uprBnd); e
+      case GreaterEquals(Variable(id), RealLiteral(lwrBnd)) => lwrBoundReal = Some(lwrBnd); e
+      case GreaterThan(RealLiteral(uprBnd), Variable(id)) =>  upBoundReal = Some(uprBnd); e
+      case GreaterThan(Variable(id), RealLiteral(lwrBnd)) => lwrBoundReal = Some(lwrBnd); e
+      
+      case LessEquals(RealLiteral(lwrBnd), Actual(Variable(id))) =>
+        lwrBoundActual = Some(lwrBnd)
+        LessEquals(RealLiteral(lwrBnd), Variable(id))
+      case LessEquals(Actual(Variable(id)), RealLiteral(uprBnd)) =>
+        upBoundActual = Some(uprBnd)
+        LessEquals(Variable(id), RealLiteral(uprBnd))
+      case LessThan(RealLiteral(lwrBnd), Actual(Variable(id))) =>
+        lwrBoundActual = Some(lwrBnd)
+        LessThan(RealLiteral(lwrBnd), Variable(id))
+      case LessThan(Actual(Variable(id)), RealLiteral(uprBnd)) =>
+        upBoundActual = Some(uprBnd)
+        LessThan(Variable(id), RealLiteral(uprBnd))
+      case GreaterEquals(RealLiteral(uprBnd), Actual(Variable(id))) =>
+        upBoundActual = Some(uprBnd)
+        GreaterEquals(RealLiteral(uprBnd), Variable(id))
+      case GreaterEquals(Actual(Variable(id)), RealLiteral(lwrBnd)) =>
+        lwrBoundActual = Some(lwrBnd)
+        GreaterEquals(Variable(id), RealLiteral(lwrBnd))
+      case GreaterThan(RealLiteral(uprBnd), Actual(Variable(id))) =>
+        upBoundActual = Some(uprBnd)
+        GreaterThan(RealLiteral(uprBnd), Variable(id))
+      case GreaterThan(Actual(Variable(id)), RealLiteral(lwrBnd)) =>
+        lwrBoundActual = Some(lwrBnd)
+        GreaterThan(Variable(id), RealLiteral(lwrBnd))
+      
+      case Noise(Variable(id), RealLiteral(value)) => error = Some(value); e
+      
+      case Times(_, _) | Plus(_, _) | Division(_, _) | Minus(_, _) | UMinus(_) =>
+        throw new Exception("found integer arithmetic in ResultCollector")
+        null
+
+      //case Noise(Variable(id), x) => errorExpr = Some(x); e
       case _ =>
+        // TODO: extras
         super.rec(e, path)
     }
 
-    def check(e: Expr): Boolean = {
-      lwrBound = false; upBound = false; noise = false
-      rec(e, initC)
-      lwrBound && upBound && noise
+    // TODO: make this more general
+    // Returns the spec, if the specification is complete, and also the expression where 
+    // all Actual(resVar) -> resVar (this is a sound overapproximation in our semantics)
+    // which is ~res \in [a, b] => res \in [a, b]
+    // in this case the computed Spec and the returned expression are consistent
+    def getSpec(e: Expr): Option[(Spec, Expr)] = {
+      // TODO: should we allow no error specification in postcondition? What would be the meaning?
+      //val err = error.getOrElse(Rational.zero)
+      val eWoActual = rec(e, initC)
+
+      error flatMap ( err => {
+        if ((lwrBoundReal.nonEmpty || lwrBoundActual.nonEmpty) && (upBoundReal.nonEmpty || upBoundActual.nonEmpty)) {
+          Some((Spec(id, RationalInterval(lwrBoundReal.getOrElse(lwrBoundActual.get), 
+               upBoundReal.getOrElse(upBoundActual.get)), err), eWoActual))
+        } else {
+          None
+        }
+      })
     }
   }
 
@@ -243,7 +299,7 @@ object TreeOps {
   
   // Extracts the bounds, errors and any additional specification on the variable with `id` from an expression
   //@return (bounds, errors, extra specs)
-  def getResultSpec(expr: Expr, id: Identifier): (RationalInterval, Rational, Expr) = {
+  /*def getResultSpec(expr: Expr, id: Identifier): (RationalInterval, Rational, Expr) = {
     val rc = new ResultCollector(id)
     rc.transform(expr)
     (RationalInterval(rc.lwrBound.get, rc.upBound.get), rc.error.get, And(rc.extras))
@@ -296,7 +352,7 @@ object TreeOps {
         // TODO: extras
         super.rec(e, path)
     }
-  }
+  }*/
 
 
   /* -----------------------
