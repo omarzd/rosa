@@ -157,10 +157,9 @@ class LeonToZ3Transformer(variables: VariablePool, precision: Precision) extends
       case WithIn(x, lwrBnd, upBnd) =>
         And(LessThan(RealLiteral(lwrBnd), x), LessThan(x, RealLiteral(upBnd))) 
 
-      case FncValue(s, id) =>
+      case FncValue(spec, specExpr) =>
         val fresh = getNewXFloatVar
-        val spec = replace(Map(Variable(id) -> fresh), s)
-        addExtra(rec(spec, path))
+        addExtra(rec(replace(Map(Variable(spec.id) -> fresh), specExpr), path))
         fresh
 
       case FncBody(name, body) =>
