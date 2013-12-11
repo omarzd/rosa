@@ -184,9 +184,7 @@ object TreeOps {
               FncValue(spec, replace(arguments, cleanedExpr))
             })
         }) match {
-          case Some(fncValue) =>
-            println("#### " + fncValue)
-            fncValue
+          case Some(fncValue) => fncValue
           case _ => postMap(funDef) match {
             case Some(spec) => FncValue(spec, replace(arguments, specToExpr(spec)))
             case _ =>
@@ -300,65 +298,6 @@ object TreeOps {
           super.rec(e, path)
     }
   }
-
-  
-  // Extracts the bounds, errors and any additional specification on the variable with `id` from an expression
-  //@return (bounds, errors, extra specs)
-  /*def getResultSpec(expr: Expr, id: Identifier): (RationalInterval, Rational, Expr) = {
-    val rc = new ResultCollector(id)
-    rc.transform(expr)
-    (RationalInterval(rc.lwrBound.get, rc.upBound.get), rc.error.get, And(rc.extras))
-  }
-
-  // Assume that the spec is complete
-  private class ResultCollector(id: Identifier) extends TransformerWithPC {
-    type C = Seq[Expr]
-    val initC = Nil
-    var lwrBound: Option[Rational] = None
-    var upBound: Option[Rational] = None
-    var error: Option[Rational] = None
-    var extras = List[Expr]()
-    //var errorExpr: Option[Expr] = None
-
-    def initCollector = {
-      lwrBound = None; upBound = None; error = None; //errorExpr = None
-    }
-
-    def register(e: Expr, path: C) = path :+ e
-
-    // FIXME: this should probably be done in register
-    override def rec(e: Expr, path: C) = e match {
-      case LessEquals(RealLiteral(lwrBnd), Variable(id)) => lwrBound = Some(lwrBnd); e
-      case LessEquals(Variable(id), RealLiteral(uprBnd)) => upBound = Some(uprBnd); e
-      case LessEquals(IntLiteral(lwrBnd), Variable(id)) => lwrBound = Some(Rational(lwrBnd)); e
-      case LessEquals(Variable(id), IntLiteral(uprBnd)) => upBound = Some(Rational(uprBnd)); e
-      case LessThan(RealLiteral(lwrBnd), Variable(id)) => lwrBound = Some(lwrBnd); e
-      case LessThan(Variable(id), RealLiteral(uprBnd)) =>  upBound = Some(uprBnd); e
-      case LessThan(IntLiteral(lwrBnd), Variable(id)) => lwrBound = Some(Rational(lwrBnd)); e
-      case LessThan(Variable(id), IntLiteral(uprBnd)) => upBound = Some(Rational(uprBnd)); e
-      case GreaterEquals(RealLiteral(uprBnd), Variable(id)) =>  upBound = Some(uprBnd); e
-      case GreaterEquals(Variable(id), RealLiteral(lwrBnd)) => lwrBound = Some(lwrBnd); e
-      case GreaterEquals(IntLiteral(uprBnd), Variable(id)) => upBound = Some(Rational(uprBnd)); e
-      case GreaterEquals(Variable(id), IntLiteral(lwrBnd)) => lwrBound = Some(Rational(lwrBnd)); e
-      case GreaterThan(RealLiteral(uprBnd), Variable(id)) =>  upBound = Some(uprBnd); e
-      case GreaterThan(Variable(id), RealLiteral(lwrBnd)) => lwrBound = Some(lwrBnd); e
-      case GreaterThan(IntLiteral(uprBnd), Variable(id)) => upBound = Some(Rational(uprBnd)); e
-      case GreaterThan(Variable(id), IntLiteral(lwrBnd)) => lwrBound = Some(Rational(lwrBnd)); e
-
-      case Noise(Variable(id), RealLiteral(value)) => error = Some(value); e
-      case Noise(Variable(id), IntLiteral(value)) => error = Some(Rational(value)); e
-
-      case Times(_, _) | Plus(_, _) | Division(_, _) | Minus(_, _) | UMinus(_) =>
-        throw new Exception("found integer arithmetic in ResultCollector")
-        null
-
-      //case Noise(Variable(id), x) => errorExpr = Some(x); e
-      case _ =>
-        // TODO: extras
-        super.rec(e, path)
-    }
-  }*/
-
 
   /* -----------------------
        Fixed-points
