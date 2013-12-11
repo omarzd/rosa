@@ -43,6 +43,22 @@ object TreeOps {
     case _ => expr
   }
 
+  def pushEqualsIntoIfThenElse(expr: Expr, variable: Option[Expr]): Expr = expr match {
+    case Equals(v, IfExpr(c, t, e)) =>
+      IfExpr(c, pushEqualsIntoIfThenElse(t, Some(v)), pushEqualsIntoIfThenElse(e, Some(v)))
+
+    case Equals(_,_) => expr
+    case LessEquals(_, _) | LessThan(_,_) | GreaterThan(_,_) | GreaterEquals(_,_) => expr
+
+    case And(ands) => And(ands.map( pushEqualsIntoIfThenElse(_, variable)))
+    case Or(ors) => Or(ors.map(pushEqualsIntoIfThenElse(_, variable)))
+
+    case UMinusR(_) | PlusR(_, _) | MinusR(_, _) | TimesR(_, _) | DivisionR(_, _) | SqrtR(_) | Variable(_) =>
+      Equals(variable.get, expr)
+
+    case Not(t) => Not(pushEqualsIntoIfThenElse(t, variable))
+  }
+
   def convertLetsToEquals(expr: Expr): Expr = expr match {
     case Equals(l, r) => Equals(l, convertLetsToEquals(r))
     case IfExpr(cond, thenn, elze) =>
@@ -141,8 +157,16 @@ object TreeOps {
 
     override def rec(e: Expr, path: C) = e match {
       case FunctionInvocation(funDef, args) if (funDef.precondition.isDefined) =>
-        val pathToFncCall = And(path)
-        val arguments: Map[Expr, Expr] = funDef.args.map(decl => decl.toVariable).zip(args).toMap
+        
+        val (simpleArgs, morePath) = args.map(a => a match {
+          case Variable(_) => (a, True)
+          case _ =>
+            val fresh = getFreshTmp
+            (fresh, Equals(fresh, a))
+        }).unzip
+         
+        val pathToFncCall = And(path ++ morePath) 
+        val arguments: Map[Expr, Expr] = funDef.args.map(decl => decl.toVariable).zip(simpleArgs).toMap
         val toProve = replace(arguments, roundoffRemover.transform(funDef.precondition.get))
 
         val allFncCalls = functionCallsOf(pathToFncCall).map(invc => invc.funDef.id.toString)
@@ -519,9 +543,10 @@ object TreeOps {
             Noise(Variable(s.id), RealLiteral(s.absError)))
   }
 
-  def specToRealExpr(s: Spec): Expr = {
-    And(LessEquals(RealLiteral(s.bounds.xlo), Variable(s.id)),
+  def specToRealExpr(spec: Option[Spec]): Expr = spec match {
+    case Some(s) => And(LessEquals(RealLiteral(s.bounds.xlo), Variable(s.id)),
             LessEquals(Variable(s.id), RealLiteral(s.bounds.xhi)))
+    case None => True
   }
 
   /* --------------------

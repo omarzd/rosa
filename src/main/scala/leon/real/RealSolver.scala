@@ -154,7 +154,10 @@ class RealSolver(val context: LeonContext, val program: Program, timeout: Long)
   def checkSat(expr: Expr): (Sat, Z3Model) = {
     solver.push
     val variables = variablesOf(expr)
-    val cnstr = toZ3Formula(expr).get
+    //println("check sat of formula: " + expr)
+    //println("transformed: " + pushEqualsIntoIfThenElse(expr, None))
+
+    val cnstr = toZ3Formula(pushEqualsIntoIfThenElse(expr, None)).get
     solver.assertCnstr(cnstr)
     val res: (Sat, Z3Model) = solver.check match {
       case Some(true) =>
