@@ -19,7 +19,7 @@ import VariableShop._
 object FloatApproximator {
 
   // Just so we have it somewhere, not tested
-  def evalWithError(reporter: Reporter, solver: RealSolver, precision: Precision, expr: Expr, precondition: Expr, inputs: VariablePool): Map[Expr, XReal] = {
+  def evalWithError(reporter: Reporter, solver: RealRangeSolver, precision: Precision, expr: Expr, precondition: Expr, inputs: VariablePool): Map[Expr, XReal] = {
     //val config = XFloatConfig(reporter, solver, precondition, options.defaultPrecision, getUnitRoundoff(options.defaultPrecision),
     //  solverMaxIterMedium, solverPrecisionMedium)
 
@@ -32,7 +32,7 @@ object FloatApproximator {
   var pathErrorVerbose = false
 }
 
-class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Precision, precondition: Expr, inputs: VariablePool,
+class FloatApproximator(reporter: Reporter, solver: RealRangeSolver, precision: Precision, precondition: Expr, inputs: VariablePool,
   checkPathError: Boolean = true) extends TransformerWithPC {
   import FloatApproximator._
 
