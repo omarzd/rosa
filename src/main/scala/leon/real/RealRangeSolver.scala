@@ -205,16 +205,18 @@ class RealRangeSolver(val context: LeonContext, val program: Program, timeout: L
     //case Variable(id) => initialBound
     case _ =>
       //println("maxIter: " + maxIter + "    precision: " + prec)
-      assert(solver.getNumScopes == 0)
+      //assert(solver.getNumScopes == 0)
       //solver.push
+      //val solver = z3.mkSolver   
       
-      assertCnstr(precondition)
+      //solver.assertCnstr(toZ3Formula(precondition).get)
+      val precondInZ3 = toZ3Formula(precondition).get
 
       val a = initialBound.xlo
       val b = initialBound.xhi
       val exprInZ3 = toZ3Formula(tree).get
 
-      printBoundsResult(checkBounds(exprInZ3, a, b), "initial")
+      printBoundsResult(checkBounds(precondInZ3, exprInZ3, a, b), "initial")
 
       if (verbose) {
         println("\nComputing range for " + tree)
@@ -223,35 +225,35 @@ class RealRangeSolver(val context: LeonContext, val program: Program, timeout: L
       }
       // Check if bound is already tight, if so don't bother running Z3 search
       val newLowerBound =
-        if (lowerBoundIsTight(exprInZ3, a, prec)) {
+        if (lowerBoundIsTight(precondInZ3, exprInZ3, a, prec)) {
           countTightRanges += 1
           a
-        } else getLowerBound(a, b, exprInZ3, 0, maxIter, prec)
+        } else getLowerBound(a, b, precondInZ3, exprInZ3, 0, maxIter, prec)
 
       if (verbose) println("\n============Looking for upperbound")
       //TODO: we could actually start searching from the newLowerBound, no?
       val newUpperBound =
-        if (upperBoundIsTight(exprInZ3, b, prec)) {
+        if (upperBoundIsTight(precondInZ3, exprInZ3, b, prec)) {
           countTightRanges += 1
           b
         }
-        else getUpperBound(a, b, exprInZ3, 0, maxIter, prec)
+        else getUpperBound(a, b, precondInZ3, exprInZ3, 0, maxIter, prec)
 
-      printBoundsResult(checkBounds(exprInZ3, newLowerBound, newUpperBound), "final")
+      printBoundsResult(checkBounds(precondInZ3, exprInZ3, newLowerBound, newUpperBound), "final")
 
       //solver.pop()
       RationalInterval(newLowerBound, newUpperBound)
   }
 
-  private def checkBounds(tree: Z3AST, lowBound: Rational, upBound: Rational): (Sat, Sat, String) = {
-    val resLow = checkLowerBound(tree, lowBound)
-    val resUp = checkUpperBound(tree, upBound)
+  private def checkBounds(precondInZ3: Z3AST, tree: Z3AST, lowBound: Rational, upBound: Rational): (Sat, Sat, String) = {
+    val resLow = checkLowerBound(precondInZ3, tree, lowBound)
+    val resUp = checkUpperBound(precondInZ3, tree, upBound)
     val diagnoseString = resLow._2 + "\n" + resUp._2
     (resLow._1, resUp._1, diagnoseString)
   }
 
 
-  private def getLowerBound(a: Rational, b: Rational, exprInZ3: Z3AST, count: Int, maxIter: Int, prec: Rational): Rational = {
+  private def getLowerBound(a: Rational, b: Rational, precondInZ3: Z3AST, exprInZ3: Z3AST, count: Int, maxIter: Int, prec: Rational): Rational = {
     // Enclosure of bound is precise enough
     if (b-a < prec) {
       countHitPrecisionThreshold += 1
@@ -261,20 +263,20 @@ class RealRangeSolver(val context: LeonContext, val program: Program, timeout: L
       return a
     } else {
       val mid = a + (b - a) / Rational(2l)
-      val res = checkLowerBound(exprInZ3, mid)
+      val res = checkLowerBound(precondInZ3, exprInZ3, mid)
 
       if (verbose) println("checked lwr bound: " + mid + ", with result: " + res)
 
       res._1 match {
-        case SAT => getLowerBound(a, mid, exprInZ3, count + 1, maxIter, prec)
-        case UNSAT => getLowerBound(mid, b, exprInZ3, count + 1, maxIter, prec)
+        case SAT => getLowerBound(a, mid, precondInZ3, exprInZ3, count + 1, maxIter, prec)
+        case UNSAT => getLowerBound(mid, b, precondInZ3, exprInZ3, count + 1, maxIter, prec)
         case Unknown => // Return safe answer
           return a
       }
     }
   }
 
-  private def getUpperBound(a: Rational, b: Rational, exprInZ3: Z3AST, count: Int, maxIter: Int, prec: Rational): Rational = {
+  private def getUpperBound(a: Rational, b: Rational, precondInZ3: Z3AST, exprInZ3: Z3AST, count: Int, maxIter: Int, prec: Rational): Rational = {
     // Enclosure of bound is precise enough
     if (b-a < prec) {
       countHitPrecisionThreshold += 1
@@ -284,20 +286,23 @@ class RealRangeSolver(val context: LeonContext, val program: Program, timeout: L
       return b
     } else {
       val mid = a + (b - a) / Rational(2l)
-      val res = checkUpperBound(exprInZ3, mid)
+      val res = checkUpperBound(precondInZ3, exprInZ3, mid)
 
       if (verbose) println("checked upp bound: " + mid + ", with result: " + res)
 
       res._1 match {
-        case SAT => getUpperBound(mid, b, exprInZ3, count + 1, maxIter, prec)
-        case UNSAT => getUpperBound(a, mid, exprInZ3, count + 1, maxIter, prec)
+        case SAT => getUpperBound(mid, b, precondInZ3, exprInZ3, count + 1, maxIter, prec)
+        case UNSAT => getUpperBound(a, mid, precondInZ3, exprInZ3, count + 1, maxIter, prec)
         case Unknown => // Return safe answer
           return b
       }
     }
   }
 
-  private def checkConstraint: Sat = {
+  private def checkConstraint(precondInZ3: Z3AST, exprInZ3: Z3AST): Sat = {
+    val solver = z3.mkSolver
+    solver.assertCnstr(precondInZ3)
+    solver.assertCnstr(exprInZ3)
     solver.check match {
       case Some(true) =>
         if (verbose) println("--> bound: SAT")
@@ -312,39 +317,37 @@ class RealRangeSolver(val context: LeonContext, val program: Program, timeout: L
     }
   }
 
-  private def checkLowerBound(exprInZ3: Z3AST, bound: Rational): (Sat, String) = {
+  private def checkLowerBound(precondInZ3: Z3AST, exprInZ3: Z3AST, bound: Rational): (Sat, String) = {
     var diagnoseString = ""
     //solver.push
-    solver.assertCnstr(z3.mkLT(exprInZ3, z3.mkNumeral(getNumeralString(bound), realSort)))
+    val cnstr = z3.mkLT(exprInZ3, z3.mkNumeral(getNumeralString(bound), realSort))
 
-    if (verbose) println("checking: " + solver.getAssertions.toSeq.mkString(",\n"))
-    if (diagnose) diagnoseString += ("L: checking: " + solver.getAssertions.toSeq.mkString(",\n"))
+    //if (verbose) println("checking: " + solver.getAssertions.toSeq.mkString(",\n"))
+    //if (diagnose) diagnoseString += ("L: checking: " + solver.getAssertions.toSeq.mkString(",\n"))
 
-    val res = checkConstraint
+    val res = checkConstraint(precondInZ3, cnstr)
     //solver.pop()
     (res, diagnoseString)
   }
 
-  private def checkUpperBound(exprInZ3: Z3AST, bound: Rational): (Sat, String) = {
+  private def checkUpperBound(precondInZ3: Z3AST, exprInZ3: Z3AST, bound: Rational): (Sat, String) = {
     var diagnoseString = ""
     //solver.push
-    solver.assertCnstr(z3.mkGT(exprInZ3, z3.mkNumeral(getNumeralString(bound), realSort)))
+    val cnstr = z3.mkGT(exprInZ3, z3.mkNumeral(getNumeralString(bound), realSort))
 
-    if (verbose) println("checking: " + solver.getAssertions.toSeq.mkString(",\n"))
-    if (diagnose) diagnoseString += ("U: checking: " + solver.getAssertions.toSeq.mkString(",\n"))
+    //if (verbose) println("checking: " + solver.getAssertions.toSeq.mkString(",\n"))
+    //if (diagnose) diagnoseString += ("U: checking: " + solver.getAssertions.toSeq.mkString(",\n"))
 
-    val res = checkConstraint
+    val res = checkConstraint(precondInZ3, cnstr)
     //solver.pop()
     (res, diagnoseString)
   }
 
 
-  private def lowerBoundIsTight(exprInZ3: Z3AST, bound: Rational, prec: Rational): Boolean = {
-    // TODO: we're using push and pop, which prevents nlsat to be used, probably
-    //solver.push
-    solver.assertCnstr(z3.mkLT(exprInZ3, z3.mkNumeral(getNumeralString(bound + prec), realSort)))
-    if (verbose) println("checking if lower bound is tight: " + solver.getAssertions.toSeq.mkString(",\n"))
-    val res = checkConstraint
+  private def lowerBoundIsTight(precondInZ3: Z3AST, exprInZ3: Z3AST, bound: Rational, prec: Rational): Boolean = {
+    val cnstr = z3.mkLT(exprInZ3, z3.mkNumeral(getNumeralString(bound + prec), realSort))
+    //if (verbose) println("checking if lower bound is tight: " + solver.getAssertions.toSeq.mkString(",\n"))
+    val res = checkConstraint(precondInZ3, cnstr)
     //solver.pop()
     res match {
       case SAT => true
@@ -352,11 +355,10 @@ class RealRangeSolver(val context: LeonContext, val program: Program, timeout: L
     }
   }
 
-  private def upperBoundIsTight(exprInZ3: Z3AST, bound: Rational, prec: Rational): Boolean = {
-    //solver.push
-    solver.assertCnstr(z3.mkGT(exprInZ3, z3.mkNumeral(getNumeralString(bound - prec), realSort)))
-    if (verbose) println("checking: " + solver.getAssertions.toSeq.mkString(",\n"))
-    val res = checkConstraint
+  private def upperBoundIsTight(precondInZ3: Z3AST, exprInZ3: Z3AST, bound: Rational, prec: Rational): Boolean = {
+    val cnstr = z3.mkGT(exprInZ3, z3.mkNumeral(getNumeralString(bound - prec), realSort))
+    //if (verbose) println("checking: " + solver.getAssertions.toSeq.mkString(",\n"))
+    val res = checkConstraint(precondInZ3, cnstr)
     //solver.pop()
     res match {
       case SAT => true
