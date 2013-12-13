@@ -207,8 +207,8 @@ class RealRangeSolver(val context: LeonContext, val program: Program, timeout: L
       //println("maxIter: " + maxIter + "    precision: " + prec)
       //assert(solver.getNumScopes == 0)
       //solver.push
-      //val solver = z3.mkSolver   
-      
+      //val solver = z3.mkSolver
+
       //solver.assertCnstr(toZ3Formula(precondition).get)
       val precondInZ3 = toZ3Formula(precondition).get
 
@@ -241,15 +241,15 @@ class RealRangeSolver(val context: LeonContext, val program: Program, timeout: L
 
       printBoundsResult(checkBounds(precondInZ3, exprInZ3, newLowerBound, newUpperBound), "final")
 
+      
       //solver.pop()
       RationalInterval(newLowerBound, newUpperBound)
   }
 
-  private def checkBounds(precondInZ3: Z3AST, tree: Z3AST, lowBound: Rational, upBound: Rational): (Sat, Sat, String) = {
+  private def checkBounds(precondInZ3: Z3AST, tree: Z3AST, lowBound: Rational, upBound: Rational): (Sat, Sat) = {
     val resLow = checkLowerBound(precondInZ3, tree, lowBound)
     val resUp = checkUpperBound(precondInZ3, tree, upBound)
-    val diagnoseString = resLow._2 + "\n" + resUp._2
-    (resLow._1, resUp._1, diagnoseString)
+    (resLow, resUp)
   }
 
 
@@ -267,7 +267,7 @@ class RealRangeSolver(val context: LeonContext, val program: Program, timeout: L
 
       if (verbose) println("checked lwr bound: " + mid + ", with result: " + res)
 
-      res._1 match {
+      res match {
         case SAT => getLowerBound(a, mid, precondInZ3, exprInZ3, count + 1, maxIter, prec)
         case UNSAT => getLowerBound(mid, b, precondInZ3, exprInZ3, count + 1, maxIter, prec)
         case Unknown => // Return safe answer
@@ -290,7 +290,7 @@ class RealRangeSolver(val context: LeonContext, val program: Program, timeout: L
 
       if (verbose) println("checked upp bound: " + mid + ", with result: " + res)
 
-      res._1 match {
+      res match {
         case SAT => getUpperBound(mid, b, precondInZ3, exprInZ3, count + 1, maxIter, prec)
         case UNSAT => getUpperBound(a, mid, precondInZ3, exprInZ3, count + 1, maxIter, prec)
         case Unknown => // Return safe answer
@@ -317,39 +317,20 @@ class RealRangeSolver(val context: LeonContext, val program: Program, timeout: L
     }
   }
 
-  private def checkLowerBound(precondInZ3: Z3AST, exprInZ3: Z3AST, bound: Rational): (Sat, String) = {
-    var diagnoseString = ""
-    //solver.push
+  private def checkLowerBound(precondInZ3: Z3AST, exprInZ3: Z3AST, bound: Rational): Sat = {
     val cnstr = z3.mkLT(exprInZ3, z3.mkNumeral(getNumeralString(bound), realSort))
-
-    //if (verbose) println("checking: " + solver.getAssertions.toSeq.mkString(",\n"))
-    //if (diagnose) diagnoseString += ("L: checking: " + solver.getAssertions.toSeq.mkString(",\n"))
-
-    val res = checkConstraint(precondInZ3, cnstr)
-    //solver.pop()
-    (res, diagnoseString)
+    checkConstraint(precondInZ3, cnstr)
   }
 
-  private def checkUpperBound(precondInZ3: Z3AST, exprInZ3: Z3AST, bound: Rational): (Sat, String) = {
-    var diagnoseString = ""
-    //solver.push
+  private def checkUpperBound(precondInZ3: Z3AST, exprInZ3: Z3AST, bound: Rational): Sat = {
     val cnstr = z3.mkGT(exprInZ3, z3.mkNumeral(getNumeralString(bound), realSort))
-
-    //if (verbose) println("checking: " + solver.getAssertions.toSeq.mkString(",\n"))
-    //if (diagnose) diagnoseString += ("U: checking: " + solver.getAssertions.toSeq.mkString(",\n"))
-
-    val res = checkConstraint(precondInZ3, cnstr)
-    //solver.pop()
-    (res, diagnoseString)
+    checkConstraint(precondInZ3, cnstr)
   }
 
 
   private def lowerBoundIsTight(precondInZ3: Z3AST, exprInZ3: Z3AST, bound: Rational, prec: Rational): Boolean = {
     val cnstr = z3.mkLT(exprInZ3, z3.mkNumeral(getNumeralString(bound + prec), realSort))
-    //if (verbose) println("checking if lower bound is tight: " + solver.getAssertions.toSeq.mkString(",\n"))
-    val res = checkConstraint(precondInZ3, cnstr)
-    //solver.pop()
-    res match {
+    checkConstraint(precondInZ3, cnstr) match {
       case SAT => true
       case _ => false
     }
@@ -357,10 +338,7 @@ class RealRangeSolver(val context: LeonContext, val program: Program, timeout: L
 
   private def upperBoundIsTight(precondInZ3: Z3AST, exprInZ3: Z3AST, bound: Rational, prec: Rational): Boolean = {
     val cnstr = z3.mkGT(exprInZ3, z3.mkNumeral(getNumeralString(bound - prec), realSort))
-    //if (verbose) println("checking: " + solver.getAssertions.toSeq.mkString(",\n"))
-    val res = checkConstraint(precondInZ3, cnstr)
-    //solver.pop()
-    res match {
+    checkConstraint(precondInZ3, cnstr) match {
       case SAT => true
       case _ => false
     }
@@ -371,14 +349,14 @@ class RealRangeSolver(val context: LeonContext, val program: Program, timeout: L
   }
 
   // @param which: initial or final
-  private def printBoundsResult(res: (Sat, Sat, String), which: String) = res match {
-    case (SAT, SAT, msg) =>
-      throw new UnsoundBoundsException("!!! ERROR: both " + which + " bounds are not sound!\nmsg: " + msg)
-    case (SAT, _, msg) =>
-      throw new UnsoundBoundsException("!!! ERROR: " + which + " lower bound is not sound!\nmsg: " + msg)
-    case (_, SAT, msg) =>
-      throw new UnsoundBoundsException("!!! ERROR: " + which + " upper bound is not sound!\nmsg: " + msg)
-    case (UNSAT, UNSAT, msg) =>
+  private def printBoundsResult(res: (Sat, Sat), which: String) = res match {
+    case (SAT, SAT) =>
+      throw new UnsoundBoundsException("!!! ERROR: both " + which + " bounds are not sound!")
+    case (SAT, _) =>
+      throw new UnsoundBoundsException("!!! ERROR: " + which + " lower bound is not sound!")
+    case (_, SAT) =>
+      throw new UnsoundBoundsException("!!! ERROR: " + which + " upper bound is not sound!")
+    case (UNSAT, UNSAT) =>
       if (verbose) println(which + " bounds check successful.")
     case _ =>
       if (printWarnings || verbose) println("WARNING: cannot check "+which+" bounds.")
@@ -386,12 +364,9 @@ class RealRangeSolver(val context: LeonContext, val program: Program, timeout: L
   
   // Prepares some of the Z3 sorts, but *not* the tuple sorts; these are created on-demand.
   private def prepareSorts: Unit = {
-    //import Z3Context.{ADTSortReference, RecursiveType, RegularSort}
-    
     intSort = z3.mkIntSort
     boolSort = z3.mkBoolSort
     realSort = z3.mkRealSort
-    
   }
 
   // assumes prepareSorts has been called....
@@ -399,8 +374,6 @@ class RealRangeSolver(val context: LeonContext, val program: Program, timeout: L
     case Int32Type => intSort
     case BooleanType => boolSort
     case RealType => realSort
-    //case UnitType => unitSort
-
     // there is a good bit missing here that we shouldn't need
 
     case other => fallbackSorts.get(other) match {

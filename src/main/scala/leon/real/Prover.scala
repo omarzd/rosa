@@ -229,8 +229,10 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
   
         for ( path <- paths ) {
           // TODO: one FloatApproximator for all?
+          solver.clearCounts
           val transformer = new FloatApproximator(reporter, solver, precision, And(pre, path.condition), vc.variables, options.pathError)
           val (bodyFiniteApprox, nextSpec) = transformer.transformWithSpec(path.bodyFinite)
+          println("solver counts: " + solver.getCounts)
           spec = merge(spec, nextSpec)
           //if(!nextSpec.isEmpty) 
           specsPerPath :+= nextSpec//.get// else specsPerPath :+= DummySpec
