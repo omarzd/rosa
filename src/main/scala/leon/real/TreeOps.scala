@@ -56,6 +56,8 @@ object TreeOps {
     case UMinusR(_) | PlusR(_, _) | MinusR(_, _) | TimesR(_, _) | DivisionR(_, _) | SqrtR(_) | Variable(_) =>
       Equals(variable.get, expr)
 
+    case BooleanLiteral(_) => expr
+
     case Not(t) => Not(pushEqualsIntoIfThenElse(t, variable))
   }
 
