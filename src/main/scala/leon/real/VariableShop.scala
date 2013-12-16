@@ -71,6 +71,11 @@ object VariableShop {
     Variable(FreshIdentifier("#" + name + freshVarCounter)).setType(RealType)
   }
 
+  def getFreshTmp: Variable = {
+    tmpCounter = tmpCounter + 1
+    Variable(FreshIdentifier("#tmp" + tmpCounter)).setType(RealType)
+  }
+
   // should be executable, i.e. name needs to be a valid Scala identifier
   def getFreshValidTmp: Variable = {
     tmpCounter = tmpCounter + 1
