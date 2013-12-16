@@ -294,7 +294,6 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
         ApproxNode(mergeXRealWithExtraError(thenBranch, elseBranch, And(path), pathError))
 
       case FncValueF(spec, specExpr) =>
-        println("-----> fncvalue with spec: " + spec)
         val (resId, interval, error, constraints) = (spec.id, spec.bounds, spec.absError, True) // constraints not (yet) used
         val fresh = getNewXFloatVar
 
