@@ -119,7 +119,7 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
     
     for (funDef <- sortedFncs if (funDef.body.isDefined)) {
       reporter.info("Analysing fnc:  %s".format(funDef.id.name))
-      debug ("fnc body: " + funDef.body.get)
+      debug ("original fnc body: " + funDef.body.get)
 
       funDef.precondition.map(pre => (pre, VariablePool(pre, funDef.returnType)) ).filter(p => p._2.hasValidInput(funDef.args)).map ({
         case (pre, variables) => {

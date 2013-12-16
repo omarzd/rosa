@@ -39,6 +39,7 @@ object TreeOps {
     case Let(binder, value, body) => Let(binder, value, addResult(resId, body))
     case UMinusR(_) | PlusR(_, _) | MinusR(_, _) | TimesR(_, _) | DivisionR(_, _) | SqrtR(_) | FunctionInvocation(_, _) | Variable(_) =>
       Equals(Variable(resId), expr)
+    case Tuple(_) => Equals(Variable(resId), expr)
     case Block(exprs, last) => Block(exprs, addResult(resId, last))
     case _ => expr
   }
