@@ -21,29 +21,6 @@ object TreeOps {
   /* ----------------------
          Analysis phase
    ------------------------ */
-  // can return several, as we may have an if-statement
-  def getInvariantCondition(expr: Expr): List[Expr] = expr match {
-    case IfExpr(cond, thenn, elze) => getInvariantCondition(thenn) ++ getInvariantCondition(elze)
-    case Let(binder, value, body) => getInvariantCondition(body)
-    case LessEquals(_, _) | LessThan(_, _) | GreaterThan(_, _) | GreaterEquals(_, _) => List(expr)
-    case Equals(_, _) => List(expr)
-    case _ =>
-      println("!!! Expected invariant, but found: " + expr.getClass)
-      List(BooleanLiteral(false))
-  }
-
-  // Has to run before we removed the lets!
-  // Basically the first free expression that is not an if or a let is the result
-  def addResult(resId: Identifier, expr: Expr): Expr = expr match {
-    case ifThen @ IfExpr(_, _, _) => Equals(Variable(resId), ifThen)
-    case Let(binder, value, body) => Let(binder, value, addResult(resId, body))
-    case UMinusR(_) | PlusR(_, _) | MinusR(_, _) | TimesR(_, _) | DivisionR(_, _) | SqrtR(_) | FunctionInvocation(_, _) | Variable(_) =>
-      Equals(Variable(resId), expr)
-    case Tuple(_) => Equals(Variable(resId), expr)
-    case Block(exprs, last) => Block(exprs, addResult(resId, last))
-    case _ => expr
-  }
-
   def pushEqualsIntoIfThenElse(expr: Expr, variable: Option[Expr]): Expr = expr match {
     case Equals(v, IfExpr(c, t, e)) =>
       IfExpr(c, pushEqualsIntoIfThenElse(t, Some(v)), pushEqualsIntoIfThenElse(e, Some(v)))
@@ -60,20 +37,6 @@ object TreeOps {
     case BooleanLiteral(_) => expr
 
     case Not(t) => Not(pushEqualsIntoIfThenElse(t, variable))
-  }
-
-  def convertLetsToEquals(expr: Expr): Expr = expr match {
-    case Equals(l, r) => Equals(l, convertLetsToEquals(r))
-    case IfExpr(cond, thenn, elze) =>
-      IfExpr(cond, convertLetsToEquals(thenn), convertLetsToEquals(elze))
-
-    case Let(binder, value, body) =>
-      And(Equals(Variable(binder), convertLetsToEquals(value)), convertLetsToEquals(body))
-
-    case Block(exprs, last) =>
-      And(exprs.map(e => convertLetsToEquals(e)) :+ convertLetsToEquals(last))
-
-    case _ => expr
   }
 
 
