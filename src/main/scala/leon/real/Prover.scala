@@ -224,15 +224,17 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
 
       case JustFloat =>
         var constraints = Seq[Constraint]()
-        var specsPerPath = Seq[Spec]()
+        var specsPerPath = Seq[Option[Spec]]()
         var spec: Option[Spec] = None
   
         for ( path <- paths ) {
-          // TODO: one FloatApproximator for all?
-          val transformer = new FloatApproximator(reporter, solver, precision, And(pre, path.condition), vc.variables, options.pathError)
+          //solver.clearCounts
+          val transformer = new Approximator(reporter, solver, precision, And(pre, path.condition), vc.variables, options.pathError)
           val (bodyFiniteApprox, nextSpec) = transformer.transformWithSpec(path.bodyFinite)
+          //println("solver counts: " + solver.getCounts)
           spec = merge(spec, nextSpec)
-          if(!nextSpec.isEmpty) specsPerPath :+= nextSpec.get else specsPerPath :+= DummySpec
+          //if(!nextSpec.isEmpty) 
+          specsPerPath :+= nextSpec//.get// else specsPerPath :+= DummySpec
           if (verbose) reporter.debug("body after approx: " + bodyFiniteApprox)
           constraints :+= Constraint(And(pre, path.condition), path.bodyReal, bodyFiniteApprox, post)
         }

@@ -9,9 +9,14 @@ object Approximations {
 
   case class Constraint(precondition: Expr, realComp: Expr, finiteComp: Expr, postcondition: Expr)
 
-  // Spec is the overall computed postcondition
+  /*  Spec is the overall computed postcondition
+    @param kind which approximation type we used
+    @param contraints one constraint per path
+    @param spec overall computed (merged) specification
+  */
   case class Approximation(kind: ApproxKind, constraints: Seq[Constraint], spec: Option[Spec]) {
-    var specsPerPath: Seq[Spec] = Seq.empty
+    // one spec per path
+    var specsPerPath: Seq[Option[Spec]] = Seq.empty
   }
 
   object FncHandling extends Enumeration {
