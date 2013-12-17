@@ -107,9 +107,9 @@ class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, 
       println("vc.kind " + vc.kind)
       println("generating code for: " + vc.body)
 
-      // convert to SSA form, then run through FloatApproximator to get ranges of all intermediate variables
+      // convert to SSA form, then run through Approximator to get ranges of all intermediate variables
       val ssaBody = idealToActual(toSSA(vc.body), vc.variables)
-      val transformer = new FloatApproximator(reporter, solver, precision, vc.pre, vc.variables)
+      val transformer = new Approximator(reporter, solver, precision, vc.pre, vc.variables)
       val (newBody, newSpec) = transformer.transformWithSpec(ssaBody)
       
       val formats = transformer.variables.map {
