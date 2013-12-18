@@ -21,22 +21,24 @@ object TreeOps {
   /* ----------------------
          Analysis phase
    ------------------------ */
-  def pushEqualsIntoIfThenElse(expr: Expr, variable: Option[Expr]): Expr = expr match {
+  def addResult(expr: Expr, variable: Option[Expr]): Expr = expr match {
     case Equals(v, IfExpr(c, t, e)) =>
-      IfExpr(c, pushEqualsIntoIfThenElse(t, Some(v)), pushEqualsIntoIfThenElse(e, Some(v)))
-
+      IfExpr(c, addResult(t, Some(v)), addResult(e, Some(v)))
+      
     case Equals(_,_) => expr
     case LessEquals(_, _) | LessThan(_,_) | GreaterThan(_,_) | GreaterEquals(_,_) => expr
 
-    case And(ands) => And(ands.map( pushEqualsIntoIfThenElse(_, variable)))
-    case Or(ors) => Or(ors.map(pushEqualsIntoIfThenElse(_, variable)))
+    case And(ands) => And(ands.map( addResult(_, variable)))
+    case Or(ors) => Or(ors.map(addResult(_, variable)))
 
     case UMinusR(_) | PlusR(_, _) | MinusR(_, _) | TimesR(_, _) | DivisionR(_, _) | SqrtR(_) | Variable(_) =>
       Equals(variable.get, expr)
 
     case BooleanLiteral(_) => expr
 
-    case Not(t) => Not(pushEqualsIntoIfThenElse(t, variable))
+    case Noise(_,_) => expr
+
+    case Not(t) => Not(addResult(t, variable))
   }
 
 
