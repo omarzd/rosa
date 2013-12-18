@@ -54,7 +54,6 @@ class Approximator(reporter: Reporter, solver: RealSolver, precision: Precision,
       case BooleanLiteral(_) => (e, None)
       case _ =>
         val approximation = approx(e, Seq())
-        println("#######\n approximation: " + approximation)
 
         variables.get(inputs.fResultVar) match {
           case Some(resXFloat) =>
@@ -62,7 +61,7 @@ class Approximator(reporter: Reporter, solver: RealSolver, precision: Precision,
             val exprTransformed = constraintFromXFloats(Map(inputs.fResultVar -> resXFloat))
             (exprTransformed, Some(spec))
           case None =>
-            (True, None)
+            (constraintFromXFloats(Map(inputs.fResultVar -> approximation)), None)
         }
     }    
   }
