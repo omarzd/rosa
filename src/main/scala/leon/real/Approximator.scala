@@ -53,7 +53,8 @@ class Approximator(reporter: Reporter, solver: RealSolver, precision: Precision,
     e match {
       case BooleanLiteral(_) => (e, None)
       case _ =>
-        approx(e, Seq())
+        val approximation = approx(e, Seq())
+        println("#######\n approximation: " + approximation)
 
         variables.get(inputs.fResultVar) match {
           case Some(resXFloat) =>
