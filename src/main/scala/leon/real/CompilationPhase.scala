@@ -131,10 +131,8 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
           debug ("precondition: " + precondition)
 
           val resFresh = variables.resId
-          val bodyWithRes = convertLetsToEquals(addResult(resFresh, funDef.body.get))
-          val bodyWORes = convertLetsToEquals(funDef.body.get)
-              
-          
+          val body = convertLetsToEquals(funDef.body.get)
+                    
           funDef.postcondition match {
             //Option[(Identifier, Expr)]
             // TODO: invariants (got broken because of missing ResultVariable)
@@ -147,20 +145,20 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
             case Some((resId, postExpr)) =>
               val postcondition = replace(Map(Variable(resId) -> Variable(resFresh)), postExpr)
 
-              val vcBody = new VerificationCondition(funDef, Postcondition, precondition, bodyWithRes, postcondition, resFresh, 
+              val vcBody = new VerificationCondition(funDef, Postcondition, precondition, body, postcondition, resFresh, 
                 allFncCalls, variables, precisions)
 
               val assertionCollector = new AssertionCollector(funDef, precondition, variables, precisions)
-              assertionCollector.transform(bodyWithRes)
+              assertionCollector.transform(body)
           
               // for function inlining
-              (assertionCollector.vcs :+ vcBody, Fnc(precondition, bodyWORes, postcondition))
+              (assertionCollector.vcs :+ vcBody, Fnc(precondition, body, postcondition))
 
             case None => // only want to generate specs
-              val vcBody = new VerificationCondition(funDef, SpecGen, precondition, bodyWithRes, True, resFresh, 
+              val vcBody = new VerificationCondition(funDef, SpecGen, precondition, body, True, resFresh, 
                 allFncCalls, variables, precisions)
 
-              (Seq(vcBody), Fnc(precondition, bodyWORes, True))
+              (Seq(vcBody), Fnc(precondition, body, True))
 
           }
         }
@@ -188,17 +186,6 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
     case _ =>
       println("!!! Expected invariant, but found: " + expr.getClass)
       List(BooleanLiteral(false))
-  }
-
-  // Has to run before we removed the lets!
-  // Basically the first free expression that is not an if or a let is the result
-  private def addResult(resId: Identifier, expr: Expr): Expr = expr match {
-    case ifThen @ IfExpr(_, _, _) => Equals(Variable(resId), ifThen)
-    case Let(binder, value, body) => Let(binder, value, addResult(resId, body))
-    case UMinusR(_) | PlusR(_, _) | MinusR(_, _) | TimesR(_, _) | DivisionR(_, _) | SqrtR(_) | FunctionInvocation(_, _) | Variable(_) =>
-      Equals(Variable(resId), expr)
-    case Block(exprs, last) => Block(exprs, addResult(resId, last))
-    case _ => expr
   }
 
   private def convertLetsToEquals(expr: Expr): Expr = expr match {

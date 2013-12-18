@@ -153,11 +153,15 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
     var valid: Option[Boolean] = None
     
     for ((cnstr, index) <- app.constraints.zipWithIndex) {
-      val sanityConstraint = And(cnstr.precondition, And(cnstr.realComp, cnstr.finiteComp))
-      val toCheck = And(sanityConstraint, negate(cnstr.postcondition))
+      val realCnstr = addResult(cnstr.realComp, Some(variables.resultVar))
+      val finiteCnstr = addResult(cnstr.finiteComp, Some(variables.fResultVar))
       
+      val sanityConstraint = And(cnstr.precondition, And(realCnstr, finiteCnstr))
+      val toCheck = And(sanityConstraint, negate(cnstr.postcondition))
+
       val z3constraint = massageArithmetic(transformer.getZ3Expr(toCheck))
       val sanityExpr = massageArithmetic(transformer.getZ3Expr(sanityConstraint))
+
 
       if (verbose) reporter.debug("z3constraint ("+index+"): " + z3constraint)
 
@@ -168,10 +172,8 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
             if (app.kind.allowsRealModel) {
               // Idea: check if we get a counterexample for the real part only, that is then a possible counterexample, (depends on the approximation)
               val realFilter = new RealFilter
-              val realOnlyConstraint = realFilter.transform(And(And(cnstr.precondition, cnstr.realComp), negate(cnstr.postcondition)))
-              //println("\nreal only: " + realOnlyConstraint)
+              val realOnlyConstraint = realFilter.transform(And(And(cnstr.precondition, realCnstr), negate(cnstr.postcondition)))
               val massaged = massageArithmetic(transformer.getZ3Expr(realOnlyConstraint))
-              //println("real only constraint: " + massaged)
               solver.checkSat(massaged) match {
                 case (SAT, model) =>
                   // TODO: pretty print the models
