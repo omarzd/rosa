@@ -54,6 +54,7 @@ class Approximator(reporter: Reporter, solver: RealSolver, precision: Precision,
       case _ =>
         val approximation = approx(e, Seq())
 
+        // TODO: if we're is checking the precondition, there is no res and we need to generate the full constaint
         variables.get(inputs.fResultVar) match {
           // TODO: this case won't be called any more
           case Some(resXFloat) =>
