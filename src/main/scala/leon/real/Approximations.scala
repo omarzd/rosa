@@ -7,16 +7,19 @@ import purescala.Trees.Expr
 
 object Approximations {
 
-  case class Constraint(precondition: Expr, realComp: Expr, finiteComp: Expr, postcondition: Expr)
+  // to avoid confusion with nested sequences
+  type SpecTuple = Seq[Spec]
+
+  case class Constraint(precondition: Expr, realComp: Expr, finiteComp: Expr, postcondition: Expr) 
 
   /*  Spec is the overall computed postcondition
     @param kind which approximation type we used
     @param contraints one constraint per path
     @param spec overall computed (merged) specification
   */
-  case class Approximation(kind: ApproxKind, constraints: Seq[Constraint], spec: Option[Spec]) {
+  case class Approximation(kind: ApproxKind, constraints: Seq[Constraint], spec: SpecTuple) {
     // one spec per path
-    var specsPerPath: Seq[Option[Spec]] = Seq.empty
+    var specsPerPath: Seq[SpecTuple] = Seq.empty
   }
 
   object FncHandling extends Enumeration {

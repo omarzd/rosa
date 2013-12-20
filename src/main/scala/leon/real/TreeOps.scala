@@ -21,24 +21,30 @@ object TreeOps {
   /* ----------------------
          Analysis phase
    ------------------------ */
-  def addResult(expr: Expr, variable: Option[Expr]): Expr = expr match {
+  def addResults(expr: Expr, variables: Seq[Expr]): Expr = expr match {
     case Equals(v, IfExpr(c, t, e)) =>
-      IfExpr(c, addResult(t, Some(v)), addResult(e, Some(v)))
+      IfExpr(c, addResults(t, Seq(v)), addResults(e, Seq(v)))
       
     case Equals(_,_) => expr
     case LessEquals(_, _) | LessThan(_,_) | GreaterThan(_,_) | GreaterEquals(_,_) => expr
 
-    case And(ands) => And(ands.map( addResult(_, variable)))
-    case Or(ors) => Or(ors.map(addResult(_, variable)))
+    case And(ands) => And(ands.map( addResults(_, variables)))
+    case Or(ors) => Or(ors.map(addResults(_, variables)))
 
     case UMinusR(_) | PlusR(_, _) | MinusR(_, _) | TimesR(_, _) | DivisionR(_, _) | SqrtR(_) | Variable(_) =>
-      Equals(variable.get, expr)
+      Equals(variables.head, expr)
 
     case BooleanLiteral(_) => expr
 
     case Noise(_,_) => expr
 
-    case Not(t) => Not(addResult(t, variable))
+    case Tuple(bases) =>
+      assert(bases.length == variables.length)
+      And(variables.zip(bases).map({
+        case (resVar, tplPart) => Equals(resVar, tplPart)
+        }))
+
+    case Not(t) => Not(addResults(t, variables))
   }
 
 
@@ -155,7 +161,7 @@ object TreeOps {
     Replace the function call with its specification. For translation to Z3 FncValue needs to be translated
     with a fresh variable. For approximation, translate the spec into an XFloat.
   */
-  class PostconditionInliner(precision: Precision, postMap: Map[FunDef, Option[Spec]]) extends TransformerWithPC {
+  class PostconditionInliner(precision: Precision, postMap: Map[FunDef, Seq[Spec]]) extends TransformerWithPC {
     type C = Seq[Expr]
     val initC = Nil
 
@@ -173,12 +179,15 @@ object TreeOps {
             specExtractor.getSpec(postExpr).map( spec => {
               val transformer = new ActualToRealSpecTransformer(spec.id, spec.absError)
               val cleanedExpr = transformer.transform(postExpr)
-              FncValue(spec, replace(arguments, cleanedExpr))
+              // TODO: Tuples
+              True
+              //FncValue(spec, replace(arguments, cleanedExpr))
             })
         }) match {
           case Some(fncValue) => fncValue
           case _ => postMap(funDef) match {
-            case Some(spec) => FncValue(spec, replace(arguments, specToExpr(spec)))
+            // TODO: Tuples
+            //case Some(spec) => FncValue(spec, replace(arguments, specToExpr(spec)))
             case _ =>
               throw PostconditionInliningFailedException("missing postcondition for " + funDef.id.name); null
           }
@@ -431,7 +440,8 @@ object TreeOps {
       // leave conditions on if-then-else in reals, as they will be passed as conditions to Z3
       case LessEquals(_,_) | LessThan(_,_) | GreaterEquals(_,_) | GreaterThan(_,_) => e
 
-      case FncValue(s, id) => FncValueF(s, id)
+      // TODO: Tuples
+      //case FncValue(s, id) => FncValueF(s, id)
       case FncBody(n, b) => FncBodyF(n, rec(b, path))
       case FunctionInvocation(fundef, args) =>
         FncInvocationF(fundef, args.map(a => rec(a, path)))
@@ -450,12 +460,10 @@ object TreeOps {
             Noise(Variable(s.id), RealLiteral(s.absError)))
   }
 
-  def specToRealExpr(spec: Option[Spec]): Expr = spec match {
-    case Some(s) => And(LessEquals(RealLiteral(s.bounds.xlo), Variable(s.id)),
-            LessEquals(Variable(s.id), RealLiteral(s.bounds.xhi)))
-    case None => True
-  }
-
+  def specToRealExpr(spec: Spec): Expr =
+    And(LessEquals(RealLiteral(spec.bounds.xlo), Variable(spec.id)),
+            LessEquals(Variable(spec.id), RealLiteral(spec.bounds.xhi)))
+  
   /* --------------------
         Arithmetic ops
    ---------------------- */

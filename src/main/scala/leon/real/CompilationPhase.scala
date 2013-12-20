@@ -130,7 +130,7 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
           val precondition = And(pre, And(variables.inputsWithoutNoise.map(i => Roundoff(i))))
           debug ("precondition: " + precondition)
 
-          val resFresh = variables.resId
+          val resFresh = variables.resIds
           val body = convertLetsToEquals(funDef.body.get)
                     
           funDef.postcondition match {
@@ -143,7 +143,10 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
               (body, body, Or(posts))*/
 
             case Some((resId, postExpr)) =>
-              val postcondition = replace(Map(Variable(resId) -> Variable(resFresh)), postExpr)
+              // replace the calls to the resId
+              // TODO: tuples: properly replace the result variable for the the tuple
+              // requires to extract the matched case or something like that
+              val postcondition = replace(Map(Variable(resId) -> Variable(resFresh.head)), postExpr)
 
               val vcBody = new VerificationCondition(funDef, Postcondition, precondition, body, postcondition, resFresh, 
                 allFncCalls, variables, precisions)

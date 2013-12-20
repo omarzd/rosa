@@ -43,7 +43,7 @@ class Approximator(reporter: Reporter, solver: RealSolver, precision: Precision,
   }
   if (verbose) println("initial variables: " + variables)
 
-  def transformWithSpec(e: Expr): (Expr, Option[Spec]) = {
+  def transformWithSpec(e: Expr): (Expr, Seq[Spec]) = {
     def constraintFromXFloats(results: Map[Expr, XReal]): Expr = {
       And(results.foldLeft(Seq[Expr]())(
         (seq, kv) => seq ++ Seq(LessEquals(RealLiteral(kv._2.interval.xlo), kv._1),
@@ -51,18 +51,32 @@ class Approximator(reporter: Reporter, solver: RealSolver, precision: Precision,
                                 Noise(inputs.getIdeal(kv._1), RealLiteral(kv._2.maxError)))))
     }
     e match {
-      case BooleanLiteral(_) => (e, None)
+      case BooleanLiteral(_) => (e, Seq())
       case _ =>
         val approximation = approx(e, Seq())
 
-        variables.get(inputs.fResultVar) match {
+        if (approximation.length == inputs.fResultVars) {
+          val zipped = inputs.fResultVars.zip(approximation)
+
+          val specs = zipped.map({
+            case (fresVar: Variable, resXFloat: XReal) =>
+              Spec(fresVar.id, RationalInterval(resXFloat.realInterval.xlo, resXFloat.realInterval.xhi), resXFloat.maxError)
+            })
+
+          (constraintFromXFloats(zipped.toMap), specs)
+        } else {
+          if (approximation.length > 0) reporter.warning("Number of resVars and computed approximation does not match!")
+          (True, Seq())  
+        }
+
+        /*variables.get(inputs.fResultVar) match {
           case Some(resXFloat) =>
             val spec = Spec(inputs.resultVar.id, RationalInterval(resXFloat.realInterval.xlo, resXFloat.realInterval.xhi), resXFloat.maxError)
             val exprTransformed = constraintFromXFloats(Map(inputs.fResultVar -> resXFloat))
             (exprTransformed, Some(spec))
           case None =>
             (constraintFromXFloats(Map(inputs.fResultVar -> approximation)), None)
-        }
+        }*/
     }    
   }
 

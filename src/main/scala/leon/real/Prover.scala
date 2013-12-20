@@ -80,7 +80,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
 
   def checkVCsInPrecision(vcs: Seq[VerificationCondition], precision: Precision,
     validApproximations: Map[VerificationCondition, List[ApproxKind]]): Boolean = {
-    var postMap: Map[FunDef, Option[Spec]] = vcs.map(vc => (vc.funDef -> None)).toMap
+    var postMap: Map[FunDef, Seq[Spec]] = vcs.map(vc => (vc.funDef -> Seq())).toMap
 
     //println("checking vcs: ")
 
@@ -91,7 +91,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
       if (verbose) reporter.debug("post: " + vc.post)
       
       val start = System.currentTimeMillis
-      var spec: Option[Spec] = None
+      var spec: Seq[Spec] = Seq()
 
       val approximations = validApproximations(vc)
       
@@ -153,8 +153,8 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
     var valid: Option[Boolean] = None
     
     for ((cnstr, index) <- app.constraints.zipWithIndex) {
-      val realCnstr = addResult(cnstr.realComp, Some(variables.resultVar))
-      val finiteCnstr = addResult(cnstr.finiteComp, Some(variables.fResultVar))
+      val realCnstr = addResults(cnstr.realComp, variables.resultVars)
+      val finiteCnstr = addResults(cnstr.finiteComp, variables.fResultVars)
       
       val sanityConstraint = And(cnstr.precondition, And(realCnstr, finiteCnstr))
       val toCheck = And(sanityConstraint, negate(cnstr.postcondition))
@@ -195,7 +195,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
   
 
   // DOC: we only support function calls in fnc bodies, not in pre and post
-  def getApproximation(vc: VerificationCondition, kind: ApproxKind, precision: Precision, postMap: Map[FunDef, Option[Spec]]): Approximation = {
+  def getApproximation(vc: VerificationCondition, kind: ApproxKind, precision: Precision, postMap: Map[FunDef, Seq[Spec]]): Approximation = {
     val postInliner = new PostconditionInliner(precision, postMap)
     val fncInliner = new FunctionInliner(fncs)
 
@@ -222,21 +222,21 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
         for (path <- paths) {
           constraints :+= Constraint(And(pre, path.condition), path.bodyReal, path.bodyFinite, post)
         }
-        Approximation(kind, constraints, None)
+        Approximation(kind, constraints, Seq())
 
       case JustFloat =>
         var constraints = Seq[Constraint]()
-        var specsPerPath = Seq[Option[Spec]]()
-        var spec: Option[Spec] = None
+        var specsPerPath = Seq[SpecTuple]()
+        var spec: SpecTuple = Seq() // seq since we can have tuples
   
         for ( path <- paths ) {
           //solver.clearCounts
           val transformer = new Approximator(reporter, solver, precision, And(pre, path.condition), vc.variables, options.pathError)
-          val (bodyFiniteApprox, nextSpec) = transformer.transformWithSpec(path.bodyFinite)
+          val (bodyFiniteApprox, nextSpecs) = transformer.transformWithSpec(path.bodyFinite)
           //println("solver counts: " + solver.getCounts)
-          spec = merge(spec, nextSpec)
+          spec = merge(spec, nextSpecs)
           //if(!nextSpec.isEmpty) 
-          specsPerPath :+= nextSpec//.get// else specsPerPath :+= DummySpec
+          specsPerPath :+= nextSpecs//.get// else specsPerPath :+= DummySpec
           if (verbose) reporter.debug("body after approx: " + bodyFiniteApprox)
           constraints :+= Constraint(And(pre, path.condition), path.bodyReal, bodyFiniteApprox, post)
         }
@@ -254,9 +254,9 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
           case Some(approx) =>
             val newConstraints = 
               for (
-                (cnstr, spec) <- approx.constraints.zip(approx.specsPerPath)
+                (cnstr, specs) <- approx.constraints.zip(approx.specsPerPath)
               ) yield
-                Constraint(cnstr.precondition, specToRealExpr(spec), cnstr.finiteComp, cnstr.postcondition)
+                Constraint(cnstr.precondition, And(specs.map(specToRealExpr(_))), cnstr.finiteComp, cnstr.postcondition)
             Approximation(kind, newConstraints, approx.spec)
           case None =>
             throw new RealArithmeticException("Cannot compute Float'n'Range approximation because JustFloat approximation is missing.")
@@ -265,15 +265,20 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
     }
   }
 
-  private def merge(currentSpec: Option[Spec], newSpec: Option[Spec]): Option[Spec] = (currentSpec, newSpec) match {
-    case (Some(s1), Some(s2)) =>
-      val lowerBnd = min(s1.bounds.xlo, s2.bounds.xlo)
-      val upperBnd = max(s1.bounds.xhi, s2.bounds.xhi)
-      val err = max(s1.absError, s2.absError)
-      assert(s1.id == s2.id)
-      Some(Spec(s1.id, RationalInterval(lowerBnd, upperBnd), err))
-    case (None, Some(s)) => newSpec
-    case _ => currentSpec
+  private def merge(currentSpec: SpecTuple, newSpecs: SpecTuple): SpecTuple = (currentSpec, newSpecs) match {
+    case (Seq(), specs) => specs
+
+    case (current, Seq()) => current
+
+    case _ =>
+      currentSpec.zip(newSpecs).map({
+        case (s1, s2) =>
+          val lowerBnd = min(s1.bounds.xlo, s2.bounds.xlo)
+          val upperBnd = max(s1.bounds.xhi, s2.bounds.xhi)
+          val err = max(s1.absError, s2.absError)
+          assert(s1.id == s2.id)
+          Spec(s1.id, RationalInterval(lowerBnd, upperBnd), err)
+        })
   }
 
   // if true, we're sane
