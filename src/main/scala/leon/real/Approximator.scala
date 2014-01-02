@@ -287,18 +287,21 @@ class Approximator(reporter: Reporter, solver: RealSolver, precision: Precision,
         }
         mergeXRealWithExtraError(thenBranch, elseBranch, And(path), pathError)
 
-      case FncValueF(spec, specExpr) =>
-        val (resId, interval, error, constraints) = (spec.id, spec.bounds, spec.absError, True) // constraints not (yet) used
-        val fresh = getNewXFloatVar
+      case FncValueF(specs, specExpr) =>
+        specs.map (spec => {
+          val (resId, interval, error, constraints) = (spec.id, spec.bounds, spec.absError, True) // constraints not (yet) used
+          val fresh = getNewXFloatVar
 
-        precision match {
-          case FPPrecision(bts) => Seq(xFixedWithUncertain(fresh, interval,
+          precision match {
+            case FPPrecision(bts) => xFixedWithUncertain(fresh, interval,
+              config.addCondition(replace(Map(Variable(resId) -> fresh), leonToZ3.getZ3Condition(noiseRemover.transform(specExpr)))),
+              error, false, bts)._1
+          case _ => xFloatWithUncertain(fresh, interval,
             config.addCondition(replace(Map(Variable(resId) -> fresh), leonToZ3.getZ3Condition(noiseRemover.transform(specExpr)))),
-            error, false, bts)._1)
-          case _ => Seq(xFloatWithUncertain(fresh, interval,
-            config.addCondition(replace(Map(Variable(resId) -> fresh), leonToZ3.getZ3Condition(noiseRemover.transform(specExpr)))),
-            error, false, machineEps)._1)
-        }
+            error, false, machineEps)._1
+          }
+        })
+        
 
       case FncBodyF(name, body) => approx(body, path)
       

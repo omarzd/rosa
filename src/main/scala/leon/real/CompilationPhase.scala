@@ -143,7 +143,7 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
               (body, body, Or(posts))*/
 
             case Some((resId, postExpr)) =>
-              val postcondition = postExpr match {
+              val postcondition = extractPostCondition(resId, postExpr, resFresh)/* match {
                 case MatchExpr(Variable(scrutinee),
                   Seq(SimpleCase(TuplePattern(None, List(WildcardPattern(Some(a)), WildcardPattern(Some(b)))), caseExpr))) if (scrutinee == resId) =>
                 
@@ -156,10 +156,9 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
 
                 case _ => // simple case (no tuples)
                   replace(Map(Variable(resId) -> Variable(resFresh.head)), postExpr)
-              } 
+              } */
               
-              // TODO: tuples: vc does not need the resFresh, they are already in 'variables'
-              val vcBody = new VerificationCondition(funDef, Postcondition, precondition, body, postcondition, resFresh, 
+              val vcBody = new VerificationCondition(funDef, Postcondition, precondition, body, postcondition,
                 allFncCalls, variables, precisions)
 
               val assertionCollector = new AssertionCollector(funDef, precondition, variables, precisions)
@@ -169,7 +168,7 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
               (assertionCollector.vcs :+ vcBody, Fnc(precondition, body, postcondition))
 
             case None => // only want to generate specs
-              val vcBody = new VerificationCondition(funDef, SpecGen, precondition, body, True, resFresh, 
+              val vcBody = new VerificationCondition(funDef, SpecGen, precondition, body, True,
                 allFncCalls, variables, precisions)
 
               (Seq(vcBody), Fnc(precondition, body, True))

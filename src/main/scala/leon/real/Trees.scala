@@ -369,7 +369,7 @@ object Trees {
     }
   }
 
-  case class FncValueF(spec: Spec, specExpr: Expr) extends Expr with FixedType with UnaryExtractable with PrettyPrintable {
+  case class FncValueF(spec: Seq[Spec], specExpr: Expr) extends Expr with FixedType with UnaryExtractable with PrettyPrintable {
     val fixedType = RealType
     def extract: Option[(Expr, (Expr)=>Expr)] = {
       Some((specExpr, (e) => FncValueF(spec, e)))

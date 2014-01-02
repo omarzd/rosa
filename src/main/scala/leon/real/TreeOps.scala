@@ -155,7 +155,23 @@ object TreeOps {
       case _ =>
         super.rec(e, path)
     }
-  } 
+  }
+
+  //hardcoded for 2-tuples
+  def extractPostCondition(resId: Identifier, postExpr: Expr, resFresh: Seq[Identifier]): Expr = postExpr match {
+    case MatchExpr(Variable(scrutinee), 
+      Seq(SimpleCase(TuplePattern(None, List(WildcardPattern(Some(a)), WildcardPattern(Some(b)))), caseExpr))) if (scrutinee == resId) =>
+                
+      assert(resFresh.length == 2)
+      replace(List(Variable(a), Variable(b)).zip(resFresh.map(Variable(_))).toMap, caseExpr)
+                  
+    case m: MatchExpr =>
+      throw new Exception("Wrong use of match expression for postcondition!")
+      null
+
+    case _ => // simple case (no tuples)
+      replace(Map(Variable(resId) -> Variable(resFresh.head)), postExpr)
+  }  
 
   /*
     Replace the function call with its specification. For translation to Z3 FncValue needs to be translated
@@ -164,8 +180,12 @@ object TreeOps {
   class PostconditionInliner(precision: Precision, postMap: Map[FunDef, Seq[Spec]]) extends TransformerWithPC {
     type C = Seq[Expr]
     val initC = Nil
+    private var tmpCounter = 0 
 
-    
+    private def getFresh: Identifier = {
+      tmpCounter = tmpCounter + 1
+      FreshIdentifier("#tmp" + tmpCounter).setType(RealType)
+    }
 
     def register(e: Expr, path: C) = path :+ e
 
@@ -175,14 +195,49 @@ object TreeOps {
         
         funDef.postcondition.flatMap({
           case (resId, postExpr) =>
+            val resFresh = resId.getType match {
+              case TupleType(bases) => Seq(getFresh, getFresh)
+              case _ => Seq(getFresh)
+            }
+            println(s"$resFresh")
+            val postcondition = extractPostCondition(resId, postExpr, resFresh)
+            println(s"$postcondition")
+
+            try {
+              val specs: Seq[Spec] = resFresh.map( r => {
+                val specExtractor = new SpecExtractor(r)
+                specExtractor.getSpec(postcondition).get
+              })
+              val deltaMap: Map[Identifier, Rational] = specs.map( s => (s.id, s.absError)).toMap
+
+              val transformer = new ActualToRealSpecTransformer(deltaMap)
+              val realSpecExpr = transformer.transform(postcondition)
+
+              Some(FncValue(specs, replace(arguments, realSpecExpr)))
+            } catch {
+              case e: Exception => None
+            }
+            /*  .map( spec => {
+                val transformer = new ActualToRealSpecTransformer(spec.id, spec.absError)
+                val cleanedExpr = transformer.transform(postExpr)
+                (spec, cleanedExpr)
+              })
+            })
+
+
+            val arguments: Map[Expr, Expr] = funDef.args.map(decl => decl.toVariable).zip(args).toMap
+        
+
             val specExtractor = new SpecExtractor(resId)
             specExtractor.getSpec(postExpr).map( spec => {
               val transformer = new ActualToRealSpecTransformer(spec.id, spec.absError)
               val cleanedExpr = transformer.transform(postExpr)
               // TODO: Tuples
               True
+
+              //(spec: Seq[Spec], specExpr: Expr)
               //FncValue(spec, replace(arguments, cleanedExpr))
-            })
+            })*/
         }) match {
           case Some(fncValue) => fncValue
           case _ => postMap(funDef) match {
@@ -258,7 +313,45 @@ object TreeOps {
     }
   }
 
-  class ActualToRealSpecTransformer(id: Identifier, delta: Rational) extends TransformerWithPC {
+  class ActualToRealSpecTransformer(deltas: Map[Identifier, Rational]) extends TransformerWithPC {
+    type C = Seq[Expr]
+    val initC = Nil
+
+    val ids = deltas.keys.toSeq
+
+    def register(e: Expr, path: C) = path :+ e
+
+    override def rec(e: Expr, path: C) = e match {
+      case LessEquals(RealLiteral(lwrBnd), Actual(Variable(id))) if (ids.contains(id)) =>
+        LessEquals(RealLiteral(lwrBnd + deltas(id)), Variable(id))
+
+      case LessEquals(Actual(Variable(id)), RealLiteral(uprBnd)) if (ids.contains(id)) =>
+        LessEquals(Variable(id), RealLiteral(uprBnd - deltas(id)))
+      
+      case LessThan(RealLiteral(lwrBnd), Actual(Variable(id))) if (ids.contains(id)) =>
+        LessThan(RealLiteral(lwrBnd + deltas(id)), Variable(id))
+
+      case LessThan(Actual(Variable(id)), RealLiteral(uprBnd)) if (ids.contains(id)) =>
+        LessThan(Variable(id), RealLiteral(uprBnd - deltas(id)))
+
+      case GreaterEquals(RealLiteral(uprBnd), Actual(Variable(id))) if (ids.contains(id)) =>
+        GreaterEquals(RealLiteral(uprBnd - deltas(id)), Variable(id))
+
+      case GreaterEquals(Actual(Variable(id)), RealLiteral(lwrBnd)) if (ids.contains(id)) =>
+        GreaterEquals(Variable(id), RealLiteral(lwrBnd + deltas(id)))
+
+      case GreaterThan(RealLiteral(uprBnd), Actual(Variable(id))) if (ids.contains(id)) =>
+        GreaterThan(RealLiteral(uprBnd - deltas(id)), Variable(id))
+
+      case GreaterThan(Actual(Variable(id)), RealLiteral(lwrBnd)) if (ids.contains(id)) =>
+        GreaterThan(Variable(id), RealLiteral(lwrBnd + deltas(id)))
+      
+      case _ =>
+        super.rec(e, path)
+    }
+  }
+
+  /*class ActualToRealSpecTransformer(id: Identifier, delta: Rational) extends TransformerWithPC {
     type C = Seq[Expr]
     val initC = Nil
 
@@ -278,7 +371,7 @@ object TreeOps {
       case _ =>
         super.rec(e, path)
     }
-  }
+  }*/
 
 
   class FunctionInliner(fncs: Map[FunDef, Fnc]) extends TransformerWithPC { //(reporter: Reporter, vcMap: Map[FunDef, VerificationCondition]) extends TransformerWithPC {
@@ -440,8 +533,7 @@ object TreeOps {
       // leave conditions on if-then-else in reals, as they will be passed as conditions to Z3
       case LessEquals(_,_) | LessThan(_,_) | GreaterEquals(_,_) | GreaterThan(_,_) => e
 
-      // TODO: Tuples
-      //case FncValue(s, id) => FncValueF(s, id)
+      case FncValue(s, id) => FncValueF(s, id)
       case FncBody(n, b) => FncBodyF(n, rec(b, path))
       case FunctionInvocation(fundef, args) =>
         FncInvocationF(fundef, args.map(a => rec(a, path)))

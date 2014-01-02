@@ -16,7 +16,7 @@ case class Spec(id: Identifier, bounds: RationalInterval, absError: Rational)
 
 // The condition is pre => post
 class VerificationCondition(val funDef: FunDef, val kind: VCKind.Value, val pre: Expr, val body: Expr,  
-  val post: Expr, val resIds: Seq[Identifier], val variables: VariablePool, precisions: List[Precision]) extends Positioned {
+  val post: Expr, val variables: VariablePool, precisions: List[Precision]) extends Positioned {
 
   var allFncCalls = Set[String]()
 
@@ -30,13 +30,8 @@ class VerificationCondition(val funDef: FunDef, val kind: VCKind.Value, val pre:
   // Some(false) = invalid
   var value: Map[Precision, Option[Boolean]] = precisions.map(p => (p, None)).toMap
 
-  def this(fD: FunDef, k:VCKind.Value, pe: Expr, b: Expr, po: Expr, ri: Seq[Identifier], fncCalls: Set[String], vars: VariablePool, precs: List[Precision]) = {
-    this(fD, k, pe, b, po, ri, vars, precs)
-    allFncCalls = fncCalls
-  }
-
   def this(fD: FunDef, k:VCKind.Value, pe: Expr, b: Expr, po: Expr, fncCalls: Set[String], vars: VariablePool, precs: List[Precision]) = {
-    this(fD, k, pe, b, po, Seq(), vars, precs)
+    this(fD, k, pe, b, po, vars, precs)
     allFncCalls = fncCalls
   }
 
