@@ -55,7 +55,7 @@ class Approximator(reporter: Reporter, solver: RealSolver, precision: Precision,
       case _ =>
         val approximation = approx(e, Seq())
 
-        if (approximation.length == inputs.fResultVars) {
+        if (approximation.length == inputs.fResultVars.length) {
           val zipped = inputs.fResultVars.zip(approximation)
 
           val specs = zipped.map({
@@ -65,18 +65,12 @@ class Approximator(reporter: Reporter, solver: RealSolver, precision: Precision,
 
           (constraintFromXFloats(zipped.toMap), specs)
         } else {
-          if (approximation.length > 0) reporter.warning("Number of resVars and computed approximation does not match!")
+          if (approximation.length > 0) {
+            reporter.warning("Number of resVars and computed approximation does not match!")
+            reporter.warning("# approximations: " + approximation.length + ", # resVars: " + inputs.fResultVars.length)
+          }
           (True, Seq())  
         }
-
-        /*variables.get(inputs.fResultVar) match {
-          case Some(resXFloat) =>
-            val spec = Spec(inputs.resultVar.id, RationalInterval(resXFloat.realInterval.xlo, resXFloat.realInterval.xhi), resXFloat.maxError)
-            val exprTransformed = constraintFromXFloats(Map(inputs.fResultVar -> resXFloat))
-            (exprTransformed, Some(spec))
-          case None =>
-            (constraintFromXFloats(Map(inputs.fResultVar -> approximation)), None)
-        }*/
     }    
   }
 

@@ -71,12 +71,13 @@ class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, 
 
       funDef.precondition = f.precondition
 
-      vc.spec(precision) match {
+      // TODO: tuples: we now have several specs, one for each resVar
+      /*vc.spec(precision) match {
         case Some(spec) =>
           val resId = FreshIdentifier("res")
           funDef.postcondition = Some((resId, replace(Map(Variable(spec.id) -> Variable(resId).setType(RealType)), specToExpr(spec))))
         case _ =>
-      }
+      }*/
 
       defs = defs :+ funDef
     }

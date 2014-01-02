@@ -356,7 +356,7 @@ object Trees {
     }
   }
 
-  // A value returned from a function call desribed by it's specification
+  // A value returned from a function call described by it's specification
   case class FncValue(spec: Seq[Spec], specExpr: Expr) extends Expr with FixedType with UnaryExtractable with PrettyPrintable {
     val fixedType = RealType
     def extract: Option[(Expr, (Expr)=>Expr)] = {
