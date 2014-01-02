@@ -27,10 +27,10 @@ object Tuples {
   }) 
 
   def f(x1: Real, x2: Real): (Real, Real) = {
-    require(-22 <= x1 && x1 <= 22 && -55 <= x2 && x2 <= 55 && x1 +/- 1e-15 && x2 +/- 1e-14 )
+    require(-22 <= x1 && x1 <= 22 && -55 <= x2 && x2 <= 55 && x1 +/- 1e-14 && x2 +/- 1e-13)
     (x1, x2)
   } ensuring (_ match {
-    case (a, b) => -22 <= a && a <= 22 && -55 <= b && b <= 55 && a +/- 1e-15 && b +/- 1e-14 
+    case (a, b) => -22 <= a && a <= 22 && -55 <= b && b <= 55 && a +/- 1e-14 && b +/- 1e-13 
   })
 
   /*ensuring(res => {

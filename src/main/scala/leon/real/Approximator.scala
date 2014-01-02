@@ -43,7 +43,8 @@ class Approximator(reporter: Reporter, solver: RealSolver, precision: Precision,
   }
   if (verbose) println("initial variables: " + variables)
 
-  def transformWithSpec(e: Expr): (Expr, Seq[Spec]) = {
+  // fullConstraint, if true generate constraint for all intermediate variables (used for checking pre-conditions)
+  def transformWithSpec(e: Expr, fullConstraint: Boolean): (Expr, Seq[Spec]) = {
     def constraintFromXFloats(results: Map[Expr, XReal]): Expr = {
       And(results.foldLeft(Seq[Expr]())(
         (seq, kv) => seq ++ Seq(LessEquals(RealLiteral(kv._2.interval.xlo), kv._1),
@@ -51,11 +52,12 @@ class Approximator(reporter: Reporter, solver: RealSolver, precision: Precision,
                                 Noise(inputs.getIdeal(kv._1), RealLiteral(kv._2.maxError)))))
     }
     e match {
-      case BooleanLiteral(_) => (e, Seq())
+      case BooleanLiteral(_) => (e, Seq())  // if no body
       case _ =>
         val approximation = approx(e, Seq())
 
         if (approximation.length == inputs.fResultVars.length) {
+          if (fullConstraint) reporter.warning("result from approximation, but want to generate full constraint")
           val zipped = inputs.fResultVars.zip(approximation)
 
           val specs = zipped.map({
@@ -65,11 +67,16 @@ class Approximator(reporter: Reporter, solver: RealSolver, precision: Precision,
 
           (constraintFromXFloats(zipped.toMap), specs)
         } else {
-          if (approximation.length > 0) {
+          if (approximation.length > 0 && !fullConstraint) {
             reporter.warning("Number of resVars and computed approximation does not match!")
             reporter.warning("# approximations: " + approximation.length + ", # resVars: " + inputs.fResultVars.length)
+            (True, Seq())
+          } else if (fullConstraint) {
+            (constraintFromXFloats(variables), Seq())
+          } else {
+            reporter.warning("default case reached in transformWithSpec")
+            (True, Seq())  
           }
-          (True, Seq())  
         }
     }    
   }

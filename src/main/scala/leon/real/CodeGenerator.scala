@@ -71,13 +71,28 @@ class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, 
 
       funDef.precondition = f.precondition
 
-      // TODO: tuples: we now have several specs, one for each resVar
-      /*vc.spec(precision) match {
-        case Some(spec) =>
+      vc.spec(precision) match {
+        case specs: Seq[Spec] if (specs.length > 1) =>
+          val resId = FreshIdentifier("res").setType(TupleType(Seq(RealType, RealType)))
+          val a = FreshIdentifier("a").setType(RealType)
+          val b = FreshIdentifier("b").setType(RealType)
+
+          val specExpr = And(specs.map( specToExpr(_) ))
+
+          val resMap: Map[Expr, Expr] = specs.map(s => Variable(s.id)).zip(List(Variable(a), Variable(b))).toMap
+          println("resMap: " + resMap)
+          println("specExpr: " + specExpr)
+
+          val postExpr = MatchExpr(Variable(resId), 
+            Seq(SimpleCase(TuplePattern(None, List(WildcardPattern(Some(a)), WildcardPattern(Some(b)))),
+              replace(resMap, specExpr))))
+
+          funDef.postcondition = Some((resId, postExpr))
+        case Seq(spec) =>
           val resId = FreshIdentifier("res")
           funDef.postcondition = Some((resId, replace(Map(Variable(spec.id) -> Variable(resId).setType(RealType)), specToExpr(spec))))
         case _ =>
-      }*/
+      }
 
       defs = defs :+ funDef
     }
@@ -111,7 +126,7 @@ class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, 
       // convert to SSA form, then run through Approximator to get ranges of all intermediate variables
       val ssaBody = idealToActual(toSSA(vc.body), vc.variables)
       val transformer = new Approximator(reporter, solver, precision, vc.pre, vc.variables)
-      val (newBody, newSpec) = transformer.transformWithSpec(ssaBody)
+      val (newBody, newSpec) = transformer.transformWithSpec(ssaBody, false)
       
       val formats = transformer.variables.map {
         case (v, r) => (v, FPFormat.getFormat(r.interval.xlo, r.interval.xhi, bitlength))

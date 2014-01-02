@@ -143,20 +143,7 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
               (body, body, Or(posts))*/
 
             case Some((resId, postExpr)) =>
-              val postcondition = extractPostCondition(resId, postExpr, resFresh)/* match {
-                case MatchExpr(Variable(scrutinee),
-                  Seq(SimpleCase(TuplePattern(None, List(WildcardPattern(Some(a)), WildcardPattern(Some(b)))), caseExpr))) if (scrutinee == resId) =>
-                
-                  assert(resFresh.length == 2)
-                  replace(List(Variable(a), Variable(b)).zip(resFresh.map(Variable(_))).toMap, caseExpr)
-                  
-                case m: MatchExpr =>
-                  throw new Exception("Wrong use of match expression for postcondition!")
-                  null
-
-                case _ => // simple case (no tuples)
-                  replace(Map(Variable(resId) -> Variable(resFresh.head)), postExpr)
-              } */
+              val postcondition = extractPostCondition(resId, postExpr, resFresh)
               
               val vcBody = new VerificationCondition(funDef, Postcondition, precondition, body, postcondition,
                 allFncCalls, variables, precisions)

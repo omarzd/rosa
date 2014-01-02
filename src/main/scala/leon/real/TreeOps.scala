@@ -45,6 +45,13 @@ object TreeOps {
         }))
 
     case Not(t) => Not(addResults(t, variables))
+
+    case FncValue(specs, specExpr) =>
+      assert(specs.length == variables.length)
+      And(variables.zip(specs).map({
+        case (resVar, spec) =>
+          And(specToExpr(spec), Equals(resVar, Variable(spec.id)))
+        }))
   }
 
 
@@ -217,32 +224,12 @@ object TreeOps {
             } catch {
               case e: Exception => None
             }
-            /*  .map( spec => {
-                val transformer = new ActualToRealSpecTransformer(spec.id, spec.absError)
-                val cleanedExpr = transformer.transform(postExpr)
-                (spec, cleanedExpr)
-              })
-            })
-
-
-            val arguments: Map[Expr, Expr] = funDef.args.map(decl => decl.toVariable).zip(args).toMap
-        
-
-            val specExtractor = new SpecExtractor(resId)
-            specExtractor.getSpec(postExpr).map( spec => {
-              val transformer = new ActualToRealSpecTransformer(spec.id, spec.absError)
-              val cleanedExpr = transformer.transform(postExpr)
-              // TODO: Tuples
-              True
-
-              //(spec: Seq[Spec], specExpr: Expr)
-              //FncValue(spec, replace(arguments, cleanedExpr))
-            })*/
         }) match {
           case Some(fncValue) => fncValue
-          case _ => postMap(funDef) match {
-            // TODO: Tuples
-            //case Some(spec) => FncValue(spec, replace(arguments, specToExpr(spec)))
+          case _ => postMap.getOrElse(funDef, Seq()) match {
+            case specs: Seq[Spec] if specs.nonEmpty =>
+              val specsExpr = And(specs.map(specToExpr(_)))
+              FncValue(specs, replace(arguments, specsExpr))
             case _ =>
               throw PostconditionInliningFailedException("missing postcondition for " + funDef.id.name); null
           }
@@ -350,29 +337,6 @@ object TreeOps {
         super.rec(e, path)
     }
   }
-
-  /*class ActualToRealSpecTransformer(id: Identifier, delta: Rational) extends TransformerWithPC {
-    type C = Seq[Expr]
-    val initC = Nil
-
-    def register(e: Expr, path: C) = path :+ e
-
-    override def rec(e: Expr, path: C) = e match {
-      case LessEquals(RealLiteral(lwrBnd), Actual(Variable(id))) => LessEquals(RealLiteral(lwrBnd + delta), Variable(id))
-      case LessEquals(Actual(Variable(id)), RealLiteral(uprBnd)) => LessEquals(Variable(id), RealLiteral(uprBnd - delta))
-      case LessThan(RealLiteral(lwrBnd), Actual(Variable(id))) => LessThan(RealLiteral(lwrBnd + delta), Variable(id))
-      case LessThan(Actual(Variable(id)), RealLiteral(uprBnd)) => LessThan(Variable(id), RealLiteral(uprBnd - delta))
-
-      case GreaterEquals(RealLiteral(uprBnd), Actual(Variable(id))) => GreaterEquals(RealLiteral(uprBnd - delta), Variable(id))
-      case GreaterEquals(Actual(Variable(id)), RealLiteral(lwrBnd)) => GreaterEquals(Variable(id), RealLiteral(lwrBnd + delta))
-      case GreaterThan(RealLiteral(uprBnd), Actual(Variable(id))) => GreaterThan(RealLiteral(uprBnd - delta), Variable(id))
-      case GreaterThan(Actual(Variable(id)), RealLiteral(lwrBnd)) => GreaterThan(Variable(id), RealLiteral(lwrBnd + delta))
-      
-      case _ =>
-        super.rec(e, path)
-    }
-  }*/
-
 
   class FunctionInliner(fncs: Map[FunDef, Fnc]) extends TransformerWithPC { //(reporter: Reporter, vcMap: Map[FunDef, VerificationCondition]) extends TransformerWithPC {
     type C = Seq[Expr]

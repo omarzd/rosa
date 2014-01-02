@@ -157,11 +157,14 @@ class LeonToZ3Transformer(variables: VariablePool, precision: Precision) extends
       case WithIn(x, lwrBnd, upBnd) =>
         And(LessThan(RealLiteral(lwrBnd), x), LessThan(x, RealLiteral(upBnd))) 
 
+      /* if we allow only tuples as the last return value, this is not needed
+      else we need to modify the whole function to be returning tuples, or we return one, maybe that works too
       case FncValue(spec, specExpr) =>
         val fresh = getNewXFloatVar
-        // TODO: tuples: fresh will have to be a tuple?
+        // tuples: fresh will have to be a tuple?
         //addExtra(rec(replace(Map(Variable(spec.id) -> fresh), specExpr), path))
         fresh
+      */
 
       case FncBody(name, body) =>
         val fresh = getNewFncVariable(name)
