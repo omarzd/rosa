@@ -43,7 +43,7 @@ object Approximations {
   import ArithmApprox._
 
   case class ApproxKind(fncHandling: FncHandling.Value, pathHandling: PathHandling.Value, arithmApprox: ArithmApprox.Value) {
-    val allowsRealModel = (fncHandling == Uninterpreted && arithmApprox == JustFloat) || // no functions 
+    val allowsRealModel = (fncHandling == Uninterpreted && arithmApprox == JustFloat) || // no functions
                           (fncHandling == Inlining && arithmApprox == JustFloat) || // with fncs
                           (fncHandling == Inlining && arithmApprox == Z3Only) // with fncs
   }
@@ -51,13 +51,13 @@ object Approximations {
   val a_FncIf = List(
     ApproxKind(Uninterpreted, Merging, Z3Only),
     ApproxKind(Uninterpreted, Pathwise, Z3Only),
-    
+
     ApproxKind(Postcondition, Merging, Z3Only),
     ApproxKind(Postcondition, Merging, JustFloat),
     ApproxKind(Postcondition, Merging, FloatNRange),
     ApproxKind(Postcondition, Pathwise, Z3Only),
     ApproxKind(Postcondition, Pathwise, JustFloat),
-    ApproxKind(Postcondition, Pathwise, FloatNRange),  
+    ApproxKind(Postcondition, Pathwise, FloatNRange),
     ApproxKind(Inlining, Merging, Z3Only),
     ApproxKind(Inlining, Merging, JustFloat),
     ApproxKind(Inlining, Merging, FloatNRange),
@@ -68,7 +68,7 @@ object Approximations {
 
   val a_FncNoIf = List(
     ApproxKind(Uninterpreted, Merging, Z3Only),
-  
+
     ApproxKind(Postcondition, Merging, Z3Only),
     ApproxKind(Postcondition, Merging, JustFloat),
     ApproxKind(Postcondition, Merging, FloatNRange),
@@ -102,14 +102,14 @@ object Approximations {
     ApproxKind(Uninterpreted, Pathwise, Z3Only),
     ApproxKind(Uninterpreted, Pathwise, JustFloat),
     ApproxKind(Uninterpreted, Pathwise, FloatNRange),
-    
+
     ApproxKind(Postcondition, Merging, Z3Only),
     ApproxKind(Postcondition, Merging, JustFloat),
     ApproxKind(Postcondition, Merging, FloatNRange),
     ApproxKind(Postcondition, Pathwise, Z3Only),
     ApproxKind(Postcondition, Pathwise, JustFloat),
     ApproxKind(Postcondition, Pathwise, FloatNRange),
-      
+
     ApproxKind(Inlining, Merging, Z3Only),
     ApproxKind(Inlining, Merging, JustFloat),
     ApproxKind(Inlining, Merging, FloatNRange),

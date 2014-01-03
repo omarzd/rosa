@@ -147,7 +147,7 @@ class RealSolver(val context: LeonContext, val program: Program, timeout: Long)
 
 
   // Our stuff
-  
+
   def checkSat(expr: Expr): (Sat, Z3Model) = {
     solver.push
     val variables = variablesOf(expr)
@@ -256,10 +256,10 @@ class RealSolver(val context: LeonContext, val program: Program, timeout: Long)
     // Enclosure of bound is precise enough
     if (b-a < prec) {
       countHitPrecisionThreshold += 1
-      return a
+      a
     } else if (count > maxIter) {
       countHitIterationThreshold += 1
-      return a
+      a
     } else {
       val mid = a + (b - a) / Rational(2l)
       val res = checkLowerBound(exprInZ3, mid)
@@ -270,7 +270,7 @@ class RealSolver(val context: LeonContext, val program: Program, timeout: Long)
         case SAT => getLowerBound(a, mid, exprInZ3, count + 1, maxIter, prec)
         case UNSAT => getLowerBound(mid, b, exprInZ3, count + 1, maxIter, prec)
         case Unknown => // Return safe answer
-          return a
+          a
       }
     }
   }
@@ -279,10 +279,10 @@ class RealSolver(val context: LeonContext, val program: Program, timeout: Long)
     // Enclosure of bound is precise enough
     if (b-a < prec) {
       countHitPrecisionThreshold += 1
-      return b
+      b
     } else if (count > maxIter) {
       countHitIterationThreshold += 1
-      return b
+      b
     } else {
       val mid = a + (b - a) / Rational(2l)
       val res = checkUpperBound(exprInZ3, mid)
@@ -293,7 +293,7 @@ class RealSolver(val context: LeonContext, val program: Program, timeout: Long)
         case SAT => getUpperBound(mid, b, exprInZ3, count + 1, maxIter, prec)
         case UNSAT => getUpperBound(a, mid, exprInZ3, count + 1, maxIter, prec)
         case Unknown => // Return safe answer
-          return b
+          b
       }
     }
   }

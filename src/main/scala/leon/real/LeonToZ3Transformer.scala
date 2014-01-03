@@ -39,7 +39,7 @@ class LeonToZ3Transformer(variables: VariablePool, precision: Precision) extends
           freshErrorVar
       }
     }
-    
+
     def register(e: Expr, path: C) = path :+ e
 
     private def constrainDelta(delta: Variable): Expr = And(Seq(LessEquals(UMinusR(machineEps), delta), LessEquals(delta, machineEps)))
@@ -52,7 +52,7 @@ class LeonToZ3Transformer(variables: VariablePool, precision: Precision) extends
 
       // For bspline 3 to work, we need this:
       /*case Noise(v @ Variable(_), r @ RealLiteral(value)) =>
-        And(LessEquals(RealLiteral(-value), MinusR(v, variables.buddy(v))), 
+        And(LessEquals(RealLiteral(-value), MinusR(v, variables.buddy(v))),
             LessEquals(MinusR(v, variables.buddy(v)), r))
       case Noise(res @ ResultVariable(), r @ RealLiteral(value)) =>
         And(LessEquals(RealLiteral(-value), MinusR(res, FResVariable())),
@@ -70,7 +70,7 @@ class LeonToZ3Transformer(variables: VariablePool, precision: Precision) extends
         And(Seq(Equals(variables.buddy(v), PlusR(v, freshErrorVar)),
           LessEquals(RealLiteral(-value), freshErrorVar),
           LessEquals(freshErrorVar, r)))
-      
+
         /*val freshErrorVar = getErrorVar(res)
           And(Seq(Equals(FResVariable(), PlusR(res, freshErrorVar)),
           LessEquals(RealLiteral(-value), freshErrorVar),
@@ -86,7 +86,7 @@ class LeonToZ3Transformer(variables: VariablePool, precision: Precision) extends
             And(LessEquals(value, freshErrorVar), LessEquals(freshErrorVar, UMinusR(value)))
           )
         ))
-      
+
         /*val freshErrorVar = getErrorVar(res)
           val value = rec(expr, path)
           And(Seq(Equals(FResVariable(), PlusR(res, freshErrorVar)),
@@ -95,7 +95,7 @@ class LeonToZ3Transformer(variables: VariablePool, precision: Precision) extends
             And(LessEquals(value, freshErrorVar), LessEquals(freshErrorVar, UMinusR(value)))
           )
         ))*/
-  
+
       case RelError(v @ Variable(_), r @  RealLiteral(value)) =>
         val freshErrorVar = getErrorVar(v)
         And(Seq(Equals(variables.buddy(v), PlusR(v, freshErrorVar)),
@@ -104,9 +104,9 @@ class LeonToZ3Transformer(variables: VariablePool, precision: Precision) extends
             And(LessEquals(TimesR(r, v), freshErrorVar),LessEquals(freshErrorVar, UMinusR(TimesR(r, v))))
           )
         ))
-      
+
       case InitialNoise(v @ Variable(_)) => getErrorVar(v)
-      
+
       case SqrtR(x) =>
         val r = getNewSqrtVariable
         val xR = rec(x, path)
@@ -150,10 +150,10 @@ class LeonToZ3Transformer(variables: VariablePool, precision: Precision) extends
 
       // actual
       case Actual(v @ Variable(_)) => variables.buddy(v)
-      
+
       //within
       case WithIn(x, lwrBnd, upBnd) =>
-        And(LessThan(RealLiteral(lwrBnd), x), LessThan(x, RealLiteral(upBnd))) 
+        And(LessThan(RealLiteral(lwrBnd), x), LessThan(x, RealLiteral(upBnd)))
 
       case FncValue(spec, specExpr) =>
         val fresh = getNewXFloatVar
@@ -163,19 +163,19 @@ class LeonToZ3Transformer(variables: VariablePool, precision: Precision) extends
       case FncBody(name, body) =>
         val fresh = getNewFncVariable(name)
         rec(body, path) match {
-          case And(args) => 
+          case And(args) =>
             addExtra(And(args.init :+ Equals(fresh, args.last)))
           case x =>
             addExtra(Equals(fresh, x))
         }
         fresh
-        
+
 
       // normally this is approximated
       case FncBodyF(name, body) =>
         val fresh = getNewFncVariable(name + "_f")
         rec(body, path) match {
-          case And(args) => 
+          case And(args) =>
             addExtra(And(args.init :+ Equals(fresh, args.last)))
           case x =>
             addExtra(Equals(fresh, x))
@@ -221,16 +221,16 @@ class LeonToZ3Transformer(variables: VariablePool, precision: Precision) extends
           // and we don't need them since we use the approximation anyway
           val roundoffRemover = new RoundoffRemover
           val eWoRoundoff = roundoffRemover.transform(e)
-          //val z3Expr = replace(Map(ResultVariable() -> res, FResVariable() -> fres), this.transform(eWoRoundoff)) 
+          //val z3Expr = replace(Map(ResultVariable() -> res, FResVariable() -> fres), this.transform(eWoRoundoff))
           val z3Expr = this.transform(eWoRoundoff)
           assert (!epsUsed)
           And(And(extraConstraints), z3Expr)
 
         case _ =>
-          ///val z3Expr = replace(Map(ResultVariable() -> res, FResVariable() -> fres), this.transform(e)) 
+          ///val z3Expr = replace(Map(ResultVariable() -> res, FResVariable() -> fres), this.transform(e))
           val z3Expr = this.transform(e)
           if (epsUsed) And(And(extraConstraints :+ Equals(machineEps, RealLiteral(getUnitRoundoff(precision)))), z3Expr)
-          else And(And(extraConstraints), z3Expr)          
+          else And(And(extraConstraints), z3Expr)
       }
-    } 
+    }
   }
