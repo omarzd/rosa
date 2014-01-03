@@ -43,7 +43,10 @@ class Approximator(reporter: Reporter, solver: RealSolver, precision: Precision,
   }
   if (verbose) println("initial variables: " + variables)
 
-  // fullConstraint, if true generate constraint for all intermediate variables (used for checking pre-conditions)
+  /* 'generateFullConstraint' will ignore the returned approximation and generate a constraint
+     over all (intermediate) variables. This mode should be used for checking pre-conditions.
+    @return (computed constraint, spec of the result, if applicable)
+   */
   def transformWithSpec(e: Expr, fullConstraint: Boolean): (Expr, Seq[Spec]) = {
     def constraintFromXFloats(results: Map[Expr, XReal]): Expr = {
       And(results.foldLeft(Seq[Expr]())(
@@ -364,8 +367,7 @@ class Approximator(reporter: Reporter, solver: RealSolver, precision: Precision,
         // TODO: add condition before to improve the approx interval?
         precision match {
           case FPPrecision(bits) =>
-            // TODO: format needs to be determined with range
-            (fresh, new XFixed(???, replace(buddyFreshMap, xf.tree), xf.approxInterval, new XRationalForm(Rational.zero),
+            (fresh, new XFixed(xf.asInstanceOf[XFixed].format, replace(buddyFreshMap, xf.tree), xf.approxInterval, new XRationalForm(Rational.zero),
               xf.config.addCondition(cond).freshenUp(buddyFreshMap).updatePrecision(solverMaxIterHigh, solverPrecisionHigh)))
 
           case _ =>
@@ -483,6 +485,6 @@ class Approximator(reporter: Reporter, solver: RealSolver, precision: Precision,
   // tests if the entire interval lies in the denormal range
   private def denormal(interval: RationalInterval): Boolean = precision match {
     case FPPrecision(_) => false
-    case _ => (maxNegNormal < interval.xlo && interval.xhi < minPosNormal)
+    case _ => (interval.xlo != interval.xhi && maxNegNormal < interval.xlo && interval.xhi < minPosNormal)
   }
 }

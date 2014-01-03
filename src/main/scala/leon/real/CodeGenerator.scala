@@ -60,7 +60,9 @@ class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, 
     var defs: Seq[Definition] = Seq.empty
     val invariants: Seq[Expr] = Seq.empty
 
-    for (vc <- vcs if (vc.kind == VCKind.Postcondition || vc.kind == VCKind.SpecGen)) {
+    // only generate code for methods that were proven valid.
+    // this is not fool-proof, as this check only considers the postcondition check and not the pre-condition checks
+    for (vc <- vcs if ( (vc.kind == VCKind.Postcondition || vc.kind == VCKind.SpecGen) && vc.status(precision) == Some(true))) {
       val f = vc.funDef
       val id = f.id
       val floatType = nonRealType

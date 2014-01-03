@@ -17,7 +17,6 @@ class LeonToZ3Transformer(variables: VariablePool, precision: Precision) extends
     type C = Seq[Expr]
     val initC = Nil
 
-    // TODO Make sure this is unique, i.e. we don't create it twice in the same constraint
     var epsUsed = false
     var epsVariable: Variable = Variable(FreshIdentifier("#eps")).setType(RealType)
     def machineEps = { epsUsed = true; epsVariable }
