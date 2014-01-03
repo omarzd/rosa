@@ -95,10 +95,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
 
       val approximations = validApproximations(vc)
       
-<<<<<<< HEAD
       // TODO: can we re-use some of the approximation work across precision?
-=======
->>>>>>> master
       approximations.find(aKind => {
         reporter.info("approx: " + aKind)
 
@@ -179,10 +176,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
               val massaged = massageArithmetic(transformer.getZ3Expr(realOnlyConstraint))
               solver.checkSat(massaged) match {
                 case (SAT, model) =>
-<<<<<<< HEAD
                   // TODO: pretty-print the models
-=======
->>>>>>> master
                   reporter.info("counterexample: " + model)
                   valid = Some(false)
                 case (UNSAT, _) =>
@@ -210,7 +204,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
       case Postcondition => (vc.pre, postInliner.transform(vc.body), vc.post)
       case Inlining => (vc.pre, fncInliner.transform(vc.body), vc.post)
     }
-    if (verbose) reporter.debug("after FNC handling:\npre: %s\nbody: %s\npost: %s".format(pre,bodyFnc,post))
+    if (verbose && kind.fncHandling != Uninterpreted) reporter.debug("after FNC handling:\npre: %s\nbody: %s\npost: %s".format(pre,bodyFnc,post))
 
 
     val paths: Set[Path] = kind.pathHandling match {
@@ -238,11 +232,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
         for ( path <- paths ) {
           //solver.clearCounts
           val transformer = new Approximator(reporter, solver, precision, And(pre, path.condition), vc.variables, options.pathError)
-<<<<<<< HEAD
           val (bodyFiniteApprox, nextSpecs) = transformer.transformWithSpec(path.bodyFinite, vc.kind == VCKind.Precondition)
-=======
-          val (bodyFiniteApprox, nextSpec) = transformer.transformWithSpec(path.bodyFinite, vc.kind == VCKind.Precondition)
->>>>>>> master
           //println("solver counts: " + solver.getCounts)
           spec = merge(spec, nextSpecs)
           //if(!nextSpec.isEmpty) 
@@ -292,10 +282,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
   }
 
   // if true, we're sane
-<<<<<<< HEAD
   // TODO: make a method in the solver and then we don't need to duplicate
-=======
->>>>>>> master
   private def sanityCheck(pre: Expr, body: Expr = BooleanLiteral(true)): Boolean = {
     val sanityCondition = And(pre, body)
     solver.checkSat(sanityCondition) match {
