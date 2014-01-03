@@ -52,7 +52,7 @@ class LeonToZ3Transformer(variables: VariablePool, precision: Precision) extends
         Equals(variables.buddy(v), TimesR(PlusR(new RealLiteral(1), delta), v))
 
       // For bspline 3 to work, we need this:
-      // TODO: test if this is better in general?
+      // TODO:  test if better in general?
       /*case Noise(v @ Variable(_), r @ RealLiteral(value)) =>
         And(LessEquals(RealLiteral(-value), MinusR(v, variables.buddy(v))), 
             LessEquals(MinusR(v, variables.buddy(v)), r))

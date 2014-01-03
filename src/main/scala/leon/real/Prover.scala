@@ -23,7 +23,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
   val reporter = ctx.reporter
   val solver = new RealSolver(ctx, prog, options.z3Timeout)
 
-  // TODO: ugly?!
+  // TODO: this is ugly!!!
   def getApplicableApproximations(vcs: Seq[VerificationCondition]): Map[VerificationCondition, List[ApproxKind]] =
     vcs.map { vc =>
         val list = (
@@ -95,7 +95,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
 
       val approximations = validApproximations(vc)
       
-      // TODO: re-use some of the approximation work across precision?
+      // TODO: can we re-use some of the approximation work across precision?
       approximations.find(aKind => {
         reporter.info("approx: " + aKind)
 
@@ -176,7 +176,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
               val massaged = massageArithmetic(transformer.getZ3Expr(realOnlyConstraint))
               solver.checkSat(massaged) match {
                 case (SAT, model) =>
-                  // TODO: pretty print the models
+                  // TODO: pretty-print the models
                   reporter.info("counterexample: " + model)
                   valid = Some(false)
                 case (UNSAT, _) =>
@@ -282,7 +282,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
   }
 
   // if true, we're sane
-  // TODO: make this a method in the solver and then we don't need to duplicate
+  // TODO: make a method in the solver and then we don't need to duplicate
   private def sanityCheck(pre: Expr, body: Expr = BooleanLiteral(true)): Boolean = {
     val sanityCondition = And(pre, body)
     solver.checkSat(sanityCondition) match {

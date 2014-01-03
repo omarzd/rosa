@@ -134,13 +134,13 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
           val body = convertLetsToEquals(funDef.body.get)
                     
           funDef.postcondition match {
-            //Option[(Identifier, Expr)]
-            // TODO: invariants (got broken because of missing ResultVariable)
-            /*case Some((ResultVariable()) =>
-              val posts = getInvariantCondition(funDef.body.get)
-              val bodyWOLets = convertLetsToEquals(funDef.body.get)
-              val body = replace(posts.map(p => (p, True)).toMap, bodyWOLets)
-              (body, body, Or(posts))*/
+             //Option[(Identifier, Expr)]
+             // TODO: invariants 
+             /*case Some((ResultVariable()) =>
+               val posts = getInvariantCondition(funDef.body.get)
+               val bodyWOLets = convertLetsToEquals(funDef.body.get)
+               val body = replace(posts.map(p => (p, True)).toMap, bodyWOLets)
+               (body, body, Or(posts))*/
 
             case Some((resId, postExpr)) =>
               val postcondition = extractPostCondition(resId, postExpr, resFresh)

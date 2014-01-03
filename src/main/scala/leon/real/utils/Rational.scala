@@ -252,7 +252,7 @@ object Rational {
   private val mathContext = new java.math.MathContext(64, java.math.RoundingMode.HALF_EVEN)
 
   def niceDoubleString(d: Double) = {
-    // TODO: is there such a library function maybe?
+    // TODO: is there a library function maybe for this?
     def removeTrailingZeroes(s: String): String = {
       if (s.last == '0') removeTrailingZeroes(s.init)
       else s

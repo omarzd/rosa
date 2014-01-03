@@ -361,7 +361,7 @@ class Approximator(reporter: Reporter, solver: RealSolver, precision: Precision,
       freshMap.map {
       case (v, fresh) =>
         val xf = variables(v)
-        // TODO: add the condition before to improve the approx interval?
+        // TODO: add condition before to improve the approx interval?
         precision match {
           case FPPrecision(bits) =>
             // TODO: format needs to be determined with range
@@ -387,7 +387,7 @@ class Approximator(reporter: Reporter, solver: RealSolver, precision: Precision,
       case FloatLiteral(r, exact) =>
         precision match {
           case FPPrecision(bits) => XFixed(r, config.addCondition(leonToZ3.getZ3Condition(And(cond))), bits)
-          case _ => XFloat(r, config.addCondition(leonToZ3.getZ3Condition(And(cond))), machineEps) // TODO: save the machineEps somewhere?
+          case _ => XFloat(r, config.addCondition(leonToZ3.getZ3Condition(And(cond))), machineEps) // TODO: save machineEps somewhere?
         }
     }
   }
