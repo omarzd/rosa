@@ -406,7 +406,7 @@ class Approximator(reporter: Reporter, solver: RealSolver, precision: Precision,
   }
 
   private def rangeConstraint(v: Expr, i: RationalInterval): Expr = {
-    // FIXME: check this (RealLiteral or FloatLiteral?)
+    // TODO: check this (RealLiteral or FloatLiteral?)
     And(LessEquals(RealLiteral(i.xlo), v), LessEquals(v, RealLiteral(i.xhi)))
   }
 
