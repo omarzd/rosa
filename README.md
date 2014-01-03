@@ -44,3 +44,39 @@ this is why this repository contains more than just Rosa code.
 For command-line options,
     
     $ rosa --help
+
+### Native library functions ###
+Rosa itself uses two native libraries. They come pre-compiled for Mac and Linux, but in case you need re-compiling,
+here's how.
+
+The project uses JNI to access some low-level system functions that the JVM merrily ignores (for directed rounding).
+The source code is located in `resources/` (`ceres_common_DirectedRounding.c`, `ceres_common_DirectedRounding.h`).
+Whatever command you use, the new library MUST be named "libDirectedRounding".
+
+Something like this works on Ubuntu:
+
+    gcc -shared -I/usr/lib/jvm/java-6-sun-1.6.0.20/include -I/usr/lib/jvm/java-6-sun-1.6.0.20/include/linux
+      -o libDirectedRounding.so ceres_common_DirectedRounding.c
+
+And this worked on a Mac:
+
+    gcc -m64 -I/System/Library/Frameworks/JavaVM.framework/Headers -c ceres_common_DirectedRounding.c
+    gcc -m64 -dynamiclib -o libDirectedRounding.jnilib ceres_common_DirectedRounding.o
+
+The other dependency is Z3, which Rosa interfaces through the ScalaZ3 project. If you need to recompile
+ScalaZ3, please check the github page: https://github.com/epfl-lara/ScalaZ3.
+
+Finally, the generated code can use the QuadDouble data type.
+The QuadDouble quadruple double precision type is based on a C++ library from
+http://crd-legacy.lbl.gov/~dhbailey/mpdist/
+
+In order to use the type QuadDouble from Scala, you need to download and build
+this library.  Then, you compile the provided JNI interface (also in `resources/`) for your architecture.
+
+To compile on Linux:
+
+    g++ -fPIC -I/usr/lib/jvm/java-6-sun-1.6.0.26/include/
+      -I/usr/lib/jvm/java-6-sun-1.6.0.26/include/linux/ -I/home/edarulov/share/qd/include
+      -c ceres_common_QuadDoubleInterface.cpp
+
+    g++ -shared -o libQuadDouble.so ceres_common_QuadDoubleInterface.o ~/share/qd/src/*.o
