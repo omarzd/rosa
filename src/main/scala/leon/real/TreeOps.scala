@@ -229,12 +229,10 @@ object TreeOps {
 
       //case Noise(Variable(id), x) => errorExpr = Some(x); e
       case _ =>
-        // TODO: extras
         super.rec(e, path)
     }
 
     def getSpec(e: Expr): Option[Spec] = {
-      // TODO: should we allow no error specification in postcondition? What would be the meaning?
       //val err = error.getOrElse(Rational.zero)
       rec(e, initC)
 
@@ -398,7 +396,7 @@ object TreeOps {
 
     override def rec(e: Expr, path: C) = e match {
       case Roundoff(_) => True
-      //case RelError(_,_) =>  TODO: remove relError here or not?
+      //case RelError(_,_) =>
       case _ =>
         super.rec(e, path)
     }
@@ -465,7 +463,6 @@ object TreeOps {
   val minusDistributor = new MinusDistributor
 
   def massageArithmetic(expr: Expr): Expr = {
-    //TODO: somehow remove redundant definitions of errors? stuff like And(Or(idealPart), Or(actualPart))
     val t1 = minusDistributor.transform(expr)
     //println("t1: " + t1.getClass)
     val t2 = factorizer.transform(factorizer.transform(t1))

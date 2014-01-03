@@ -63,7 +63,7 @@ class Simulator(ctx: LeonContext, options: RealOptions, prog: Program, reporter:
     val solver = new RealSolver(ctx, prog, options.z3Timeout)
     val ssaBody = idealToActual(toSSA(vc.body), vc.variables)
     val transformer = new Approximator(reporter, solver, precision, vc.pre, vc.variables)
-    val (newBody, newSpec) = transformer.transformWithSpec(ssaBody)
+    val (newBody, newSpec) = transformer.transformWithSpec(ssaBody, false)
       
     val formats = transformer.variables.map {
       case (v, r) => (v, FPFormat.getFormat(r.interval.xlo, r.interval.xhi, bitlength))

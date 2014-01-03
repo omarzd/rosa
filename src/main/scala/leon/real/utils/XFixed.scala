@@ -88,7 +88,6 @@ object XFixed {
 /*
   Assumes that all operands always have the same bitlength.
 */
-// TODO: make this consistent with XFloat and put format at the end of the parameter list
 class XFixed(val format: FixedPointFormat, val tr: Expr, val appInt: RationalInterval, val err: XRationalForm,
   val cnfg: XConfig) extends XReal(tr, appInt, err, cnfg) {
 

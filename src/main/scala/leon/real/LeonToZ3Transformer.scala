@@ -17,7 +17,6 @@ class LeonToZ3Transformer(variables: VariablePool, precision: Precision) extends
     type C = Seq[Expr]
     val initC = Nil
 
-    // TODO Make sure this is unique, i.e. we don't create it twice in the same constraint
     var epsUsed = false
     var epsVariable: Variable = Variable(FreshIdentifier("#eps")).setType(RealType)
     def machineEps = { epsUsed = true; epsVariable }
@@ -52,7 +51,6 @@ class LeonToZ3Transformer(variables: VariablePool, precision: Precision) extends
         Equals(variables.buddy(v), TimesR(PlusR(new RealLiteral(1), delta), v))
 
       // For bspline 3 to work, we need this:
-      // TODO: test if this is better in general?
       /*case Noise(v @ Variable(_), r @ RealLiteral(value)) =>
         And(LessEquals(RealLiteral(-value), MinusR(v, variables.buddy(v))), 
             LessEquals(MinusR(v, variables.buddy(v)), r))
