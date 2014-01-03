@@ -23,8 +23,6 @@ package object real {
   case class PostconditionInliningFailedException(msg: String) extends Exception(msg)
   case class UnsoundBoundsException(msg: String) extends Exception(msg)
 
-  // TODO: check if we need this one
-  case class ArithmeticException(msg: String) extends Exception(msg)
   case class FixedPointOverflowException(s: String) extends Exception
   case class IncompatibleFixedPointFormatsException(s: String) extends Exception
   

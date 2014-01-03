@@ -23,7 +23,6 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
   val reporter = ctx.reporter
   val solver = new RealSolver(ctx, prog, options.z3Timeout)
 
-  // TODO: ugly?!
   def getApplicableApproximations(vcs: Seq[VerificationCondition]): Map[VerificationCondition, List[ApproxKind]] =
     vcs.map { vc =>
         val list = (
@@ -95,7 +94,6 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
 
       val approximations = validApproximations(vc)
       
-      // TODO: re-use some of the approximation work across precision?
       approximations.find(aKind => {
         reporter.info("approx: " + aKind)
 
@@ -153,11 +151,15 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
     var valid: Option[Boolean] = None
     
     for ((cnstr, index) <- app.constraints.zipWithIndex) {
-      val sanityConstraint = And(cnstr.precondition, And(cnstr.realComp, cnstr.finiteComp))
-      val toCheck = And(sanityConstraint, negate(cnstr.postcondition))
+      val realCnstr = addResult(cnstr.realComp, Some(variables.resultVar))
+      val finiteCnstr = addResult(cnstr.finiteComp, Some(variables.fResultVar))
       
+      val sanityConstraint = And(cnstr.precondition, And(realCnstr, finiteCnstr))
+      val toCheck = And(sanityConstraint, negate(cnstr.postcondition))
+
       val z3constraint = massageArithmetic(transformer.getZ3Expr(toCheck))
       val sanityExpr = massageArithmetic(transformer.getZ3Expr(sanityConstraint))
+
 
       if (verbose) reporter.debug("z3constraint ("+index+"): " + z3constraint)
 
@@ -168,13 +170,10 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
             if (app.kind.allowsRealModel) {
               // Idea: check if we get a counterexample for the real part only, that is then a possible counterexample, (depends on the approximation)
               val realFilter = new RealFilter
-              val realOnlyConstraint = realFilter.transform(And(And(cnstr.precondition, cnstr.realComp), negate(cnstr.postcondition)))
-              //println("\nreal only: " + realOnlyConstraint)
+              val realOnlyConstraint = realFilter.transform(And(And(cnstr.precondition, realCnstr), negate(cnstr.postcondition)))
               val massaged = massageArithmetic(transformer.getZ3Expr(realOnlyConstraint))
-              //println("real only constraint: " + massaged)
               solver.checkSat(massaged) match {
                 case (SAT, model) =>
-                  // TODO: pretty print the models
                   reporter.info("counterexample: " + model)
                   valid = Some(false)
                 case (UNSAT, _) =>
@@ -230,7 +229,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
         for ( path <- paths ) {
           //solver.clearCounts
           val transformer = new Approximator(reporter, solver, precision, And(pre, path.condition), vc.variables, options.pathError)
-          val (bodyFiniteApprox, nextSpec) = transformer.transformWithSpec(path.bodyFinite)
+          val (bodyFiniteApprox, nextSpec) = transformer.transformWithSpec(path.bodyFinite, vc.kind == VCKind.Precondition)
           //println("solver counts: " + solver.getCounts)
           spec = merge(spec, nextSpec)
           //if(!nextSpec.isEmpty) 
@@ -275,7 +274,6 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
   }
 
   // if true, we're sane
-  // TODO: make this a method in the solver and then we don't need to duplicate
   private def sanityCheck(pre: Expr, body: Expr = BooleanLiteral(true)): Boolean = {
     val sanityCondition = And(pre, body)
     solver.checkSat(sanityCondition) match {
