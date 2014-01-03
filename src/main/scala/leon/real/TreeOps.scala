@@ -24,7 +24,7 @@ object TreeOps {
   def addResults(expr: Expr, variables: Seq[Expr]): Expr = expr match {
     case Equals(v, IfExpr(c, t, e)) =>
       IfExpr(c, addResults(t, Seq(v)), addResults(e, Seq(v)))
-      
+
     case Equals(_,_) => expr
     case LessEquals(_, _) | LessThan(_,_) | GreaterThan(_,_) | GreaterEquals(_,_) => expr
 
@@ -58,7 +58,7 @@ object TreeOps {
   /* -----------------------
              Paths
    ------------------------- */
-  def getPaths(expr: Expr): Set[(Expr, Expr)] = { 
+  def getPaths(expr: Expr): Set[(Expr, Expr)] = {
     collectPaths(expr).map(p => (p.condition, And(p.expression)))
   }
 
@@ -117,10 +117,10 @@ object TreeOps {
     case DivisionR(l, r) => inIntervals(l, vars) / inIntervals(r, vars)
     case SqrtR(t) =>
       val tt = inIntervals(t, vars)
-      RationalInterval(sqrtDown(tt.xlo), sqrtUp(tt.xhi))     
+      RationalInterval(sqrtDown(tt.xlo), sqrtUp(tt.xhi))
   }
-  
-  
+
+
 
 
   /* -----------------------
@@ -138,21 +138,21 @@ object TreeOps {
 
     override def rec(e: Expr, path: C) = e match {
       case FunctionInvocation(funDef, args) if (funDef.precondition.isDefined) =>
-        
+
         val (simpleArgs, morePath) = args.map(a => a match {
           case Variable(_) => (a, True)
           case _ =>
             val fresh = getFreshTmp
             (fresh, Equals(fresh, a))
         }).unzip
-         
-        val pathToFncCall = And(path ++ morePath) 
+
+        val pathToFncCall = And(path ++ morePath)
         val arguments: Map[Expr, Expr] = funDef.args.map(decl => decl.toVariable).zip(simpleArgs).toMap
         val toProve = replace(arguments, roundoffRemover.transform(funDef.precondition.get))
 
         val allFncCalls = functionCallsOf(pathToFncCall).map(invc => invc.funDef.id.toString)
         vcs :+= new VerificationCondition(outerFunDef, Precondition, precondition, pathToFncCall, toProve, allFncCalls, variables, precisions)
-        e               
+        e
 
       case Assertion(toProve) =>
         val pathToAssertion = And(path)
@@ -166,19 +166,19 @@ object TreeOps {
 
   //hardcoded for 2-tuples
   def extractPostCondition(resId: Identifier, postExpr: Expr, resFresh: Seq[Identifier]): Expr = postExpr match {
-    case MatchExpr(Variable(scrutinee), 
+    case MatchExpr(Variable(scrutinee),
       Seq(SimpleCase(TuplePattern(None, List(WildcardPattern(Some(a)), WildcardPattern(Some(b)))), caseExpr))) if (scrutinee == resId) =>
-                
+
       assert(resFresh.length == 2)
       replace(List(Variable(a), Variable(b)).zip(resFresh.map(Variable(_))).toMap, caseExpr)
-                  
+
     case m: MatchExpr =>
       throw new Exception("Wrong use of match expression for postcondition!")
       null
 
     case _ => // simple case (no tuples)
       replace(Map(Variable(resId) -> Variable(resFresh.head)), postExpr)
-  }  
+  }
 
   /*
     Replace the function call with its specification. For translation to Z3 FncValue needs to be translated
@@ -187,7 +187,7 @@ object TreeOps {
   class PostconditionInliner(precision: Precision, postMap: Map[FunDef, Seq[Spec]]) extends TransformerWithPC {
     type C = Seq[Expr]
     val initC = Nil
-    private var tmpCounter = 0 
+    private var tmpCounter = 0
 
     private def getFresh: Identifier = {
       tmpCounter = tmpCounter + 1
@@ -199,7 +199,7 @@ object TreeOps {
     override def rec(e: Expr, path: C) = e match {
       case FunctionInvocation(funDef, args) =>
         val arguments: Map[Expr, Expr] = funDef.args.map(decl => decl.toVariable).zip(args).toMap
-        
+
         funDef.postcondition.flatMap({
           case (resId, postExpr) =>
             val resFresh = resId.getType match {
@@ -234,7 +234,7 @@ object TreeOps {
               throw PostconditionInliningFailedException("missing postcondition for " + funDef.id.name); null
           }
         }
-        
+
       case _ =>
           super.rec(e, path)
     }
@@ -255,25 +255,25 @@ object TreeOps {
 
     override def rec(e: Expr, path: C) = e match {
       case LessEquals(RealLiteral(lwrBnd), Variable(id)) => lwrBoundReal = Some(lwrBnd); e
-      case LessEquals(Variable(id), RealLiteral(uprBnd)) => upBoundReal = Some(uprBnd); e  
+      case LessEquals(Variable(id), RealLiteral(uprBnd)) => upBoundReal = Some(uprBnd); e
       case LessThan(RealLiteral(lwrBnd), Variable(id)) => lwrBoundReal = Some(lwrBnd); e
       case LessThan(Variable(id), RealLiteral(uprBnd)) =>  upBoundReal = Some(uprBnd); e
       case GreaterEquals(RealLiteral(uprBnd), Variable(id)) =>  upBoundReal = Some(uprBnd); e
       case GreaterEquals(Variable(id), RealLiteral(lwrBnd)) => lwrBoundReal = Some(lwrBnd); e
       case GreaterThan(RealLiteral(uprBnd), Variable(id)) =>  upBoundReal = Some(uprBnd); e
       case GreaterThan(Variable(id), RealLiteral(lwrBnd)) => lwrBoundReal = Some(lwrBnd); e
-      
+
       case LessEquals(RealLiteral(lwrBnd), Actual(Variable(id))) => lwrBoundActual = Some(lwrBnd); e
-      case LessEquals(Actual(Variable(id)), RealLiteral(uprBnd)) => upBoundActual = Some(uprBnd); e 
+      case LessEquals(Actual(Variable(id)), RealLiteral(uprBnd)) => upBoundActual = Some(uprBnd); e
       case LessThan(RealLiteral(lwrBnd), Actual(Variable(id))) => lwrBoundActual = Some(lwrBnd); e
       case LessThan(Actual(Variable(id)), RealLiteral(uprBnd)) => upBoundActual = Some(uprBnd); e
-      case GreaterEquals(RealLiteral(uprBnd), Actual(Variable(id))) => upBoundActual = Some(uprBnd); e 
-      case GreaterEquals(Actual(Variable(id)), RealLiteral(lwrBnd)) => lwrBoundActual = Some(lwrBnd); e 
-      case GreaterThan(RealLiteral(uprBnd), Actual(Variable(id))) => upBoundActual = Some(uprBnd); e 
-      case GreaterThan(Actual(Variable(id)), RealLiteral(lwrBnd)) => lwrBoundActual = Some(lwrBnd); e 
-      
+      case GreaterEquals(RealLiteral(uprBnd), Actual(Variable(id))) => upBoundActual = Some(uprBnd); e
+      case GreaterEquals(Actual(Variable(id)), RealLiteral(lwrBnd)) => lwrBoundActual = Some(lwrBnd); e
+      case GreaterThan(RealLiteral(uprBnd), Actual(Variable(id))) => upBoundActual = Some(uprBnd); e
+      case GreaterThan(Actual(Variable(id)), RealLiteral(lwrBnd)) => lwrBoundActual = Some(lwrBnd); e
+
       case Noise(Variable(id), RealLiteral(value)) => error = Some(value); e
-      
+
       case Times(_, _) | Plus(_, _) | Division(_, _) | Minus(_, _) | UMinus(_) =>
         throw new Exception("found integer arithmetic in ResultCollector")
         null
@@ -291,7 +291,7 @@ object TreeOps {
 
       error flatMap ( err => {
         if ((lwrBoundReal.nonEmpty || lwrBoundActual.nonEmpty) && (upBoundReal.nonEmpty || upBoundActual.nonEmpty)) {
-          Some(Spec(id, RationalInterval(lwrBoundReal.getOrElse(lwrBoundActual.get + err), 
+          Some(Spec(id, RationalInterval(lwrBoundReal.getOrElse(lwrBoundActual.get + err),
                upBoundReal.getOrElse(upBoundActual.get - err)), err))
         } else {
           None
@@ -314,7 +314,7 @@ object TreeOps {
 
       case LessEquals(Actual(Variable(id)), RealLiteral(uprBnd)) if (ids.contains(id)) =>
         LessEquals(Variable(id), RealLiteral(uprBnd - deltas(id)))
-      
+
       case LessThan(RealLiteral(lwrBnd), Actual(Variable(id))) if (ids.contains(id)) =>
         LessThan(RealLiteral(lwrBnd + deltas(id)), Variable(id))
 
@@ -332,7 +332,7 @@ object TreeOps {
 
       case GreaterThan(Actual(Variable(id)), RealLiteral(lwrBnd)) if (ids.contains(id)) =>
         GreaterThan(Variable(id), RealLiteral(lwrBnd + deltas(id)))
-      
+
       case _ =>
         super.rec(e, path)
     }
@@ -348,10 +348,10 @@ object TreeOps {
       case FunctionInvocation(funDef, args) =>
         val arguments: Map[Expr, Expr] = funDef.args.map(decl => decl.toVariable).zip(args).toMap
         val fncBody = fncs(funDef).body
-        
+
         val newBody = replace(arguments, fncBody)
         FncBody(funDef.id.name, newBody)
-        
+
       case _ =>
           super.rec(e, path)
     }
@@ -360,7 +360,7 @@ object TreeOps {
   /* -----------------------
        Fixed-points
    ------------------------- */
-  
+
   def toSSA(expr: Expr): Expr = {
     val transformer = new SSATransformer
     transformer.transform(expr)
@@ -383,26 +383,26 @@ object TreeOps {
         val (rSeq, rVar) = arithToSSA(rhs)
         val tmpVar = getFreshValidTmp
         (lSeq ++ rSeq :+ Equals(tmpVar, MinusR(lVar, rVar)), tmpVar)
-    
+
       case TimesR(lhs, rhs) =>
         val (lSeq, lVar) = arithToSSA(lhs)
         val (rSeq, rVar) = arithToSSA(rhs)
         val tmpVar = getFreshValidTmp
         (lSeq ++ rSeq :+ Equals(tmpVar, TimesR(lVar, rVar)), tmpVar)
-    
+
       case DivisionR(lhs, rhs) =>
         val (lSeq, lVar) = arithToSSA(lhs)
         val (rSeq, rVar) = arithToSSA(rhs)
         val tmpVar = getFreshValidTmp
         (lSeq ++ rSeq :+ Equals(tmpVar, DivisionR(lVar, rVar)), tmpVar)
-           
+
       case UMinusR(t) =>
         val (seq, v) = arithToSSA(t)
         val tmpVar = getFreshValidTmp
         (seq :+ Equals(tmpVar, UMinusR(v)), tmpVar)
       case RealLiteral(_) | Variable(_) => (Seq[Expr](), expr)
     }
-    
+
     def register(e: Expr, path: C) = path :+ e
 
     override def rec(e: Expr, path: C) = e match {
@@ -417,7 +417,7 @@ object TreeOps {
       case _ =>
         super.rec(e, path)
     }
-  }  
+  }
 
 
 
@@ -472,13 +472,13 @@ object TreeOps {
 
   def idealToActual(expr: Expr, vars: VariablePool): Expr = {
     val transformer = new RealToFloatTransformer(vars)
-    transformer.transform(expr) 
+    transformer.transform(expr)
   }
 
   private class RealToFloatTransformer(variables: VariablePool) extends TransformerWithPC {
     type C = Seq[Expr]
     val initC = Nil
-    
+
     def register(e: Expr, path: C) = path :+ e
 
     // (Sound) Overapproximation in the case of strict inequalities
@@ -519,7 +519,7 @@ object TreeOps {
   def specToRealExpr(spec: Spec): Expr =
     And(LessEquals(RealLiteral(spec.bounds.xlo), Variable(spec.id)),
             LessEquals(Variable(spec.id), RealLiteral(spec.bounds.xhi)))
-  
+
   /* --------------------
         Arithmetic ops
    ---------------------- */
@@ -551,7 +551,7 @@ object TreeOps {
   class ProductCollector extends TransformerWithPC {
     type C = Seq[Expr]
     val initC = Nil
-    
+
     def register(e: Expr, path: C) = path :+ e
 
     override def rec(e: Expr, path: C) = e match {
@@ -568,7 +568,7 @@ object TreeOps {
   class PowerTransformer extends TransformerWithPC {
     type C = Seq[Expr]
     val initC = Nil
-    
+
     def register(e: Expr, path: C) = path :+ e
 
     override def rec(e: Expr, path: C) = e match {
@@ -581,9 +581,9 @@ object TreeOps {
             PowerR(rec(x._2.head, path), IntLiteral(x._2.size))
           }
         )
-          
+
         groupsRec.tail.foldLeft[Expr](groupsRec.head)((x, y) => TimesR(x, y))
-        
+
       case _ =>
         super.rec(e, path)
     }
@@ -592,7 +592,7 @@ object TreeOps {
   class Factorizer extends TransformerWithPC {
     type C = Seq[Expr]
     val initC = Nil
-    
+
     def register(e: Expr, path: C) = path :+ e
 
     override def rec(e: Expr, path: C) = e match {
@@ -611,7 +611,7 @@ object TreeOps {
   class MinusDistributor extends TransformerWithPC {
     type C = Seq[Expr]
     val initC = Nil
-    
+
     def register(e: Expr, path: C) = path :+ e
 
     override def rec(e: Expr, path: C) = e match {
@@ -658,7 +658,7 @@ object TreeOps {
       case TimesR(RealLiteral(i1), TimesR(RealLiteral(i2), t)) => TimesR(RealLiteral(i1*i2), t)
       case TimesR(RealLiteral(i1), TimesR(t, RealLiteral(i2))) => TimesR(RealLiteral(i1*i2), t)
       case TimesR(RealLiteral(i), UMinusR(e)) => TimesR(RealLiteral(-i), e)
-      case TimesR(UMinusR(e), RealLiteral(i)) => TimesR(e, RealLiteral(-i))      
+      case TimesR(UMinusR(e), RealLiteral(i)) => TimesR(e, RealLiteral(-i))
 
       case DivisionR(RealLiteral(i1), RealLiteral(i2)) if i2 != 0 => RealLiteral(i1 / i2)
       case DivisionR(e, RealLiteral(o)) if (o == Rational.one) => e
@@ -726,7 +726,7 @@ object TreeOps {
       val resultFormat = formats(vr)
       val mx = resultFormat.f
       val (ll, rr, mr) = alignOperators(lhs, rhs, formats, bitlength, getConstant)
-      val assignment = 
+      val assignment =
         if (mx == mr) Minus(ll, rr)
         else if (mx <= mr) RightShift(Minus(ll, rr), (mr - mx))
         else LeftShift(Minus(ll, rr), (mx - mr))  // Fixme: really?
@@ -736,7 +736,7 @@ object TreeOps {
       val resultFormat = formats(vr)
       val mx = resultFormat.f
       val (mult, mr) = multiplyOperators(lhs, rhs, formats, bitlength, getConstant)
-      val assignment = 
+      val assignment =
         if (mx == mr) mult
         else if (mr - mx >= 0) RightShift(mult, (mr - mx))
         else LeftShift(mult, mx - mr)
@@ -753,10 +753,10 @@ object TreeOps {
     case FloatLiteral(r, exact) =>
       val bits = FPFormat.getFormat(r, bitlength).f
       getConstant(r, bits)
-    case UMinusF( t ) => UMinus(translateToFP(t, formats, bitlength, getConstant))  
+    case UMinusF( t ) => UMinus(translateToFP(t, formats, bitlength, getConstant))
   }
 
-  
+
   private def alignOperators(x: Expr, y: Expr, formats: Map[Expr, FPFormat], bitlength: Int,
     getConstant: (Rational, Int) => Expr): (Expr, Expr, Int) = (x, y) match {
     case (v1 @ Variable(_), v2 @ Variable(_)) =>
@@ -770,7 +770,7 @@ object TreeOps {
     case (v @ Variable(_), FloatLiteral(r, exact)) =>
       val my = formats(v).f
       val mz = FPFormat.getFormat(r, bitlength).f
-      
+
       val const = getConstant(r, mz)
       if (my == mz) (v, const, mz)
       else if (my <= mz) (LeftShift(v, (mz - my)), const, mz)
@@ -852,15 +852,15 @@ object TreeOps {
       Division(LeftShift(i1, shift), i2)
     }
 
-    
+
     /*def rationalToLong(r: Rational, f: Int): Long = {
-      return (r * Rational(math.pow(2, f))).roundToInt.toLong
+      (r * Rational(math.pow(2, f))).roundToInt.toLong
     }
-  
+
     def rationalToInt(r: Rational, f: Int): Int = {
-      return (r * Rational(math.pow(2, f))).roundToInt
+      (r * Rational(math.pow(2, f))).roundToInt
     }*/
-  
+
 
   /*
   // Convenience for readability of printouts

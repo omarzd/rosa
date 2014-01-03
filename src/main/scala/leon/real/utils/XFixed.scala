@@ -83,7 +83,7 @@ object XFixed {
     }
   }
 
-}  
+}
 
 /*
   Assumes that all operands always have the same bitlength.
@@ -96,7 +96,7 @@ class XFixed(val format: FixedPointFormat, val tr: Expr, val appInt: RationalInt
   override def unary_-(): XReal = {
     if (!format.signed)
       throw IncompatibleFixedPointFormatsException("Unary minus not supported with unsigned format!")
-    
+
     var (newTree, newRealRange, newError, newConfig) = super.negate
     new XFixed(format, newTree, newRealRange, newError, newConfig)
   }
@@ -155,7 +155,7 @@ class XFixed(val format: FixedPointFormat, val tr: Expr, val appInt: RationalInt
     val newFormat = getFormat(newRealRange + newError.interval, format.bits)
     assert(newFormat.bits == this.format.bits,
       "New format has wrong number of bits %d (vs %d)".format(newFormat.bits, this.format.bits))
-    
+
     newError = addNoise(newError, newFormat.quantError)
     new XFixed(format, newTree, newRealRange, newError, newConfig)
   }
@@ -166,7 +166,7 @@ class XFixed(val format: FixedPointFormat, val tr: Expr, val appInt: RationalInt
     /*var (newTree, newRealRange, newError, newConfig) = super.takeSqrtRoot
     val rndoff = roundoff(newRealRange + newError.interval)
     newError = addNoise(newError, rndoff)
-    return new XFloat(newTree, newRealRange, newError, newConfig)
+    new XFloat(newTree, newRealRange, newError, newConfig)
     */
   }
 

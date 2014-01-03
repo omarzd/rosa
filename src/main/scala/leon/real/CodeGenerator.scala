@@ -46,7 +46,7 @@ class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, 
   }
 
   def specToCode(programId: Identifier, objectId: Identifier, vcs: Seq[VerificationCondition]): Program = precision match {
-    case FPPrecision(bts) => 
+    case FPPrecision(bts) =>
       if (bts <= 32) specToFixedCode(programId, objectId, vcs, bts)
       else {
         reporter.error("Fixed-point code generation not possible for bitlengths larger than 32 bits.")
@@ -120,7 +120,7 @@ class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, 
       val id = f.id
       val args = f.args.map(decl => VarDecl(decl.id, intType))
       val funDef = new FunDef(id, intType, args)
-      
+
       println("\n ==== \nfnc id: " + id)
       println("vc.kind " + vc.kind)
       println("generating code for: " + vc.body)
@@ -129,7 +129,7 @@ class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, 
       val ssaBody = idealToActual(toSSA(vc.body), vc.variables)
       val transformer = new Approximator(reporter, solver, precision, vc.pre, vc.variables)
       val (newBody, newSpec) = transformer.transformWithSpec(ssaBody, false)
-      
+
       val formats = transformer.variables.map {
         case (v, r) => (v, FPFormat.getFormat(r.interval.xlo, r.interval.xhi, bitlength))
       }
@@ -155,5 +155,5 @@ class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, 
     case _ => expr
   }
 
-  
+
 }

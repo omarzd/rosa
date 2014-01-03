@@ -51,7 +51,7 @@ class VariablePool(inputs: Map[Expr, Record], val resIds: Seq[Identifier]) {
   )
 
   val fResultVars = resultVars.map( buddy(_) )
-  
+
   def add(idSet: Set[Identifier]) = {
     for (i <- idSet) {
       val v = Variable(i)
@@ -120,7 +120,7 @@ object VariablePool {
         Seq(FreshIdentifier("result", true).setType(returnType))
     }
 
-    new VariablePool(collector.recordMap, resIds)   
+    new VariablePool(collector.recordMap, resIds)
   }
 
   private class VariableCollector extends TransformerWithPC {
@@ -134,28 +134,28 @@ object VariablePool {
     override def rec(e: Expr, path: C) = e match {
       case LessEquals(RealLiteral(lwrBnd), x @ Variable(_)) => // a <= x
         recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newLo(lwrBnd)); e
-      
+
       case LessEquals(x @ Variable(_), RealLiteral(uprBnd)) => // x <= b
         recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newUp(uprBnd)); e
 
       case LessThan(RealLiteral(lwrBnd), x @ Variable(_)) => // a < x
         recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newLo(lwrBnd)); e
-      
+
       case LessThan(x @ Variable(_), RealLiteral(uprBnd)) => // x < b
         recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newUp(uprBnd)); e
-      
+
       case GreaterEquals(RealLiteral(uprBnd), x @ Variable(_)) => // b >= x
         recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newUp(uprBnd)); e
-      
+
       case GreaterEquals(x @ Variable(_), RealLiteral(lwrBnd)) => // x >= a
         recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newLo(lwrBnd)); e
-      
+
       case GreaterThan(RealLiteral(uprBnd), x @ Variable(_)) => // b > x
         recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newUp(uprBnd)); e
-      
+
       case GreaterThan(x @ Variable(_), RealLiteral(lwrBnd)) => // x > a
         recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newLo(lwrBnd)); e
-      
+
       case Noise(x @ Variable(_), RealLiteral(value)) =>
         recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newAbsUncert(value)); e
 
@@ -173,7 +173,7 @@ object VariablePool {
 
       case _ =>
         super.rec(e, path)
-      
+
     }
 
   }
