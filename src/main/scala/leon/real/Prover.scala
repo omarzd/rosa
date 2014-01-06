@@ -128,6 +128,9 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
           case SqrtNotImplementedException(msg) =>
             reporter.warning(msg)
             false
+          case UnsoundBoundsException(msg) =>
+            reporter.error(msg)
+            return false
            
         }
 
@@ -197,6 +200,18 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
   def getApproximation(vc: VerificationCondition, kind: ApproxKind, precision: Precision, postMap: Map[FunDef, Option[Spec]]): Approximation = {
     val postInliner = new PostconditionInliner(precision, postMap)
     val fncInliner = new FunctionInliner(fncs)
+    val leonToZ3 = new LeonToZ3Transformer(vc.variables, precision)
+
+    def isFeasible(pre: Expr): Boolean = {
+      import Sat._
+      solver.checkSat(leonToZ3.getZ3Expr(pre)) match {
+        case (SAT, model) => true
+        case (UNSAT, model) => false
+        case _ =>
+          reporter.error("Sanity check failed! ")// + sanityCondition)
+          false
+      }
+    }
 
     val (pre, bodyFnc, post) = kind.fncHandling match {
       case Uninterpreted => (vc.pre, vc.body, vc.post)
@@ -228,7 +243,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
         var specsPerPath = Seq[Option[Spec]]()
         var spec: Option[Spec] = None
 
-        for ( path <- paths ) {
+        for ( path <- paths if (isFeasible(And(pre, path.condition))) ) {
           //solver.clearCounts
           val transformer = new Approximator(reporter, solver, precision, And(pre, path.condition), vc.variables, options.pathError)
           val (bodyFiniteApprox, nextSpec) = transformer.transformWithSpec(path.bodyFinite, vc.kind == VCKind.Precondition)
