@@ -382,10 +382,10 @@ object Trees {
   }
 
   // A value returned from a function call desribed by it's specification
-  case class FncBody(name: String, body: Expr) extends Expr with FixedType with UnaryExtractable with PrettyPrintable {
+  case class FncBody(name: String, body: Expr, funDef: FunDef, params: Seq[Expr]) extends Expr with FixedType with UnaryExtractable with PrettyPrintable {
     val fixedType = RealType
     def extract: Option[(Expr, (Expr)=>Expr)] = {
-      Some((body, (e) => FncBody(name, e)))
+      Some((body, (e) => FncBody(name, e, funDef, params)))
     }
     def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
       printer.append("fnc_" + name + "(")
@@ -394,10 +394,10 @@ object Trees {
     }
   }
 
-  case class FncBodyF(name: String, body: Expr) extends Expr with FixedType with UnaryExtractable with PrettyPrintable {
+  case class FncBodyF(name: String, body: Expr, funDef: FunDef, params: Seq[Expr]) extends Expr with FixedType with UnaryExtractable with PrettyPrintable {
     val fixedType = RealType
     def extract: Option[(Expr, (Expr)=>Expr)] = {
-      Some((body, (e) => FncBodyF(name, e)))
+      Some((body, (e) => FncBodyF(name, e, funDef, params)))
     }
     def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
       printer.append("fnc_" + name + "_f(")

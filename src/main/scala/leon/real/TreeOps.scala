@@ -26,6 +26,10 @@ object TreeOps {
       IfExpr(c, addResult(t, Some(v)), addResult(e, Some(v)))
 
     case Equals(_,_) => expr
+
+    case IfExpr(c, t, e) =>
+      IfExpr(c, addResult(t, variable), addResult(e, variable))
+
     case LessEquals(_, _) | LessThan(_,_) | GreaterThan(_,_) | GreaterEquals(_,_) => expr
 
     case And(ands) => And(ands.map( addResult(_, variable)))
@@ -282,7 +286,7 @@ object TreeOps {
         val fncBody = fncs(funDef).body
 
         val newBody = replace(arguments, fncBody)
-        FncBody(funDef.id.name, newBody)
+        FncBody(funDef.id.name, newBody, funDef, args)
 
       case _ =>
           super.rec(e, path)
@@ -293,12 +297,12 @@ object TreeOps {
        Fixed-points
    ------------------------- */
 
-  def toSSA(expr: Expr): Expr = {
-    val transformer = new SSATransformer
+  def toSSA(expr: Expr, fncs: Map[FunDef, Fnc]): Expr = {
+    val transformer = new SSATransformer(fncs)
     transformer.transform(expr)
   }
 
-  private class SSATransformer extends TransformerWithPC {
+  private class SSATransformer(fncs: Map[FunDef, Fnc]) extends TransformerWithPC {
     type C = Seq[Expr]
     val initC = Nil
 
@@ -332,19 +336,62 @@ object TreeOps {
         val (seq, v) = arithToSSA(t)
         val tmpVar = getFreshValidTmp
         (seq :+ Equals(tmpVar, UMinusR(v)), tmpVar)
+
       case RealLiteral(_) | Variable(_) => (Seq[Expr](), expr)
+
+      case FunctionInvocation(funDef, args) =>
+        val argsToSSA: Seq[(Seq[Expr], Expr)] = args.map( arithToSSA(_) )
+
+        val (ssa, newArgs) = argsToSSA.unzip
+
+        val arguments: Map[Expr, Expr] = funDef.args.map(decl => decl.toVariable).zip(newArgs).toMap
+        val fncBody = fncs(funDef).body
+
+        val newBody = replace(arguments, fncBody)
+        
+        val tmpVar = getFreshValidTmp
+        (ssa.flatten :+ Equals(tmpVar, FncBody(funDef.id.name, newBody, funDef, newArgs)), tmpVar)
+
     }
 
     def register(e: Expr, path: C) = path :+ e
 
     override def rec(e: Expr, path: C) = e match {
-      //case arithExpr: RealArithmetic =>
-      //  val (seq, tmpVar) = arithToSSA(arithExpr)
-      //  And()
-
       case Equals(v, arithExpr: RealArithmetic) =>
         val (seq, tmpVar) = arithToSSA(arithExpr)
         And(And(seq), EqualsF(v, tmpVar))
+
+      case Equals(v, fnc: FunctionInvocation) =>
+        val (seq, tmpVar) = arithToSSA(fnc)
+        And(And(seq), EqualsF(v, tmpVar))
+      
+      case IfExpr(GreaterEquals(l, r), t, e) =>
+        val (seqLhs, tmpVarLhs) = arithToSSA(l)
+        val (seqRhs, tmpVarRhs) = arithToSSA(r)
+        And(And(seqLhs ++ seqRhs), IfExpr(GreaterEquals(tmpVarLhs, tmpVarRhs), rec(t, path), rec(e, path)))
+
+      case IfExpr(LessEquals(l, r), t, e) =>
+        val (seqLhs, tmpVarLhs) = arithToSSA(l)
+        val (seqRhs, tmpVarRhs) = arithToSSA(r)
+        And(And(seqLhs ++ seqRhs), IfExpr(LessEquals(tmpVarLhs, tmpVarRhs), rec(t, path), rec(e, path)))
+
+      case IfExpr(GreaterThan(l, r), t, e) =>
+        val (seqLhs, tmpVarLhs) = arithToSSA(l)
+        val (seqRhs, tmpVarRhs) = arithToSSA(r)
+        And(And(seqLhs ++ seqRhs), IfExpr(GreaterThan(tmpVarLhs, tmpVarRhs), rec(t, path), rec(e, path)))
+
+      case IfExpr(LessThan(l, r), t, e) =>
+        val (seqLhs, tmpVarLhs) = arithToSSA(l)
+        val (seqRhs, tmpVarRhs) = arithToSSA(r)
+        And(And(seqLhs ++ seqRhs), IfExpr(LessThan(tmpVarLhs, tmpVarRhs), rec(t, path), rec(e, path)))
+
+      case arithExpr: RealArithmetic =>
+        val (seq, tmpVar) = arithToSSA(arithExpr)
+        And(And(seq), tmpVar)
+
+      case fnc: FunctionInvocation =>
+        val (seq, tmpVar) = arithToSSA(fnc)
+        And(And(seq), tmpVar)
 
       case _ =>
         super.rec(e, path)
@@ -430,7 +477,7 @@ object TreeOps {
       case LessEquals(_,_) | LessThan(_,_) | GreaterEquals(_,_) | GreaterThan(_,_) => e
 
       case FncValue(s, id) => FncValueF(s, id)
-      case FncBody(n, b) => FncBodyF(n, rec(b, path))
+      case FncBody(n, b, f, a) => FncBodyF(n, rec(b, path), f, a)
       case FunctionInvocation(fundef, args) =>
         FncInvocationF(fundef, args.map(a => rec(a, path)))
 
@@ -633,17 +680,27 @@ object TreeOps {
     def register(e: Expr, path: C) = path :+ e
 
     override def rec(e: Expr, path: C) = e match {
-      case v @ Variable(_) => variables.getIdeal(v)
-      //case r @ FResVariable() => ResultVariable()
+      case v @ Variable(_) =>
+        variables.getIdealOrNone(v) match {
+          case Some(ideal) => ideal
+          case None => v        }
       case _ =>
           super.rec(e, path)
     }
   }
 
-  // Accepts SSA format only
+  // Accepts SSA format only and transforms actual to ideal
   def translateToFP(expr: Expr, formats: Map[Expr, FPFormat], bitlength: Int, getConstant: (Rational, Int) => Expr): Expr = expr match {
     case And(exprs) =>
       And(exprs.map(e => translateToFP(e, formats, bitlength, getConstant)))
+
+    case FloatIfExpr(c, t, e) =>
+      IfExpr(translateToFP(c, formats, bitlength, getConstant), translateToFP(t, formats, bitlength, getConstant),
+                  translateToFP(e, formats, bitlength, getConstant))
+
+    case GreaterEquals(_, _) | GreaterThan(_, _) | LessEquals(_, _) | LessThan(_, _) => expr
+
+    case FncBodyF(name, body, funDef, args) => FunctionInvocation(funDef, args) 
 
     case EqualsF(vr, PlusF(lhs, rhs)) =>
       val resultFormat = formats(vr)

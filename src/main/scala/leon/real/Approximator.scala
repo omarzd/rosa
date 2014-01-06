@@ -16,7 +16,7 @@ import Rational._
 import VariableShop._
 
 class Approximator(reporter: Reporter, solver: RealSolver, precision: Precision, precondition: Expr, inputs: VariablePool,
-  checkPathError: Boolean = true) {
+  checkPathError: Boolean = false) {
 
   implicit val debugSection = DebugSectionVerification
   val verbose = false
@@ -298,7 +298,7 @@ class Approximator(reporter: Reporter, solver: RealSolver, precision: Precision,
             error, false, machineEps)._1
         }
 
-      case FncBodyF(name, body) => approx(body, path)
+      case FncBodyF(name, body, fundef, args) => approx(body, path)
 
       case fl: FloatLiteral => addCondition(fl, path)
       case v: Variable => addCondition(v, path)

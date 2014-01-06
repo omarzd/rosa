@@ -79,6 +79,14 @@ class VariablePool(inputs: Map[Expr, Record], val resId: Identifier) {
     }
   }
 
+  // When converting from actual to ideal in codegeneration, in conditionals we already have the ideal one
+  def getIdealOrNone(v: Expr): Option[Expr] = {
+    allVars.find(x => x._2.actual == v) match {
+      case Some((_, Record(i, a, _, _, _, _))) => Some(i)
+      case _ => None
+    }
+  }
+
   def getValidRecords: Iterable[Record] = allVars.values.filter(r => r.isBoundedValid)
 
   def actualVariables: Set[Expr] = allVars.values.map(rec => rec.actual).toSet
