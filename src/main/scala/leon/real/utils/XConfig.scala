@@ -6,7 +6,7 @@ package real
 import purescala.Trees._
 import purescala.TreeOps._
 
-case class XConfig(solver: RealSolver, precondition: Expr, solverMaxIter: Int, solverPrecision: Rational,
+case class XConfig(solver: RealRangeSolver, precondition: Expr, solverMaxIter: Int, solverPrecision: Rational,
   additionalConstraints: Set[Expr] = Set.empty) {
 
   def getCondition: Expr = And(precondition, And(additionalConstraints.toSeq))

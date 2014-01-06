@@ -15,6 +15,7 @@ import XFixed._
 import Rational._
 import VariableShop._
 
+
 class Approximator(reporter: Reporter, solver: RealSolver, precision: Precision, precondition: Expr, inputs: VariablePool,
   checkPathError: Boolean = false) {
 
