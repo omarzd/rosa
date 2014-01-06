@@ -41,7 +41,7 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
     LeonFlagOptionDef("specGen", "--specGen", "Generate specs also for functions without postconditions")
   )
 
-  def run(ctx: LeonContext)(program: Program): CompilationReport = { 
+  def run(ctx: LeonContext)(program: Program): CompilationReport = {
     reporter = ctx.reporter
     reporter.info("Running Compilation phase")
 
@@ -68,7 +68,7 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
 
     println("options: " + options)
 
-    val fncsToAnalyse  = 
+    val fncsToAnalyse  =
       if(fncNamesToAnalyse.isEmpty) program.definedFunctions
       else {
         val toAnalyze = program.definedFunctions.filter(f => fncNamesToAnalyse.contains(f.id.name))
@@ -76,10 +76,10 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
         notFound.foreach(fn => reporter.error("Did not find function \"" + fn + "\" though it was marked for analysis."))
         toAnalyze
       }
-        
+
     val (vcs, fncs) = analyzeThis(fncsToAnalyse, options.precision)
     if (reporter.errorCount > 0) throw LeonFatalError()
-    
+
     reporter.info("--- Analysis complete ---")
     reporter.info("")
     if (options.simulation) {
@@ -89,11 +89,11 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
       new CompilationReport(List(), prec)
     } else {
       val prover = new Prover(ctx, options, program, fncs, verbose)
-      
+
       val (finalPrecision, success) = prover.check(vcs)
       if (success) {
         val codeGenerator = new CodeGenerator(reporter, ctx, options, program, finalPrecision)
-        val newProgram = codeGenerator.specToCode(program.id, program.mainObject.id, vcs) 
+        val newProgram = codeGenerator.specToCode(program.id, program.mainObject.id, vcs)
         val newProgramAsString = ScalaPrinter(newProgram)
         reporter.info("Generated program with %d lines.".format(newProgramAsString.lines.length))
         //reporter.info(newProgramAsString)
@@ -105,18 +105,18 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
       else {// verification did not succeed for any precision
         reporter.warning("Could not find data type that works for all methods.")
       }
-      
+
       new CompilationReport(vcs.sortWith((vc1, vc2) => vc1.fncId < vc2.fncId), finalPrecision)
     }
-    
+
   }
 
-  
+
 
   private def analyzeThis(sortedFncs: Seq[FunDef], precisions: List[Precision]): (Seq[VerificationCondition], Map[FunDef, Fnc]) = {
     var vcs = Seq[VerificationCondition]()
     var fncs = Map[FunDef, Fnc]()
-    
+
     for (funDef <- sortedFncs if (funDef.body.isDefined)) {
       reporter.info("Analysing fnc:  %s".format(funDef.id.name))
       debug ("fnc body: " + funDef.body.get)
@@ -132,30 +132,22 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
 
           val resFresh = variables.resId
           val body = convertLetsToEquals(funDef.body.get)
-                    
-          funDef.postcondition match {
-            //Option[(Identifier, Expr)]
-            // TODO: invariants (got broken because of missing ResultVariable)
-            /*case Some((ResultVariable()) =>
-              val posts = getInvariantCondition(funDef.body.get)
-              val bodyWOLets = convertLetsToEquals(funDef.body.get)
-              val body = replace(posts.map(p => (p, True)).toMap, bodyWOLets)
-              (body, body, Or(posts))*/
 
+          funDef.postcondition match {
             case Some((resId, postExpr)) =>
               val postcondition = replace(Map(Variable(resId) -> Variable(resFresh)), postExpr)
 
-              val vcBody = new VerificationCondition(funDef, Postcondition, precondition, body, postcondition, resFresh, 
+              val vcBody = new VerificationCondition(funDef, Postcondition, precondition, body, postcondition, resFresh,
                 allFncCalls, variables, precisions)
 
               val assertionCollector = new AssertionCollector(funDef, precondition, variables, precisions)
               assertionCollector.transform(body)
-          
+
               // for function inlining
               (assertionCollector.vcs :+ vcBody, Fnc(precondition, body, postcondition))
 
             case None => // only want to generate specs
-              val vcBody = new VerificationCondition(funDef, SpecGen, precondition, body, True, resFresh, 
+              val vcBody = new VerificationCondition(funDef, SpecGen, precondition, body, True, resFresh,
                 allFncCalls, variables, precisions)
 
               (Seq(vcBody), Fnc(precondition, body, True))

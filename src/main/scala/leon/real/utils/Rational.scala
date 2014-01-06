@@ -15,17 +15,20 @@ object Rational {
   private val oneBigInt = new BigInt(new BigInteger("1"))
   private val zeroBigInt = new BigInt(new BigInteger("0"))
   private val twoBigInt = new BigInt(new BigInteger("2"))
-  
+
   private val MAX_DOUBLE = new BigInt(new BigInteger(Double.MaxValue.toInt.toString))
   private val MIN_DOUBLE = new BigInt(new BigInteger(Double.MinValue.toInt.toString))
 
   private val MAX_INT = new BigInt(new BigInteger(Int.MaxValue.toString))
 
+  private val baseTen = 10
+  private val bits32 = 32
+
 
   val zero = Rational(zeroBigInt, oneBigInt)
   val one = Rational(oneBigInt, oneBigInt)
 
-  
+
   /*
     Constructors for rationals.
   */
@@ -35,7 +38,7 @@ object Rational {
   }
 
   def apply(n: Int): Rational = Rational(new BigInt(new BigInteger(n.toString)), oneBigInt)
- 
+
   def apply(n: Long, d: Long): Rational = {
     Rational(new BigInt(new BigInteger(n.toString)), new BigInt(new BigInteger(d.toString)))
   }
@@ -67,25 +70,25 @@ object Rational {
 
   //Takes a string representing a real value and returns a fraction equal to it.
   // We assume this string comes directly from variable.toString, so it does not
-  // have trailing zeroes, always has one decimal point, etc. 
+  // have trailing zeroes, always has one decimal point, etc.
   // This works because of a property of the IEEE 754 standard that requires that
   // one can recover the exact string by going to double and back.
   private def real2Fraction(value: String): (BigInt, BigInt) = {
-    
+
     // scientific notation
     if (value.contains("e") || value.contains("E")) {
       val splitExponent = value.split(Array('e', 'E'))
-  
+
       val nom = new BigInt(new BigInteger(splitExponent(0).replace(".", "")))
       val splitDecimal = splitExponent(0).split('.')
       val denPower = splitDecimal(1).length - splitExponent(1).toInt
 
       if (denPower > 0) {
-        val den = new BigInt(new BigInteger(math.pow(10, denPower).toLong.toString))
+        val den = new BigInt(new BigInteger(math.pow(baseTen, denPower).toLong.toString))
         (nom, den)
       } else {
         val den = new BigInt(new BigInteger("1"))
-        val newNom = nom * new BigInt(new BigInteger(math.pow(10, -denPower).toLong.toString))
+        val newNom = nom * new BigInt(new BigInteger(math.pow(baseTen, -denPower).toLong.toString))
         (newNom, den)
       }
     }
@@ -95,7 +98,7 @@ object Rational {
       val nom = new BigInt(new BigInteger(value.replace(".", "")))
       val parts = value.split('.')
       // can this overflow?
-      val den = new BigInt(new BigInteger(math.pow(10, parts(1).length).toLong.toString))
+      val den = new BigInt(new BigInteger(math.pow(baseTen, parts(1).length).toLong.toString))
       (nom, den)
     }
 
@@ -114,7 +117,7 @@ object Rational {
       throw new ArithmeticException("cannot convert -infinity to a fraction")
     if (bits == 0x7ff8000000000000L)
       throw new ArithmeticException("cannot convert NaN to a fraction")
-    
+
     val sign = if ((bits >> 63) == 0) 1 else -1
 
     val exponent = ((bits >> 52) & 0x7ffL).toInt
@@ -138,7 +141,7 @@ object Rational {
     This will throw and exception if the number is too large to fit into an Int.
   */
   def scaleToIntsDown(r: Rational): Rational = {
-    
+
     // Too large
     if (math.abs(r.toDouble) > Int.MaxValue) {
       throw new RationalCannotBeCastToIntException(
@@ -147,25 +150,25 @@ object Rational {
     // Too small
     if (math.abs(r.toDouble) < MIN_INT_RATIONAL) {
       // Underflow
-      if (r < Rational(0)) Rational(-1l, Int.MaxValue.toLong) 
+      if (r < Rational(0)) Rational(-1l, Int.MaxValue.toLong)
       else Rational(0.0)
     } else {
-    
+
       val num = r.n.abs
       val den = r.d
-   
+
       // Already small enough
       if (num < Int.MaxValue && den < Int.MaxValue) {
         r
       } else {
- 
-        val divN = if (num.bitLength < 32) oneBigInt else num / MAX_INT + oneBigInt
-        val divD = if (den.bitLength < 32) oneBigInt else den / MAX_INT + oneBigInt
+
+        val divN = if (num.bitLength < bits32) oneBigInt else num / MAX_INT + oneBigInt
+        val divD = if (den.bitLength < bits32) oneBigInt else den / MAX_INT + oneBigInt
         val div = divN.max(divD)
-        val res = 
+        val res =
           if (r.toDouble > 0.0) {// Rounding down, so num round down, den round up
             val nn = num / div
-            val dd = den / div + oneBigInt 
+            val dd = den / div + oneBigInt
             Rational(nn, dd)
           } else { // Rounding up, so num rnd up, den rnd down
             val nn = num / div + oneBigInt
@@ -173,7 +176,7 @@ object Rational {
             Rational(-nn, dd)
           }
         assert(res.toDouble <= r.toDouble, "\nres (" + res.toDouble +
-          ") is larger than before \n   (" + r.toDouble) 
+          ") is larger than before \n   (" + r.toDouble)
         res
       }
     }
@@ -193,26 +196,26 @@ object Rational {
     // Too small
     if (math.abs(r.toDouble) < MIN_INT_RATIONAL) {
       // Underflow
-      if (r < Rational(0)) Rational(-1l, Int.MaxValue.toLong) 
+      if (r < Rational(0)) Rational(-1l, Int.MaxValue.toLong)
       else Rational(0.0)
     } else {
-    
+
       val num = r.n.abs
       val den = r.d
-   
+
       // Already small enough
       if (num.abs < Int.MaxValue && den < Int.MaxValue) {
         r
       } else {
- 
-        val divN = if (num.bitLength < 32) oneBigInt else num / MAX_INT + oneBigInt
-        val divD = if (den.bitLength < 32) oneBigInt else den / MAX_INT + oneBigInt
+
+        val divN = if (num.bitLength < bits32) oneBigInt else num / MAX_INT + oneBigInt
+        val divD = if (den.bitLength < bits32) oneBigInt else den / MAX_INT + oneBigInt
         val div = divN.max(divD)
 
-        val res = 
+        val res =
           if (r.toDouble > 0.0) {// Rounding up, so num round up, den round down
             val nn = num / div + oneBigInt
-            val dd = den / div 
+            val dd = den / div
             Rational(nn, dd)
           } else {
             val nn = num / div
@@ -220,25 +223,25 @@ object Rational {
             Rational(-nn, dd)
           }
         assert(res.toDouble >= r.toDouble, "\nres (" + res.toDouble +
-          ") is larger than before\n    (" + r.toDouble) 
+          ") is larger than before\n    (" + r.toDouble)
         res
       }
     }
   }
 
   def abs(r: Rational): Rational = {
-    if (r.n < 0) return new Rational(-r.n, r.d)
-    else return r
+    if (r.n < 0) new Rational(-r.n, r.d)
+    else r
   }
 
   def max(x: Rational, y: Rational): Rational = {
-    if (x >= y) return x
-    else return y
+    if (x >= y) x
+    else y
   }
 
   def min(x: Rational, y: Rational): Rational = {
-    if (x < y) return x
-    else return y
+    if (x < y) x
+    else y
   }
 
   private def formatFraction(n: BigInt, d: BigInt): (BigInt, BigInt) = {
@@ -252,7 +255,6 @@ object Rational {
   private val mathContext = new java.math.MathContext(64, java.math.RoundingMode.HALF_EVEN)
 
   def niceDoubleString(d: Double) = {
-    // TODO: is there such a library function maybe?
     def removeTrailingZeroes(s: String): String = {
       if (s.last == '0') removeTrailingZeroes(s.init)
       else s
@@ -295,7 +297,7 @@ class Rational private(val n: BigInt, val d: BigInt) extends ScalaNumber with Sc
     val xNom = this.n * other.d
     val yNom = other.n * this.d
     val denom = this.d * other.d
-    return xNom.compare(yNom)
+    xNom.compare(yNom)
   }
 
   def roundToInt: Int = {

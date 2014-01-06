@@ -66,7 +66,7 @@ case class Deviation(indx: Index, mgnt: Magnitude) {
   }
 
   override def toString: String = "%se%d".format(value.toString, index)
-  
+
   def value: Rational = mgnt.value
   def index: Int = indx.freshIndex
   def isZero: Boolean = (mgnt.value == Rational.zero)

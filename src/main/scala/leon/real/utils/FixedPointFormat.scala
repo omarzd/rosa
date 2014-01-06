@@ -35,7 +35,7 @@ object FixedPointFormat {
       throw FixedPointOverflowException("Number of max bits (%d) exceeded: %d".format(bits, intBits))
     }
     val fracBits = if (signed) bits - intBits - 1 else bits - intBits
-    return new FixedPointFormat(signed, bits, fracBits, globalRounding)
+    new FixedPointFormat(signed, bits, fracBits, globalRounding)
   }
 
   def getFormat(i: RationalInterval, bits: Int): FixedPointFormat = {
@@ -54,11 +54,11 @@ object FixedPointFormat {
   def getFormat(r: Rational, bitLength: Int): FixedPointFormat = {
     val fracBits = fractionalBits(math.abs(r.toDouble), bitLength)
     val tmp = new FixedPointFormat(true, bitLength, fracBits, globalRounding)
-    return tmp
+    tmp
   }
 
   private def fractionalBits(constant: Double, totalBits: Int): Int = {
-    return math.ceil(totalBits - 2 - math.log(constant)/math.log(2)).toInt
+    math.ceil(totalBits - 2 - math.log(constant)/math.log(2)).toInt
   }
 
   /**
@@ -66,7 +66,7 @@ object FixedPointFormat {
    Assumes 32-bit integers.
    */
   private def bitsNeeded(value: Int): Int = {
-    return 32 - Integer.numberOfLeadingZeros(value)
+    32 - Integer.numberOfLeadingZeros(value)
   }
 
   // Conversion functions from rational to fixedpoint.
@@ -129,12 +129,7 @@ case class FixedPointFormat(val signed: Boolean, val bits: Int, val f: Int, val 
   */
   def canRepresent(d: Rational): Boolean = {
     val tmp = d.toDouble * math.pow(2, f)
-    if (tmp.toInt == tmp) {
-      //println("FOUND EXACT CONST: " + d)
-      return true
-    }
-    else
-      return false
+    (tmp.toInt == tmp)
   }
 
   /**

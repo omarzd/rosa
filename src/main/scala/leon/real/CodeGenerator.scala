@@ -46,7 +46,7 @@ class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, 
   }
 
   def specToCode(programId: Identifier, objectId: Identifier, vcs: Seq[VerificationCondition]): Program = precision match {
-    case FPPrecision(bts) => 
+    case FPPrecision(bts) =>
       if (bts <= 32) specToFixedCode(programId, objectId, vcs, bts)
       else {
         reporter.error("Fixed-point code generation not possible for bitlengths larger than 32 bits.")
@@ -60,7 +60,9 @@ class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, 
     var defs: Seq[Definition] = Seq.empty
     val invariants: Seq[Expr] = Seq.empty
 
-    for (vc <- vcs if (vc.kind == VCKind.Postcondition || vc.kind == VCKind.SpecGen)) {
+    // only generate code for methods that were proven valid.
+    // this is not fool-proof, as this check only considers the postcondition check and not the pre-condition checks
+    for (vc <- vcs if ( (vc.kind == VCKind.Postcondition || vc.kind == VCKind.SpecGen) && vc.status(precision) == Some(true))) {
       val f = vc.funDef
       val id = f.id
       val floatType = nonRealType
@@ -102,7 +104,7 @@ class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, 
       val id = f.id
       val args = f.args.map(decl => VarDecl(decl.id, intType))
       val funDef = new FunDef(id, intType, args)
-      
+
       println("\n ==== \nfnc id: " + id)
       println("vc.kind " + vc.kind)
       println("generating code for: " + vc.body)
@@ -110,8 +112,8 @@ class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, 
       // convert to SSA form, then run through Approximator to get ranges of all intermediate variables
       val ssaBody = idealToActual(toSSA(vc.body), vc.variables)
       val transformer = new Approximator(reporter, solver, precision, vc.pre, vc.variables)
-      val (newBody, newSpec) = transformer.transformWithSpec(ssaBody)
-      
+      val (newBody, newSpec) = transformer.transformWithSpec(ssaBody, false)
+
       val formats = transformer.variables.map {
         case (v, r) => (v, FPFormat.getFormat(r.interval.xlo, r.interval.xhi, bitlength))
       }
@@ -137,5 +139,5 @@ class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, 
     case _ => expr
   }
 
-  
+
 }

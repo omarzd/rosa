@@ -17,7 +17,7 @@ object Trees {
     val fixedType = RealType
     def this(d: Double) = this(Rational(d))
     def this(i: Int) = this(Rational(i))
-    
+
     def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
       if (floatType) printer.append(value.toString + "f")
       else printer.append(value.toString)
@@ -27,11 +27,11 @@ object Trees {
   // literal in the floating-point computation
   case class FloatLiteral(value: Rational, exact: Boolean) extends Expr with Terminal with FixedType with PrettyPrintable {
     val fixedType = RealType
-    
+
     def this(r: Rational) = this(r, isExact(r))
     def this(d: Double) = this(Rational(d))
     def this(i: Int) = this(Rational(i), true)
-    
+
     def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
       printer.append(value.toString + "f")
     }
@@ -101,7 +101,7 @@ object Trees {
     }
   }
 
-  
+
   case class InitialNoise(expr: Expr) extends Expr with FixedType with UnaryExtractable with PrettyPrintable {
     val fixedType = RealType
 
@@ -113,7 +113,7 @@ object Trees {
       printer.pp(expr, Some(this))
     }
   }
-  
+
   case class RelError(expr: Expr, err: Expr) extends Expr with FixedType with BinaryExtractable with PrettyPrintable {
     val fixedType = BooleanType
 
@@ -132,7 +132,7 @@ object Trees {
       printer.pp(err, Some(this))
       printer.append(")")
     }
-  } 
+  }
 
   case class Assertion(expr: Expr) extends Expr with FixedType  with UnaryExtractable with PrettyPrintable {
     val fixedType = BooleanType
@@ -247,8 +247,8 @@ object Trees {
       val flat = exprs.flatMap(_ match {
         case Product(es) => es
         case o => Seq(o)
-      }) 
-      new Product(flat)   
+      })
+      new Product(flat)
     }
     def unapply(prod: Product) : Option[Seq[Expr]] =
       if(prod == null) None else Some(prod.exprs)
@@ -277,7 +277,7 @@ object Trees {
     }
   }
 
-  
+
 
   /* Arithmetic on floats */
   case class PlusF(lhs: Expr, rhs: Expr) extends Expr with FixedType with BinaryExtractable with PrettyPrintable {
