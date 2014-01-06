@@ -43,6 +43,8 @@ object TreeOps {
     case Noise(_,_) => expr
 
     case Not(t) => Not(addResult(t, variable))
+
+    case FncValue(_, _) => Equals(variable.get, expr)
   }
 
 
