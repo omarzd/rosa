@@ -17,7 +17,7 @@ object RationalAffineUtils {
   def sqrtDown(x: Rational): Rational = Rational(DirectedRounding.sqrtDown(Rational.scaleToIntsDown(x).doubleValue))
 
   def computeZeta(dmin: Rational, dmax: Rational): Rational = {
-    dmin / Rational(2l, 1l) +  dmax / Rational(2l, 1l)
+    dmin / Rational(2L, 1L) +  dmax / Rational(2L, 1L)
   }
 
   def computeDelta(zeta: Rational, dmin: Rational, dmax: Rational): Rational = {
@@ -31,7 +31,7 @@ object RationalAffineUtils {
     var deviation = multiplyQueue(noise, alpha)
 
     if (delta != zero) deviation += Deviation(newIndex, delta)
-    return new XRationalForm(z0, deviation)
+    new XRationalForm(z0, deviation)
   }
 
 
@@ -68,7 +68,7 @@ object RationalAffineUtils {
     }
     //println("addQueues")
     RationalDoubleQueueIterator.iterate(iterX, iterY, dummyDev, fx, fy, fCouple)
-    return deviation
+    deviation
   }
 
   def subtractQueues(xn: Queue[Deviation], yn: Queue[Deviation]): Queue[Deviation] = {
@@ -86,7 +86,7 @@ object RationalAffineUtils {
     }
     //println("subtractQueues")
     RationalDoubleQueueIterator.iterate(iterX, iterY, dummyDev, fx, fy, fCouple)
-    return deviation
+    deviation
   }
 
   def multiplyQueues(a: Rational, xqueue: Queue[Deviation], b: Rational,
@@ -112,7 +112,7 @@ object RationalAffineUtils {
     }
     //println("multiplyQueues")
     RationalDoubleQueueIterator.iterate(iterX, iterY, dummyDev, fx, fy, fCouple)
-    return deviation
+    deviation
   }
 
   def multiplyQueue(queue: Queue[Deviation], factor: Rational): Queue[Deviation] = {
@@ -123,7 +123,7 @@ object RationalAffineUtils {
       val zi = xi * factor
       if (!zi.isZero) deviation += zi
     }
-    return deviation
+    deviation
   }
 
   def getIndices(q: Queue[Deviation]): collection.immutable.Set[Int] = {
@@ -254,7 +254,7 @@ object RationalAffineUtils {
   private def mergeIndices(x: Set[Int], y: Set[Int]): Array[Int] = {
     val set = x ++ y
     val list = set.toList.sorted
-    return list.toArray
+    list.toArray
   }
 }
 

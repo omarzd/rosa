@@ -86,10 +86,10 @@ case class XRationalForm(val x0: Rational, var noise: Queue[Deviation]) {
     "%s +/- %s".format(x0.toString, noise.toString)
 
   def absValue: XRationalForm = {
-    if (Rational(0) <= x0) return this else return -this
+    if (Rational(0) <= x0) this else -this
   }
 
-  def isNonZero: Boolean = return (x0 != 0 || noise.size > 0)
+  def isNonZero: Boolean = (x0 != 0 || noise.size > 0)
 
   /**
     Negates this XRationalForm.
@@ -104,11 +104,9 @@ case class XRationalForm(val x0: Rational, var noise: Queue[Deviation]) {
   }
 
 
-  def +(y: XRationalForm): XRationalForm =
-    return new XRationalForm(this.x0 + y.x0, addQueues(this.noise, y.noise))
+  def +(y: XRationalForm): XRationalForm = new XRationalForm(this.x0 + y.x0, addQueues(this.noise, y.noise))
 
-  def -(y: XRationalForm): XRationalForm =
-    return new XRationalForm(this.x0 - y.x0, subtractQueues(this.noise, y.noise))
+  def -(y: XRationalForm): XRationalForm = new XRationalForm(this.x0 - y.x0, subtractQueues(this.noise, y.noise))
 
   def *(y: XRationalForm): XRationalForm = {
     var z0 = this.x0 * y.x0
@@ -124,7 +122,7 @@ case class XRationalForm(val x0: Rational, var noise: Queue[Deviation]) {
     //val sortedNewTerms: Queue[Deviation] = newTerms.sortBy(x => x.index)
     if(delta != 0)
       newTerms += Deviation(newIndex, delta)
-    return new XRationalForm(z0, newTerms)
+    new XRationalForm(z0, newTerms)
   }
 
   /**
@@ -138,34 +136,35 @@ case class XRationalForm(val x0: Rational, var noise: Queue[Deviation]) {
 
     if(noise.size == 0) { //exact
       val inv = Rational(1.0)/x0
-      return new XRationalForm(inv, new Queue[Deviation]())
+      new XRationalForm(inv, new Queue[Deviation]())
+    } else {
+
+      /* Calculate the inverse */
+      val a = min(abs(xlo), abs(xhi))
+      val b = max(abs(xlo), abs(xhi))
+
+      val alpha = Rational(-1.0) / (b * b)
+
+      val dmax = (Rational(1.0) / a) - (alpha * a)
+      val dmin = (Rational(1.0) / b) - (alpha * b)
+
+      var zeta = (dmin / Rational(2.0)) + (dmax / Rational(2.0))
+      if (xlo < Rational(0.0)) zeta = -zeta
+      val delta = max( zeta - dmin, dmax - zeta )
+
+      val z0 = alpha * this.x0 + zeta
+
+      var newTerms = multiplyQueue(noise, alpha)
+      if(delta != 0.0) newTerms += Deviation(newIndex, delta)
+      new XRationalForm(z0, newTerms)
     }
-
-    /* Calculate the inverse */
-    val a = min(abs(xlo), abs(xhi))
-    val b = max(abs(xlo), abs(xhi))
-
-    val alpha = Rational(-1.0) / (b * b)
-
-    val dmax = (Rational(1.0) / a) - (alpha * a)
-    val dmin = (Rational(1.0) / b) - (alpha * b)
-
-    var zeta = (dmin / Rational(2.0)) + (dmax / Rational(2.0))
-    if (xlo < Rational(0.0)) zeta = -zeta
-    val delta = max( zeta - dmin, dmax - zeta )
-
-    val z0 = alpha * this.x0 + zeta
-
-    var newTerms = multiplyQueue(noise, alpha)
-    if(delta != 0.0) newTerms += Deviation(newIndex, delta)
-    return new XRationalForm(z0, newTerms)
   }
 
   /**
    Computes x/y as x * (1/y).
    */
   def /(y: XRationalForm): XRationalForm = {
-    return this * y.inverse
+    this * y.inverse
   }
 
 
@@ -184,13 +183,13 @@ case class XRationalForm(val x0: Rational, var noise: Queue[Deviation]) {
 
     if (a < zero) a = zero  //soft policy
 
-    val alpha = Rational(1l, 2l) / sqrtUp(b)
+    val alpha = Rational(1L, 2L) / sqrtUp(b)
     val dmin = sqrtDown(a) - (alpha * a)
     val dmax = sqrtUp(b) - (alpha * b)
 
     val zeta = computeZeta(dmin, dmax)
     val delta = computeDelta(zeta, dmin, dmax)
-    return unaryOp(x0, noise, alpha, zeta, delta)
+    unaryOp(x0, noise, alpha, zeta, delta)
   }
 
 
@@ -221,7 +220,7 @@ case class XRationalForm(val x0: Rational, var noise: Queue[Deviation]) {
       else newDev += xi
     }
     newDev += Deviation(newIndex, newNoise)
-    return newDev
+    newDev
   }
 
 
@@ -293,6 +292,6 @@ case class XRationalForm(val x0: Rational, var noise: Queue[Deviation]) {
   private def mergeIndices(x: Set[Int], y: Set[Int]): Array[Int] = {
     val set = x ++ y
     val list = set.toList.sorted
-    return list.toArray
+    list.toArray
   }*/
 }

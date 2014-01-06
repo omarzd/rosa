@@ -97,7 +97,7 @@ object XFloat {
   def xFloatWithRoundoff(v: Variable, range: RationalInterval, config: XConfig, machineEps: Rational): (XFloat, Int) = {
     val rndoff = roundoff(range, machineEps)
     val (newError, index) = addNoiseWithIndex(new XRationalForm(Rational.zero), rndoff)
-    return (new XFloat(v, range, newError, config, machineEps), index)
+    (new XFloat(v, range, newError, config, machineEps), index)
   }
 
   /**
@@ -131,13 +131,12 @@ object XFloat {
   private def roundoff(range: RationalInterval, machineEps: Rational): Rational = {
     val maxAbs = max(abs(range.xlo), abs(range.xhi))
     // Without scaling this can return fractions with very large numbers
-    // TODO: scale the result
     val simplifiedMax = Rational.scaleToIntsUp(maxAbs)
-    return machineEps * simplifiedMax
+    machineEps * simplifiedMax
   }
 
   private def roundoff(r: Rational, machineEps: Rational): Rational = {
-    return machineEps * abs(r)
+    machineEps * abs(r)
   }
 
   var verbose = false
@@ -149,7 +148,7 @@ class XFloat(val tr: Expr, val appInt: RationalInterval, val err: XRationalForm,
   val cnfg: XConfig, val machineEps: Rational) extends XReal(tr, appInt, err, cnfg) {
   import XFloat._
 
-  
+
   /*def errorString(variables: Iterable[Int]): String = {
     val (varErrors, otherErrors): (Queue[Deviation], Queue[Deviation]) =
       error.noise.partition(
@@ -183,7 +182,7 @@ class XFloat(val tr: Expr, val appInt: RationalInterval, val err: XRationalForm,
     var (newTree, newRealRange, newError, newConfig) = super.subtract(y)
     val rndoff = roundoff(newRealRange + newError.interval)
     newError = addNoise(newError, rndoff)
-    return new XFloat(newTree, newRealRange, newError, newConfig, machineEps)
+    new XFloat(newTree, newRealRange, newError, newConfig, machineEps)
   }
 
   override def *(y: XReal): XReal = {
@@ -223,13 +222,12 @@ class XFloat(val tr: Expr, val appInt: RationalInterval, val err: XRationalForm,
   private def roundoff(range: RationalInterval): Rational = {
     val maxAbs = max(abs(range.xlo), abs(range.xhi))
     // Without scaling this can return fractions with very large numbers
-    // TODO: scale the result
     val simplifiedMax = Rational.scaleToIntsUp(maxAbs)
-    return machineEps * simplifiedMax
+    machineEps * simplifiedMax
   }
 
   private def roundoff(r: Rational): Rational = {
-    return machineEps * abs(r)
+    machineEps * abs(r)
   }
 
 }

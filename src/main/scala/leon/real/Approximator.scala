@@ -4,8 +4,7 @@ package leon
 package real
 
 import purescala.Common._
-//import purescala.Trees._
-import purescala.Trees.{Expr, Variable, And, Equals, LessEquals, LessThan, GreaterThan, GreaterEquals}
+import purescala.Trees.{Expr, Variable, And, Equals, LessEquals, LessThan, GreaterThan, GreaterEquals, BooleanLiteral}
 import purescala.TreeOps._
 import purescala.TypeTrees._
 
@@ -16,94 +15,89 @@ import XFixed._
 import Rational._
 import VariableShop._
 
-object FloatApproximator {
-
-  // Just so we have it somewhere, not tested
-  def evalWithError(reporter: Reporter, solver: RealSolver, precision: Precision, expr: Expr, precondition: Expr, inputs: VariablePool): Map[Expr, XReal] = {
-    //val config = XFloatConfig(reporter, solver, precondition, options.defaultPrecision, getUnitRoundoff(options.defaultPrecision),
-    //  solverMaxIterMedium, solverPrecisionMedium)
-
-    val transformer = new FloatApproximator(reporter, solver, precision, precondition, inputs)
-    transformer.transform(expr)
-
-    transformer.variables -- inputs.actualVariables
-  }
-
-  var pathErrorVerbose = false
-}
-
-class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Precision, precondition: Expr, inputs: VariablePool,
-  checkPathError: Boolean = true) extends TransformerWithPC {
-  import FloatApproximator._
+class Approximator(reporter: Reporter, solver: RealSolver, precision: Precision, precondition: Expr, inputs: VariablePool,
+  checkPathError: Boolean = false) {
 
   implicit val debugSection = DebugSectionVerification
-
-  type C = Seq[Expr]
-  val initC = Nil
-
-  val verboseLocal = false // TODO figure out which verbose that is if we call this 'verbose'
+  val verbose = false
+  var pathErrorVerbose = false
   val compactingThreshold = 200
-
-  val leonToZ3 = new LeonToZ3Transformer(inputs, precision)
-  val noiseRemover = new NoiseRemover
-  val (minVal, maxVal) = precision.range 
-
+  val (minVal, maxVal) = precision.range
   val (maxNegNormal, minPosNormal) = (-precision.minNormal, precision.minNormal)
-  
-  val initialCondition: Expr = leonToZ3.getZ3Expr(noiseRemover.transform(precondition))
-
-  val config = XConfig(solver, initialCondition, solverMaxIterMedium, solverPrecisionMedium)
-
   val (machineEps, bits) = precision match {
     case FPPrecision(bts) => (Rational.zero, bts)
     case _ => (getUnitRoundoff(precision), 0)
   }
 
-  if (verboseLocal) println("initial config: " + config)
+  val leonToZ3 = new LeonToZ3Transformer(inputs, precision)
+  val noiseRemover = new NoiseRemover
+
+  val initialCondition: Expr = leonToZ3.getZ3Expr(noiseRemover.transform(precondition))
+  val config = XConfig(solver, initialCondition, solverMaxIterMedium, solverPrecisionMedium)
+  if (verbose) println("initial config: " + config)
 
   var variables: Map[Expr, XReal] = precision match {
     case Float32 | Float64 | DoubleDouble | QuadDouble => variables2xfloats(inputs, config, machineEps)._1
     case FPPrecision(bits) => variables2xfixed(inputs, config, bits)._1
   }
+  if (verbose) println("initial variables: " + variables)
 
-  if (verboseLocal) println("initial variables: " + variables)
-  
-  def register(e: Expr, path: C) = e match {
+  // returned from Equals, but not used
+  val dummyXReal = new XReal(RealLiteral(zero), RationalInterval(zero, zero), XRationalForm(zero, collection.mutable.Queue()), config)
+
+  private def constraintFromXFloats(results: Map[Expr, XReal]): Expr = {
+      And(results.foldLeft(Seq[Expr]())(
+        (seq, kv) => seq ++ Seq(LessEquals(RealLiteral(kv._2.interval.xlo), kv._1),
+                                LessEquals(kv._1, RealLiteral(kv._2.interval.xhi)),
+                                Noise(inputs.getIdeal(kv._1), RealLiteral(kv._2.maxError)))))
+  }
+
+  /* 'generateFullConstraint' will ignore the returned approximation and generate a constraint
+     over all (intermediate) variables. This mode should be used for checking pre-conditions.
+    @return (computed constraint, spec of the result, if applicable)
+   */
+  def transformWithSpec(e: Expr, generateFullConstraint: Boolean): (Expr, Option[Spec]) = {
+    def constraintFromXFloats(results: Map[Expr, XReal]): Expr = {
+      And(results.foldLeft(Seq[Expr]())(
+        (seq, kv) => seq ++ Seq(LessEquals(RealLiteral(kv._2.interval.xlo), kv._1),
+                                LessEquals(kv._1, RealLiteral(kv._2.interval.xhi)),
+                                Noise(inputs.getIdeal(kv._1), RealLiteral(kv._2.maxError)))))
+    }
+    e match {
+      case BooleanLiteral(_) => (e, None)  // if no body
+      case _ =>
+        val approximation = approx(e, Seq())
+
+        // sanityCheck
+        //if
+
+        if (generateFullConstraint) {
+          (constraintFromXFloats(variables), None)
+        } else {
+          val spec = Spec(inputs.resultVar.id, RationalInterval(approximation.realInterval.xlo, approximation.realInterval.xhi),
+                          approximation.maxError)
+          (constraintFromXFloats(Map(inputs.fResultVar -> approximation)), Some(spec))
+        }
+    }
+  }
+
+  private def register(path: Seq[Expr], e: Expr) = e match {
     // We allow only these conditions in if-then-else
     case LessThan(_,_) | LessEquals(_,_) | GreaterThan(_,_) | GreaterEquals(_,_) =>
       path :+ e
     case _ => path
   }
 
-  def transformWithSpec(e: Expr): (Expr, Option[Spec]) = {
-    val exprTransformed = this.transform(e)
-    variables.get(inputs.fResultVar) match {
-      case Some(resXFloat) =>
-        val spec = Spec(inputs.resultVar.id, RationalInterval(resXFloat.realInterval.xlo, resXFloat.realInterval.xhi), resXFloat.maxError)
-        (exprTransformed, Some(spec))
-      case None =>
-        (exprTransformed, None)
-    }    
-  }
-
-  override def rec(e: Expr, path: C) =  {
-    // TODO: ugly!
-    def getXReal(e: Expr): XReal = e match {
-      case ApproxNode(x) => x
-      case fl: FloatLiteral => addCondition(fl, path)
-      case v: Variable => addCondition(v, path)
-      case And(args) => getXReal(args.last)
-    }
-
-    // the float condition is to be used with the negation of the actual condition to get only 
+  def approx(e: Expr, path: Seq[Expr]): XReal = {
+    // the float condition is to be used with the negation of the actual condition to get only
     // the values that are off-path
     def getOffPathConditions(cond: Expr): (Expr, Expr) = {
       def getTotalError(l: Expr, r: Expr): Expr = {
         val lActual = idealToActual(l, inputs)
         val rActual = idealToActual(r, inputs)
-        
-        val errLeft = getXReal(rec(lActual, path)).maxError
-        val errRight = getXReal(rec(rActual, path)).maxError
+
+        val errLeft = approx(lActual, path).maxError
+        val errRight = approx(rActual, path).maxError
         RealLiteral(errLeft + errRight)
       }
 
@@ -135,14 +129,14 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
     }// end getOffPathConditions
 
 
-    // Computes the path error for one direction and branch 
+    // Computes the path error for one direction and branch
     //@param branchCondition real-valued
     //@param f1 path to be taken by ideal execution
     //@param f2 path to be taken by floating-point execution
     def computePathError(currentPathCondition: Seq[Expr], branchCondition: Expr, f1: Expr, f2: Expr): Rational = {
       def removeErrors(xf: XReal): XReal = xf match {
         case xff: XFloat =>
-          new XFloat(xff.tree, xff.approxInterval, new XRationalForm(Rational.zero), xff.config, xff.machineEps)  
+          new XFloat(xff.tree, xff.approxInterval, new XRationalForm(Rational.zero), xff.config, xff.machineEps)
         case xfp: XFixed =>
           new XFixed(xfp.format, xfp.tree, xfp.approxInterval, new XRationalForm(Rational.zero), xfp.config)
       }
@@ -160,18 +154,18 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
 
       //([c], errc) = evalWithError(pre, c)
       val (flCond, reCond) = getOffPathConditions(branchCondition)
-      
+
       val floatCondition = And(flCond, negate(branchCondition))
       val realCondition = And(reCond, branchCondition)
       if (pathErrorVerbose) println("floatCondition: %s\nrealCondition: %s".format(floatCondition, realCondition))
-  
+
       //println("----> feasible? " + isFeasible(Seq(initialCondition, floatCondition)))
       //println(isFeasible(Seq(initialCondition, realCondition)))
 
       if (isFeasible(currentPathCondition :+ floatCondition) && isFeasible(currentPathCondition :+ realCondition)) {
 
         val variablesOfPaths = variablesOf(f1) ++ variablesOf(f2)
-        
+
         //[f1]real = getRange(pre ∧ c(x) ∈ [−errc, 0], f1)
         val (freshMapReal, inputs1) = getFreshVariablesWithConditionWithoutErrors(variablesOfPaths, realCondition)
         if (pathErrorVerbose) println("freshMapReal: " + freshMapReal + "\ninputs1:")
@@ -183,13 +177,13 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
         // don't add the branchCondition to the path, since it's in terms of real variables and will cause an invalid result
         // the branchCondition is already added to the config of the variables, and for constants it doesn't matter
         //println("realPath: " + replace(freshMapReal, f1))
-        val realResult = getXReal(rec(replace(freshMapReal, f1), path))
+        val realResult = approx(replace(freshMapReal, f1), path)
         //println("real result config: " + realResult.config.getCondition)
         //println("real result: " + realResult)
         //println("solverPrecision: " + realResult.config.solverPrecision)
         if (pathErrorVerbose) println("realResult: " + removeErrors(realResult))
-        
-        
+
+
         //([f2]float, errfloat) = evalWithError(pre ∧ c(x) ∈ [0, errc], f2)
         //(Map[Expr, Expr], Map[Expr, XFloat])
         val (freshMapFloat, inputs2) = getFreshVariablesWithConditionWithoutErrors(variablesOfPaths, floatCondition)
@@ -198,7 +192,7 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
 
         variables = variables ++ inputs2
         solver.clearCounts
-        val floatResult = getXReal(rec(replace(freshMapFloat, f2), path))
+        val floatResult = approx(replace(freshMapFloat, f2), path)
         //println("floatResult: " + floatResult)
 
 
@@ -214,7 +208,7 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
             LessEquals(freshErrorVar, RealLiteral(xf.maxError))))
           }
         if (pathErrorVerbose) println("correlation: " + correlation)
-      
+
         val realResultWithCorrelation = addConditionToXReal(removeErrors(realResult), And(correlation.toSeq))
           //new XFloat(realResult.tree, realResult.approxInterval, new XRationalForm(Rational.zero),
           //realResult.config.addCondition(And(correlation.toSeq)))
@@ -242,38 +236,39 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
         Rational.zero
       }
     }
-    
-        
-    val newExpr = e match {
-      case EqualsF(lhs, rhs) =>
-        val x = getXReal(rec(rhs, path))
-        variables = variables + (lhs -> x)
-        constraintFromXFloats(Map(lhs -> x))
 
-      // TODO: do we need this? this should only appear in the postcondition which we do not evaluate
-      //case InitialNoise(v @ Variable(_)) => vars(v).maxError
-      case UMinusF(t) =>        ApproxNode(-getXReal(rec(t, path)))
-      case PlusF(lhs, rhs) =>   ApproxNode(getXReal(rec(lhs, path)) + getXReal(rec(rhs, path)))
-      case MinusF(lhs, rhs) =>  ApproxNode(getXReal(rec(lhs, path)) - getXReal(rec(rhs, path)))
-      case TimesF(lhs, rhs) =>  ApproxNode(getXReal(rec(lhs, path)) * getXReal(rec(rhs, path)))
+    (e match {
+      case EqualsF(lhs, rhs) =>
+        val x = approx(rhs, path)
+        variables = variables + (lhs -> x)
+        dummyXReal // this won't be used, but we need to return something
+
+      case UMinusF(t) =>        - approx(t, path)
+      case PlusF(lhs, rhs) =>   approx(lhs, path) + approx(rhs, path)
+      case MinusF(lhs, rhs) =>  approx(lhs, path) - approx(rhs, path)
+      case TimesF(lhs, rhs) =>  approx(lhs, path) * approx(rhs, path)
       case DivisionF(lhs, rhs) =>
-        val r = getXReal(rec(rhs, path))
+        val r = approx(rhs, path)
         if (possiblyZero(r.interval)) throw RealArithmeticException("Potential div-by-zero detected: " + e)
-        ApproxNode(getXReal(rec(lhs, path)) / r)
-        
+        approx(lhs, path) / r
+
       case SqrtF(t) =>
-        val x = getXReal(rec(t, path))
+        val x = approx(t, path)
         if (possiblyNegative(x.interval)) throw RealArithmeticException("Potential sqrt of negative detected: " + e)
-        ApproxNode(x.squareRoot)    
-        
-      case FloatIfExpr(cond, thenn, elze) =>
+        x.squareRoot
+
+      case FloatIfExpr(branchCond, thenn, elze) =>
+        val cond = branchCond //And(branchCond, extractFullCondition(branchCond))
+        //println("\n cond: " + branchCond)
+        //println(And(branchCond, extractFullCondition(branchCond)))
         val currentPathCondition = path :+ initialCondition
+        val notCond = negate(cond)
         val thenBranch =
-          if (isFeasible(currentPathCondition :+ cond)) Some(getXReal(rec(thenn, register(cond, path))))
+          if (isFeasible(currentPathCondition :+ cond)) Some(approx(thenn, register(path, cond)))
           else None
 
         val elseBranch =
-          if (isFeasible(currentPathCondition :+ negate(cond))) Some(getXReal(rec(elze, register(negate(cond), path))))
+          if (isFeasible(currentPathCondition :+ notCond)) Some(approx(elze, register(path, notCond)))
           else None
         assert(!thenBranch.isEmpty || !elseBranch.isEmpty)
         reporter.debug("thenBranch: " + thenBranch)
@@ -281,75 +276,75 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
 
 
         val pathError = if (checkPathError) { // When the actual computation goes a different way than the real one
-          val pathError1 = computePathError(currentPathCondition, cond, thenn, elze)
+          val pathError1 = computePathError(currentPathCondition, branchCond, thenn, elze)
           reporter.debug("computed error 1: " + pathError1)
 
-          val pathError2 = computePathError(currentPathCondition, negate(cond), elze, thenn)
+          val pathError2 = computePathError(currentPathCondition, branchCond, elze, thenn)
           reporter.debug("computed error 2: " + pathError1)
 
           max(pathError1, pathError2)
         } else {
           zero
         }
-        ApproxNode(mergeXRealWithExtraError(thenBranch, elseBranch, And(path), pathError))
+        mergeXRealWithExtraError(thenBranch, elseBranch, And(path), pathError)
 
       case FncValueF(spec, specExpr) =>
         val (resId, interval, error, constraints) = (spec.id, spec.bounds, spec.absError, True) // constraints not (yet) used
         val fresh = getNewXFloatVar
 
-        val tmp = precision match {
-          case FPPrecision(bts) => ApproxNode(xFixedWithUncertain(fresh, interval,
+        precision match {
+          case FPPrecision(bts) => xFixedWithUncertain(fresh, interval,
             config.addCondition(replace(Map(Variable(resId) -> fresh), leonToZ3.getZ3Condition(noiseRemover.transform(specExpr)))),
-            error, false, bts)._1)
-          case _ => ApproxNode(xFloatWithUncertain(fresh, interval,
+            error, false, bts)._1
+          case _ => xFloatWithUncertain(fresh, interval,
             config.addCondition(replace(Map(Variable(resId) -> fresh), leonToZ3.getZ3Condition(noiseRemover.transform(specExpr)))),
-            error, false, machineEps)._1)
+            error, false, machineEps)._1
         }
-        tmp
 
-      case FncBodyF(name, body) =>
-        val fncValue = rec(body, path)
-        ApproxNode(getXReal(fncValue))
+      case FncBodyF(name, body, fundef, args) => approx(body, path)
 
-      case _ =>
-        super.rec(e, path)
-    }
-    newExpr match {
-      case ApproxNode(x) if (overflowPossible(x.interval)) =>
-        reporter.warning("Possible overflow detected at: " + newExpr)
-        newExpr
-      case ApproxNode(x) if (denormal(x.interval)) =>
-        throw RealArithmeticException("Denormal value detected for " + e)
-        null
-      case ApproxNode(x) if (formulaSize(x.tree) > compactingThreshold) =>
+      case fl: FloatLiteral => addCondition(fl, path)
+      case v: Variable => addCondition(v, path)
+
+      case And(es) => {
+        val allEs = for(ex <- es) yield approx(ex, path)
+        allEs.last
+      }
+
+    }) match {
+      case x: XReal if (overflowPossible(x.interval)) => reporter.warning("Possible overflow detected at: " + x); x
+      case x: XReal if (denormal(x.interval)) => throw RealArithmeticException("Denormal value detected for " + e); null
+      case x: XReal if (formulaSize(x.tree) > compactingThreshold) =>
         reporter.warning("compacting, size: " + formulaSize(x.tree))
         val fresh = getNewXFloatVar
-        ApproxNode(compactXFloat(x, fresh))
-
-      case _ =>
-        newExpr
+        compactXFloat(x, fresh)
+      case x => x
     }
   }
-  
-  private def compactXFloat(xreal: XReal, newTree: Expr): XReal = {
-    val newConfig = xreal.config.addCondition(rangeConstraint(newTree, xreal.realInterval))
-    val (newXReal, index) = xreal match {  
-      case xf: XFloat =>
-        xFloatWithUncertain(newTree, xreal.approxInterval, newConfig, xreal.maxError, false, xf.machineEps)
-      //v: Expr, range: RationalInterval, config: XConfig,uncertain: Rational, withRoundoff: Boolean, bits: Int
-      case xfp: XFixed =>
-        xFixedWithUncertain(newTree, xreal.approxInterval, newConfig, xreal.maxError, false, xfp.format.bits)
-    }
-    newXReal
-  }
 
+  /*private def extractFullCondition(cond: Expr): Expr = cond match {
+    case GreaterEquals(l, r) =>
+      And(extractFullCondition(l), extractFullCondition(r))
+    case GreaterThan(l, r) =>
+      And(extractFullCondition(l), extractFullCondition(r))
+    case LessEquals(l, r) =>
+      And(extractFullCondition(l), extractFullCondition(r))
+    case LessThan(l, r) =>
+      And(extractFullCondition(l), extractFullCondition(r))
 
+    case v: Variable =>  // this doesn't seem to be reliable
+      val tree = variables(inputs.buddy(v)).tree
+      if (tree != v) Equals(v, tree)
+      else True
+    case UMinusR(t) => extractFullCondition(t)
+    case PlusR(l, r) => And(extractFullCondition(l), extractFullCondition(r))
+    case MinusR(l, r) => And(extractFullCondition(l), extractFullCondition(r))
+    case TimesR(l, r) => And(extractFullCondition(l), extractFullCondition(r))
+    case DivisionR(l, r) => And(extractFullCondition(l), extractFullCondition(r))
+    case _ => True
+  }*/
 
-  // TODO: this has to be done better, perhaps use monads
-  //@param (freshMap, xfloatMap) freshMap is the map from existing variables to fresh ones, 
-  // xfloatMap is the map from new variables to xfloats without errors
   private def getFreshVariablesWithConditionWithoutErrors(vars: Set[Identifier], cond: Expr): (Map[Expr, Expr], Map[Expr, XReal]) = {
-    
     var freshMap: Map[Expr, Expr] = variables.collect {
       case (v @ Variable(id), xf) if (vars.contains(id)) => (v, getFreshVarOf(id.toString))
     }
@@ -357,16 +352,14 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
     var buddyFreshMap: Map[Expr, Expr] = variables.collect {
       case (v @ Variable(id), xf) if (vars.contains(id)) => (inputs.getIdeal(v), freshMap(v))
     }
-    
+
     val newInputs =
       freshMap.map {
       case (v, fresh) =>
         val xf = variables(v)
-        // TODO: add the condition before to improve the approx interval?
         precision match {
           case FPPrecision(bits) =>
-            // TODO: format needs to be determined with range
-            (fresh, new XFixed(???, replace(buddyFreshMap, xf.tree), xf.approxInterval, new XRationalForm(Rational.zero),
+            (fresh, new XFixed(xf.asInstanceOf[XFixed].format, replace(buddyFreshMap, xf.tree), xf.approxInterval, new XRationalForm(Rational.zero),
               xf.config.addCondition(cond).freshenUp(buddyFreshMap).updatePrecision(solverMaxIterHigh, solverPrecisionHigh)))
 
           case _ =>
@@ -376,7 +369,39 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
     }
     (freshMap, newInputs)
   }
-  
+
+  private def addCondition(v: Expr, cond: Seq[Expr]): XReal = {
+    v match {
+      case v: Variable =>
+        variables(v) match {
+          case xfl: XFloat => new XFloat(xfl.tree, xfl.approxInterval, xfl.error, xfl.config.addCondition(leonToZ3.getZ3Condition(And(cond))), machineEps)
+          case xfx: XFixed => new XFixed(xfx.format, xfx.tree, xfx.approxInterval, xfx.error, xfx.config.addCondition(leonToZ3.getZ3Condition(And(cond))))
+        }
+
+      case FloatLiteral(r, exact) =>
+        precision match {
+          case FPPrecision(bits) => XFixed(r, config.addCondition(leonToZ3.getZ3Condition(And(cond))), bits)
+          case _ => XFloat(r, config.addCondition(leonToZ3.getZ3Condition(And(cond))), machineEps)
+        }
+    }
+  }
+
+  private def isFeasible(pre: Seq[Expr]): Boolean = {
+    import Sat._
+    solver.checkSat(leonToZ3.getZ3Expr(And(pre))) match {
+      case (SAT, model) => true
+      case (UNSAT, model) => false
+      case _ =>
+        reporter.info("Sanity check failed! ")// + sanityCondition)
+        false
+    }
+  }
+
+  private def rangeConstraint(v: Expr, i: RationalInterval): Expr = {
+    // FIXME: check this (RealLiteral or FloatLiteral?)
+    And(LessEquals(RealLiteral(i.xlo), v), LessEquals(v, RealLiteral(i.xhi)))
+  }
+
   private def mergeXRealWithExtraError(one: Option[XReal], two: Option[XReal], condition: Expr,
     pathError: Rational): XReal = (one, two) match {
     case (Some(x1), Some(x2)) =>
@@ -418,24 +443,21 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
       null
   }
 
-  private def rangeConstraint(v: Expr, i: RationalInterval): Expr = {
-    // FIXME: check this (RealLiteral or FloatLiteral?)
-    And(LessEquals(RealLiteral(i.xlo), v), LessEquals(v, RealLiteral(i.xhi)))
-  }
-  
 
-  private def constraintFromXFloats(results: Map[Expr, XReal]): Expr = {
-    And(results.foldLeft(Seq[Expr]())(
-      (seq, kv) => seq ++ Seq(LessEquals(RealLiteral(kv._2.interval.xlo), kv._1),
-                                LessEquals(kv._1, RealLiteral(kv._2.interval.xhi)),
-                                Noise(inputs.getIdeal(kv._1), RealLiteral(kv._2.maxError)))))
-    /*(seq, kv) => seq ++ Seq(LessEquals(RealLiteral(kv._2.realInterval.xlo), inputs.getIdeal(kv._1)),
-                                LessEquals(inputs.getIdeal(kv._1), RealLiteral(kv._2.realInterval.xhi)),
-                                Noise(inputs.getIdeal(kv._1), RealLiteral(kv._2.maxError)))))*/
+
+  private def compactXFloat(xreal: XReal, newTree: Expr): XReal = {
+    val newConfig = xreal.config.addCondition(rangeConstraint(newTree, xreal.realInterval))
+    val (newXReal, index) = xreal match {
+      case xf: XFloat =>
+        xFloatWithUncertain(newTree, xreal.approxInterval, newConfig, xreal.maxError, false, xf.machineEps)
+      case xfp: XFixed =>
+        xFixedWithUncertain(newTree, xreal.approxInterval, newConfig, xreal.maxError, false, xfp.format.bits)
+    }
+    newXReal
   }
 
   private def overflowPossible(interval: RationalInterval): Boolean = interval.xlo < minVal || maxVal < interval.xhi
-  
+
   private def possiblyZero(interval: RationalInterval): Boolean = interval.xlo < Rational.zero && interval.xhi > Rational.zero
 
   private def possiblyNegative(interval: RationalInterval): Boolean = interval.xlo < Rational.zero || interval.xhi < Rational.zero
@@ -443,58 +465,6 @@ class FloatApproximator(reporter: Reporter, solver: RealSolver, precision: Preci
   // tests if the entire interval lies in the denormal range
   private def denormal(interval: RationalInterval): Boolean = precision match {
     case FPPrecision(_) => false
-    case _ => (maxNegNormal < interval.xlo && interval.xhi < minPosNormal)
-  }
-    
-  private def addCondition(v: Expr, cond: Seq[Expr]): XReal = {
-    v match {
-      case v: Variable =>
-        variables(v) match {
-          case xfl: XFloat => new XFloat(xfl.tree, xfl.approxInterval, xfl.error, xfl.config.addCondition(leonToZ3.getZ3Condition(And(cond))), machineEps)
-          case xfx: XFixed => new XFixed(xfx.format, xfx.tree, xfx.approxInterval, xfx.error, xfx.config.addCondition(leonToZ3.getZ3Condition(And(cond))))
-        }
-
-      case FloatLiteral(r, exact) =>
-        precision match {
-          case FPPrecision(bits) => XFixed(r, config.addCondition(leonToZ3.getZ3Condition(And(cond))), bits)
-          case _ => XFloat(r, config.addCondition(leonToZ3.getZ3Condition(And(cond))), machineEps) // TODO: save the machineEps somewhere?
-        }
-    }
-  }
-
-  /*private def addCondition(v: XReal, cond: Seq[Expr]): XReal = {
-    if (cond.size > 0)
-      new XFloat(v.tree, v.approxInterval, v.error, v.config.addCondition(leonToZ3.getZ3Condition(And(cond))))
-    else
-      v
-  }*/
-
-  private def isFeasible(pre: Seq[Expr]): Boolean = {
-    import Sat._
-    solver.checkSat(leonToZ3.getZ3Expr(And(pre))) match {
-      case (SAT, model) => true
-      case (UNSAT, model) => false
-      case _ =>
-        reporter.info("Sanity check failed! ")// + sanityCondition)
-        false
-    }
+    case _ => (interval.xlo != interval.xhi && maxNegNormal < interval.xlo && interval.xhi < minPosNormal)
   }
 }
-  
-  /*
-  private def sanityCheck(pre: Expr, silent: Boolean = true): Boolean = {
-    import Sat._
-    solver.checkSat(pre) match {
-      case (SAT, model) =>
-        if (!silent) reporter.info("Sanity check passed! :-)")
-        //reporter.info("model: " + model)
-        true
-      case (UNSAT, model) =>
-        if (!silent) reporter.warning("Not sane! " + pre)
-        false
-      case _ =>
-        reporter.info("Sanity check failed! ")// + sanityCondition)
-        false
-    }
-  }
-  */

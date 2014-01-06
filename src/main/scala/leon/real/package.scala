@@ -23,11 +23,10 @@ package object real {
   case class PostconditionInliningFailedException(msg: String) extends Exception(msg)
   case class UnsoundBoundsException(msg: String) extends Exception(msg)
 
-  // TODO: check if we need this one
-  case class ArithmeticException(msg: String) extends Exception(msg)
   case class FixedPointOverflowException(s: String) extends Exception
   case class IncompatibleFixedPointFormatsException(s: String) extends Exception
-  
+  case class SqrtNotImplementedException(s: String) extends Exception
+
 
   case class Fnc(pre: Expr, body: Expr, post: Expr)
 
@@ -70,7 +69,7 @@ package object real {
       Rational(rationalMinNormal._1, rationalMinNormal._2)
     }
   }
-  
+
   case object DoubleDouble extends Precision {
     val range: (Rational, Rational) = {
       val rationalMaxValue = double2Fraction(Double.MaxValue)
@@ -79,7 +78,7 @@ package object real {
     val minNormal: Rational = {
       val rationalMinNormal = double2Fraction(math.pow(2, -969))
       Rational(rationalMinNormal._1, rationalMinNormal._2)
-    } 
+    }
     // 2.0041683600089728e-292;  // = 2^(-1022 + 53) = 2^(-969)
   }
   case object QuadDouble extends Precision {

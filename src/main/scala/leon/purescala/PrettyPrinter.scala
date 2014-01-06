@@ -299,7 +299,12 @@ class PrettyPrinter(sb: StringBuffer = new StringBuffer) {
       case Untyped => sb.append("???")
       case UnitType => sb.append("Unit")
       case Int32Type => sb.append("Int")
+      case Int64Type => sb.append("Long")
       case BooleanType => sb.append("Boolean")
+      case Float64Type => sb.append("Double") 
+      case Float32Type => sb.append("Float")
+      case FloatDDType => sb.append("DoubleDouble")
+      case FloatQDType => sb.append("QuadDouble")
       case ArrayType(bt) =>
         sb.append("Array[")
         pp(bt, p)

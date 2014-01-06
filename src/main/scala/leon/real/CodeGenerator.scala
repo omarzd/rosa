@@ -15,7 +15,7 @@ import real.{FixedPointFormat => FPFormat}
 import FPFormat._
 import real.Trees._
 
-class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, prog: Program, precision: Precision) {
+class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, prog: Program, precision: Precision, fncs: Map[FunDef, Fnc]) {
 
   val nonRealType: TypeTree = (precision: @unchecked) match {
     case Float64 => Float64Type
@@ -46,7 +46,7 @@ class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, 
   }
 
   def specToCode(programId: Identifier, objectId: Identifier, vcs: Seq[VerificationCondition]): Program = precision match {
-    case FPPrecision(bts) => 
+    case FPPrecision(bts) =>
       if (bts <= 32) specToFixedCode(programId, objectId, vcs, bts)
       else {
         reporter.error("Fixed-point code generation not possible for bitlengths larger than 32 bits.")
@@ -102,21 +102,22 @@ class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, 
       val id = f.id
       val args = f.args.map(decl => VarDecl(decl.id, intType))
       val funDef = new FunDef(id, intType, args)
-      
-      println("\n ==== \nfnc id: " + id)
-      println("vc.kind " + vc.kind)
-      println("generating code for: " + vc.body)
 
-      // convert to SSA form, then run through FloatApproximator to get ranges of all intermediate variables
-      val ssaBody = idealToActual(toSSA(vc.body), vc.variables)
-      val transformer = new FloatApproximator(reporter, solver, precision, vc.pre, vc.variables)
-      val (newBody, newSpec) = transformer.transformWithSpec(ssaBody)
-      
+      //println("\n ==== \nfnc id: " + id)
+      //println("vc.kind " + vc.kind)
+      //println("generating code for: " + vc.body)
+
+      // convert to SSA form, then run through Approximator to get ranges of all intermediate variables
+      val ssaBody = idealToActual(toSSA(vc.body, fncs), vc.variables)
+      //println("\n ssaBody: " + ssaBody)
+      val transformer = new Approximator(reporter, solver, precision, vc.pre, vc.variables, checkPathError = false)
+      val (newBody, newSpec) = transformer.transformWithSpec(ssaBody, false)
+
       val formats = transformer.variables.map {
         case (v, r) => (v, FPFormat.getFormat(r.interval.xlo, r.interval.xhi, bitlength))
       }
-      println("formats: " + formats)
-      println("ssaBody: " + ssaBody)
+      //println("formats: " + formats)
+      //println("ssaBody: " + ssaBody)
 
 
       val fpBody = translateToFP(ssaBody, formats, bitlength, constConstructor)
@@ -130,12 +131,12 @@ class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, 
     newProgram
   }
 
-  // TODO: fp translation with if-then-else and function calls
   private def mathToCode(expr: Expr): Expr = expr match {
     case And(args) => Block(args.init.map(a => mathToCode(a)), mathToCode(args.last))
     case Equals(Variable(id), rhs) => ValAssignment(id, rhs)
+    case IfExpr(c, t, e) => IfExpr(c, mathToCode(t), mathToCode(e))
     case _ => expr
   }
 
-  
+
 }

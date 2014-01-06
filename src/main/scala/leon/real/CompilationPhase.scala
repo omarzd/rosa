@@ -24,10 +24,9 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
 
   implicit val debugSection = DebugSectionVerification
 
-  var verbose = true
   var reporter: Reporter = null
   private def debug(msg: String): Unit = {
-    if (verbose) reporter.debug(msg)
+    reporter.debug(msg)
   }
 
   override val definedOptions: Set[LeonOptionDef] = Set(
@@ -41,7 +40,7 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
     LeonFlagOptionDef("specGen", "--specGen", "Generate specs also for functions without postconditions")
   )
 
-  def run(ctx: LeonContext)(program: Program): CompilationReport = { 
+  def run(ctx: LeonContext)(program: Program): CompilationReport = {
     reporter = ctx.reporter
     reporter.info("Running Compilation phase")
 
@@ -68,7 +67,7 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
 
     println("options: " + options)
 
-    val fncsToAnalyse  = 
+    val fncsToAnalyse  =
       if(fncNamesToAnalyse.isEmpty) program.definedFunctions
       else {
         val toAnalyze = program.definedFunctions.filter(f => fncNamesToAnalyse.contains(f.id.name))
@@ -76,24 +75,24 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
         notFound.foreach(fn => reporter.error("Did not find function \"" + fn + "\" though it was marked for analysis."))
         toAnalyze
       }
-        
+
     val (vcs, fncs) = analyzeThis(fncsToAnalyse, options.precision)
     if (reporter.errorCount > 0) throw LeonFatalError()
-    
+
     reporter.info("--- Analysis complete ---")
     reporter.info("")
     if (options.simulation) {
-      val simulator = new Simulator(ctx, options, program, reporter)
+      val simulator = new Simulator(ctx, options, program, reporter, fncs)
       val prec = if (options.precision.size == 1) options.precision.head else Float64
       for(vc <- vcs) simulator.simulateThis(vc, prec)
       new CompilationReport(List(), prec)
     } else {
-      val prover = new Prover(ctx, options, program, fncs, verbose)
-      
+      val prover = new Prover(ctx, options, program, fncs)
+
       val (finalPrecision, success) = prover.check(vcs)
       if (success) {
-        val codeGenerator = new CodeGenerator(reporter, ctx, options, program, finalPrecision)
-        val newProgram = codeGenerator.specToCode(program.id, program.mainObject.id, vcs) 
+        val codeGenerator = new CodeGenerator(reporter, ctx, options, program, finalPrecision, fncs)
+        val newProgram = codeGenerator.specToCode(program.id, program.mainObject.id, vcs)
         val newProgramAsString = ScalaPrinter(newProgram)
         reporter.info("Generated program with %d lines.".format(newProgramAsString.lines.length))
         //reporter.info(newProgramAsString)
@@ -105,18 +104,18 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
       else {// verification did not succeed for any precision
         reporter.warning("Could not find data type that works for all methods.")
       }
-      
+
       new CompilationReport(vcs.sortWith((vc1, vc2) => vc1.fncId < vc2.fncId), finalPrecision)
     }
-    
+
   }
 
-  
+
 
   private def analyzeThis(sortedFncs: Seq[FunDef], precisions: List[Precision]): (Seq[VerificationCondition], Map[FunDef, Fnc]) = {
     var vcs = Seq[VerificationCondition]()
     var fncs = Map[FunDef, Fnc]()
-    
+
     for (funDef <- sortedFncs if (funDef.body.isDefined)) {
       reporter.info("Analysing fnc:  %s".format(funDef.id.name))
       debug ("fnc body: " + funDef.body.get)
@@ -131,36 +130,26 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
           debug ("precondition: " + precondition)
 
           val resFresh = variables.resId
-          val bodyWithRes = convertLetsToEquals(addResult(resFresh, funDef.body.get))
-          val bodyWORes = convertLetsToEquals(funDef.body.get)
-              
-          
-          funDef.postcondition match {
-            //Option[(Identifier, Expr)]
-            // TODO: invariants (got broken because of missing ResultVariable)
-            /*case Some((ResultVariable()) =>
-              val posts = getInvariantCondition(funDef.body.get)
-              val bodyWOLets = convertLetsToEquals(funDef.body.get)
-              val body = replace(posts.map(p => (p, True)).toMap, bodyWOLets)
-              (body, body, Or(posts))*/
+          val body = convertLetsToEquals(funDef.body.get)
 
+          funDef.postcondition match {
             case Some((resId, postExpr)) =>
               val postcondition = replace(Map(Variable(resId) -> Variable(resFresh)), postExpr)
 
-              val vcBody = new VerificationCondition(funDef, Postcondition, precondition, bodyWithRes, postcondition, resFresh, 
+              val vcBody = new VerificationCondition(funDef, Postcondition, precondition, body, postcondition, resFresh,
                 allFncCalls, variables, precisions)
 
               val assertionCollector = new AssertionCollector(funDef, precondition, variables, precisions)
-              assertionCollector.transform(bodyWithRes)
-          
+              assertionCollector.transform(body)
+
               // for function inlining
-              (assertionCollector.vcs :+ vcBody, Fnc(precondition, bodyWORes, postcondition))
+              (assertionCollector.vcs :+ vcBody, Fnc(precondition, body, postcondition))
 
             case None => // only want to generate specs
-              val vcBody = new VerificationCondition(funDef, SpecGen, precondition, bodyWithRes, True, resFresh, 
+              val vcBody = new VerificationCondition(funDef, SpecGen, precondition, body, True, resFresh,
                 allFncCalls, variables, precisions)
 
-              (Seq(vcBody), Fnc(precondition, bodyWORes, True))
+              (Seq(vcBody), Fnc(precondition, body, True))
 
           }
         }
@@ -188,17 +177,6 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
     case _ =>
       println("!!! Expected invariant, but found: " + expr.getClass)
       List(BooleanLiteral(false))
-  }
-
-  // Has to run before we removed the lets!
-  // Basically the first free expression that is not an if or a let is the result
-  private def addResult(resId: Identifier, expr: Expr): Expr = expr match {
-    case ifThen @ IfExpr(_, _, _) => Equals(Variable(resId), ifThen)
-    case Let(binder, value, body) => Let(binder, value, addResult(resId, body))
-    case UMinusR(_) | PlusR(_, _) | MinusR(_, _) | TimesR(_, _) | DivisionR(_, _) | SqrtR(_) | FunctionInvocation(_, _) | Variable(_) =>
-      Equals(Variable(resId), expr)
-    case Block(exprs, last) => Block(exprs, addResult(resId, last))
-    case _ => expr
   }
 
   private def convertLetsToEquals(expr: Expr): Expr = expr match {
