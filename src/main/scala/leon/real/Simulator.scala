@@ -14,7 +14,7 @@ import real.TreeOps._
 import real.{FixedPointFormat => FPFormat}
 import FPFormat._
 
-class Simulator(ctx: LeonContext, options: RealOptions, prog: Program, reporter: Reporter) {
+class Simulator(ctx: LeonContext, options: RealOptions, prog: Program, reporter: Reporter, fncs: Map[FunDef, Fnc]) {
 
   val simSize = 10000000//00
   reporter.info("Simulation size: " + simSize + "\n")
@@ -54,17 +54,17 @@ class Simulator(ctx: LeonContext, options: RealOptions, prog: Program, reporter:
     precision: Precision): (Double, Interval) = {
 
     val bitlength = precision.asInstanceOf[FPPrecision].bitlength
-    
+
     val constConstructor =
       if (bitlength <= 16) (r: Rational, f: Int) => { IntLiteral(rationalToInt(r, f)) }
       else (r: Rational, f: Int) => { LongLiteral(rationalToLong(r, f)) }
 
     // first generate the comparison code
     val solver = new RealRangeSolver(ctx, prog, options.z3Timeout)
-    val ssaBody = idealToActual(toSSA(vc.body), vc.variables)
+    val ssaBody = idealToActual(toSSA(vc.body, fncs), vc.variables)
     val transformer = new Approximator(reporter, solver, precision, vc.pre, vc.variables)
-    val (newBody, newSpec) = transformer.transformWithSpec(ssaBody)
-      
+    val (newBody, newSpec) = transformer.transformWithSpec(ssaBody, false)
+
     val formats = transformer.variables.map {
       case (v, r) => (v, FPFormat.getFormat(r.interval.xlo, r.interval.xhi, bitlength))
     }
@@ -113,7 +113,7 @@ class Simulator(ctx: LeonContext, options: RealOptions, prog: Program, reporter:
       counter += 1
     }
     (maxRoundoff, resInterval)
-  } 
+  }
 
   private def runDoubleSimulation(inputs: Map[Variable, (RationalInterval, Rational)], body: Expr, resId: Identifier): (Double, Interval) = {
     val r = new scala.util.Random(System.currentTimeMillis)
@@ -207,7 +207,7 @@ class Simulator(ctx: LeonContext, options: RealOptions, prog: Program, reporter:
       case _ => reporter.error("Simulation cannot handle: " + expr)
     }
     currentVars(Variable(resId))
-  }  
+  }
 
   // Returns the double value and range of the ResultVariable
   private def evaluate(resId: Identifier, expr: Expr, vars: Map[Expr, (Double, Rational)]): (Double, Rational) = {

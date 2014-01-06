@@ -14,5 +14,5 @@ case class RealOptions(
   solverPrecision: Rational     = solverPrecisionMedium,
   specGen: Boolean              = false,        // generate specs for functions without postconditions?
   pathError: Boolean            = false         // checking path error, experimental feature :-)
-  
+
 )
