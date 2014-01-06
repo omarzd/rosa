@@ -17,7 +17,7 @@ import FPFormat._
 /*
  Note: simulation does not work with tuples.
 */
-class Simulator(ctx: LeonContext, options: RealOptions, prog: Program, reporter: Reporter) {
+class Simulator(ctx: LeonContext, options: RealOptions, prog: Program, reporter: Reporter, fncs: Map[FunDef, Fnc]) {
 
   val simSize = 10000000//00
   reporter.info("Simulation size: " + simSize + "\n")
@@ -64,7 +64,7 @@ class Simulator(ctx: LeonContext, options: RealOptions, prog: Program, reporter:
 
     // first generate the comparison code
     val solver = new RealSolver(ctx, prog, options.z3Timeout)
-    val ssaBody = idealToActual(toSSA(vc.body), vc.variables)
+    val ssaBody = idealToActual(toSSA(vc.body, fncs), vc.variables)
     val transformer = new Approximator(reporter, solver, precision, vc.pre, vc.variables)
     val (newBody, newSpec) = transformer.transformWithSpec(ssaBody, false)
 

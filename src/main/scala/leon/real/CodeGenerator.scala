@@ -15,7 +15,7 @@ import real.{FixedPointFormat => FPFormat}
 import FPFormat._
 import real.Trees._
 
-class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, prog: Program, precision: Precision) {
+class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, prog: Program, precision: Precision, fncs: Map[FunDef, Fnc]) {
 
   val nonRealType: TypeTree = (precision: @unchecked) match {
     case Float64 => Float64Type
@@ -60,9 +60,7 @@ class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, 
     var defs: Seq[Definition] = Seq.empty
     val invariants: Seq[Expr] = Seq.empty
 
-    // only generate code for methods that were proven valid.
-    // this is not fool-proof, as this check only considers the postcondition check and not the pre-condition checks
-    for (vc <- vcs if ( (vc.kind == VCKind.Postcondition || vc.kind == VCKind.SpecGen) && vc.status(precision) == Some(true))) {
+    for (vc <- vcs if (vc.kind == VCKind.Postcondition || vc.kind == VCKind.SpecGen)) {
       val f = vc.funDef
       val id = f.id
       val floatType = nonRealType
@@ -121,20 +119,21 @@ class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, 
       val args = f.args.map(decl => VarDecl(decl.id, intType))
       val funDef = new FunDef(id, intType, args)
 
-      println("\n ==== \nfnc id: " + id)
-      println("vc.kind " + vc.kind)
-      println("generating code for: " + vc.body)
+      //println("\n ==== \nfnc id: " + id)
+      //println("vc.kind " + vc.kind)
+      //println("generating code for: " + vc.body)
 
       // convert to SSA form, then run through Approximator to get ranges of all intermediate variables
-      val ssaBody = idealToActual(toSSA(vc.body), vc.variables)
-      val transformer = new Approximator(reporter, solver, precision, vc.pre, vc.variables)
+      val ssaBody = idealToActual(toSSA(vc.body, fncs), vc.variables)
+      //println("\n ssaBody: " + ssaBody)
+      val transformer = new Approximator(reporter, solver, precision, vc.pre, vc.variables, checkPathError = false)
       val (newBody, newSpec) = transformer.transformWithSpec(ssaBody, false)
 
       val formats = transformer.variables.map {
         case (v, r) => (v, FPFormat.getFormat(r.interval.xlo, r.interval.xhi, bitlength))
       }
-      println("formats: " + formats)
-      println("ssaBody: " + ssaBody)
+      //println("formats: " + formats)
+      //println("ssaBody: " + ssaBody)
 
 
       val fpBody = translateToFP(ssaBody, formats, bitlength, constConstructor)
@@ -148,10 +147,10 @@ class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, 
     newProgram
   }
 
-  // TODO: fp translation with if-then-else and function calls
   private def mathToCode(expr: Expr): Expr = expr match {
     case And(args) => Block(args.init.map(a => mathToCode(a)), mathToCode(args.last))
     case Equals(Variable(id), rhs) => ValAssignment(id, rhs)
+    case IfExpr(c, t, e) => IfExpr(c, mathToCode(t), mathToCode(e))
     case _ => expr
   }
 

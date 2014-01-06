@@ -36,6 +36,8 @@ case class Record(ideal: Expr, actual: Expr, lo: Option[Rational], up: Option[Ra
     formatOption(lo), formatOption(up), formatOption(uncertainty))
 }
 
+object EmptyRecord extends Record(False, False, None, None, None, None)
+
 /*
   Keeps track of ideal and the corresponding actual values, the associated uncertainties
   and such things.
@@ -52,17 +54,19 @@ class VariablePool(inputs: Map[Expr, Record], val resIds: Seq[Identifier]) {
 
   val fResultVars = resultVars.map( buddy(_) )
 
-  def add(idSet: Set[Identifier]) = {
+  def add(idSet: Set[Identifier]): Unit = {
     for (i <- idSet) {
       val v = Variable(i)
-      if (! inputs.contains(v))
+      if (! inputs.contains(v)) {
         allVars += (v -> emptyRecord(v))
+      }
     }
   }
 
   def buddy(v: Expr): Expr = {
-    if (allVars.contains(v)) allVars(v).actual
-    else {
+    if (allVars.contains(v)) {
+      allVars(v).actual
+    } else {
       val newRecord = emptyRecord(v)
       allVars += (v -> newRecord)
       newRecord.actual
@@ -77,7 +81,15 @@ class VariablePool(inputs: Map[Expr, Record], val resIds: Seq[Identifier]) {
     }
   }
 
-  def getValidRecords = allVars.values.filter(r => r.isBoundedValid)
+  // When converting from actual to ideal in codegeneration, in conditionals we already have the ideal one
+  def getIdealOrNone(v: Expr): Option[Expr] = {
+    allVars.find(x => x._2.actual == v) match {
+      case Some((_, Record(i, a, _, _, _, _))) => Some(i)
+      case _ => None
+    }
+  }
+
+  def getValidRecords: Iterable[Record] = allVars.values.filter(r => r.isBoundedValid)
 
   def actualVariables: Set[Expr] = allVars.values.map(rec => rec.actual).toSet
 
@@ -88,8 +100,11 @@ class VariablePool(inputs: Map[Expr, Record], val resIds: Seq[Identifier]) {
 
   def hasValidInput(varDecl: Seq[VarDecl]): Boolean = {
     val params: Seq[Expr] = varDecl.map(vd => Variable(vd.id))
-    if (inputs.size != params.size) false
-    else inputs.forall(v => params.contains(v._1) && v._2.isBoundedValid)
+    if (inputs.size != params.size) {
+      false
+    } else {
+      inputs.forall(v => params.contains(v._1) && v._2.isBoundedValid)
+    }
   }
 
   def inputsWithoutNoise: Seq[Expr] = {
@@ -103,7 +118,7 @@ class VariablePool(inputs: Map[Expr, Record], val resIds: Seq[Identifier]) {
 object VariablePool {
   def emptyRecord(ideal: Expr): Record = ideal match {
     case Variable(id) => Record(ideal, Variable(FreshIdentifier("#" + id.name)).setType(RealType), None, None, None, None)
-    case _ => new Exception("bug!"); null
+    case _ => new Exception("bug!"); EmptyRecord
   }
 
   def apply(expr: Expr, returnType: TypeTree): VariablePool = {
@@ -128,10 +143,10 @@ object VariablePool {
     val initC = Nil
     var recordMap = Map[Expr, Record]()
 
-    def register(e: Expr, path: C) = path :+ e
+    def register(e: Expr, path: C): C = path :+ e
 
     // (Sound) Overapproximation in the case of strict inequalities
-    override def rec(e: Expr, path: C) = e match {
+    override def rec(e: Expr, path: C): Expr = e match {
       case LessEquals(RealLiteral(lwrBnd), x @ Variable(_)) => // a <= x
         recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newLo(lwrBnd)); e
 

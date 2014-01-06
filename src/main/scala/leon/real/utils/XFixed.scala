@@ -161,7 +161,7 @@ class XFixed(val format: FixedPointFormat, val tr: Expr, val appInt: RationalInt
   }
 
   override def squareRoot: XReal = {
-    throw new Exception("Square root not implemented for fixed-points")
+    throw new SqrtNotImplementedException("Square root not implemented for fixed-points")
     null
     /*var (newTree, newRealRange, newError, newConfig) = super.takeSqrtRoot
     val rndoff = roundoff(newRealRange + newError.interval)

@@ -18,7 +18,7 @@ import Rational._
 
 
 
-class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[FunDef, Fnc], verbose: Boolean = false) {
+class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[FunDef, Fnc]) {
   implicit val debugSection = DebugSectionVerification
   val reporter = ctx.reporter
   val solver = new RealSolver(ctx, prog, options.z3Timeout)
@@ -70,11 +70,9 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
       }
     }
 
-    if (verbose) {
-      reporter.debug("approximation kinds:")
-      validApproximations.foreach(x => reporter.debug(x._1 + ": " + x._2))
-    }
-
+    reporter.debug("approximation kinds:")
+    validApproximations.foreach(x => reporter.debug(x._1 + ": " + x._2))
+    
     findPrecision(0, precisions.length - 1)
   }
 
@@ -86,9 +84,9 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
 
     for (vc <- vcs if (options.specGen || vc.kind != VCKind.SpecGen)) {
       reporter.info("Verification condition  ==== %s (%s) ====".format(vc.fncId, vc.kind))
-      if (verbose) reporter.debug("pre: " + vc.pre)
-      if (verbose) reporter.debug("body: " + vc.body)
-      if (verbose) reporter.debug("post: " + vc.post)
+      reporter.debug("pre: " + vc.pre)
+      reporter.debug("body: " + vc.body)
+      reporter.debug("post: " + vc.post)
 
       val start = System.currentTimeMillis
       var spec: Seq[Spec] = Seq()
@@ -123,12 +121,16 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
           case PostconditionInliningFailedException(msg) =>
             reporter.info("failed to compute approximation: " + msg)
             false
-          case e: RealArithmeticException =>
-            reporter.warning("Failed to compute approximation: " + e.getMessage)
+          case RealArithmeticException(msg) =>
+            reporter.warning("Failed to compute approximation: " + msg)
             false
-          case e: FixedPointOverflowException =>
-            reporter.warning("Insufficient bitwidth: " + e.getMessage)
+          case FixedPointOverflowException(msg) =>
+            reporter.warning("Insufficient bitwidth: " + msg)
             false
+          case SqrtNotImplementedException(msg) =>
+            reporter.warning(msg)
+            false
+           
         }
 
       }) match {
@@ -147,7 +149,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
   }
 
   def checkValid(app: Approximation, variables: VariablePool, precision: Precision): Option[Boolean] = {
-    if (verbose) reporter.debug("checking for valid: " + app.constraints)
+    reporter.debug("checking for valid: " + app.constraints)
 
     val transformer = new LeonToZ3Transformer(variables, precision)
     var valid: Option[Boolean] = None
@@ -163,7 +165,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
       val sanityExpr = massageArithmetic(transformer.getZ3Expr(sanityConstraint))
 
 
-      if (verbose) reporter.debug("z3constraint ("+index+"): " + z3constraint)
+      reporter.debug("z3constraint ("+index+"): " + z3constraint)
 
       if (reporter.errorCount == 0 && sanityCheck(sanityExpr)) {
         solver.checkSat(z3constraint) match {
@@ -204,8 +206,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
       case Postcondition => (vc.pre, postInliner.transform(vc.body), vc.post)
       case Inlining => (vc.pre, fncInliner.transform(vc.body), vc.post)
     }
-    if (verbose && kind.fncHandling != Uninterpreted) reporter.debug("after FNC handling:\npre: %s\nbody: %s\npost: %s".format(pre,bodyFnc,post))
-
+    if (kind.fncHandling != Uninterpreted) reporter.debug("after FNC handling:\npre: %s\nbody: %s\npost: %s".format(pre,bodyFnc,post))
 
     val paths: Set[Path] = kind.pathHandling match {
       case Pathwise => getPaths(bodyFnc).map {
@@ -213,7 +214,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
       }
       case Merging =>  Set(Path(True, bodyFnc, idealToActual(bodyFnc, vc.variables)))
     }
-    if (verbose) reporter.debug("after PATH handling:\nbody: %s".format(paths.mkString("\n")))
+    reporter.debug("after PATH handling:\nbody: %s".format(paths.mkString("\n")))
 
 
     kind.arithmApprox match {
@@ -237,7 +238,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
           spec = merge(spec, nextSpecs)
           //if(!nextSpec.isEmpty)
           specsPerPath :+= nextSpecs//.get// else specsPerPath :+= DummySpec
-          if (verbose) reporter.debug("body after approx: " + bodyFiniteApprox)
+          reporter.debug("body after approx: " + bodyFiniteApprox)
           constraints :+= Constraint(And(pre, path.condition), path.bodyReal, bodyFiniteApprox, post)
         }
         val approx = Approximation(kind, constraints, spec)

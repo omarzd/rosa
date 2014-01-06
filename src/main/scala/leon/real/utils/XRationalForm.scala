@@ -183,7 +183,7 @@ case class XRationalForm(val x0: Rational, var noise: Queue[Deviation]) {
 
     if (a < zero) a = zero  //soft policy
 
-    val alpha = Rational(1l, 2l) / sqrtUp(b)
+    val alpha = Rational(1L, 2L) / sqrtUp(b)
     val dmin = sqrtDown(a) - (alpha * a)
     val dmax = sqrtUp(b) - (alpha * b)
 

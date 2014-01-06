@@ -17,7 +17,7 @@ import Rational._
 import VariableShop._
 
 class Approximator(reporter: Reporter, solver: RealSolver, precision: Precision, precondition: Expr, inputs: VariablePool,
-  checkPathError: Boolean = true) {
+  checkPathError: Boolean = false) {
 
   implicit val debugSection = DebugSectionVerification
   val verbose = false
@@ -267,7 +267,10 @@ class Approximator(reporter: Reporter, solver: RealSolver, precision: Precision,
         if (possiblyNegative(x.interval)) throw RealArithmeticException("Potential sqrt of negative detected: " + e)
         Seq(x.squareRoot)
 
-      case FloatIfExpr(cond, thenn, elze) =>
+      case FloatIfExpr(branchCond, thenn, elze) =>
+        val cond = branchCond //And(branchCond, extractFullCondition(branchCond))
+        //println("\n cond: " + branchCond)
+        //println(And(branchCond, extractFullCondition(branchCond)))
         val currentPathCondition = path :+ initialCondition
         val notCond = negate(cond)
         val thenBranch =
@@ -283,10 +286,10 @@ class Approximator(reporter: Reporter, solver: RealSolver, precision: Precision,
 
 
         val pathError = if (checkPathError) { // When the actual computation goes a different way than the real one
-          val pathError1 = computePathError(currentPathCondition, cond, thenn, elze)
+          val pathError1 = computePathError(currentPathCondition, branchCond, thenn, elze)
           reporter.debug("computed error 1: " + pathError1)
 
-          val pathError2 = computePathError(currentPathCondition, notCond, elze, thenn)
+          val pathError2 = computePathError(currentPathCondition, branchCond, elze, thenn)
           reporter.debug("computed error 2: " + pathError1)
 
           pathError1.zip(pathError2).map({
@@ -313,7 +316,7 @@ class Approximator(reporter: Reporter, solver: RealSolver, precision: Precision,
         })
 
 
-      case FncBodyF(name, body) => approx(body, path)
+      case FncBodyF(name, body, fundef, args) => approx(body, path)
 
       case fl: FloatLiteral => Seq(addCondition(fl, path))
       case v: Variable => Seq(addCondition(v, path))
@@ -350,6 +353,27 @@ class Approximator(reporter: Reporter, solver: RealSolver, precision: Precision,
     })
   }
 
+  /*private def extractFullCondition(cond: Expr): Expr = cond match {
+    case GreaterEquals(l, r) =>
+      And(extractFullCondition(l), extractFullCondition(r))
+    case GreaterThan(l, r) =>
+      And(extractFullCondition(l), extractFullCondition(r))
+    case LessEquals(l, r) =>
+      And(extractFullCondition(l), extractFullCondition(r))
+    case LessThan(l, r) =>
+      And(extractFullCondition(l), extractFullCondition(r))
+
+    case v: Variable =>  // this doesn't seem to be reliable
+      val tree = variables(inputs.buddy(v)).tree
+      if (tree != v) Equals(v, tree)
+      else True
+    case UMinusR(t) => extractFullCondition(t)
+    case PlusR(l, r) => And(extractFullCondition(l), extractFullCondition(r))
+    case MinusR(l, r) => And(extractFullCondition(l), extractFullCondition(r))
+    case TimesR(l, r) => And(extractFullCondition(l), extractFullCondition(r))
+    case DivisionR(l, r) => And(extractFullCondition(l), extractFullCondition(r))
+    case _ => True
+  }*/
 
   private def getFreshVariablesWithConditionWithoutErrors(vars: Set[Identifier], cond: Expr): (Map[Expr, Expr], Map[Expr, XReal]) = {
     var freshMap: Map[Expr, Expr] = variables.collect {

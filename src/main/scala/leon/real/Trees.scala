@@ -363,7 +363,7 @@ object Trees {
       Some((specExpr, (e) => FncValue(spec, e)))
     }
     def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
-      printer.append("fncVal("+spec.toString + ")(")
+      printer.append("fncVal(" + spec.toString + ")(")
       printer.pp(specExpr, Some(this))
       printer.append(")")
     }
@@ -375,32 +375,32 @@ object Trees {
       Some((specExpr, (e) => FncValueF(spec, e)))
     }
     def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
-      printer.append("fncVal("+spec.toString + ")(")
+      printer.append("fncVal(" + spec.toString + ")(")
       printer.pp(specExpr, Some(this))
       printer.append(")")
     }
   }
 
   // A value returned from a function call desribed by it's specification
-  case class FncBody(name: String, body: Expr) extends Expr with FixedType with UnaryExtractable with PrettyPrintable {
+  case class FncBody(name: String, body: Expr, funDef: FunDef, params: Seq[Expr]) extends Expr with FixedType with UnaryExtractable with PrettyPrintable {
     val fixedType = RealType
     def extract: Option[(Expr, (Expr)=>Expr)] = {
-      Some((body, (e) => FncBody(name, e)))
+      Some((body, (e) => FncBody(name, e, funDef, params)))
     }
     def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
-      printer.append("fnc_"+name+"(")
+      printer.append("fnc_" + name + "(")
       printer.pp(body, Some(this))
       printer.append(")")
     }
   }
 
-  case class FncBodyF(name: String, body: Expr) extends Expr with FixedType with UnaryExtractable with PrettyPrintable {
+  case class FncBodyF(name: String, body: Expr, funDef: FunDef, params: Seq[Expr]) extends Expr with FixedType with UnaryExtractable with PrettyPrintable {
     val fixedType = RealType
     def extract: Option[(Expr, (Expr)=>Expr)] = {
-      Some((body, (e) => FncBodyF(name, e)))
+      Some((body, (e) => FncBodyF(name, e, funDef, params)))
     }
     def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
-      printer.append("fnc_"+name+"_f(")
+      printer.append("fnc_" + name + "_f(")
       printer.pp(body, Some(this))
       printer.append(")")
     }
@@ -428,13 +428,13 @@ object Trees {
       printer.append("iff (")
       printer.pp(cond, Some(this))
       printer.append(")\n")
-      printer.ind(lvl+1)
-      printer.pp(thenn, Some(this))(lvl+1)
+      printer.ind(lvl + 1)
+      printer.pp(thenn, Some(this))(lvl + 1)
       printer.append("\n")
       printer.ind(lvl)
       printer.append("elsse\n")
-      printer.ind(lvl+1)
-      printer.pp(elze, Some(this))(lvl+1)
+      printer.ind(lvl + 1)
+      printer.pp(elze, Some(this))(lvl + 1)
     }
   }
 

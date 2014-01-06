@@ -165,7 +165,7 @@ class LeonToZ3Transformer(variables: VariablePool, precision: Precision) extends
         fresh
       */
 
-      case FncBody(name, body) =>
+      case FncBody(name, body, fundef, args) =>
         val fresh = getNewFncVariable(name)
         rec(body, path) match {
           case And(args) =>
@@ -177,7 +177,7 @@ class LeonToZ3Transformer(variables: VariablePool, precision: Precision) extends
 
 
       // normally this is approximated
-      case FncBodyF(name, body) =>
+      case FncBodyF(name, body, fundef, args) =>
         val fresh = getNewFncVariable(name + "_f")
         rec(body, path) match {
           case And(args) =>
