@@ -258,7 +258,9 @@ class Approximator(reporter: Reporter, solver: RealSolver, precision: Precision,
         x.squareRoot
 
       case FloatIfExpr(branchCond, thenn, elze) =>
-        val cond = And(branchCond, extractFullCondition(branchCond))
+        val cond = branchCond //And(branchCond, extractFullCondition(branchCond))
+        //println("\n cond: " + branchCond)
+        //println(And(branchCond, extractFullCondition(branchCond)))
         val currentPathCondition = path :+ initialCondition
         val notCond = negate(cond)
         val thenBranch =
@@ -320,7 +322,7 @@ class Approximator(reporter: Reporter, solver: RealSolver, precision: Precision,
     }
   }
 
-  private def extractFullCondition(cond: Expr): Expr = cond match {
+  /*private def extractFullCondition(cond: Expr): Expr = cond match {
     case GreaterEquals(l, r) =>
       And(extractFullCondition(l), extractFullCondition(r))
     case GreaterThan(l, r) =>
@@ -330,15 +332,17 @@ class Approximator(reporter: Reporter, solver: RealSolver, precision: Precision,
     case LessThan(l, r) =>
       And(extractFullCondition(l), extractFullCondition(r))
 
-    case v: Variable => variables(inputs.buddy(v)).config.getCondition
-
+    case v: Variable =>  // this doesn't seem to be reliable
+      val tree = variables(inputs.buddy(v)).tree
+      if (tree != v) Equals(v, tree)
+      else True
     case UMinusR(t) => extractFullCondition(t)
     case PlusR(l, r) => And(extractFullCondition(l), extractFullCondition(r))
     case MinusR(l, r) => And(extractFullCondition(l), extractFullCondition(r))
     case TimesR(l, r) => And(extractFullCondition(l), extractFullCondition(r))
     case DivisionR(l, r) => And(extractFullCondition(l), extractFullCondition(r))
     case _ => True
-  }
+  }*/
 
   private def getFreshVariablesWithConditionWithoutErrors(vars: Set[Identifier], cond: Expr): (Map[Expr, Expr], Map[Expr, XReal]) = {
     var freshMap: Map[Expr, Expr] = variables.collect {

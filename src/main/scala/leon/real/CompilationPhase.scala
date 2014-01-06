@@ -24,10 +24,9 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
 
   implicit val debugSection = DebugSectionVerification
 
-  var verbose = true
   var reporter: Reporter = null
   private def debug(msg: String): Unit = {
-    if (verbose) reporter.debug(msg)
+    reporter.debug(msg)
   }
 
   override val definedOptions: Set[LeonOptionDef] = Set(
@@ -88,7 +87,7 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
       for(vc <- vcs) simulator.simulateThis(vc, prec)
       new CompilationReport(List(), prec)
     } else {
-      val prover = new Prover(ctx, options, program, fncs, verbose)
+      val prover = new Prover(ctx, options, program, fncs)
 
       val (finalPrecision, success) = prover.check(vcs)
       if (success) {
