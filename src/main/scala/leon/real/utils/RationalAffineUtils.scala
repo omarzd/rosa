@@ -17,7 +17,7 @@ object RationalAffineUtils {
   def sqrtDown(x: Rational): Rational = Rational(DirectedRounding.sqrtDown(Rational.scaleToIntsDown(x).doubleValue))
 
   def computeZeta(dmin: Rational, dmax: Rational): Rational = {
-    dmin / Rational(2l, 1l) +  dmax / Rational(2l, 1l)
+    dmin / Rational(2L, 1L) +  dmax / Rational(2L, 1L)
   }
 
   def computeDelta(zeta: Rational, dmin: Rational, dmax: Rational): Rational = {

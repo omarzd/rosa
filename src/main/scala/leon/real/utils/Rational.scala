@@ -150,7 +150,7 @@ object Rational {
     // Too small
     if (math.abs(r.toDouble) < MIN_INT_RATIONAL) {
       // Underflow
-      if (r < Rational(0)) Rational(-1l, Int.MaxValue.toLong)
+      if (r < Rational(0)) Rational(-1L, Int.MaxValue.toLong)
       else Rational(0.0)
     } else {
 
@@ -196,7 +196,7 @@ object Rational {
     // Too small
     if (math.abs(r.toDouble) < MIN_INT_RATIONAL) {
       // Underflow
-      if (r < Rational(0)) Rational(-1l, Int.MaxValue.toLong)
+      if (r < Rational(0)) Rational(-1L, Int.MaxValue.toLong)
       else Rational(0.0)
     } else {
 
@@ -302,20 +302,20 @@ class Rational private(val n: BigInt, val d: BigInt) extends ScalaNumber with Sc
 
   def roundToInt: Int = {
     if (n >= zeroBigInt) { // positive number
-      if (this - Rational(this.integerPart) < Rational(1l, 2l)) this.integerPart
+      if (this - Rational(this.integerPart) < Rational(1L, 2L)) this.integerPart
       else this.integerPart + 1
     } else {
-      if (this - Rational(this.integerPart) > Rational(1l, 2l)) this.integerPart
+      if (this - Rational(this.integerPart) > Rational(1L, 2L)) this.integerPart
       else this.integerPart - 1
     }
   }
 
   def roundToLong: Long = {
     if (n >= zeroBigInt) { // positive number
-      if (this - Rational(this.longPart) < Rational(1l, 2l)) this.longPart
+      if (this - Rational(this.longPart) < Rational(1L, 2L)) this.longPart
       else this.longPart + 1
     } else {
-      if (this - Rational(this.longPart) > Rational(1l, 2l)) this.longPart
+      if (this - Rational(this.longPart) > Rational(1L, 2L)) this.longPart
       else this.longPart - 1
     }
   }

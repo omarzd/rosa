@@ -115,7 +115,7 @@ class XReal(val tree: Expr, val approxInterval: RationalInterval, val error: XRa
 
     val int = this.interval
     val a = min(abs(int.xlo), abs(int.xhi))
-    val errorMultiplier = Rational(1l, 2l) / sqrtDown(a)
+    val errorMultiplier = Rational(1L, 2L) / sqrtDown(a)
 
     //val newTree = Sqrt(this.tree)
     val (sqrtVar, n) = getNewSqrtVariablePair

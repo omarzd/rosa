@@ -25,6 +25,7 @@ package object real {
 
   case class FixedPointOverflowException(s: String) extends Exception
   case class IncompatibleFixedPointFormatsException(s: String) extends Exception
+  case class SqrtNotImplementedException(s: String) extends Exception
 
 
   case class Fnc(pre: Expr, body: Expr, post: Expr)

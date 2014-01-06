@@ -24,10 +24,9 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
 
   implicit val debugSection = DebugSectionVerification
 
-  var verbose = true
   var reporter: Reporter = null
   private def debug(msg: String): Unit = {
-    if (verbose) reporter.debug(msg)
+    reporter.debug(msg)
   }
 
   override val definedOptions: Set[LeonOptionDef] = Set(
@@ -83,16 +82,16 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
     reporter.info("--- Analysis complete ---")
     reporter.info("")
     if (options.simulation) {
-      val simulator = new Simulator(ctx, options, program, reporter)
+      val simulator = new Simulator(ctx, options, program, reporter, fncs)
       val prec = if (options.precision.size == 1) options.precision.head else Float64
       for(vc <- vcs) simulator.simulateThis(vc, prec)
       new CompilationReport(List(), prec)
     } else {
-      val prover = new Prover(ctx, options, program, fncs, verbose)
+      val prover = new Prover(ctx, options, program, fncs)
 
       val (finalPrecision, success) = prover.check(vcs)
       if (success) {
-        val codeGenerator = new CodeGenerator(reporter, ctx, options, program, finalPrecision)
+        val codeGenerator = new CodeGenerator(reporter, ctx, options, program, finalPrecision, fncs)
         val newProgram = codeGenerator.specToCode(program.id, program.mainObject.id, vcs)
         val newProgramAsString = ScalaPrinter(newProgram)
         reporter.info("Generated program with %d lines.".format(newProgramAsString.lines.length))
