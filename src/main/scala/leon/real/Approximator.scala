@@ -307,7 +307,16 @@ class Approximator(reporter: Reporter, solver: RealSolver, precision: Precision,
       case v: Variable => addCondition(v, path)
 
       case And(es) => {
-        val allEs = for(ex <- es) yield approx(ex, path)
+        // first seq collects the path condition, second sequence collects the results
+        val (path, allEs) = es.foldLeft((Seq[Expr](), Seq[XReal]()))((counter, ex) => {
+          ex match {
+            case GreaterEquals(_, _) | GreaterThan(_, _) | LessEquals(_, _) | LessThan(_, _) =>
+              (counter._1 :+ ex, counter._2)
+            case _ =>
+              (counter._1, counter._2 :+ approx(ex, counter._1))
+          }
+          })
+        //val allEs = for(ex <- es) yield approx(ex, path)
         allEs.last
       }
 
