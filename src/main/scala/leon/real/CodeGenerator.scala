@@ -103,21 +103,21 @@ class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, 
       val args = f.args.map(decl => VarDecl(decl.id, intType))
       val funDef = new FunDef(id, intType, args)
 
-      println("\n ==== \nfnc id: " + id)
-      println("vc.kind " + vc.kind)
-      println("generating code for: " + vc.body)
+      //println("\n ==== \nfnc id: " + id)
+      //println("vc.kind " + vc.kind)
+      //println("generating code for: " + vc.body)
 
       // convert to SSA form, then run through Approximator to get ranges of all intermediate variables
       val ssaBody = idealToActual(toSSA(vc.body, fncs), vc.variables)
-      println("\n ssaBody: " + ssaBody)
-      val transformer = new Approximator(reporter, solver, precision, vc.pre, vc.variables)
+      //println("\n ssaBody: " + ssaBody)
+      val transformer = new Approximator(reporter, solver, precision, vc.pre, vc.variables, checkPathError = false)
       val (newBody, newSpec) = transformer.transformWithSpec(ssaBody, false)
 
       val formats = transformer.variables.map {
         case (v, r) => (v, FPFormat.getFormat(r.interval.xlo, r.interval.xhi, bitlength))
       }
-      println("formats: " + formats)
-      println("ssaBody: " + ssaBody)
+      //println("formats: " + formats)
+      //println("ssaBody: " + ssaBody)
 
 
       val fpBody = translateToFP(ssaBody, formats, bitlength, constConstructor)

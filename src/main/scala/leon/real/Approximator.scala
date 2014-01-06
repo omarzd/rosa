@@ -257,7 +257,8 @@ class Approximator(reporter: Reporter, solver: RealSolver, precision: Precision,
         if (possiblyNegative(x.interval)) throw RealArithmeticException("Potential sqrt of negative detected: " + e)
         x.squareRoot
 
-      case FloatIfExpr(cond, thenn, elze) =>
+      case FloatIfExpr(branchCond, thenn, elze) =>
+        val cond = And(branchCond, extractFullCondition(branchCond))
         val currentPathCondition = path :+ initialCondition
         val notCond = negate(cond)
         val thenBranch =
@@ -273,10 +274,10 @@ class Approximator(reporter: Reporter, solver: RealSolver, precision: Precision,
 
 
         val pathError = if (checkPathError) { // When the actual computation goes a different way than the real one
-          val pathError1 = computePathError(currentPathCondition, cond, thenn, elze)
+          val pathError1 = computePathError(currentPathCondition, branchCond, thenn, elze)
           reporter.debug("computed error 1: " + pathError1)
 
-          val pathError2 = computePathError(currentPathCondition, notCond, elze, thenn)
+          val pathError2 = computePathError(currentPathCondition, branchCond, elze, thenn)
           reporter.debug("computed error 2: " + pathError1)
 
           max(pathError1, pathError2)
@@ -319,6 +320,25 @@ class Approximator(reporter: Reporter, solver: RealSolver, precision: Precision,
     }
   }
 
+  private def extractFullCondition(cond: Expr): Expr = cond match {
+    case GreaterEquals(l, r) =>
+      And(extractFullCondition(l), extractFullCondition(r))
+    case GreaterThan(l, r) =>
+      And(extractFullCondition(l), extractFullCondition(r))
+    case LessEquals(l, r) =>
+      And(extractFullCondition(l), extractFullCondition(r))
+    case LessThan(l, r) =>
+      And(extractFullCondition(l), extractFullCondition(r))
+
+    case v: Variable => variables(inputs.buddy(v)).config.getCondition
+
+    case UMinusR(t) => extractFullCondition(t)
+    case PlusR(l, r) => And(extractFullCondition(l), extractFullCondition(r))
+    case MinusR(l, r) => And(extractFullCondition(l), extractFullCondition(r))
+    case TimesR(l, r) => And(extractFullCondition(l), extractFullCondition(r))
+    case DivisionR(l, r) => And(extractFullCondition(l), extractFullCondition(r))
+    case _ => True
+  }
 
   private def getFreshVariablesWithConditionWithoutErrors(vars: Set[Identifier], cond: Expr): (Map[Expr, Expr], Map[Expr, XReal]) = {
     var freshMap: Map[Expr, Expr] = variables.collect {
