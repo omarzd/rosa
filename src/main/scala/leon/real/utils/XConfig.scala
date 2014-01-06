@@ -8,7 +8,7 @@ import purescala.TreeOps._
 
 case class XConfig(solver: RealSolver, precondition: Expr, solverMaxIter: Int, solverPrecision: Rational,
   additionalConstraints: Set[Expr] = Set.empty) {
-  
+
   def getCondition: Expr = And(precondition, And(additionalConstraints.toSeq))
 
   def addCondition(c: Expr): XConfig =
@@ -31,5 +31,5 @@ case class XConfig(solver: RealSolver, precondition: Expr, solverMaxIter: Int, s
   def freshenUp(freshVars: Map[Expr, Expr]): XConfig = {
     XConfig(solver, replace(freshVars, precondition), solverMaxIter, solverPrecision, additionalConstraints.map(c => replace(freshVars, c)))
   }
-  
+
 }
