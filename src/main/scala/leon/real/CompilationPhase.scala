@@ -49,7 +49,6 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
 
     for (opt <- ctx.options) opt match {
       case LeonValueOption("functions", ListValue(fs)) => fncNamesToAnalyse = Set() ++ fs
-      case LeonFlagOption("simulation", v) => options = options.copy(simulation = v)
       case LeonFlagOption("z3Only", v) => options = options.copy(z3Only = v)
       case LeonFlagOption("pathError", v) => options = options.copy(pathError = v)
       case LeonFlagOption("specGen", v) => options = options.copy(specGen = v)
@@ -81,12 +80,7 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
 
     reporter.info("--- Analysis complete ---")
     reporter.info("")
-    if (options.simulation) {
-      val simulator = new Simulator(ctx, options, program, reporter, fncs)
-      val prec = if (options.precision.size == 1) options.precision.head else Float64
-      for(vc <- vcs) simulator.simulateThis(vc, prec)
-      new CompilationReport(List(), prec)
-    } else {
+    
       val prover = new Prover(ctx, options, program, fncs)
 
       val (finalPrecision, success) = prover.check(vcs)
@@ -106,7 +100,6 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
       }
 
       new CompilationReport(vcs.sortWith((vc1, vc2) => vc1.fncId < vc2.fncId), finalPrecision)
-    }
 
   }
 
