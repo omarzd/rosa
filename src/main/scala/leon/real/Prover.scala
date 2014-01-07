@@ -158,7 +158,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
 
     for ((cnstr, index) <- app.constraints.zipWithIndex) {
       val realCnstr = addResult(cnstr.realComp, Some(variables.resultVar))
-      val finiteCnstr = addResult(cnstr.finiteComp, Some(variables.fResultVar))
+      val finiteCnstr = addResultF(cnstr.finiteComp, Some(variables.fResultVar))
 
       val sanityConstraint = And(cnstr.precondition, And(realCnstr, finiteCnstr))
       val toCheck = And(sanityConstraint, negate(cnstr.postcondition))
