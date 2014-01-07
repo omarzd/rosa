@@ -171,7 +171,9 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
 
       if (reporter.errorCount == 0 && sanityCheck(sanityExpr)) {
         solver.checkSat(z3constraint) match {
-          case (UNSAT, _) => validCount += 1
+          case (UNSAT, _) =>
+            reporter.info(s"Constraint with $index is valid.")
+            validCount += 1
           case (SAT, model) =>
             if (app.kind.allowsRealModel) {
               // Idea: check if we get a counterexample for the real part only, that is then a possible counterexample, (depends on the approximation)
@@ -185,6 +187,8 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
                 case (UNSAT, _) =>
                 case _ =>
               }
+            } else {
+              reporter.info(s"Constraint with $index is unknown.")
             }
 
 
@@ -193,7 +197,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
       }
     }
     if ( (validCount + invalidCount) < app.constraints.length) None
-    else if (invalidCount> 0) Some(false)
+    else if (invalidCount > 0) Some(false)
     else Some(true)
   }
 
