@@ -45,8 +45,35 @@ object TreeOps {
     case Not(t) => Not(addResult(t, variable))
 
     case FncValue(_, _) => Equals(variable.get, expr)
+    case FunctionInvocation(_, _) => Equals(variable.get, expr)
   }
 
+  def addResultF(expr: Expr, variable: Option[Expr]): Expr = expr match {
+    case EqualsF(v, FloatIfExpr(c, t, e)) =>
+      FloatIfExpr(c, addResultF(t, Some(v)), addResultF(e, Some(v)))
+
+    case EqualsF(_,_) => expr
+
+    case FloatIfExpr(c, t, e) =>
+      FloatIfExpr(c, addResultF(t, variable), addResultF(e, variable))
+
+    case LessEquals(_, _) | LessThan(_,_) | GreaterThan(_,_) | GreaterEquals(_,_) => expr
+
+    case And(ands) => And(ands.map( addResultF(_, variable)))
+    case Or(ors) => Or(ors.map(addResultF(_, variable)))
+
+    case UMinusF(_) | PlusF(_, _) | MinusF(_, _) | TimesF(_, _) | DivisionF(_, _) | SqrtF(_) | Variable(_) =>
+      EqualsF(variable.get, expr)
+
+    case BooleanLiteral(_) => expr
+
+    case Noise(_,_) => expr
+
+    case Not(t) => Not(addResultF(t, variable))
+
+    case FncValueF(_, _) => EqualsF(variable.get, expr)
+    case FncInvocationF(_, _) => EqualsF(variable.get, expr)
+  }
 
   /* -----------------------
              Paths

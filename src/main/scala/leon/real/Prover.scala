@@ -153,11 +153,12 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
     reporter.debug("checking for valid: " + app.constraints)
 
     val transformer = new LeonToZ3Transformer(variables, precision)
-    var valid: Option[Boolean] = None
+    var validCount = 0
+    var invalidCount = 0
 
     for ((cnstr, index) <- app.constraints.zipWithIndex) {
       val realCnstr = addResult(cnstr.realComp, Some(variables.resultVar))
-      val finiteCnstr = addResult(cnstr.finiteComp, Some(variables.fResultVar))
+      val finiteCnstr = addResultF(cnstr.finiteComp, Some(variables.fResultVar))
 
       val sanityConstraint = And(cnstr.precondition, And(realCnstr, finiteCnstr))
       val toCheck = And(sanityConstraint, negate(cnstr.postcondition))
@@ -170,7 +171,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
 
       if (reporter.errorCount == 0 && sanityCheck(sanityExpr)) {
         solver.checkSat(z3constraint) match {
-          case (UNSAT, _) => valid = Some(true);
+          case (UNSAT, _) => validCount += 1
           case (SAT, model) =>
             if (app.kind.allowsRealModel) {
               // Idea: check if we get a counterexample for the real part only, that is then a possible counterexample, (depends on the approximation)
@@ -180,7 +181,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
               solver.checkSat(massaged) match {
                 case (SAT, model) =>
                   reporter.info("counterexample: " + model)
-                  valid = Some(false)
+                  invalidCount += 1 
                 case (UNSAT, _) =>
                 case _ =>
               }
@@ -191,7 +192,9 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
         }
       }
     }
-    valid
+    if ( (validCount + invalidCount) < app.constraints.length) None
+    else if (invalidCount> 0) Some(false)
+    else Some(true)
   }
 
 
