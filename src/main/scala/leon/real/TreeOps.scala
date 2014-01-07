@@ -28,7 +28,7 @@ object TreeOps {
     case Equals(_,_) => expr
 
     case IfExpr(c, t, e) =>
-      IfExpr(c, addResult(t, variable), addResult(e, variable))
+      IfExpr(c, addResults(t, variables), addResults(e, variables))
 
     case LessEquals(_, _) | LessThan(_,_) | GreaterThan(_,_) | GreaterEquals(_,_) => expr
 
@@ -56,8 +56,50 @@ object TreeOps {
         case (resVar, spec) =>
           And(specToExpr(spec), Equals(resVar, Variable(spec.id)))
         }))
+    
+    // TODO: this won't work with tuples
+    //case FunctionInvocation(_, _) => Equals(variables.head, expr)
   }
 
+  def addResultsF(expr: Expr, variables: Seq[Expr]): Expr = expr match {
+    case EqualsF(v, FloatIfExpr(c, t, e)) =>
+      FloatIfExpr(c, addResultsF(t, Seq(v)), addResultsF(e, Seq(v)))
+
+    case EqualsF(_,_) => expr
+
+    case FloatIfExpr(c, t, e) =>
+      FloatIfExpr(c, addResultsF(t, variables), addResultsF(e, variables))
+
+    case LessEquals(_, _) | LessThan(_,_) | GreaterThan(_,_) | GreaterEquals(_,_) => expr
+
+    case And(ands) => And(ands.map( addResultsF(_, variables)))
+    case Or(ors) => Or(ors.map(addResultsF(_, variables)))
+
+    case UMinusF(_) | PlusF(_, _) | MinusF(_, _) | TimesF(_, _) | DivisionF(_, _) | SqrtF(_) | Variable(_) =>
+      EqualsF(variables.head, expr)
+
+    case BooleanLiteral(_) => expr
+
+    case Noise(_,_) => expr
+
+    case Tuple(bases) =>
+      assert(bases.length == variables.length)
+      And(variables.zip(bases).map({
+        case (resVar, tplPart) => EqualsF(resVar, tplPart)
+        }))
+
+    case Not(t) => Not(addResultsF(t, variables))
+
+    case FncValue(specs, specExpr) =>
+      assert(specs.length == variables.length)
+      And(variables.zip(specs).map({
+        case (resVar, spec) =>
+          And(specToExpr(spec), EqualsF(resVar, Variable(spec.id)))
+        }))
+    
+    // TODO: this won't work with tuples
+    //case FunctionInvocationF(_, _) => EqualsF(variable.get, expr)
+  }
 
   /* -----------------------
              Paths

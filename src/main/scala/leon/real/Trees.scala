@@ -439,7 +439,7 @@ object Trees {
   }
 
   case class FncInvocationF(funDef: FunDef, args: Seq[Expr]) extends Expr with FixedType with NAryExtractable with PrettyPrintable {
-    assert(funDef.returnType == RealType)
+    //assert(funDef.returnType == RealType)  doesn't hold any more with tuples
     val fixedType = RealType
 
     def extract: Option[(Seq[Expr], (Seq[Expr])=>Expr)] = {

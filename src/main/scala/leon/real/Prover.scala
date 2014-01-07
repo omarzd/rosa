@@ -130,6 +130,9 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
           case SqrtNotImplementedException(msg) =>
             reporter.warning(msg)
             false
+          case UnsoundBoundsException(msg) =>
+            reporter.error(msg)
+            return false
            
         }
 
@@ -152,11 +155,12 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
     reporter.debug("checking for valid: " + app.constraints)
 
     val transformer = new LeonToZ3Transformer(variables, precision)
-    var valid: Option[Boolean] = None
+    var validCount = 0
+    var invalidCount = 0
 
     for ((cnstr, index) <- app.constraints.zipWithIndex) {
       val realCnstr = addResults(cnstr.realComp, variables.resultVars)
-      val finiteCnstr = addResults(cnstr.finiteComp, variables.fResultVars)
+      val finiteCnstr = addResultsF(cnstr.finiteComp, variables.fResultVars)
 
       val sanityConstraint = And(cnstr.precondition, And(realCnstr, finiteCnstr))
       val toCheck = And(sanityConstraint, negate(cnstr.postcondition))
@@ -169,7 +173,9 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
 
       if (reporter.errorCount == 0 && sanityCheck(sanityExpr)) {
         solver.checkSat(z3constraint) match {
-          case (UNSAT, _) => valid = Some(true);
+          case (UNSAT, _) =>
+            reporter.info(s"Constraint with $index is valid.")
+            validCount += 1
           case (SAT, model) =>
             if (app.kind.allowsRealModel) {
               // Idea: check if we get a counterexample for the real part only, that is then a possible counterexample, (depends on the approximation)
@@ -180,10 +186,12 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
                 case (SAT, model) =>
                   // TODO: pretty-print the models
                   reporter.info("counterexample: " + model)
-                  valid = Some(false)
+                  invalidCount += 1 
                 case (UNSAT, _) =>
                 case _ =>
               }
+            } else {
+              reporter.info(s"Constraint with $index is unknown.")
             }
 
 
@@ -191,7 +199,9 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
         }
       }
     }
-    valid
+    if ( (validCount + invalidCount) < app.constraints.length) None
+    else if (invalidCount > 0) Some(false)
+    else Some(true)
   }
 
 
@@ -200,6 +210,18 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
   def getApproximation(vc: VerificationCondition, kind: ApproxKind, precision: Precision, postMap: Map[FunDef, Seq[Spec]]): Approximation = {
     val postInliner = new PostconditionInliner(precision, postMap)
     val fncInliner = new FunctionInliner(fncs)
+    val leonToZ3 = new LeonToZ3Transformer(vc.variables, precision)
+
+    def isFeasible(pre: Expr): Boolean = {
+      import Sat._
+      solver.checkSat(leonToZ3.getZ3Expr(pre)) match {
+        case (SAT, model) => true
+        case (UNSAT, model) => false
+        case _ =>
+          reporter.error("Sanity check failed! ")// + sanityCondition)
+          false
+      }
+    }
 
     val (pre, bodyFnc, post) = kind.fncHandling match {
       case Uninterpreted => (vc.pre, vc.body, vc.post)
@@ -230,7 +252,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
         var specsPerPath = Seq[SpecTuple]()
         var spec: SpecTuple = Seq() // seq since we can have tuples
 
-        for ( path <- paths ) {
+        for ( path <- paths if (isFeasible(And(pre, path.condition))) ) {
           //solver.clearCounts
           val transformer = new Approximator(reporter, solver, precision, And(pre, path.condition), vc.variables, options.pathError)
           val (bodyFiniteApprox, nextSpecs) = transformer.transformWithSpec(path.bodyFinite, vc.kind == VCKind.Precondition)

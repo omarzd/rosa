@@ -19,6 +19,8 @@ import VariableShop._
 class Approximator(reporter: Reporter, solver: RealSolver, precision: Precision, precondition: Expr, inputs: VariablePool,
   checkPathError: Boolean = false) {
 
+  type XRealTuple = Seq[XReal] 
+
   implicit val debugSection = DebugSectionVerification
   val verbose = false
   var pathErrorVerbose = false
@@ -91,7 +93,7 @@ class Approximator(reporter: Reporter, solver: RealSolver, precision: Precision,
     case _ => path
   }
 
-  def approx(e: Expr, path: Seq[Expr]): Seq[XReal] = {
+  def approx(e: Expr, path: Seq[Expr]): XRealTuple = {
     // the float condition is to be used with the negation of the actual condition to get only
     // the values that are off-path
     def getOffPathConditions(cond: Expr): (Expr, Expr) = {
@@ -143,7 +145,7 @@ class Approximator(reporter: Reporter, solver: RealSolver, precision: Precision,
         case xfp: XFixed =>
           new XFixed(xfp.format, xfp.tree, xfp.approxInterval, new XRationalForm(Rational.zero), xfp.config)
       }
-      def removeErrors(xfs: Seq[XReal]): Seq[XReal] = xfs.map(x => rmErrors(x))
+      def removeErrors(xfs: XRealTuple): XRealTuple = xfs.map(x => rmErrors(x))
 
       def addCondToXReal(xf: XReal, condition: Expr): XReal = xf match {
         case xff: XFloat =>
@@ -151,7 +153,7 @@ class Approximator(reporter: Reporter, solver: RealSolver, precision: Precision,
         case xfp: XFixed =>
           new XFixed(xfp.format, xfp.tree, xfp.approxInterval, xfp.error, xfp.config.addCondition(condition))
       }
-      def addConditionToXReal(xfs: Seq[XReal], condition: Expr): Seq[XReal] =
+      def addConditionToXReal(xfs: XRealTuple, condition: Expr): XRealTuple =
         xfs.map(x => addCondToXReal(x, condition))
 
       if (pathErrorVerbose) println("--------\n computing path error for condition: " + branchCondition)
@@ -225,7 +227,7 @@ class Approximator(reporter: Reporter, solver: RealSolver, precision: Precision,
         solver.clearCounts
         //XFloat.verbose = true
         //val diffXFloat = (floatResult - realResultWithCorrelation)
-        val diffXFloat: Seq[XReal] = floatResult.zip(realResultWithCorrelation).map({
+        val diffXFloat: XRealTuple = floatResult.zip(realResultWithCorrelation).map({
           case (fl, re) => fl - re
           })
         val diff: Seq[RationalInterval] = diffXFloat.map(_.interval)
@@ -246,7 +248,7 @@ class Approximator(reporter: Reporter, solver: RealSolver, precision: Precision,
       }
     }
 
-    val seq: Seq[XReal] = e match {
+    val seq: XRealTuple = e match {
       case EqualsF(lhs, rhs) =>
         val x = approx(rhs, path).head
         variables = variables + (lhs -> x)
@@ -329,7 +331,16 @@ class Approximator(reporter: Reporter, solver: RealSolver, precision: Precision,
           })
 
       case And(es) => {
-        val allEs = for(ex <- es) yield approx(ex, path)
+        // first seq collects the path condition, second sequence collects the results
+        val (path, allEs) = es.foldLeft((Seq[Expr](), Seq[XRealTuple]()))((counter, ex) => {
+          ex match {
+            case GreaterEquals(_, _) | GreaterThan(_, _) | LessEquals(_, _) | LessThan(_, _) =>
+              (counter._1 :+ ex, counter._2)
+            case _ =>
+              (counter._1, counter._2 :+ approx(ex, counter._1))
+          }
+          })
+        //val allEs = for(ex <- es) yield approx(ex, path)
         allEs.last
       }
 
@@ -434,8 +445,8 @@ class Approximator(reporter: Reporter, solver: RealSolver, precision: Precision,
     And(LessEquals(RealLiteral(i.xlo), v), LessEquals(v, RealLiteral(i.xhi)))
   }
 
-  private def mergeXRealWithExtraError(one: Seq[XReal], two: Seq[XReal], condition: Expr,
-    pathErrors: Seq[Rational]): Seq[XReal] = (one, two) match {
+  private def mergeXRealWithExtraError(one: XRealTuple, two: XRealTuple, condition: Expr,
+    pathErrors: Seq[Rational]): XRealTuple = (one, two) match {
     // We assume that one of the two branches is feasible
     case (Seq(), Seq()) =>
       throw new Exception("One of the paths should be feasible")
