@@ -172,7 +172,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
       if (reporter.errorCount == 0 && sanityCheck(sanityExpr)) {
         solver.checkSat(z3constraint) match {
           case (UNSAT, _) =>
-            reporter.info(s"Constraint with $index is valid.")
+            reporter.info(s"Constraint $index is valid.")
             validCount += 1
           case (SAT, model) =>
             if (app.kind.allowsRealModel) {
@@ -188,7 +188,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
                 case _ =>
               }
             } else {
-              reporter.info(s"Constraint with $index is unknown.")
+              reporter.info(s"Constraint $index is unknown.")
             }
 
 
