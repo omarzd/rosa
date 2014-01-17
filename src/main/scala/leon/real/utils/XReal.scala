@@ -137,15 +137,10 @@ class XReal(val tree: Expr, val approxInterval: RationalInterval, val error: XRa
     val massagedTree = TreeOps.massageArithmetic(tree)
     //println("massaged: " + massagedTree)
     //println("initial approx: " + approx)
-
-    /*val eps2 = Variable(FreshIdentifier("#eps2")).setType(RealType)
-    val boundsConverter = new BoundsConverter(eps2, eps)
-    val toCheck2 = boundsConverter.transform(toCheck)
-    println("\n new to Check:")
-    println(toCheck2)
-    //toCheck = toCheck2*/
+    
     try {
       val res = config.solver.tightenRange(massagedTree, condition, approx, config.solverMaxIter, config.solverPrecision)
+      //println("after tightening: " + res)
       res
     } catch {
       case e: java.lang.AssertionError =>
@@ -154,12 +149,7 @@ class XReal(val tree: Expr, val approxInterval: RationalInterval, val error: XRa
         println(e.getMessage)
         throw UnsoundBoundsException("unsound range for " + tree)
         null
-    } 
-    //println(tree + "  " + config.solverMaxIter)
-    //val res = approx
-    //println("after tightening: " + res)
-
-    //res
+    }
   }
 
 }
