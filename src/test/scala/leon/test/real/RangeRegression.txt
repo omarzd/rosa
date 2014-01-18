@@ -4,7 +4,7 @@ package leon
 package test
 package real
 
-import leon.real.{CompilationPhase,CompilationReport}
+import leon.real.{CompilationPhase,CompilationReport,VCKind, Precision, Spec}
 
 import org.scalatest.FunSuite
 
@@ -12,7 +12,7 @@ import java.io.File
 
 import TestUtils._
 
-class RealRegression extends FunSuite {
+class RangeRegression extends FunSuite {
   private var counter : Int = 0
   private def nextInt() : Int = {
     counter += 1
@@ -26,6 +26,22 @@ class RealRegression extends FunSuite {
   // for now one, but who knows
   val realLibraryFiles = filesInResourceDir(
     "regression/verification/real/library", _.endsWith(".scala"))
+
+  val currentRangesFile = filesInResourceDir(
+    "regression/verification/real/ranges", _.endsWith("currentRanges.txt")).head
+
+  val source = scala.io.Source.fromFile(currentRangesFile.getPath)
+  val lines = source.getLines.toList
+  source.close()
+
+  val baseline = lines.map{ line => line.split(" ") match {
+    case Array(fncName, a, b, err) =>
+      (fncName, (a.toDouble, b.toDouble, err.toDouble))
+    case _ => println("invalid input line")
+      ("dummy", (0.0, 0.0, 0.0))
+    }
+  }.toMap
+  //println("baseline: " + baseline.mkString("\n"))
 
   private def mkTest(file : File, leonOptions : Seq[LeonOption], forError: Boolean)(block: Output=>Unit) = {
     val fullName = file.getPath()
@@ -92,29 +108,29 @@ class RealRegression extends FunSuite {
       mkTest(f, List(LeonFlagOption("real")), forError)(block)
     }
 
-    val ignoredFiles = filesInResourceDir(
+    /*val ignoredFiles = filesInResourceDir(
       "regression/verification/real/" + cat,
       _.endsWith(".txt"))
     for(f <- ignoredFiles) {
       mkIgnore(f)
-    }    
+    } */
   }
-  
-  forEachFileIn("valid") { output =>
+
+  forEachFileIn("ranges") { output =>
     val Output(report, reporter) = output
-    assert(report.totalConditions === report.totalValid,
-           "All verification conditions ("+report.totalConditions+") should be valid.")
+
+    for(vc <- report.allVCs if (vc.kind == VCKind.SpecGen)) {
+      val bsLine = baseline(vc.fncId)
+      val Some(Spec(bounds, absError)) = vc.spec(Precision.Float64)
+      assert(bsLine._1 === bounds.xlo, "lower bound doesn't match baseline for " + vc.fncId)
+      assert(bsLine._2 === bounds.xhi, "upper bound doesn't match baseline for " + vc.fncId)
+      assert(bsLine._3 === absError, "error doesn't match baseline for " + vc.fncId)
+
+    }
     assert(reporter.errorCount === 0)
     assert(reporter.warningCount === 0)
   }
 
-  forEachFileIn("unknown") { output =>
-    val Output(report, reporter) = output
-    assert(report.totalConditions === report.totalUnknown,
-           "All verification conditions ("+report.totalConditions+") should be unknown.")
-    assert(reporter.errorCount === 0) 
-    assert(reporter.warningCount === 0)
-  }
-  //forEachFileIn("error", true) { output => () }
+
 
 }
