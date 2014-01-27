@@ -6,13 +6,9 @@ package real
 
 import leon.real.{CompilationPhase,CompilationReport}
 
-import org.scalatest.FunSuite
-
 import java.io.File
 
-import TestUtils._
-
-class RealRegression extends FunSuite {
+class RealRegression extends LeonTestSuite {
   private var counter : Int = 0
   private def nextInt() : Int = {
     counter += 1
@@ -21,7 +17,7 @@ class RealRegression extends FunSuite {
   private case class Output(report : CompilationReport, reporter : Reporter)
 
   private def mkPipeline : Pipeline[List[String],CompilationReport] =
-    leon.plugin.ExtractionPhase andThen leon.SubtypingPhase andThen leon.real.CompilationPhase
+    leon.frontends.scalac.ExtractionPhase andThen leon.utils.SubtypingPhase andThen leon.real.CompilationPhase
 
   // for now one, but who knows
   val realLibraryFiles = filesInResourceDir(
@@ -41,7 +37,8 @@ class RealRegression extends FunSuite {
       assert(file.exists && file.isFile && file.canRead,
              "Benchmark %s is not a readable file".format(displayName))
 
-      val ctx = LeonContext(
+
+      val ctx = testContext.copy(
         settings = Settings(
           synthesis = false,
           xlang     = false,
@@ -49,8 +46,8 @@ class RealRegression extends FunSuite {
           real = true
         ),
         options = leonOptions.toList,
-        files = List(file) ++ realLibraryFiles,
-        reporter = new SilentReporter
+        files = List(file) ++ realLibraryFiles
+        //reporter = new SilentReporter
         //reporter = new DefaultReporter
       )
 
@@ -89,7 +86,7 @@ class RealRegression extends FunSuite {
       _.endsWith(".scala"))
 
     for(f <- fs) {
-      mkTest(f, List(LeonFlagOption("real")), forError)(block)
+      mkTest(f, List(LeonFlagOption("real", true)), forError)(block)
     }
 
     val ignoredFiles = filesInResourceDir(
