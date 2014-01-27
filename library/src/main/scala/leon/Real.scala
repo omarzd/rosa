@@ -25,16 +25,10 @@ import scala.math.{ScalaNumericConversions, ScalaNumber}
 
     def unary_~(): Real = { throw new NotExecutableException(exMsg); null }
 
-    // Convenience method to specify intervals
-    //def in(a: Real, b: Real): Boolean = { throw new NotExecutableException(exMsg); false }
-    def ><(a: (Real, Real)): Boolean = { throw new NotExecutableException(exMsg); false }
-
     // Uncertainty on this value
     def +/-(x: Real): Boolean = { throw new NotExecutableException(exMsg); false }
-    // Error of this value
-    def unary_!(): Real = { throw new NotExecutableException(exMsg); null }
+    def ±(x: Real): Boolean = { throw new NotExecutableException(exMsg); false }
 
-      
     def compare(other: Real): Int = {
       throw new NotExecutableException(exMsg)
       0
@@ -46,4 +40,25 @@ import scala.math.{ScalaNumericConversions, ScalaNumber}
     def floatValue(): Float = { throw new NotExecutableException(exMsg); 0.0f }
     def longValue(): Long = { throw new NotExecutableException(exMsg); 0l }
     def intValue(): Int = { throw new NotExecutableException(exMsg); 0 }
+
+    /*
+        The following are in an experimental state.
+    */
+
+    // Convenience method to specify intervals
+    //def in(a: Real, b: Real): Boolean = { throw new NotExecutableException(exMsg); false }
+    def ><(a: (Real, Real)): Boolean = { throw new NotExecutableException(exMsg); false }
+
+    def ^(power: Int): Real = { throw new NotExecutableException(exMsg); null }
+    def °(power: Int): Real = { throw new NotExecutableException(exMsg); null }
+    def °°(power: Int): Real = { throw new NotExecutableException(exMsg); null }
+
+    def ∈(bounds: (Real, Real)): Boolean = { throw new NotExecutableException(exMsg); false }
+    def ∈=(bounds: (Real, Real)): Boolean = { throw new NotExecutableException(exMsg); false }
+
+    // Error of this value
+    def unary_!(): Real = { throw new NotExecutableException(exMsg); null }
+
+      
+
   }

@@ -627,10 +627,19 @@ trait ASTExtractors {
         case _ => None
       }
     }
+
+    object ExCircle {
+      def unapply(tree: Apply): Option[(Tree,Tree)] = tree match {
+        case Apply(Select(lhs, n), List(rhs)) if (n.toString == "$u00B0") => Some((lhs,rhs))
+        case Apply(Select(lhs, n), List(rhs)) if (n.toString == "$u00B0$u00B0") => Some((lhs,rhs))
+        case _ => None
+      }
+    }
     
     object ExPlusMinus {
       def unapply(tree: Apply): Option[(Tree,Tree)] = tree match {
         case Apply(Select(lhs, n), List(rhs)) if (n.toString == "$plus$div$minus") => Some((lhs,rhs))
+        case Apply(Select(lhs, n), List(rhs)) if (n.toString == "$u00B1") => Some((lhs,rhs))
         case _ => None
       }
     }
@@ -653,6 +662,22 @@ trait ASTExtractors {
     object ExAssertion {
       def unapply(tree: Apply): Option[Tree] = tree match {
         case Apply(select, List(arg)) if (select.toString == "scala.this.Predef.assert") => Some(arg)
+        case _ => None
+      }
+    }
+
+    object ExElementOf {
+      def unapply(tree: Apply): Option[(Tree, Tree)] = tree match {
+        case Apply(Select(lhs, n), List(arg)) if (n.toString == "$u2208") =>
+          Some((lhs, arg))
+        case _ => None
+      }
+    }
+
+    object ExElementOfEquals {
+      def unapply(tree: Apply): Option[(Tree, Tree)] = tree match {
+        case Apply(Select(lhs, n), List(arg)) if (n.toString == "$u2208$eq") =>
+          Some((lhs, arg))
         case _ => None
       }
     }

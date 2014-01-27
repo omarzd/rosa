@@ -19,7 +19,8 @@ import purescala.TreeOps._
 import purescala.TypeTreeOps._
 import xlang.Trees.{Block => LeonBlock, _}
 import xlang.TreeOps._
-import real.Trees.{UMinusR, PlusR, MinusR, TimesR, DivisionR, SqrtR, RealLiteral, RelError, Noise, InitialNoise, Actual, Assertion, WithIn}
+import real.Trees.{UMinusR, PlusR, MinusR, TimesR, DivisionR, SqrtR, RealLiteral, RelError, Noise, InitialNoise, 
+  Actual, Assertion, WithIn}
 
 import utils.{DefinedPosition, Position => LeonPosition, OffsetPosition => LeonOffsetPosition, RangePosition => LeonRangePosition}
 
@@ -969,6 +970,21 @@ trait CodeExtraction extends ASTExtractors {
             outOfSubsetError(tr, "Unidentified variable "+sym+" "+sym.id+".")
         }
         case ExSqrt(e) => SqrtR(extractTree(e))
+        case ExCircle(l, r) =>
+          def raise(x: LeonExpr, to: Int, runningProduct: LeonExpr): LeonExpr = {
+            if (to <= 1) runningProduct
+            else raise(x, to - 1, TimesR(runningProduct, x))
+          }
+
+          val rl = extractTree(l)
+          val rr = extractTree(r)
+
+          (rl.getType, rr) match {
+            case (RealType, IntLiteral(power)) =>
+              raise(rl, power, rl)
+            case (lt, rt) =>
+            outOfSubsetError(tr, s"invalid type(s) for power operator: $lt and $rt")
+          }
         case ExPlusMinus(l, r) =>
           val rl = extractTree(l)
           rl match {
@@ -993,6 +1009,31 @@ trait CodeExtraction extends ASTExtractors {
             }
         case ExActual(e) => Actual(extractTree(e))
         case ExAssertion(e) => Assertion(extractTree(e))
+        case ExElementOf(v, tpl) =>
+          val rv = extractTree(v)
+          val tuple = extractTree(tpl)
+          (rv, tuple) match {
+            case (v @ Variable(_), Tuple(Seq(l @ RealLiteral(lwr), r @ RealLiteral(upr)))) if (lwr <= upr) =>
+              And(LessThan(l, v), LessThan(v, r))
+            case (v @ Actual(Variable(_)), Tuple(Seq(l @ RealLiteral(lwr), r @ RealLiteral(upr)))) if (lwr <= upr) =>
+              And(LessThan(l, v), LessThan(v, r))
+              
+            case _ =>
+              outOfSubsetError(tr, "invalid use of \u2208")    
+          }
+
+        case ExElementOfEquals(v, tpl) =>
+          val rv = extractTree(v)
+          val tuple = extractTree(tpl)
+          (rv, tuple) match {
+            case (v @ Variable(_), Tuple(Seq(l @ RealLiteral(lwr), r @ RealLiteral(upr)))) if (lwr <= upr) =>
+              And(LessEquals(l, v), LessEquals(v, r))
+            case (v @ Actual(Variable(_)), Tuple(Seq(l @ RealLiteral(lwr), r @ RealLiteral(upr)))) if (lwr <= upr) =>
+              And(LessEquals(l, v), LessEquals(v, r))  
+            case _ =>
+              outOfSubsetError(tr, "invalid use of \u2208=")    
+          }
+
         case ExWithin(v, tpl) =>
           val rv = extractTree(v)
           val tuple = extractTree(tpl)

@@ -124,7 +124,7 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
       debug ("original fnc body: " + funDef.body.get)
 
       funDef.precondition.map(pre => (pre, VariablePool(pre, funDef.returnType)) ).filter(
-        p => p._2.hasValidInput(funDef.params)).map ({
+        p => p._2.hasValidInput(funDef.params, reporter)).map ({
         case (pre, variables) => {
           debug ("precondition is acceptable")
           val allFncCalls = functionCallsOf(funDef.body.get).map(invc => invc.tfd.id.toString)
