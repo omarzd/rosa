@@ -63,7 +63,7 @@ class Simulator(ctx: LeonContext, options: RealOptions, prog: Program, reporter:
       else (r: Rational, f: Int) => { LongLiteral(rationalToLong(r, f)) }
 
     // first generate the comparison code
-    val solver = new RealRangeSolver(ctx, prog, options.z3Timeout)
+    val solver = new RealSolver(ctx, prog, options.z3Timeout)
     val ssaBody = idealToActual(toSSA(vc.body, fncs), vc.variables)
     val transformer = new Approximator(reporter, solver, precision, vc.pre, vc.variables)
     val (newBody, newSpec) = transformer.transformWithSpec(ssaBody, false)

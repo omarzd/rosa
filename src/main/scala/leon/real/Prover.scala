@@ -21,7 +21,7 @@ import Rational._
 class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[FunDef, Fnc]) {
   implicit val debugSection = DebugSectionVerification
   val reporter = ctx.reporter
-  val solver = new RealRangeSolver(ctx, prog, options.z3Timeout)
+  val solver = new RealSolver(ctx, prog, options.z3Timeout)
 
   // TODO: this is ugly!!!
   def getApplicableApproximations(vcs: Seq[VerificationCondition]): Map[VerificationCondition, List[ApproxKind]] =
@@ -255,9 +255,9 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
         for ( path <- paths ) {
           solver.clearCounts
           val transformer = new Approximator(reporter, solver, precision, And(pre, path.condition), vc.variables, options.pathError)
-          val (bodyFiniteApprox, nextSpec) = transformer.transformWithSpec(path.bodyFinite, vc.kind == VCKind.Precondition)
+          val (bodyFiniteApprox, nextSpecs) = transformer.transformWithSpec(path.bodyFinite, vc.kind == VCKind.Precondition)
           println("solver counts: " + solver.getCounts)
-          spec = merge(spec, nextSpec)
+          spec = merge(spec, nextSpecs)
           //if(!nextSpec.isEmpty)
           specsPerPath :+= nextSpecs//.get// else specsPerPath :+= DummySpec
           reporter.debug("body after approx: " + bodyFiniteApprox)

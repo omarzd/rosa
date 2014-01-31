@@ -111,7 +111,7 @@ class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, 
       if (bitlength <= 16) (r: Rational, f: Int) => { IntLiteral(rationalToInt(r, f)) }
       else (r: Rational, f: Int) => { LongLiteral(rationalToLong(r, f)) }
 
-    val solver = new RealRangeSolver(ctx, prog, options.z3Timeout)
+    val solver = new RealSolver(ctx, prog, options.z3Timeout)
 
     for (vc <- vcs if (vc.kind == VCKind.Postcondition || vc.kind == VCKind.SpecGen)) {
       val f = vc.funDef

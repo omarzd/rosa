@@ -151,7 +151,7 @@ class RealRangeSolver(val context: LeonContext, val program: Program, timeout: L
     solver.check match {
       case Some(true) =>
         if (containsFunCalls) {
-          None
+          mapRangeNoneConstructors
         } else {
           Some(true)
         }
@@ -172,7 +172,7 @@ class RealRangeSolver(val context: LeonContext, val program: Program, timeout: L
     //println("check sat of formula: " + expr)
     //println("transformed: " + pushEqualsIntoIfThenElse(expr, None))
 
-    val cnstr = toZ3Formula(pushEqualsIntoIfThenElse(expr, None)).get
+    val cnstr = toZ3Formula(expr).get
     solver.assertCnstr(cnstr)
     val res: (Sat, Z3Model) = solver.check match {
       case Some(true) =>
