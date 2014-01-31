@@ -72,7 +72,23 @@ class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, 
       funDef.precondition = f.precondition
 
       vc.spec(precision) match {
-        case Some(spec) =>
+        case specs: Seq[Spec] if (specs.length > 1) =>
+          val resId = FreshIdentifier("res").setType(TupleType(Seq(RealType, RealType)))
+          val a = FreshIdentifier("a").setType(RealType)
+          val b = FreshIdentifier("b").setType(RealType)
+
+          val specExpr = And(specs.map( specToExpr(_) ))
+
+          val resMap: Map[Expr, Expr] = specs.map(s => Variable(s.id)).zip(List(Variable(a), Variable(b))).toMap
+          println("resMap: " + resMap)
+          println("specExpr: " + specExpr)
+
+          val postExpr = MatchExpr(Variable(resId), 
+            Seq(SimpleCase(TuplePattern(None, List(WildcardPattern(Some(a)), WildcardPattern(Some(b)))),
+              replace(resMap, specExpr))))
+
+          funDef.postcondition = Some((resId, postExpr))
+        case Seq(spec) =>
           val resId = FreshIdentifier("res")
           funDef.postcondition = Some((resId, replace(Map(Variable(spec.id) -> Variable(resId).setType(RealType)), specToExpr(spec))))
         case _ =>
