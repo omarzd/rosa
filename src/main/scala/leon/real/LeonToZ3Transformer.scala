@@ -51,6 +51,7 @@ class LeonToZ3Transformer(variables: VariablePool, precision: Precision) extends
         Equals(variables.buddy(v), TimesR(PlusR(new RealLiteral(1), delta), v))
 
       // For bspline 3 to work, we need this:
+      // TODO:  test if better in general?
       /*case Noise(v @ Variable(_), r @ RealLiteral(value)) =>
         And(LessEquals(RealLiteral(-value), MinusR(v, variables.buddy(v))),
             LessEquals(MinusR(v, variables.buddy(v)), r))
@@ -155,10 +156,14 @@ class LeonToZ3Transformer(variables: VariablePool, precision: Precision) extends
       case WithIn(x, lwrBnd, upBnd) =>
         And(LessThan(RealLiteral(lwrBnd), x), LessThan(x, RealLiteral(upBnd)))
 
+      /* if we allow only tuples as the last return value, this is not needed
+      else we need to modify the whole function to be returning tuples, or we return one, maybe that works too
       case FncValue(spec, specExpr) =>
         val fresh = getNewXFloatVar
-        addExtra(rec(replace(Map(Variable(spec.id) -> fresh), specExpr), path))
+        // tuples: fresh will have to be a tuple?
+        //addExtra(rec(replace(Map(Variable(spec.id) -> fresh), specExpr), path))
         fresh
+      */
 
       case FncBody(name, body, fundef, args) =>
         val fresh = getNewFncVariable(name)

@@ -24,6 +24,8 @@ object RealSolver {
   var verbose = false
 }
 
+// TODO: Not an ideal construction as we are duplicating everything in UninterpretedSolver,
+// except the Z3Config, where we have to set the timeout.
 class RealSolver(val context: LeonContext, val program: Program, timeout: Long)
   extends AbstractZ3Solver
      with Z3ModelReconstruction {
@@ -139,10 +141,11 @@ class RealSolver(val context: LeonContext, val program: Program, timeout: Long)
     }).toSet
   }
 
-  /*override def assertCnstr(expr: Expr) = {
-    val exprInZ3 = toZ3Formula(expr).get
-    solver.assertCnstr(exprInZ3)
-    if (verbose) println("Added constraint: " + exprInZ3)
+  // TODO: check if needed this is in the first place
+  /* override def assertCnstr(expr: Expr) = {
+     val exprInZ3 = toZ3Formula(expr).get
+     solver.assertCnstr(exprInZ3)
+     if (verbose) println("Added constraint: " + exprInZ3)
   }*/
 
 
@@ -231,6 +234,7 @@ class RealSolver(val context: LeonContext, val program: Program, timeout: Long)
         } else getLowerBound(a, b, exprInZ3, 0, maxIter, prec)
 
       if (verbose) println("\n============Looking for upperbound")
+      //TODO: start searching from the newLowerBound?
       val newUpperBound =
         if (upperBoundIsTight(exprInZ3, b, prec)) {
           countTightRanges += 1
@@ -341,6 +345,7 @@ class RealSolver(val context: LeonContext, val program: Program, timeout: Long)
 
 
   private def lowerBoundIsTight(exprInZ3: Z3AST, bound: Rational, prec: Rational): Boolean = {
+    // TODO: uses push and pop, which prevents nlsat to be used, probably
     solver.push
     solver.assertCnstr(z3.mkLT(exprInZ3, z3.mkNumeral(getNumeralString(bound + prec), realSort)))
     if (verbose) println("checking if lower bound is tight: " + solver.getAssertions.toSeq.mkString(",\n"))

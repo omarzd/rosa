@@ -43,14 +43,16 @@ object EmptyRecord extends Record(False, False, None, None, None, None)
   and such things.
   @param map indexed by ideal variable
 */
-class VariablePool(inputs: Map[Expr, Record], val resId: Identifier) {
+class VariablePool(inputs: Map[Expr, Record], val resIds: Seq[Identifier]) {
   import VariablePool._
   private var allVars = inputs
 
-  allVars += (Variable(resId) -> emptyRecord(Variable(resId)))
+  val resultVars = resIds.map(Variable(_))
+  resultVars foreach ( resVar =>
+    allVars += (resVar -> emptyRecord(resVar))
+  )
 
-  val resultVar = Variable(resId)
-  val fResultVar = buddy(resultVar)
+  val fResultVars = resultVars.map( buddy(_) )
 
   def add(idSet: Set[Identifier]): Unit = {
     for (i <- idSet) {
@@ -122,7 +124,18 @@ object VariablePool {
   def apply(expr: Expr, returnType: TypeTree): VariablePool = {
     val collector = new VariableCollector
     collector.transform(expr)
-    new VariablePool(collector.recordMap, FreshIdentifier("result", true).setType(returnType))
+
+    val resIds = returnType match {
+      case TupleType(baseTypes) =>
+        baseTypes.zipWithIndex.map( {
+          case (baseType, i) => FreshIdentifier("result" + i, true).setType(baseType)
+          })
+
+      case _ =>
+        Seq(FreshIdentifier("result", true).setType(returnType))
+    }
+
+    new VariablePool(collector.recordMap, resIds)
   }
 
   private class VariableCollector extends TransformerWithPC {
