@@ -23,6 +23,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
   val reporter = ctx.reporter
   val solver = new RealSolver(ctx, prog, options.z3Timeout)
 
+  // TODO: this is ugly!!!
   def getApplicableApproximations(vcs: Seq[VerificationCondition]): Map[VerificationCondition, List[ApproxKind]] =
     vcs.map { vc =>
         val list = (
@@ -77,7 +78,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
 
   def checkVCsInPrecision(vcs: Seq[VerificationCondition], precision: Precision,
     validApproximations: Map[VerificationCondition, List[ApproxKind]]): Boolean = {
-    var postMap: Map[FunDef, Option[Spec]] = vcs.map(vc => (vc.funDef -> None)).toMap
+    var postMap: Map[FunDef, Seq[Spec]] = vcs.map(vc => (vc.funDef -> Seq())).toMap
 
     //println("checking vcs: ")
 
@@ -88,10 +89,11 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
       reporter.debug("post: " + vc.post)
 
       val start = System.currentTimeMillis
-      var spec: Option[Spec] = None
+      var spec: Seq[Spec] = Seq()
 
       val approximations = validApproximations(vc)
 
+      // TODO: can we re-use some of the approximation work across precision?
       approximations.find(aKind => {
         reporter.info("approx: " + aKind)
 
@@ -128,6 +130,9 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
           case SqrtNotImplementedException(msg) =>
             reporter.warning(msg)
             false
+          case UnsoundBoundsException(msg) =>
+            reporter.error(msg)
+            return false
            
         }
 
@@ -150,11 +155,12 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
     reporter.debug("checking for valid: " + app.constraints)
 
     val transformer = new LeonToZ3Transformer(variables, precision)
-    var valid: Option[Boolean] = None
+    var validCount = 0
+    var invalidCount = 0
 
     for ((cnstr, index) <- app.constraints.zipWithIndex) {
-      val realCnstr = addResult(cnstr.realComp, Some(variables.resultVar))
-      val finiteCnstr = addResult(cnstr.finiteComp, Some(variables.fResultVar))
+      val realCnstr = addResults(cnstr.realComp, variables.resultVars)
+      val finiteCnstr = addResultsF(cnstr.finiteComp, variables.fResultVars)
 
       val sanityConstraint = And(cnstr.precondition, And(realCnstr, finiteCnstr))
       val toCheck = And(sanityConstraint, negate(cnstr.postcondition))
@@ -167,7 +173,9 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
 
       if (reporter.errorCount == 0 && sanityCheck(sanityExpr)) {
         solver.checkSat(z3constraint) match {
-          case (UNSAT, _) => valid = Some(true);
+          case (UNSAT, _) =>
+            reporter.info(s"Constraint with $index is valid.")
+            validCount += 1
           case (SAT, model) =>
             if (app.kind.allowsRealModel) {
               // Idea: check if we get a counterexample for the real part only, that is then a possible counterexample, (depends on the approximation)
@@ -176,11 +184,14 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
               val massaged = massageArithmetic(transformer.getZ3Expr(realOnlyConstraint))
               solver.checkSat(massaged) match {
                 case (SAT, model) =>
+                  // TODO: pretty-print the models
                   reporter.info("counterexample: " + model)
-                  valid = Some(false)
+                  invalidCount += 1 
                 case (UNSAT, _) =>
                 case _ =>
               }
+            } else {
+              reporter.info(s"Constraint with $index is unknown.")
             }
 
 
@@ -188,23 +199,36 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
         }
       }
     }
-    valid
+    if ( (validCount + invalidCount) < app.constraints.length) None
+    else if (invalidCount > 0) Some(false)
+    else Some(true)
   }
 
 
 
   // DOC: we only support function calls in fnc bodies, not in pre and post
-  def getApproximation(vc: VerificationCondition, kind: ApproxKind, precision: Precision, postMap: Map[FunDef, Option[Spec]]): Approximation = {
+  def getApproximation(vc: VerificationCondition, kind: ApproxKind, precision: Precision, postMap: Map[FunDef, Seq[Spec]]): Approximation = {
     val postInliner = new PostconditionInliner(precision, postMap)
     val fncInliner = new FunctionInliner(fncs)
+    val leonToZ3 = new LeonToZ3Transformer(vc.variables, precision)
+
+    def isFeasible(pre: Expr): Boolean = {
+      import Sat._
+      solver.checkSat(leonToZ3.getZ3Expr(pre)) match {
+        case (SAT, model) => true
+        case (UNSAT, model) => false
+        case _ =>
+          reporter.error("Sanity check failed! ")// + sanityCondition)
+          false
+      }
+    }
 
     val (pre, bodyFnc, post) = kind.fncHandling match {
       case Uninterpreted => (vc.pre, vc.body, vc.post)
       case Postcondition => (vc.pre, postInliner.transform(vc.body), vc.post)
       case Inlining => (vc.pre, fncInliner.transform(vc.body), vc.post)
     }
-    reporter.debug("after FNC handling:\npre: %s\nbody: %s\npost: %s".format(pre,bodyFnc,post))
-
+    if (kind.fncHandling != Uninterpreted) reporter.debug("after FNC handling:\npre: %s\nbody: %s\npost: %s".format(pre,bodyFnc,post))
 
     val paths: Set[Path] = kind.pathHandling match {
       case Pathwise => getPaths(bodyFnc).map {
@@ -221,21 +245,21 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
         for (path <- paths) {
           constraints :+= Constraint(And(pre, path.condition), path.bodyReal, path.bodyFinite, post)
         }
-        Approximation(kind, constraints, None)
+        Approximation(kind, constraints, Seq())
 
       case JustFloat =>
         var constraints = Seq[Constraint]()
-        var specsPerPath = Seq[Option[Spec]]()
-        var spec: Option[Spec] = None
+        var specsPerPath = Seq[SpecTuple]()
+        var spec: SpecTuple = Seq() // seq since we can have tuples
 
-        for ( path <- paths ) {
+        for ( path <- paths if (isFeasible(And(pre, path.condition))) ) {
           //solver.clearCounts
           val transformer = new Approximator(reporter, solver, precision, And(pre, path.condition), vc.variables, options.pathError)
-          val (bodyFiniteApprox, nextSpec) = transformer.transformWithSpec(path.bodyFinite, vc.kind == VCKind.Precondition)
+          val (bodyFiniteApprox, nextSpecs) = transformer.transformWithSpec(path.bodyFinite, vc.kind == VCKind.Precondition)
           //println("solver counts: " + solver.getCounts)
-          spec = merge(spec, nextSpec)
+          spec = merge(spec, nextSpecs)
           //if(!nextSpec.isEmpty)
-          specsPerPath :+= nextSpec//.get// else specsPerPath :+= DummySpec
+          specsPerPath :+= nextSpecs//.get// else specsPerPath :+= DummySpec
           reporter.debug("body after approx: " + bodyFiniteApprox)
           constraints :+= Constraint(And(pre, path.condition), path.bodyReal, bodyFiniteApprox, post)
         }
@@ -253,9 +277,9 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
           case Some(approx) =>
             val newConstraints =
               for (
-                (cnstr, spec) <- approx.constraints.zip(approx.specsPerPath)
+                (cnstr, specs) <- approx.constraints.zip(approx.specsPerPath)
               ) yield
-                Constraint(cnstr.precondition, specToRealExpr(spec), cnstr.finiteComp, cnstr.postcondition)
+                Constraint(cnstr.precondition, And(specs.map(specToRealExpr(_))), cnstr.finiteComp, cnstr.postcondition)
             Approximation(kind, newConstraints, approx.spec)
           case None =>
             throw new RealArithmeticException("Cannot compute Float'n'Range approximation because JustFloat approximation is missing.")
@@ -264,18 +288,24 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
     }
   }
 
-  private def merge(currentSpec: Option[Spec], newSpec: Option[Spec]): Option[Spec] = (currentSpec, newSpec) match {
-    case (Some(s1), Some(s2)) =>
-      val lowerBnd = min(s1.bounds.xlo, s2.bounds.xlo)
-      val upperBnd = max(s1.bounds.xhi, s2.bounds.xhi)
-      val err = max(s1.absError, s2.absError)
-      assert(s1.id == s2.id)
-      Some(Spec(s1.id, RationalInterval(lowerBnd, upperBnd), err))
-    case (None, Some(s)) => newSpec
-    case _ => currentSpec
+  private def merge(currentSpec: SpecTuple, newSpecs: SpecTuple): SpecTuple = (currentSpec, newSpecs) match {
+    case (Seq(), specs) => specs
+
+    case (current, Seq()) => current
+
+    case _ =>
+      currentSpec.zip(newSpecs).map({
+        case (s1, s2) =>
+          val lowerBnd = min(s1.bounds.xlo, s2.bounds.xlo)
+          val upperBnd = max(s1.bounds.xhi, s2.bounds.xhi)
+          val err = max(s1.absError, s2.absError)
+          assert(s1.id == s2.id)
+          Spec(s1.id, RationalInterval(lowerBnd, upperBnd), err)
+        })
   }
 
   // if true, we're sane
+  // TODO: make a method in the solver and then we don't need to duplicate
   private def sanityCheck(pre: Expr, body: Expr = BooleanLiteral(true)): Boolean = {
     val sanityCondition = And(pre, body)
     solver.checkSat(sanityCondition) match {

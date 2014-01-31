@@ -21,30 +21,85 @@ object TreeOps {
   /* ----------------------
          Analysis phase
    ------------------------ */
-  def addResult(expr: Expr, variable: Option[Expr]): Expr = expr match {
+  def addResults(expr: Expr, variables: Seq[Expr]): Expr = expr match {
     case Equals(v, IfExpr(c, t, e)) =>
-      IfExpr(c, addResult(t, Some(v)), addResult(e, Some(v)))
+      IfExpr(c, addResults(t, Seq(v)), addResults(e, Seq(v)))
 
     case Equals(_,_) => expr
 
     case IfExpr(c, t, e) =>
-      IfExpr(c, addResult(t, variable), addResult(e, variable))
+      IfExpr(c, addResults(t, variables), addResults(e, variables))
 
     case LessEquals(_, _) | LessThan(_,_) | GreaterThan(_,_) | GreaterEquals(_,_) => expr
 
-    case And(ands) => And(ands.map( addResult(_, variable)))
-    case Or(ors) => Or(ors.map(addResult(_, variable)))
+    case And(ands) => And(ands.map( addResults(_, variables)))
+    case Or(ors) => Or(ors.map(addResults(_, variables)))
 
     case UMinusR(_) | PlusR(_, _) | MinusR(_, _) | TimesR(_, _) | DivisionR(_, _) | SqrtR(_) | Variable(_) =>
-      Equals(variable.get, expr)
+      Equals(variables.head, expr)
 
     case BooleanLiteral(_) => expr
 
     case Noise(_,_) => expr
 
-    case Not(t) => Not(addResult(t, variable))
+    case Tuple(bases) =>
+      assert(bases.length == variables.length)
+      And(variables.zip(bases).map({
+        case (resVar, tplPart) => Equals(resVar, tplPart)
+        }))
+
+    case Not(t) => Not(addResults(t, variables))
+
+    case FncValue(specs, specExpr) =>
+      assert(specs.length == variables.length)
+      And(variables.zip(specs).map({
+        case (resVar, spec) =>
+          And(specToExpr(spec), Equals(resVar, Variable(spec.id)))
+        }))
+    
+    // TODO: this won't work with tuples
+    //case FunctionInvocation(_, _) => Equals(variables.head, expr)
   }
 
+  def addResultsF(expr: Expr, variables: Seq[Expr]): Expr = expr match {
+    case EqualsF(v, FloatIfExpr(c, t, e)) =>
+      FloatIfExpr(c, addResultsF(t, Seq(v)), addResultsF(e, Seq(v)))
+
+    case EqualsF(_,_) => expr
+
+    case FloatIfExpr(c, t, e) =>
+      FloatIfExpr(c, addResultsF(t, variables), addResultsF(e, variables))
+
+    case LessEquals(_, _) | LessThan(_,_) | GreaterThan(_,_) | GreaterEquals(_,_) => expr
+
+    case And(ands) => And(ands.map( addResultsF(_, variables)))
+    case Or(ors) => Or(ors.map(addResultsF(_, variables)))
+
+    case UMinusF(_) | PlusF(_, _) | MinusF(_, _) | TimesF(_, _) | DivisionF(_, _) | SqrtF(_) | Variable(_) =>
+      EqualsF(variables.head, expr)
+
+    case BooleanLiteral(_) => expr
+
+    case Noise(_,_) => expr
+
+    case Tuple(bases) =>
+      assert(bases.length == variables.length)
+      And(variables.zip(bases).map({
+        case (resVar, tplPart) => EqualsF(resVar, tplPart)
+        }))
+
+    case Not(t) => Not(addResultsF(t, variables))
+
+    case FncValue(specs, specExpr) =>
+      assert(specs.length == variables.length)
+      And(variables.zip(specs).map({
+        case (resVar, spec) =>
+          And(specToExpr(spec), EqualsF(resVar, Variable(spec.id)))
+        }))
+    
+    // TODO: this won't work with tuples
+    //case FunctionInvocationF(_, _) => EqualsF(variable.get, expr)
+  }
 
   /* -----------------------
              Paths
@@ -155,15 +210,35 @@ object TreeOps {
     }
   }
 
+  //hardcoded for 2-tuples
+  def extractPostCondition(resId: Identifier, postExpr: Expr, resFresh: Seq[Identifier]): Expr = postExpr match {
+    case MatchExpr(Variable(scrutinee),
+      Seq(SimpleCase(TuplePattern(None, List(WildcardPattern(Some(a)), WildcardPattern(Some(b)))), caseExpr))) if (scrutinee == resId) =>
+
+      assert(resFresh.length == 2)
+      replace(List(Variable(a), Variable(b)).zip(resFresh.map(Variable(_))).toMap, caseExpr)
+
+    case m: MatchExpr =>
+      throw new Exception("Wrong use of match expression for postcondition!")
+      null
+
+    case _ => // simple case (no tuples)
+      replace(Map(Variable(resId) -> Variable(resFresh.head)), postExpr)
+  }
+
   /*
     Replace the function call with its specification. For translation to Z3 FncValue needs to be translated
     with a fresh variable. For approximation, translate the spec into an XFloat.
   */
-  class PostconditionInliner(precision: Precision, postMap: Map[FunDef, Option[Spec]]) extends TransformerWithPC {
+  class PostconditionInliner(precision: Precision, postMap: Map[FunDef, Seq[Spec]]) extends TransformerWithPC {
     type C = Seq[Expr]
     val initC = Nil
+    private var tmpCounter = 0
 
-
+    private def getFresh: Identifier = {
+      tmpCounter = tmpCounter + 1
+      FreshIdentifier("#tmp" + tmpCounter).setType(RealType)
+    }
 
     def register(e: Expr, path: C) = path :+ e
 
@@ -173,16 +248,34 @@ object TreeOps {
 
         funDef.postcondition.flatMap({
           case (resId, postExpr) =>
-            val specExtractor = new SpecExtractor(resId)
-            specExtractor.getSpec(postExpr).map( spec => {
-              val transformer = new ActualToRealSpecTransformer(spec.id, spec.absError)
-              val cleanedExpr = transformer.transform(postExpr)
-              FncValue(spec, replace(arguments, cleanedExpr))
-            })
+            val resFresh = resId.getType match {
+              case TupleType(bases) => Seq(getFresh, getFresh)
+              case _ => Seq(getFresh)
+            }
+            println(s"$resFresh")
+            val postcondition = extractPostCondition(resId, postExpr, resFresh)
+            println(s"$postcondition")
+
+            try {
+              val specs: Seq[Spec] = resFresh.map( r => {
+                val specExtractor = new SpecExtractor(r)
+                specExtractor.getSpec(postcondition).get
+              })
+              val deltaMap: Map[Identifier, Rational] = specs.map( s => (s.id, s.absError)).toMap
+
+              val transformer = new ActualToRealSpecTransformer(deltaMap)
+              val realSpecExpr = transformer.transform(postcondition)
+
+              Some(FncValue(specs, replace(arguments, realSpecExpr)))
+            } catch {
+              case e: Exception => None
+            }
         }) match {
           case Some(fncValue) => fncValue
-          case _ => postMap(funDef) match {
-            case Some(spec) => FncValue(spec, replace(arguments, specToExpr(spec)))
+          case _ => postMap.getOrElse(funDef, Seq()) match {
+            case specs: Seq[Spec] if specs.nonEmpty =>
+              val specsExpr = And(specs.map(specToExpr(_)))
+              FncValue(specs, replace(arguments, specsExpr))
             case _ =>
               throw PostconditionInliningFailedException("missing postcondition for " + funDef.id.name); null
           }
@@ -233,10 +326,12 @@ object TreeOps {
 
       //case Noise(Variable(id), x) => errorExpr = Some(x); e
       case _ =>
+        // TODO: extra constraints
         super.rec(e, path)
     }
 
     def getSpec(e: Expr): Option[Spec] = {
+      // TODO: do we want to allow no error specification in postcondition? What would be the meaning?
       //val err = error.getOrElse(Rational.zero)
       rec(e, initC)
 
@@ -251,28 +346,43 @@ object TreeOps {
     }
   }
 
-  class ActualToRealSpecTransformer(id: Identifier, delta: Rational) extends TransformerWithPC {
+  class ActualToRealSpecTransformer(deltas: Map[Identifier, Rational]) extends TransformerWithPC {
     type C = Seq[Expr]
     val initC = Nil
+
+    val ids = deltas.keys.toSeq
 
     def register(e: Expr, path: C) = path :+ e
 
     override def rec(e: Expr, path: C) = e match {
-      case LessEquals(RealLiteral(lwrBnd), Actual(Variable(id))) => LessEquals(RealLiteral(lwrBnd + delta), Variable(id))
-      case LessEquals(Actual(Variable(id)), RealLiteral(uprBnd)) => LessEquals(Variable(id), RealLiteral(uprBnd - delta))
-      case LessThan(RealLiteral(lwrBnd), Actual(Variable(id))) => LessThan(RealLiteral(lwrBnd + delta), Variable(id))
-      case LessThan(Actual(Variable(id)), RealLiteral(uprBnd)) => LessThan(Variable(id), RealLiteral(uprBnd - delta))
+      case LessEquals(RealLiteral(lwrBnd), Actual(Variable(id))) if (ids.contains(id)) =>
+        LessEquals(RealLiteral(lwrBnd + deltas(id)), Variable(id))
 
-      case GreaterEquals(RealLiteral(uprBnd), Actual(Variable(id))) => GreaterEquals(RealLiteral(uprBnd - delta), Variable(id))
-      case GreaterEquals(Actual(Variable(id)), RealLiteral(lwrBnd)) => GreaterEquals(Variable(id), RealLiteral(lwrBnd + delta))
-      case GreaterThan(RealLiteral(uprBnd), Actual(Variable(id))) => GreaterThan(RealLiteral(uprBnd - delta), Variable(id))
-      case GreaterThan(Actual(Variable(id)), RealLiteral(lwrBnd)) => GreaterThan(Variable(id), RealLiteral(lwrBnd + delta))
+      case LessEquals(Actual(Variable(id)), RealLiteral(uprBnd)) if (ids.contains(id)) =>
+        LessEquals(Variable(id), RealLiteral(uprBnd - deltas(id)))
+
+      case LessThan(RealLiteral(lwrBnd), Actual(Variable(id))) if (ids.contains(id)) =>
+        LessThan(RealLiteral(lwrBnd + deltas(id)), Variable(id))
+
+      case LessThan(Actual(Variable(id)), RealLiteral(uprBnd)) if (ids.contains(id)) =>
+        LessThan(Variable(id), RealLiteral(uprBnd - deltas(id)))
+
+      case GreaterEquals(RealLiteral(uprBnd), Actual(Variable(id))) if (ids.contains(id)) =>
+        GreaterEquals(RealLiteral(uprBnd - deltas(id)), Variable(id))
+
+      case GreaterEquals(Actual(Variable(id)), RealLiteral(lwrBnd)) if (ids.contains(id)) =>
+        GreaterEquals(Variable(id), RealLiteral(lwrBnd + deltas(id)))
+
+      case GreaterThan(RealLiteral(uprBnd), Actual(Variable(id))) if (ids.contains(id)) =>
+        GreaterThan(RealLiteral(uprBnd - deltas(id)), Variable(id))
+
+      case GreaterThan(Actual(Variable(id)), RealLiteral(lwrBnd)) if (ids.contains(id)) =>
+        GreaterThan(Variable(id), RealLiteral(lwrBnd + deltas(id)))
 
       case _ =>
         super.rec(e, path)
     }
   }
-
 
   class FunctionInliner(fncs: Map[FunDef, Fnc]) extends TransformerWithPC { //(reporter: Reporter, vcMap: Map[FunDef, VerificationCondition]) extends TransformerWithPC {
     type C = Seq[Expr]
@@ -443,7 +553,7 @@ object TreeOps {
 
     override def rec(e: Expr, path: C) = e match {
       case Roundoff(_) => True
-      //case RelError(_,_) =>
+      //case RelError(_,_) =>  TODO: remove relError here (or not)?
       case _ =>
         super.rec(e, path)
     }
@@ -495,11 +605,9 @@ object TreeOps {
             Noise(Variable(s.id), RealLiteral(s.absError)))
   }
 
-  def specToRealExpr(spec: Option[Spec]): Expr = spec match {
-    case Some(s) => And(LessEquals(RealLiteral(s.bounds.xlo), Variable(s.id)),
-            LessEquals(Variable(s.id), RealLiteral(s.bounds.xhi)))
-    case None => True
-  }
+  def specToRealExpr(spec: Spec): Expr =
+    And(LessEquals(RealLiteral(spec.bounds.xlo), Variable(spec.id)),
+            LessEquals(Variable(spec.id), RealLiteral(spec.bounds.xhi)))
 
   /* --------------------
         Arithmetic ops
@@ -510,6 +618,7 @@ object TreeOps {
   val minusDistributor = new MinusDistributor
 
   def massageArithmetic(expr: Expr): Expr = {
+    //TODO: remove redundant definitions of errors? stuff like And(Or(idealPart), Or(actualPart))
     val t1 = minusDistributor.transform(expr)
     //println("t1: " + t1.getClass)
     val t2 = factorizer.transform(factorizer.transform(t1))
