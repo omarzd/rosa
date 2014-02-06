@@ -118,7 +118,7 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
 
     for (funDef <- sortedFncs if (funDef.body.isDefined)) {
       reporter.info("Analysing fnc:  %s".format(funDef.id.name))
-      debug ("fnc body: " + funDef.body.get)
+      debug ("original fnc body: " + funDef.body.get)
 
       funDef.precondition.map(pre => (pre, VariablePool(pre, funDef.returnType)) ).filter(p => p._2.hasValidInput(funDef.args)).map ({
         case (pre, variables) => {
@@ -129,14 +129,22 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
           val precondition = And(pre, And(variables.inputsWithoutNoise.map(i => Roundoff(i))))
           debug ("precondition: " + precondition)
 
-          val resFresh = variables.resId
+          val resFresh = variables.resIds
           val body = convertLetsToEquals(funDef.body.get)
 
           funDef.postcondition match {
-            case Some((resId, postExpr)) =>
-              val postcondition = replace(Map(Variable(resId) -> Variable(resFresh)), postExpr)
+             //Option[(Identifier, Expr)]
+             // TODO: invariants
+             /*case Some((ResultVariable()) =>
+               val posts = getInvariantCondition(funDef.body.get)
+               val bodyWOLets = convertLetsToEquals(funDef.body.get)
+               val body = replace(posts.map(p => (p, True)).toMap, bodyWOLets)
+               (body, body, Or(posts))*/
 
-              val vcBody = new VerificationCondition(funDef, Postcondition, precondition, body, postcondition, resFresh,
+            case Some((resId, postExpr)) =>
+              val postcondition = extractPostCondition(resId, postExpr, resFresh)
+
+              val vcBody = new VerificationCondition(funDef, Postcondition, precondition, body, postcondition,
                 allFncCalls, variables, precisions)
 
               val assertionCollector = new AssertionCollector(funDef, precondition, variables, precisions)
@@ -146,7 +154,7 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
               (assertionCollector.vcs :+ vcBody, Fnc(precondition, body, postcondition))
 
             case None => // only want to generate specs
-              val vcBody = new VerificationCondition(funDef, SpecGen, precondition, body, True, resFresh,
+              val vcBody = new VerificationCondition(funDef, SpecGen, precondition, body, True,
                 allFncCalls, variables, precisions)
 
               (Seq(vcBody), Fnc(precondition, body, True))

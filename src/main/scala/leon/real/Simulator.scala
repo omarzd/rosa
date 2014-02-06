@@ -14,6 +14,9 @@ import real.TreeOps._
 import real.{FixedPointFormat => FPFormat}
 import FPFormat._
 
+/*
+ Note: simulation does not work with tuples.
+*/
 class Simulator(ctx: LeonContext, options: RealOptions, prog: Program, reporter: Reporter, fncs: Map[FunDef, Fnc]) {
 
   val simSize = 10000000//00
@@ -29,8 +32,8 @@ class Simulator(ctx: LeonContext, options: RealOptions, prog: Program, reporter:
     //println("Inputs: " + inputs)
 
     val (maxRoundoff, resInterval) = precision match {
-      case Float32 => runFloatSimulation(inputs, body, vc.variables.resId)
-      case Float64 => runDoubleSimulation(inputs, body, vc.variables.resId)
+      case Float32 => runFloatSimulation(inputs, body, vc.variables.resIds.head)
+      case Float64 => runDoubleSimulation(inputs, body, vc.variables.resIds.head)
       case FPPrecision(bits) => runFixedpointSimulation(inputs, vc, precision)
       case _=> reporter.warning("Cannot handle this precision: " + precision)
     }
@@ -41,7 +44,7 @@ class Simulator(ctx: LeonContext, options: RealOptions, prog: Program, reporter:
 
     //vc.affineRange = Some(evaluateXRationalForm(body, xratInputs).interval)
     try {
-      reporter.info("Interval range: " + evaluateInterval(vc.variables.resId, body, intInputs))
+      reporter.info("Interval range: " + evaluateInterval(vc.variables.resIds.head, body, intInputs))
     } catch {
       case e: Exception => reporter.info("Failed to compute interval due to " + e.getClass)
     }
@@ -84,7 +87,7 @@ class Simulator(ctx: LeonContext, options: RealOptions, prog: Program, reporter:
     var inputFormats = inputs.map {
       case (v, (interval, error)) => (v -> FPFormat.getFormat(interval.xlo, interval.xhi, bitlength))
     }
-    var resFracBits = formats(vc.variables.fResultVar).f
+    var resFracBits = formats(vc.variables.fResultVars.head).f
 
     while(counter < simSize) {
       var randomInputsRational = new collection.immutable.HashMap[Expr, Rational]()
@@ -102,8 +105,8 @@ class Simulator(ctx: LeonContext, options: RealOptions, prog: Program, reporter:
         randomInputsFixed += ((k, rationalToLong(ideal, inputFormats(k).f)))
       }
       try {
-        val resRat = evaluateRational(vc.variables.resId, realBody, randomInputsRational)
-        val resFixed = evaluateFixedpoint(vc.variables.resId, fixedBody, randomInputsFixed)
+        val resRat = evaluateRational(vc.variables.resIds.head, realBody, randomInputsRational)
+        val resFixed = evaluateFixedpoint(vc.variables.resIds.head, fixedBody, randomInputsFixed)
         maxRoundoff = math.max(maxRoundoff, math.abs((longToRational(resFixed, resFracBits) - resRat).toDouble))
         resInterval = extendInterval(resInterval, longToDouble(resFixed, resFracBits))
       } catch {

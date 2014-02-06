@@ -356,8 +356,8 @@ object Trees {
     }
   }
 
-  // A value returned from a function call desribed by it's specification
-  case class FncValue(spec: Spec, specExpr: Expr) extends Expr with FixedType with UnaryExtractable with PrettyPrintable {
+  // A value returned from a function call described by it's specification
+  case class FncValue(spec: Seq[Spec], specExpr: Expr) extends Expr with FixedType with UnaryExtractable with PrettyPrintable {
     val fixedType = RealType
     def extract: Option[(Expr, (Expr)=>Expr)] = {
       Some((specExpr, (e) => FncValue(spec, e)))
@@ -369,7 +369,7 @@ object Trees {
     }
   }
 
-  case class FncValueF(spec: Spec, specExpr: Expr) extends Expr with FixedType with UnaryExtractable with PrettyPrintable {
+  case class FncValueF(spec: Seq[Spec], specExpr: Expr) extends Expr with FixedType with UnaryExtractable with PrettyPrintable {
     val fixedType = RealType
     def extract: Option[(Expr, (Expr)=>Expr)] = {
       Some((specExpr, (e) => FncValueF(spec, e)))
@@ -439,7 +439,7 @@ object Trees {
   }
 
   case class FncInvocationF(funDef: FunDef, args: Seq[Expr]) extends Expr with FixedType with NAryExtractable with PrettyPrintable {
-    assert(funDef.returnType == RealType)
+    //assert(funDef.returnType == RealType)  doesn't hold any more with tuples
     val fixedType = RealType
 
     def extract: Option[(Seq[Expr], (Seq[Expr])=>Expr)] = {
