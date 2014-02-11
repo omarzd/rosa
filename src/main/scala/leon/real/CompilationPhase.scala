@@ -65,7 +65,7 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
       case _ =>
     }
 
-    println("options: " + options)
+    //println("options: " + options)
 
     val fncsToAnalyse  =
       if(fncNamesToAnalyse.isEmpty) program.definedFunctions
@@ -78,6 +78,9 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
 
     val (vcs, fncs) = analyzeThis(fncsToAnalyse, options.precision)
     if (reporter.errorCount > 0) throw LeonFatalError()
+
+    //println("functions sorted: " + vcs)
+    //fncs.foreach(f => println(f.fncId))
 
     reporter.info("--- Analysis complete ---")
     reporter.info("")
@@ -171,9 +174,9 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
   }
 
   private def lt(vc1: VerificationCondition, vc2: VerificationCondition): Boolean = {
-    if (vc1.allFncCalls.isEmpty) true
+    if (vc1.allFncCalls.isEmpty) vc1.fncId < vc2.fncId
     else if (vc1.allFncCalls.contains(vc2.fncId)) false
-    else true
+    else true //vc1.fncId < vc2.fncId
   }
 
   // can return several, as we may have an if-statement

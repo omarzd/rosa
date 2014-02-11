@@ -24,7 +24,7 @@ class Approximator(reporter: Reporter, solver: RealSolver, precision: Precision,
   implicit val debugSection = DebugSectionVerification
   val verbose = false
   var pathErrorVerbose = false
-  val compactingThreshold = 200
+  val compactingThreshold = 500
   val (minVal, maxVal) = precision.range
   val (maxNegNormal, minPosNormal) = (-precision.minNormal, precision.minNormal)
   val (machineEps, bits) = precision match {
