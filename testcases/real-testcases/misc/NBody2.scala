@@ -1,119 +1,21 @@
-package leon
-package benchmark
 
-import java.io.{PrintWriter, File}
-
-object TestRunner {
-  var writer: PrintWriter = null
-
-
-  def main(args: Array[String]) {
-
-    val benchmarks = if (args.size > 0) args else Array("oneBody")
-
-        
-    benchmarks.foreach { _ match {
-      case "oneBody" =>
-        // apparently jupiter:
-        val px = 4.84143144246472090
-        val py = -1.16032004402742839
-        val vx = 1.66007664274403694e-03 * 365.25
-        val vy = 7.69901118419740425e-03 * 365.25 
-
-        oneBody(3.5, 0.0, 0.0, 1.4, 0.0) 
-      
-      case "spiral" =>
-        writer = new PrintWriter(new File("spiral.txt"))
-        println("Spiral:")
-        spiral(7.0, 7.0, 1000)
-        writer.close()
-
-      case "nBody" =>
-        writer = new PrintWriter(new File("nbody.txt"))
-        simulate(1000)
-        writer.close()
-
-
-
-      case _ => println("unknown benchmark")
-    }}
-    
-  }
-
-
-  def spiral(x: Double, y: Double, k: Int): (Double, Double) = {
-    require(x*x + y*y < 100 && -10 <= x && x <= 10 && -10 <= y && y <= 10)
-    
-    println(x + " " + y)
-    writer.write(x + " " + y + "\n")
-        
-    if (k > 0) {
-      val x1 = (9.9*x - y)/10
-      val y1 = (9.9*y + x)/10
-      spiral(x1,y1,k-1)
-    } else {
-      (x, y)
-    }
-  }
-
-  def oneBody(x: Double, y: Double, u: Double, v: Double, t: Double): (Double, Double) = {
-    val M: Double = 1.0
-    val m: Double = 0.12 
-    val G: Double = 6.67
-    val dt = 0.1
-
-    println("" + x + ", " + y + " -- " + u + ", " + v)
-
-    if(t < 100.0) {
-      val dx = -x
-      val dy = -y
-      val r2 = dx*dx + dy*dy
-      val r = math.sqrt(r2)
-
-      val F = G * M / r2
-      val ax = F * dx / r
-      val ay = F * dy / r
-
-      //println("\na: " + ax + ", " + ay)
-      val newU = u + ax * dt
-      val newV = v + ay * dt
-
-      //println("v: " + newU + ", " + newV)
-      
-
-      val newX = x + newU * dt
-      val newY = y + newV * dt
-
-      //println("x: " + newX + ", " + newY)
-
-      
-      oneBody(newX, newY, newU, newV, t + dt)
-    } else {
-      (x, y)
-    }
-
-  }
-
-  /*
-      NBODY simulation of the solar system from the Benchmark game
-  */
+object nbody {
+  
   def simulate(N: Int): Long = {
     var n = N
-    printf("%.9f\n", JovianSystem.energy )
+    //printf("%.9f\n", JovianSystem.energy )
     val start = System.currentTimeMillis
     while (n > 0) { 
       JovianSystem.advance(0.01)
-      println(JovianSystem)
-      writer.write(JovianSystem.toString + "\n")
       n -= 1 
     }
     val end = System.currentTimeMillis
-    printf("%.9f\n", JovianSystem.energy )
+    //printf("%.9f\n", JovianSystem.energy )
     //println("time taken " + (end - start) + " ms")
     return (end - start)
   }
-
 }
+
 
 abstract class NBodySystem {
 
@@ -127,7 +29,7 @@ abstract class NBodySystem {
         val dx = bodies(i).x - bodies(j).x
         val dy = bodies(i).y - bodies(j).y
         val dz = bodies(i).z - bodies(j).z
-        val distance = math.sqrt(dx*dx + dy*dy + dz*dz)
+        val distance = sqrt(dx*dx + dy*dy + dz*dz)
         e -= (bodies(i).mass * bodies(j).mass) / distance
       }
     }
@@ -143,7 +45,7 @@ abstract class NBodySystem {
         val dy = bodies(i).y - bodies(j).y
         val dz = bodies(i).z - bodies(j).z
 
-        val distance = math.sqrt(dx*dx + dy*dy + dz*dz)
+        val distance = sqrt(dx*dx + dy*dy + dz*dz)
         val mag = dt / (distance * distance * distance)
 
         bodies(i).advance(dx,dy,dz,-bodies(j).mass*mag)
@@ -178,14 +80,6 @@ abstract class NBodySystem {
       vy += dy*delta
       vz += dz*delta
     }
-
-    override def toString: String = {
-      "("+x+","+y+")" //"("+x+","+y+","+z+")"
-    }
-  }
-
-  override def toString: String = {
-    bodies.mkString(": ")
   }
 }
 
@@ -193,7 +87,7 @@ object JovianSystem extends NBodySystem {
    protected val bodies = initialValues
 
    private def initialValues() = {
-      val SOLAR_MASS = 4 * math.Pi * math.Pi
+      val SOLAR_MASS = 4 * Pi * Pi
       val DAYS_PER_YEAR = 365.24
 
       val sun = new Body
@@ -236,8 +130,7 @@ object JovianSystem extends NBodySystem {
       neptune.mass = 5.15138902046611451e-05  * SOLAR_MASS
 
 
-      //val initialValues = Array ( sun, jupiter, saturn, uranus, neptune )
-      val initialValues = Array ( sun, jupiter)//, saturn)//, uranus, neptune )
+      val initialValues = Array ( sun, jupiter, saturn, uranus, neptune )
 
       var px = 0.0; var py = 0.0; var pz = 0.0;
       for (b <- initialValues){
@@ -252,3 +145,4 @@ object JovianSystem extends NBodySystem {
       initialValues
    }
 }
+
