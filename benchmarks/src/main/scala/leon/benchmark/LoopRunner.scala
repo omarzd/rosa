@@ -12,7 +12,10 @@ object LoopRunner {
     benchmarks.foreach { _ match {
       case "cube" => cubeRoot(10.0, 5.4)
       case "newton" =>
-        newtonSine(0.18)
+        for(x <- List(0.18, 0.35, -0.53, 0.78, -0.99, 1.19, 1.25, -1.35, 1.89)) {
+          newtonSine(x)
+        }
+        /*newtonSine(0.18)
         newtonSine(0.35)
         newtonSine(-0.53)
         newtonSine(0.78)
@@ -20,13 +23,12 @@ object LoopRunner {
         newtonSine(1.19)
         newtonSine(1.25)
         newtonSine(-1.35)
-        newtonSine(1.89)
+        newtonSine(1.89)*/
       case "harmonic" => harmonicEuler
       case "harmonicRK" => harmonicRK2
-      case "verhulst" =>
-        verhulst(0.5f, 45.0f, 11.0f)
-
-      case "lotka" => lotkaVolterra
+      case "harmonic4" => harmonicRK4
+      //case "verhulst" => verhulst(0.5f, 45.0f, 11.0f)
+      //case "lotka" => lotkaVolterra
       case "nbody" => nbody
       case "predatorPrey" => predatorPrey(20.0, 20.0)
       case _ => println("unknown benchmark")
@@ -96,82 +98,7 @@ object LoopRunner {
     }
   }
 
-  def verhulst(r: Float, K: Float, x0: Float) = {
-    val rQ = QD(r)
-    val KQ = QD(K)
-    val dt = 0.1f
-    val dtQ = QD(0.1)
-
-    def next(n: Float): Float = {
-      n + dt * (r * n * (1.0f - n/K))
-    }
-
-    def nextQ(n: QD): QD = {
-      n + dtQ * (rQ * n * (QD(1.0) - n/KQ)) 
-    }
-
-    var xn = x0
-    var xq = QD(x0)
-
-    println("\nverhulst, N0: " + x0 + " r:" + r + " K:" + K)
-    
-    for (i <- 0 until 500) {
-      val xi = next(xn)
-      val xiq = nextQ(xq)
-      
-      val errX = xiq - QD(xi)
-      
-      print(i + ": ")
-      //println(xi + "  -  " + xiq)
-      //println(xiQ + "  -  " + viQ)
-      print("x: " + xi + ", " + errX )
-      println(", rel: " + (errX / xq))
-      xn = xi; xq = xiq
-    }
-  }
-
-  def lotkaVolterra = {
-    val a = 1.1
-    val b = 0.31
-    val c = 0.043
-    val d = 0.57
-
-    val aQ = QD(a)
-    val bQ = QD(b)
-    val cQ = QD(c)
-    val dQ = QD(d)
-
-    val dt = 0.05
-    val dtQ = QD(dt)
-
-    def next(n: Double, p: Double): (Double, Double) = {
-      ( n + dt * (n * (a - b*p)) , p + dt * (p*(c*n - d)) )
-    }
-
-    def nextQ(n: QD, p: QD): (QD, QD) = {
-      ( n + dtQ * (n * (aQ - bQ*p)) , p + dt * (p*(cQ*n - dQ)) )
-    }
-
-    var nn = 5.0
-    var pn = 2.0
-    var nnQ = QD(nn)
-    var pnQ = QD(pn)
-
-    for (i <- 0 until 1000) {
-      val (ni, pi) = next(nn, pn)
-      val (niQ, piQ) = nextQ(nnQ, pnQ)
-      val errN = niQ - QD(ni)
-      val errP = piQ - QD(pi)
-
-      print(i + ": ")
-      //println(xi + "  -  " + vi)
-      //println(xiQ + "  -  " + viQ)
-      print("N: " + ni + ", " + errN )
-      print(", P: " + pi + ", " + errP)
-      println(", rel: " + (errN / niQ) + ", " + (errP / piQ))
-      nn = ni; pn = pi; nnQ = niQ; pnQ = piQ
-    } 
-  }
+  
 
   def harmonicEuler = {
     val k = 2.3
@@ -244,7 +171,103 @@ object LoopRunner {
       xn = xi; vn = vi; xnQ = xiQ; vnQ = viQ
     } 
   }
-  
+
+
+  def harmonicRK4 = {
+
+    class HarmonicDouble(x0: Double, v0: Double) {
+      var x = x0
+      var v = v0
+      val k = 2.3
+      val h = 0.1
+    
+      def next = {
+        val k1x = v
+        val k1v = -k*x
+
+        val k2x = v - k*h*x/2.0
+        val k2v = -k*x - h*k*v/2.0
+
+        val k3x = v - k*h*x/2.0 - h*h*k*v/4.0
+        val k3v = -k*x - k*h*v/2.0 + k*k*h*h*x/4.0
+
+        val k4x = v - k*h*x - k*h*h*v/2.0 + k*k*h*h*h*x/4.0
+        val k4v = -k*x - k*h*v + k*k*h*h*x/2.0 + h*h*h*k*k*v/4.0
+
+        x = x + h*(k1x + 2.0*k2x + 2*k3x + k4x)/6.0
+        v = v + h*(k1v + 2.0*k2v + 2*k3v + k4v)/6.0
+      }
+
+      def next2 = {
+        val k1x = v
+        val k1v = -k*x
+
+        val k2x = v + h*k1v/2.0
+        val k2v = -k* (x + h*k1x/2.0) 
+
+        val k3x = v + h*k2v/2.0 
+        val k3v = -k* (x + h*k2x/2.0) 
+
+        val k4x = v + h*k3v
+        val k4v = -k* (x + h*k3x)
+
+        x = x + h*(k1x + 2.0*k2x + 2*k3x + k4x)/6.0
+        v = v + h*(k1v + 2.0*k2v + 2*k3v + k4v)/6.0 
+      }
+    }
+
+    class HarmonicQD(x0: Double, v0: Double) {
+      var x = QD(x0)
+      var v = QD(v0)
+      val k = QD(2.3)
+      val h = QD(0.1)
+    
+      def next = {
+        val k1x = v
+        val k1v = -k*x
+
+        val k2x = v - k*h*x/2.0
+        val k2v = -k*x - h*k*v/2.0
+
+        val k3x = v - k*h*x/2.0 - h*h*k*v/4.0
+        val k3v = -k*x - k*h*v/2.0 + k*k*h*h*x/4.0
+
+        val k4x = v - k*h*x - k*h*h*v/2.0 + k*k*h*h*h*x/4.0
+        val k4v = -k*x - k*h*v + k*k*h*h*x/2.0 + h*h*h*k*k*v/4.0
+
+        x = x + h*(k1x + 2.0*k2x + 2*k3x + k4x)/6.0
+        v = v + h*(k1v + 2.0*k2v + 2*k3v + k4v)/6.0
+      }
+
+      def next2 = {
+        val k1x = v
+        val k1v = -k*x
+
+        val k2x = v + h*k1v/2.0
+        val k2v = -k* (x + h*k1x/2.0) 
+
+        val k3x = v + h*k2v/2.0 
+        val k3v = -k* (x + h*k2x/2.0) 
+
+        val k4x = v + h*k3v
+        val k4v = -k* (x + h*k3x)
+
+        x = x + h*(k1x + 2.0*k2x + 2*k3x + k4x)/6.0
+        v = v + h*(k1v + 2.0*k2v + 2*k3v + k4v)/6.0 
+      } 
+    }
+    
+    val d = new HarmonicDouble(0.2, 3.4)
+    val q = new HarmonicQD(0.2, 3.4)
+
+    for (i <- 0 until 500) {
+      d.next2
+      q.next2
+
+      printErrors(i, d.x, d.v, q.x, q.v)
+    } 
+  }
+
 
 
   def nbody = {
@@ -368,4 +391,83 @@ object LoopRunner {
     print(errX + ", " + errY)
     println(", rel: " + (errX / xQ) + ", " + (errY / yQ))
   }
+
+
+
+  /*def verhulst(r: Float, K: Float, x0: Float) = {
+    val rQ = QD(r)
+    val KQ = QD(K)
+    val dt = 0.1f
+    val dtQ = QD(0.1)
+
+    def next(n: Float): Float = {
+      n + dt * (r * n * (1.0f - n/K))
+    }
+
+    def nextQ(n: QD): QD = {
+      n + dtQ * (rQ * n * (QD(1.0) - n/KQ)) 
+    }
+
+    var xn = x0
+    var xq = QD(x0)
+
+    println("\nverhulst, N0: " + x0 + " r:" + r + " K:" + K)
+    
+    for (i <- 0 until 500) {
+      val xi = next(xn)
+      val xiq = nextQ(xq)
+      
+      val errX = xiq - QD(xi)
+      
+      print(i + ": ")
+      //println(xi + "  -  " + xiq)
+      //println(xiQ + "  -  " + viQ)
+      print("x: " + xi + ", " + errX )
+      println(", rel: " + (errX / xq))
+      xn = xi; xq = xiq
+    }
+  }
+
+  def lotkaVolterra = {
+    val a = 1.1
+    val b = 0.31
+    val c = 0.043
+    val d = 0.57
+
+    val aQ = QD(a)
+    val bQ = QD(b)
+    val cQ = QD(c)
+    val dQ = QD(d)
+
+    val dt = 0.05
+    val dtQ = QD(dt)
+
+    def next(n: Double, p: Double): (Double, Double) = {
+      ( n + dt * (n * (a - b*p)) , p + dt * (p*(c*n - d)) )
+    }
+
+    def nextQ(n: QD, p: QD): (QD, QD) = {
+      ( n + dtQ * (n * (aQ - bQ*p)) , p + dt * (p*(cQ*n - dQ)) )
+    }
+
+    var nn = 5.0
+    var pn = 2.0
+    var nnQ = QD(nn)
+    var pnQ = QD(pn)
+
+    for (i <- 0 until 1000) {
+      val (ni, pi) = next(nn, pn)
+      val (niQ, piQ) = nextQ(nnQ, pnQ)
+      val errN = niQ - QD(ni)
+      val errP = piQ - QD(pi)
+
+      print(i + ": ")
+      //println(xi + "  -  " + vi)
+      //println(xiQ + "  -  " + viQ)
+      print("N: " + ni + ", " + errN )
+      print(", P: " + pi + ", " + errP)
+      println(", rel: " + (errN / niQ) + ", " + (errP / piQ))
+      nn = ni; pn = pi; nnQ = niQ; pnQ = piQ
+    } 
+  }*/
 }
