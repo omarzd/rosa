@@ -1,16 +1,4 @@
 
-
-import leon.Real
-import Real._
-
-
-object NBody {
-
-
-
-}
-
-/*
 object nbody {
   
   def simulate(N: Int): Long = {
@@ -157,4 +145,4 @@ object JovianSystem extends NBodySystem {
       initialValues
    }
 }
-*/
+
