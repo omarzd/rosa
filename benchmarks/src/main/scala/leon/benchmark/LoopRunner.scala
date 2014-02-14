@@ -15,15 +15,6 @@ object LoopRunner {
         for(x <- List(0.18, 0.35, -0.53, 0.78, -0.99, 1.19, 1.25, -1.35, 1.89)) {
           newtonSine(x)
         }
-        /*newtonSine(0.18)
-        newtonSine(0.35)
-        newtonSine(-0.53)
-        newtonSine(0.78)
-        newtonSine(-0.99)
-        newtonSine(1.19)
-        newtonSine(1.25)
-        newtonSine(-1.35)
-        newtonSine(1.89)*/
       case "harmonic" => harmonicEuler
       case "harmonicRK" => harmonicRK2
       case "harmonic4" => harmonicRK4
@@ -31,6 +22,7 @@ object LoopRunner {
       //case "lotka" => lotkaVolterra
       case "nbody" => nbody
       case "predatorPrey" => predatorPrey(20.0, 20.0)
+      case "predatorRK" => predatorPreyRK4(20.0, 20.0)
       case _ => println("unknown benchmark")
     }}
     
@@ -379,6 +371,84 @@ object LoopRunner {
       nextQ
 
       printErrors(i, x, y, xQ, yQ)
+    }
+  }
+
+  def predatorPreyRK4(x0: Double, y0: Double) = {
+   
+    class PPDouble {
+      var x = x0  // hares
+      var y = y0  // lynxes
+      
+      val r = 1.6
+      val k = 125.0
+      val a = 3.2
+      val b = 0.6
+      val c = 50.0
+      val d = 0.56
+
+      val h = 0.1
+
+      def next = {
+        val k1x = r*x*(1.0 - x/k) - ((a*x*y)/(c + x))
+        val k1y = b*((a*x*y)/(c + x)) - d*y
+
+        val k2x = r*(x + h*k1x/2.0)*(1.0 - (x + h*k1x/2.0)/k) - ((a*(x + h*k1x/2.0)*(y + h*k1y/2.0))/(c + (x + h*k1x/2.0)))
+        val k2y = b*((a*(x + h*k1x/2.0)*(y + h*k1y/2.0))/(c + (x + h*k1x/2.0))) - d*(y + h*k1y/2.0)
+
+        val k3x = r*(x + h*k2x/2.0)*(1.0 - (x + h*k2x/2.0)/k) - ((a*(x + h*k2x/2.0)*(y + h*k2y/2.0))/(c + (x + h*k2x/2.0)))
+        val k3y = b*((a*(y + h*k2y/2.0)*(y + h*k2y/2.0))/(c + (y + h*k2y/2.0))) - d*(y + h*k2y/2.0)
+
+        val k4x = r*(x + h*k3x)*(1.0 - (x + h*k3x)/k) - ((a*(x + h*k3x)*(y + h*k3y))/(c + (x + h*k3x)))
+        val k4y = b*((a*(x + h*k3x)*(y + h*k3y))/(c + (x + h*k3x))) - d*(y + h*k3y)
+
+        x = x + h*(k1x + 2.0*k2x + 2*k3x + k4x)/6.0
+        y = y + h*(k1y + 2.0*k2y + 2*k3y + k4y)/6.0 
+      }
+    }
+
+    
+    class PPQD {
+      var x = QD(x0)
+      var y = QD(y0)
+
+      val one = QD(1.0)
+
+      val r = QD(1.6)
+      val k = QD(125.0)
+      val a = QD(3.2)
+      val b = QD(0.6)
+      val c = QD(50.0)
+      val d = QD(0.56)
+
+      val h = QD(0.1)
+
+      def next = {
+        val k1x = r*x*(1.0 - x/k) - ((a*x*y)/(c + x))
+        val k1y = b*((a*x*y)/(c + x)) - d*y
+
+        val k2x = r*(x + h*k1x/2.0)*(1.0 - (x + h*k1x/2.0)/k) - ((a*(x + h*k1x/2.0)*(y + h*k1y/2.0))/(c + (x + h*k1x/2.0)))
+        val k2y = b*((a*(x + h*k1x/2.0)*(y + h*k1y/2.0))/(c + (x + h*k1x/2.0))) - d*(y + h*k1y/2.0)
+
+        val k3x = r*(x + h*k2x/2.0)*(1.0 - (x + h*k2x/2.0)/k) - ((a*(x + h*k2x/2.0)*(y + h*k2y/2.0))/(c + (x + h*k2x/2.0)))
+        val k3y = b*((a*(y + h*k2y/2.0)*(y + h*k2y/2.0))/(c + (y + h*k2y/2.0))) - d*(y + h*k2y/2.0)
+
+        val k4x = r*(x + h*k3x)*(1.0 - (x + h*k3x)/k) - ((a*(x + h*k3x)*(y + h*k3y))/(c + (x + h*k3x)))
+        val k4y = b*((a*(x + h*k3x)*(y + h*k3y))/(c + (x + h*k3x))) - d*(y + h*k3y)
+
+        x = x + h*(k1x + 2.0*k2x + 2*k3x + k4x)/6.0
+        y = y + h*(k1y + 2.0*k2y + 2*k3y + k4y)/6.0 
+      }
+    }
+
+    val d = new PPDouble
+    val q = new PPQD
+
+    for (i <- 0 until 500) {
+      d.next
+      q.next
+
+      printErrors(i, d.x, d.y, q.x, q.y)
     }
   }
 
