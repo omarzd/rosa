@@ -15,4 +15,16 @@ object RunningAvrg {
     
   } ensuring ( res => res <= 1200.0 && -1200.0 <= res)
 
+  // standard deviation and variance as a running computation
+  // weighted mean
+
+  // inner product (this we'd have to compare against the specialized work)
+
+
+  // online kurtosis algorithm
+  //http://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
+
+  // a possible challenge: computing a two-pass covariance
+  //http://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
+  // the first sum will have already some error
 }

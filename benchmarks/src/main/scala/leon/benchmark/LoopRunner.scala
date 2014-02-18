@@ -452,6 +452,13 @@ object LoopRunner {
     }
   }
 
+  def mean = {
+
+    def next()
+  }
+
+
+
   private def printErrors(i: Int, x: Double, y: Double, xQ: QD, yQ: QD) = {
     val errX = xQ - QD(x)
     val errY = yQ - QD(y)
