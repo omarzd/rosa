@@ -22,7 +22,8 @@ object LoopRunner {
       //case "lotka" => lotkaVolterra
       case "nbody" => nbody
       case "predatorPrey" => predatorPrey(20.0, 20.0)
-      case "predatorRK" => predatorPreyRK4(20.0, 20.0)
+      case "predatorRK2" => predatorPreyRK2(20.0, 20.0)
+      case "predatorRK4" => predatorPreyRK4(20.0, 20.0)
       case _ => println("unknown benchmark")
     }}
     
@@ -374,8 +375,65 @@ object LoopRunner {
     }
   }
 
+  def predatorPreyRK2(x0: Double, y0: Double) = {
+    var x = x0  // hares
+    var y = y0  // lynxes
+    var xQ = QD(x)
+    var yQ = QD(y)
+
+    val r = 1.6
+    val k = 125.0
+    val a = 3.2
+    val b = 0.6
+    val c = 50.0
+    val d = 0.56
+
+    val rQ = QD(r)
+    val kQ = QD(k)
+    val aQ = QD(a)
+    val bQ = QD(b)
+    val cQ = QD(c)
+    val dQ = QD(d)
+    
+    val h = 0.1
+    val hQ = QD(h)
+    val one = QD(1.0)
+
+    //f1 = r*x*(1.0 - x/k) - ((a*x*y)/(c + x))
+    //f2 = b*((a*x*y)/(c + x)) - d*y
+
+    def next = {
+      val k1x = r*x*(1.0 - x/k) - ((a*x*y)/(c + x))
+      val k1y = b*((a*x*y)/(c + x)) - d*y
+
+      val k2x = r*(x + h*k1x)*(1.0 - (x + h*k1x)/k) - ((a*(x + h*k1x)*(y + h*k1y))/(c + (x + h*k1x)))
+      val k2y = b*((a*(x + h*k1x)*(y + h*k1y))/(c + (x + h*k1x))) - d*(y + h*k1y)
+
+      x = x + (h/2.0)*(k1x + k2x)
+      y = y + (h/2.0)*(k1y + k2y)
+    }
+
+    def nextQ = {
+      val k1x = rQ*xQ*(one - xQ/kQ) - ((aQ*xQ*yQ)/(cQ + xQ))
+      val k1y = bQ*((aQ*xQ*yQ)/(cQ + xQ)) - dQ*yQ
+
+      val k2x = rQ*(xQ + hQ*k1x)*(one - (xQ + hQ*k1x)/kQ) - ((aQ*(xQ + hQ*k1x)*(yQ + hQ*k1y))/(cQ + (xQ + hQ*k1x)))
+      val k2y = bQ*((aQ*(xQ + hQ*k1x)*(yQ + hQ*k1y))/(cQ + (xQ + hQ*k1x))) - dQ*(yQ + hQ*k1y)
+
+      xQ = xQ + (hQ/QD(2.0))*(k1x + k2x)
+      yQ = yQ + (hQ/QD(2.0))*(k1y + k2y)
+    }
+    
+    for (i <- 0 until 500) {
+      next
+      nextQ
+
+      printErrors(i, x, y, xQ, yQ)
+    }
+  }
+
   def predatorPreyRK4(x0: Double, y0: Double) = {
-   
+
     class PPDouble {
       var x = x0  // hares
       var y = y0  // lynxes
@@ -388,25 +446,25 @@ object LoopRunner {
       val d = 0.56
 
       val h = 0.1
+      val h_2 = 0.05
 
       def next = {
         val k1x = r*x*(1.0 - x/k) - ((a*x*y)/(c + x))
         val k1y = b*((a*x*y)/(c + x)) - d*y
 
-        val k2x = r*(x + h*k1x/2.0)*(1.0 - (x + h*k1x/2.0)/k) - ((a*(x + h*k1x/2.0)*(y + h*k1y/2.0))/(c + (x + h*k1x/2.0)))
-        val k2y = b*((a*(x + h*k1x/2.0)*(y + h*k1y/2.0))/(c + (x + h*k1x/2.0))) - d*(y + h*k1y/2.0)
+        val k2x = r*(x + h_2*k1x)*(1.0 - (x + h_2*k1x)/k) - ((a*(x + h_2*k1x)*(y + h_2*k1y))/(c + (x + h_2*k1x)))
+        val k2y = b*((a*(x + h_2*k1x)*(y + h_2*k1y))/(c + (x + h_2*k1x))) - d*(y + h_2*k1y)
 
-        val k3x = r*(x + h*k2x/2.0)*(1.0 - (x + h*k2x/2.0)/k) - ((a*(x + h*k2x/2.0)*(y + h*k2y/2.0))/(c + (x + h*k2x/2.0)))
-        val k3y = b*((a*(y + h*k2y/2.0)*(y + h*k2y/2.0))/(c + (y + h*k2y/2.0))) - d*(y + h*k2y/2.0)
+        val k3x = r*(x + h_2*k2x)*(1.0 - (x + h_2*k2x)/k) - ((a*(x + h_2*k2x)*(y + h_2*k2y))/(c + (x + h_2*k2x)))
+        val k3y = b*((a*(x + h_2*k2x)*(y + h_2*k2y))/(c + (x + h_2*k2x))) - d*(y + h_2*k2y)
 
         val k4x = r*(x + h*k3x)*(1.0 - (x + h*k3x)/k) - ((a*(x + h*k3x)*(y + h*k3y))/(c + (x + h*k3x)))
         val k4y = b*((a*(x + h*k3x)*(y + h*k3y))/(c + (x + h*k3x))) - d*(y + h*k3y)
 
-        x = x + h*(k1x + 2.0*k2x + 2*k3x + k4x)/6.0
-        y = y + h*(k1y + 2.0*k2y + 2*k3y + k4y)/6.0 
+        x = x + (h/6.0)*(k1x + 2.0*k2x + 2.0*k3x + k4x)
+        y = y + (h/6.0)*(k1y + 2.0*k2y + 2.0*k3y + k4y)
       }
     }
-
     
     class PPQD {
       var x = QD(x0)
@@ -422,22 +480,23 @@ object LoopRunner {
       val d = QD(0.56)
 
       val h = QD(0.1)
+      val h_2 = 0.05
 
       def next = {
         val k1x = r*x*(1.0 - x/k) - ((a*x*y)/(c + x))
         val k1y = b*((a*x*y)/(c + x)) - d*y
 
-        val k2x = r*(x + h*k1x/2.0)*(1.0 - (x + h*k1x/2.0)/k) - ((a*(x + h*k1x/2.0)*(y + h*k1y/2.0))/(c + (x + h*k1x/2.0)))
-        val k2y = b*((a*(x + h*k1x/2.0)*(y + h*k1y/2.0))/(c + (x + h*k1x/2.0))) - d*(y + h*k1y/2.0)
+        val k2x = r*(x + h_2*k1x)*(1.0 - (x + h_2*k1x)/k) - ((a*(x + h_2*k1x)*(y + h_2*k1y))/(c + (x + h_2*k1x)))
+        val k2y = b*((a*(x + h_2*k1x)*(y + h_2*k1y))/(c + (x + h_2*k1x))) - d*(y + h_2*k1y)
 
-        val k3x = r*(x + h*k2x/2.0)*(1.0 - (x + h*k2x/2.0)/k) - ((a*(x + h*k2x/2.0)*(y + h*k2y/2.0))/(c + (x + h*k2x/2.0)))
-        val k3y = b*((a*(y + h*k2y/2.0)*(y + h*k2y/2.0))/(c + (y + h*k2y/2.0))) - d*(y + h*k2y/2.0)
+        val k3x = r*(x + h_2*k2x)*(1.0 - (x + h_2*k2x)/k) - ((a*(x + h_2*k2x)*(y + h_2*k2y))/(c + (x + h_2*k2x)))
+        val k3y = b*((a*(x + h_2*k2x)*(y + h_2*k2y))/(c + (x + h_2*k2x))) - d*(y + h_2*k2y)
 
         val k4x = r*(x + h*k3x)*(1.0 - (x + h*k3x)/k) - ((a*(x + h*k3x)*(y + h*k3y))/(c + (x + h*k3x)))
         val k4y = b*((a*(x + h*k3x)*(y + h*k3y))/(c + (x + h*k3x))) - d*(y + h*k3y)
 
-        x = x + h*(k1x + 2.0*k2x + 2*k3x + k4x)/6.0
-        y = y + h*(k1y + 2.0*k2y + 2*k3y + k4y)/6.0 
+        x = x + (h/6.0)*(k1x + 2.0*k2x + 2.0*k3x + k4x)
+        y = y + (h/6.0)*(k1y + 2.0*k2y + 2.0*k3y + k4y)
       }
     }
 
@@ -448,14 +507,17 @@ object LoopRunner {
       d.next
       q.next
 
+      //print(i + ": ")
+      //println(d.x + ", " + d.y + ", ")
+    
       printErrors(i, d.x, d.y, q.x, q.y)
     }
   }
 
-  def mean = {
+  /*def mean = {
 
     def next()
-  }
+  }*/
 
 
 
@@ -464,7 +526,7 @@ object LoopRunner {
     val errY = yQ - QD(y)
       
     print(i + ": ")
-    print(x + ", " + y + " ")
+    print(x + ", " + y + ", ")
     print(errX + ", " + errY)
     println(", rel: " + (errX / xQ) + ", " + (errY / yQ))
   }
