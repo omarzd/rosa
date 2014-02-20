@@ -83,12 +83,12 @@ object XFixed {
     }
   }
 
-}  
+}
 
 /*
   Assumes that all operands always have the same bitlength.
 */
-// TODO: make this consistent with XFloat and put format at the end of the parameter list
+// TODO: make consistent with XFloat and put format at the end of the parameter list
 class XFixed(val format: FixedPointFormat, val tr: Expr, val appInt: RationalInterval, val err: XRationalForm,
   val cnfg: XConfig) extends XReal(tr, appInt, err, cnfg) {
 
@@ -96,7 +96,7 @@ class XFixed(val format: FixedPointFormat, val tr: Expr, val appInt: RationalInt
   override def unary_-(): XReal = {
     if (!format.signed)
       throw IncompatibleFixedPointFormatsException("Unary minus not supported with unsigned format!")
-    
+
     var (newTree, newRealRange, newError, newConfig) = super.negate
     new XFixed(format, newTree, newRealRange, newError, newConfig)
   }
@@ -155,18 +155,18 @@ class XFixed(val format: FixedPointFormat, val tr: Expr, val appInt: RationalInt
     val newFormat = getFormat(newRealRange + newError.interval, format.bits)
     assert(newFormat.bits == this.format.bits,
       "New format has wrong number of bits %d (vs %d)".format(newFormat.bits, this.format.bits))
-    
+
     newError = addNoise(newError, newFormat.quantError)
     new XFixed(format, newTree, newRealRange, newError, newConfig)
   }
 
   override def squareRoot: XReal = {
-    throw new Exception("Square root not implemented for fixed-points")
+    throw new SqrtNotImplementedException("Square root not implemented for fixed-points")
     null
     /*var (newTree, newRealRange, newError, newConfig) = super.takeSqrtRoot
     val rndoff = roundoff(newRealRange + newError.interval)
     newError = addNoise(newError, rndoff)
-    return new XFloat(newTree, newRealRange, newError, newConfig)
+    new XFloat(newTree, newRealRange, newError, newConfig)
     */
   }
 

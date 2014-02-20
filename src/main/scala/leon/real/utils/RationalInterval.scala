@@ -11,7 +11,7 @@ case class RationalInterval(xlo: Rational, xhi: Rational) {
   private val zero = Rational(0.0)
 
   case class DivisionByZeroException(s: String) extends Exception
-  
+
   //def this(aa: RationalForm) = this(aa.interval._1, aa.interval._2)
   //def this(aa: FixedForm) = this(aa.qInterval._1, aa.qInterval._2)
   def this(i: Interval) = this(Rational(i.xlo), Rational(i.xhi))
@@ -19,7 +19,7 @@ case class RationalInterval(xlo: Rational, xhi: Rational) {
   val mid: Rational = xlo/Rational(2.0) + xhi/Rational(2.0)
   val radius: Rational = abs(xhi - xlo) / Rational(2.0)
 
-  // FIXME: not sound
+  // TODO: not sound
   val toInterval: Interval = Interval(xlo.toDouble, xhi.toDouble)
 
   def unary_-(): RationalInterval = RationalInterval(-xhi, -xlo)
@@ -34,7 +34,7 @@ case class RationalInterval(xlo: Rational, xhi: Rational) {
 
   def *(y: RationalInterval): RationalInterval = y match {
     case RationalInterval(ylo, yhi) =>
-      if(xlo == 0.0 && xhi == 0.0) return RationalInterval(Rational(0.0), Rational(0.0))
+      if(xlo == 0.0 && xhi == 0.0) RationalInterval(Rational(0.0), Rational(0.0))
       else if(xlo >= zero) {
         if(ylo >= zero) RationalInterval(xlo * ylo, xhi * yhi)
         else if(yhi <= zero) RationalInterval(xhi * ylo, xlo * yhi)
@@ -59,7 +59,7 @@ case class RationalInterval(xlo: Rational, xhi: Rational) {
   def /(y: RationalInterval): RationalInterval = y match {
     case RationalInterval(ylo, yhi) =>
 
-      if(xlo == 0.0 && ylo == 0.0) return RationalInterval(Rational(0.0), Rational(0.0))
+      if(xlo == 0.0 && ylo == 0.0) RationalInterval(Rational(0.0), Rational(0.0))
       else if(ylo >= zero) {
         if(xlo >= zero) RationalInterval(xlo / yhi, xhi/ ylo)
         else if(xhi <= zero) RationalInterval(xlo / ylo, xhi / yhi)
@@ -72,7 +72,7 @@ case class RationalInterval(xlo: Rational, xhi: Rational) {
       }
       else {
         throw DivisionByZeroException("trying to divide by interval containing 0")
-        return RationalInterval(Rational(0.0), Rational(0.0))
+        RationalInterval(Rational(0.0), Rational(0.0))
       }
   }
 

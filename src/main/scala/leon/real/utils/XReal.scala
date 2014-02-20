@@ -28,7 +28,7 @@ class XReal(val tree: Expr, val approxInterval: RationalInterval, val error: XRa
 
   // Interval including errors
   lazy val interval: RationalInterval = realInterval + error.interval
-  
+
   lazy val maxError: Rational  = {
     val i = error.interval
     max(abs(i.xlo), abs(i.xhi))
@@ -41,7 +41,7 @@ class XReal(val tree: Expr, val approxInterval: RationalInterval, val error: XRa
   def *(y: XReal): XReal = new XReal(this.multiply(y))
   def /(y: XReal): XReal = new XReal(this.divide(y))
   def squareRoot: XReal = new XReal(this.takeSqrtRoot)
-  
+
   /*
     Propagation
    */
@@ -115,7 +115,7 @@ class XReal(val tree: Expr, val approxInterval: RationalInterval, val error: XRa
 
     val int = this.interval
     val a = min(abs(int.xlo), abs(int.xhi))
-    val errorMultiplier = Rational(1l, 2l) / sqrtDown(a)
+    val errorMultiplier = Rational(1L, 2L) / sqrtDown(a)
 
     //val newTree = Sqrt(this.tree)
     val (sqrtVar, n) = getNewSqrtVariablePair
@@ -144,13 +144,22 @@ class XReal(val tree: Expr, val approxInterval: RationalInterval, val error: XRa
     println("\n new to Check:")
     println(toCheck2)
     //toCheck = toCheck2*/
-
-    val res = config.solver.tightenRange(massagedTree, condition, approx, config.solverMaxIter, config.solverPrecision)
+    try {
+      val res = config.solver.tightenRange(massagedTree, condition, approx, config.solverMaxIter, config.solverPrecision)
+      res
+    } catch {
+      case e: java.lang.AssertionError =>
+        println("Exception when tightening: " + tree)
+        println("with precondition: " + condition)
+        println(e.getMessage)
+        throw UnsoundBoundsException("unsound range for " + tree)
+        null
+    } 
     //println(tree + "  " + config.solverMaxIter)
     //val res = approx
     //println("after tightening: " + res)
 
-    return res
+    //res
   }
-  
+
 }

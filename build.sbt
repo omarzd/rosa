@@ -1,6 +1,6 @@
 name := "Leon"
 
-version := "2.0"
+version := "2.2"
 
 organization := "ch.epfl.lara"
 
@@ -44,3 +44,5 @@ mainClass in (Compile, run) := Some("leon.Main")
 logBuffered in Test := false
 
 testOptions in Test += Tests.Argument("-oD")
+
+sourcesInBase in Compile := false

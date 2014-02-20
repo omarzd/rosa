@@ -3,7 +3,7 @@ import Process._
 import Keys._
 
 object Leon extends Build {
-  private val scriptName      = "leon"
+  private val scriptName      = "rosa"
   private val setupScriptName = "setupenv"
   private val benchScriptName = "leon-bench"
 

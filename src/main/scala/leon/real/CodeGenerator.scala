@@ -3,6 +3,7 @@
 package leon
 package real
 
+import purescala.TransformerWithPC
 import purescala.Definitions._
 import purescala.Trees._
 import purescala.TreeOps._
@@ -15,7 +16,7 @@ import real.{FixedPointFormat => FPFormat}
 import FPFormat._
 import real.Trees._
 
-class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, prog: Program, precision: Precision) {
+class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, prog: Program, precision: Precision, fncs: Map[FunDef, Fnc]) {
 
   val nonRealType: TypeTree = (precision: @unchecked) match {
     case Float64 => Float64Type
@@ -46,11 +47,11 @@ class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, 
   }
 
   def specToCode(programId: Identifier, objectId: Identifier, vcs: Seq[VerificationCondition]): Program = precision match {
-    case FPPrecision(bts) => 
+    case FPPrecision(bts) =>
       if (bts <= 32) specToFixedCode(programId, objectId, vcs, bts)
       else {
         reporter.error("Fixed-point code generation not possible for bitlengths larger than 32 bits.")
-        Program(programId, ObjectDef(objectId, Seq.empty, Seq.empty))
+        Program(programId, List())
       }
     case _ => specToFloatCode(programId, objectId, vcs, precision)
   }
@@ -58,30 +59,45 @@ class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, 
 
   private def specToFloatCode(programId: Identifier, objectId: Identifier, vcs: Seq[VerificationCondition], precision: Precision): Program = {
     var defs: Seq[Definition] = Seq.empty
-    val invariants: Seq[Expr] = Seq.empty
-
+    
     for (vc <- vcs if (vc.kind == VCKind.Postcondition || vc.kind == VCKind.SpecGen)) {
       val f = vc.funDef
       val id = f.id
       val floatType = nonRealType
-      val args: Seq[VarDecl] = f.args.map(decl => VarDecl(decl.id, floatType))
+      val args: Seq[ValDef] = f.params.map(decl => ValDef(decl.id, floatType))
 
-      val funDef = new FunDef(id, floatType, args)
+      val funDef = new FunDef(id, Seq.empty, floatType, args)
       funDef.body = convertToFloatConstant(f.body)
 
       funDef.precondition = f.precondition
 
       vc.spec(precision) match {
-        case Some(spec) =>
+        case specs: Seq[Spec] if (specs.length > 1) =>
+          val resId = FreshIdentifier("res").setType(TupleType(Seq(RealType, RealType)))
+          val a = FreshIdentifier("a").setType(RealType)
+          val b = FreshIdentifier("b").setType(RealType)
+
+          val specExpr = And(specs.map( specToExpr(_) ))
+
+          val resMap: Map[Expr, Expr] = specs.map(s => Variable(s.id)).zip(List(Variable(a), Variable(b))).toMap
+          println("resMap: " + resMap)
+          println("specExpr: " + specExpr)
+
+          val postExpr = MatchExpr(Variable(resId), 
+            Seq(SimpleCase(TuplePattern(None, List(WildcardPattern(Some(a)), WildcardPattern(Some(b)))),
+              replace(resMap, specExpr))))
+
+          funDef.postcondition = Some((resId, postExpr))
+        case Seq(spec) =>
           val resId = FreshIdentifier("res")
-          funDef.postcondition = Some((resId, replace(Map(ResultVariable() -> Variable(resId).setType(RealType)), specToExpr(spec))))
+          funDef.postcondition = Some((resId, replace(Map(Variable(spec.id) -> Variable(resId).setType(RealType)), specToExpr(spec))))
         case _ =>
       }
 
       defs = defs :+ funDef
     }
 
-    val newProgram = Program(programId, ObjectDef(objectId, defs, invariants))
+    val newProgram = Program(programId, List(ModuleDef(objectId, defs)))
     newProgram
   }
 
@@ -100,23 +116,24 @@ class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, 
     for (vc <- vcs if (vc.kind == VCKind.Postcondition || vc.kind == VCKind.SpecGen)) {
       val f = vc.funDef
       val id = f.id
-      val args = f.args.map(decl => VarDecl(decl.id, intType))
-      val funDef = new FunDef(id, intType, args)
-      
-      println("\n ==== \nfnc id: " + id)
-      println("vc.kind " + vc.kind)
-      println("generating code for: " + vc.body)
+      val args = f.params.map(decl => ValDef(decl.id, intType))
+      val funDef = new FunDef(id, Seq.empty, intType, args)
 
-      // convert to SSA form, then run through FloatApproximator to get ranges of all intermediate variables
-      val ssaBody = idealToActual(toSSA(vc.body), vc.variables)
-      val transformer = new FloatApproximator(reporter, solver, precision, vc.pre, vc.variables)
-      val (newBody, newSpec) = transformer.transformWithSpec(ssaBody)
-      
+      //println("\n ==== \nfnc id: " + id)
+      //println("vc.kind " + vc.kind)
+      //println("generating code for: " + vc.body)
+
+      // convert to SSA form, then run through Approximator to get ranges of all intermediate variables
+      val ssaBody = idealToActual(toSSA(vc.body, fncs), vc.variables)
+      //println("\n ssaBody: " + ssaBody)
+      val transformer = new Approximator(reporter, solver, precision, vc.pre, vc.variables, checkPathError = false)
+      val (newBody, newSpec) = transformer.transformWithSpec(ssaBody, false)
+
       val formats = transformer.variables.map {
         case (v, r) => (v, FPFormat.getFormat(r.interval.xlo, r.interval.xhi, bitlength))
       }
-      println("formats: " + formats)
-      println("ssaBody: " + ssaBody)
+      //println("formats: " + formats)
+      //println("ssaBody: " + ssaBody)
 
 
       val fpBody = translateToFP(ssaBody, formats, bitlength, constConstructor)
@@ -126,17 +143,16 @@ class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, 
       defs = defs :+ funDef
     }
 
-    val newProgram = Program(programId, ObjectDef(objectId, defs, invariants))
+    val newProgram = Program(programId, List(ModuleDef(objectId, defs)))
     newProgram
   }
 
-  // TODO: fp translation with if-then-else and function calls
   private def mathToCode(expr: Expr): Expr = expr match {
     case And(args) => Block(args.init.map(a => mathToCode(a)), mathToCode(args.last))
     case Equals(Variable(id), rhs) => ValAssignment(id, rhs)
-    case Equals(ResultVariable(), e) => e
+    case IfExpr(c, t, e) => IfExpr(c, mathToCode(t), mathToCode(e))
     case _ => expr
   }
 
-  
+
 }

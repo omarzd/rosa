@@ -24,7 +24,7 @@ object RealSolver {
   var verbose = false
 }
 
-// TODO: This is not an ideal construction as we are duplicating everything in UninterpretedSolver,
+// TODO: Not an ideal construction as we are duplicating everything in UninterpretedSolver,
 // except the Z3Config, where we have to set the timeout.
 class RealSolver(val context: LeonContext, val program: Program, timeout: Long)
   extends AbstractZ3Solver
@@ -69,7 +69,7 @@ class RealSolver(val context: LeonContext, val program: Program, timeout: Long)
     functionMap        = Map.empty
     reverseFunctionMap = Map.empty
     for(funDef <- program.definedFunctions) {
-      val sortSeq = funDef.args.map(vd => typeToSort(vd.tpe))
+      val sortSeq = funDef.params.map(vd => typeToSort(vd.tpe))
       val returnSort = typeToSort(funDef.returnType)
 
       val z3Decl = z3.mkFreshFuncDecl(funDef.id.name, sortSeq, returnSort)
@@ -82,6 +82,8 @@ class RealSolver(val context: LeonContext, val program: Program, timeout: Long)
   protected[leon] def isKnownDecl(decl: Z3FuncDecl) : Boolean = reverseFunctionMap.isDefinedAt(decl)
 
   initZ3
+
+  val realSort = typeToSort(purescala.TypeTrees.RealType)
 
   //z3.enableTrace("nlarith")
   //Wrapper.openLog("z3Log.txt")
@@ -101,16 +103,16 @@ class RealSolver(val context: LeonContext, val program: Program, timeout: Long)
     solver.pop(lvl)
   }
 
-  private var variables = Set[Identifier]()
+  private var freeVariables = Set[Identifier]()
   private var containsFunCalls = false
 
-  def assertCnstr(expression: Expr) {
-    variables ++= variablesOf(expression)
+  def assertCnstr(expression: Expr) = {
+    freeVariables ++= variablesOf(expression)
     containsFunCalls ||= containsFunctionCalls(expression)
     solver.assertCnstr(toZ3Formula(expression).get)
   }
 
-  def innerCheck: Option[Boolean] = {
+  def innerCheck: Option[Boolean] = ??? /*{
     solver.check match {
       case Some(true) =>
         if (containsFunCalls) {
@@ -122,45 +124,55 @@ class RealSolver(val context: LeonContext, val program: Program, timeout: Long)
       case r =>
         r
     }
-  }
+  }*/
 
-  def innerCheckAssumptions(assumptions: Set[Expr]): Option[Boolean] = {
-    variables ++= assumptions.flatMap(variablesOf(_))
+  def innerCheckAssumptions(assumptions: Set[Expr]): Option[Boolean] = ??? /*{
+    freeVariables ++= assumptions.flatMap(variablesOf(_))
     solver.checkAssumptions(assumptions.toSeq.map(toZ3Formula(_).get) : _*)
-  }
+  }*/
 
-  def getModel = {
-    modelToMap(solver.getModel, variables)
-  }
+  def getModel = ??? /*{
+    modelToMap(solver.getModel, freeVariables)
+  }*/
 
   def getUnsatCore = {
-    solver.getUnsatCore.map(ast => fromZ3Formula(null, ast, None) match {
+    solver.getUnsatCore.map(ast => fromZ3Formula(null, ast) match {
       case n @ Not(Variable(_)) => n
       case v @ Variable(_) => v
       case x => scala.sys.error("Impossible element extracted from core: " + ast + " (as Leon tree : " + x + ")")
     }).toSet
   }
 
-  // TODO: check if we need this is in the first place
-  /*override def assertCnstr(expr: Expr) = {
-    val exprInZ3 = toZ3Formula(expr).get
-    solver.assertCnstr(exprInZ3)
-    if (verbose) println("Added constraint: " + exprInZ3)
+  // TODO: check if needed this is in the first place
+  /* override def assertCnstr(expr: Expr) = {
+     val exprInZ3 = toZ3Formula(expr).get
+     solver.assertCnstr(exprInZ3)
+     if (verbose) println("Added constraint: " + exprInZ3)
   }*/
+
+  /** As seen from class RealSolver, the missing signatures are as follows.
+  *  For convenience, these are usable as stub implementations.
+  */
+  // Members declared in leon.solvers.AssumptionSolver
+  def checkAssumptions(assumptions: Set[leon.purescala.Trees.Expr]): Option[Boolean] = ???
+  
+   // Members declared in leon.solvers.Solver
+   def check: Option[Boolean] = ???
+
 
 
   // Our stuff
-  
+
   def checkSat(expr: Expr): (Sat, Z3Model) = {
     solver.push
-    val variables = variablesOf(expr)
-    val cnstr = toZ3Formula(expr).get
-    solver.assertCnstr(cnstr)
+    val vars = variablesOf(expr)
+    val cnstr = toZ3Formula(expr)
+    solver.assertCnstr(cnstr.get)
     val res: (Sat, Z3Model) = solver.check match {
       case Some(true) =>
         if (verbose) println("--> cond: SAT")
         val model = solver.getModel
-        //println("model: " + modelToMap(model, variables))
+        //println("model: " + modelToMap(model, vars))
         (SAT, solver.getModel)
       case Some(false) =>
         if (verbose) println("--> cond: UNSAT")
@@ -177,7 +189,7 @@ class RealSolver(val context: LeonContext, val program: Program, timeout: Long)
 
   def checkValid(expr: Expr): (Option[Boolean], Option[Map[Identifier, Expr]]) = {
     solver.push
-    val variables = variablesOf(expr)
+    val vars = variablesOf(expr)
     val cnstr = toZ3Formula(Not(expr)).get
     //println("asserting constraint: " + cnstr)
     solver.assertCnstr(cnstr)
@@ -185,7 +197,7 @@ class RealSolver(val context: LeonContext, val program: Program, timeout: Long)
       case Some(true) =>
         if (verbose) println("--> cond: SAT")
         val model = solver.getModel
-        (Some(false), Some(modelToMap(model, variables)))
+        (Some(false), Some(modelToMap(model, vars)))
       case Some(false) =>
         if (verbose) println("--> cond: UNSAT")
         (Some(true), None)
@@ -199,8 +211,8 @@ class RealSolver(val context: LeonContext, val program: Program, timeout: Long)
   }
 
   // Just so we have it
-  def getRange(precond: Expr, expr: Expr, variables: VariablePool, maxIter: Int, prec: Rational) = {
-    val approx = inIntervals(expr, variables)
+  def getRange(precond: Expr, expr: Expr, vars: VariablePool, maxIter: Int, prec: Rational) = {
+    val approx = inIntervals(expr, vars)
     tightenRange(massageArithmetic(expr), precond, approx, maxIter, prec)
   }
 
@@ -234,7 +246,7 @@ class RealSolver(val context: LeonContext, val program: Program, timeout: Long)
         } else getLowerBound(a, b, exprInZ3, 0, maxIter, prec)
 
       if (verbose) println("\n============Looking for upperbound")
-      //TODO: we could actually start searching from the newLowerBound, no?
+      //TODO: start searching from the newLowerBound?
       val newUpperBound =
         if (upperBoundIsTight(exprInZ3, b, prec)) {
           countTightRanges += 1
@@ -260,10 +272,10 @@ class RealSolver(val context: LeonContext, val program: Program, timeout: Long)
     // Enclosure of bound is precise enough
     if (b-a < prec) {
       countHitPrecisionThreshold += 1
-      return a
+      a
     } else if (count > maxIter) {
       countHitIterationThreshold += 1
-      return a
+      a
     } else {
       val mid = a + (b - a) / Rational(2l)
       val res = checkLowerBound(exprInZ3, mid)
@@ -274,7 +286,7 @@ class RealSolver(val context: LeonContext, val program: Program, timeout: Long)
         case SAT => getLowerBound(a, mid, exprInZ3, count + 1, maxIter, prec)
         case UNSAT => getLowerBound(mid, b, exprInZ3, count + 1, maxIter, prec)
         case Unknown => // Return safe answer
-          return a
+          a
       }
     }
   }
@@ -283,10 +295,10 @@ class RealSolver(val context: LeonContext, val program: Program, timeout: Long)
     // Enclosure of bound is precise enough
     if (b-a < prec) {
       countHitPrecisionThreshold += 1
-      return b
+      b
     } else if (count > maxIter) {
       countHitIterationThreshold += 1
-      return b
+      b
     } else {
       val mid = a + (b - a) / Rational(2l)
       val res = checkUpperBound(exprInZ3, mid)
@@ -297,7 +309,7 @@ class RealSolver(val context: LeonContext, val program: Program, timeout: Long)
         case SAT => getUpperBound(mid, b, exprInZ3, count + 1, maxIter, prec)
         case UNSAT => getUpperBound(a, mid, exprInZ3, count + 1, maxIter, prec)
         case Unknown => // Return safe answer
-          return b
+          b
       }
     }
   }
@@ -345,7 +357,7 @@ class RealSolver(val context: LeonContext, val program: Program, timeout: Long)
 
 
   private def lowerBoundIsTight(exprInZ3: Z3AST, bound: Rational, prec: Rational): Boolean = {
-    // TODO: we're using push and pop, which prevents nlsat to be used, probably
+    // TODO: uses push and pop, which prevents nlsat to be used, probably
     solver.push
     solver.assertCnstr(z3.mkLT(exprInZ3, z3.mkNumeral(getNumeralString(bound + prec), realSort)))
     if (verbose) println("checking if lower bound is tight: " + solver.getAssertions.toSeq.mkString(",\n"))

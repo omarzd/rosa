@@ -3,6 +3,7 @@
 package leon
 package real
 
+import purescala.TransformerWithPC
 import leon.purescala.Definitions._
 import leon.purescala.Common._
 import leon.purescala.TypeTrees._
@@ -36,28 +37,37 @@ case class Record(ideal: Expr, actual: Expr, lo: Option[Rational], up: Option[Ra
     formatOption(lo), formatOption(up), formatOption(uncertainty))
 }
 
+object EmptyRecord extends Record(False, False, None, None, None, None)
+
 /*
   Keeps track of ideal and the corresponding actual values, the associated uncertainties
   and such things.
   @param map indexed by ideal variable
 */
-class VariablePool(inputs: Map[Expr, Record]) {
+class VariablePool(inputs: Map[Expr, Record], val resIds: Seq[Identifier]) {
   import VariablePool._
   private var allVars = inputs
 
-  allVars += (ResultVariable() -> Record(ResultVariable(), FResVariable(), None, None, None, None))
+  val resultVars = resIds.map(Variable(_))
+  resultVars foreach ( resVar =>
+    allVars += (resVar -> emptyRecord(resVar))
+  )
 
-  def add(idSet: Set[Identifier]) = {
+  val fResultVars = resultVars.map( buddy(_) )
+
+  def add(idSet: Set[Identifier]): Unit = {
     for (i <- idSet) {
       val v = Variable(i)
-      if (! inputs.contains(v))
+      if (! inputs.contains(v)) {
         allVars += (v -> emptyRecord(v))
+      }
     }
   }
 
   def buddy(v: Expr): Expr = {
-    if (allVars.contains(v)) allVars(v).actual
-    else {
+    if (allVars.contains(v)) {
+      allVars(v).actual
+    } else {
       val newRecord = emptyRecord(v)
       allVars += (v -> newRecord)
       newRecord.actual
@@ -72,7 +82,15 @@ class VariablePool(inputs: Map[Expr, Record]) {
     }
   }
 
-  def getValidRecords = allVars.values.filter(r => r.isBoundedValid)
+  // When converting from actual to ideal in codegeneration, in conditionals we already have the ideal one
+  def getIdealOrNone(v: Expr): Option[Expr] = {
+    allVars.find(x => x._2.actual == v) match {
+      case Some((_, Record(i, a, _, _, _, _))) => Some(i)
+      case _ => None
+    }
+  }
+
+  def getValidRecords: Iterable[Record] = allVars.values.filter(r => r.isBoundedValid)
 
   def actualVariables: Set[Expr] = allVars.values.map(rec => rec.actual).toSet
 
@@ -81,10 +99,13 @@ class VariablePool(inputs: Map[Expr, Record]) {
     RationalInterval(rec.lo.get, rec.up.get)
   }
 
-  def hasValidInput(varDecl: Seq[VarDecl]): Boolean = {
+  def hasValidInput(varDecl: Seq[ValDef]): Boolean = {
     val params: Seq[Expr] = varDecl.map(vd => Variable(vd.id))
-    if (inputs.size != params.size) false
-    else inputs.forall(v => params.contains(v._1) && v._2.isBoundedValid)
+    if (inputs.size != params.size) {
+      false
+    } else {
+      inputs.forall(v => params.contains(v._1) && v._2.isBoundedValid)
+    }
   }
 
   def inputsWithoutNoise: Seq[Expr] = {
@@ -98,13 +119,24 @@ class VariablePool(inputs: Map[Expr, Record]) {
 object VariablePool {
   def emptyRecord(ideal: Expr): Record = ideal match {
     case Variable(id) => Record(ideal, Variable(FreshIdentifier("#" + id.name)).setType(RealType), None, None, None, None)
-    case _ => new Exception("bug!"); null
+    case _ => new Exception("bug!"); EmptyRecord
   }
 
-  def apply(expr: Expr): VariablePool = {
+  def apply(expr: Expr, returnType: TypeTree): VariablePool = {
     val collector = new VariableCollector
     collector.transform(expr)
-    new VariablePool(collector.recordMap)
+
+    val resIds = returnType match {
+      case TupleType(baseTypes) =>
+        baseTypes.zipWithIndex.map( {
+          case (baseType, i) => FreshIdentifier("result" + i, true).setType(baseType)
+          })
+
+      case _ =>
+        Seq(FreshIdentifier("result", true).setType(returnType))
+    }
+
+    new VariablePool(collector.recordMap, resIds)
   }
 
   private class VariableCollector extends TransformerWithPC {
@@ -112,34 +144,34 @@ object VariablePool {
     val initC = Nil
     var recordMap = Map[Expr, Record]()
 
-    def register(e: Expr, path: C) = path :+ e
+    def register(e: Expr, path: C): C = path :+ e
 
     // (Sound) Overapproximation in the case of strict inequalities
-    override def rec(e: Expr, path: C) = e match {
+    override def rec(e: Expr, path: C): Expr = e match {
       case LessEquals(RealLiteral(lwrBnd), x @ Variable(_)) => // a <= x
         recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newLo(lwrBnd)); e
-      
+
       case LessEquals(x @ Variable(_), RealLiteral(uprBnd)) => // x <= b
         recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newUp(uprBnd)); e
 
       case LessThan(RealLiteral(lwrBnd), x @ Variable(_)) => // a < x
         recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newLo(lwrBnd)); e
-      
+
       case LessThan(x @ Variable(_), RealLiteral(uprBnd)) => // x < b
         recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newUp(uprBnd)); e
-      
+
       case GreaterEquals(RealLiteral(uprBnd), x @ Variable(_)) => // b >= x
         recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newUp(uprBnd)); e
-      
+
       case GreaterEquals(x @ Variable(_), RealLiteral(lwrBnd)) => // x >= a
         recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newLo(lwrBnd)); e
-      
+
       case GreaterThan(RealLiteral(uprBnd), x @ Variable(_)) => // b > x
         recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newUp(uprBnd)); e
-      
+
       case GreaterThan(x @ Variable(_), RealLiteral(lwrBnd)) => // x > a
         recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newLo(lwrBnd)); e
-      
+
       case Noise(x @ Variable(_), RealLiteral(value)) =>
         recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newAbsUncert(value)); e
 
@@ -157,50 +189,9 @@ object VariablePool {
 
       case _ =>
         super.rec(e, path)
-      
+
     }
 
   }
 
 }
-
-
-
-
-// a <= x
-      /*case LessEquals(IntLiteral(lwrBnd), x @ Variable(name)) =>
-        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).updateLo(Rational(lwrBnd))); e
-      // x <= b
-      case LessEquals(x @ Variable(name), IntLiteral(uprBnd)) =>
-        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).updateUp(Rational(uprBnd))); e
-
-      // a < x
-      case LessThan(IntLiteral(lwrBnd), x @ Variable(name)) =>
-        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).updateLo(Rational(lwrBnd))); e
-      // x < b
-      case LessThan(x @ Variable(name), IntLiteral(uprBnd)) =>
-        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).updateUp(Rational(uprBnd))); e
-      
-      // b >= x
-      case GreaterEquals(IntLiteral(uprBnd), x @ Variable(name)) =>
-        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).updateUp(Rational(uprBnd))); e
-      // x >= a
-      case GreaterEquals(x @ Variable(name), IntLiteral(lwrBnd)) =>
-        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).updateLo(Rational(lwrBnd))); e
-      
-      // b > x
-      case GreaterThan(IntLiteral(uprBnd), x @ Variable(name)) =>
-        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).updateUp(Rational(uprBnd))); e
-      // x > a
-      case GreaterThan(x @ Variable(name), IntLiteral(lwrBnd)) =>
-        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).updateLo(Rational(lwrBnd))); e
-
-      case Noise(x @ Variable(id), IntLiteral(value)) =>
-        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).newUncert(Rational(value))); e
-
-      case RelError(x @ Variable(id), RationalLiteral(value)) =>
-        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).updateRelNoise(value)); e
-
-      case Roundoff(x @ Variable(id)) =>
-        recordMap += (x -> recordMap.getOrElse(x, emptyRecord).addRndoff); e
-      */

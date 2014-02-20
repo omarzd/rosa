@@ -8,7 +8,7 @@ object Main {
 
   lazy val allPhases: List[LeonPhase[_, _]] = {
     List(
-      plugin.ExtractionPhase,
+      frontends.scalac.ExtractionPhase,
       SubtypingPhase,
       xlang.ArrayTransformation,
       xlang.EpsilonElimination,
@@ -191,7 +191,11 @@ object Main {
   def computePipeline(settings: Settings): Pipeline[List[String], Any] = {
     import purescala.Definitions.Program
 
-    val pipeBegin : Pipeline[List[String],Program] = plugin.ExtractionPhase andThen SubtypingPhase
+    val pipeBegin : Pipeline[List[String],Program] =
+      frontends.scalac.ExtractionPhase andThen
+      purescala.MethodLifting andThen
+      utils.SubtypingPhase andThen
+      purescala.CompleteAbstractDefinitions
 
     val pipeProcess: Pipeline[Program, Any] =
       if (settings.synthesis) {
@@ -213,12 +217,12 @@ object Main {
   }
 
   def main(args : Array[String]) {
+    val timer     = new Timer().start
+
+    // Process options
+    val ctx = processOptions(args.toList)
+
     try {
-      // Process options
-      val timer     = new Timer().start
-
-      val ctx = processOptions(args.toList)
-
       ctx.interruptManager.registerSignalHandler()
 
       ctx.timers.get("Leon Opts") += timer
@@ -255,7 +259,19 @@ object Main {
       }
 
     } catch {
-      case LeonFatalError() => sys.exit(1)
+      case LeonFatalError(None) =>
+        sys.exit(1)
+
+      case LeonFatalError(Some(msg)) =>
+        // For the special case of fatal errors not sent though Reporter, we
+        // send them through reporter one time
+        try {
+          ctx.reporter.fatalError(msg)
+        } catch {
+          case _: LeonFatalError =>
+        }
+
+        sys.exit(1)
     }
   }
 }

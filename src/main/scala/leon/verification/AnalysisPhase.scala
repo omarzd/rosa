@@ -19,14 +19,18 @@ object AnalysisPhase extends LeonPhase[Program,VerificationReport] {
   val name = "Analysis"
   val description = "Leon Verification"
 
-  implicit val debugSection = DebugSectionVerification
+  implicit val debugSection = utils.DebugSectionVerification
 
   override val definedOptions : Set[LeonOptionDef] = Set(
     LeonValueOptionDef("functions", "--functions=f1:f2", "Limit verification to f1,f2,..."),
     LeonValueOptionDef("timeout",   "--timeout=T",       "Timeout after T seconds when trying to prove a verification condition.")
   )
 
-  def generateVerificationConditions(reporter: Reporter, program: Program, functionsToAnalyse: Set[String]): Map[FunDef, List[VerificationCondition]] = {
+  def generateVerificationConditions(vctx: VerificationContext, functionsToAnalyse: Set[String]): Map[FunDef, List[VerificationCondition]] = {
+
+    import vctx.reporter
+    import vctx.program
+
     val defaultTactic = new DefaultTactic(reporter)
     defaultTactic.setProgram(program)
     val inductionTactic = new InductionTactic(reporter)
@@ -34,7 +38,27 @@ object AnalysisPhase extends LeonPhase[Program,VerificationReport] {
 
     var allVCs = Map[FunDef, List[VerificationCondition]]()
 
-    for(funDef <- program.definedFunctions.toList.sortWith((fd1, fd2) => fd1 < fd2) if (functionsToAnalyse.isEmpty || functionsToAnalyse.contains(funDef.id.name))) {
+    val patterns = functionsToAnalyse.map{ s =>
+      import java.util.regex.Pattern
+
+      val p = s.replaceAll("\\.", "\\\\.").replaceAll("_", ".+")
+      Pattern.compile(p)
+    }
+
+    def markedForVerification(name: String): Boolean = {
+      patterns.exists(p => p.matcher(name).matches())
+    }
+
+    val toVerify = program.definedFunctions.toList.sortWith((fd1, fd2) => fd1.getPos < fd2.getPos).filter {
+      fd =>
+        (functionsToAnalyse.isEmpty && !(fd.annotations contains "verified")) || 
+        (markedForVerification(fd.id.name))
+    }
+
+    for(funDef <- toVerify) {
+      if (funDef.annotations contains "verified") {
+        reporter.warning("Forcing verification of "+funDef.id.name+" which was assumed verified")
+      }
 
       val tactic: Tactic =
         if(funDef.annotations.contains("induct")) {
@@ -54,25 +78,27 @@ object AnalysisPhase extends LeonPhase[Program,VerificationReport] {
       }
     }
 
-    val notFound = functionsToAnalyse -- allVCs.keys.map(_.id.name)
-    notFound.foreach(fn => reporter.error("Did not find function \"" + fn + "\" though it was marked for analysis."))
-
     allVCs
   }
 
   def checkVerificationConditions(vctx: VerificationContext, vcs: Map[FunDef, List[VerificationCondition]]) : VerificationReport = {
-    val reporter = vctx.reporter
-    val solvers  = vctx.solvers
+    import vctx.reporter
+    import vctx.solvers
+    import vctx.program
 
     val interruptManager = vctx.context.interruptManager
 
-    for((funDef, vcs) <- vcs.toSeq.sortWith((a,b) => a._1 < b._1); vcInfo <- vcs if !interruptManager.isInterrupted()) {
+    for((funDef, vcs) <- vcs.toSeq.sortWith((a,b) => a._1.getPos < b._1.getPos); vcInfo <- vcs if !interruptManager.isInterrupted()) {
       val funDef = vcInfo.funDef
       val vc = vcInfo.condition
 
+      // Check if vc targets abstract methods
+      val targets = functionCallsOf(vc).map(_.tfd.fd)
+      val callsAbstract = (vctx.program.callGraph.transitiveCallees(targets) ++ targets).exists(_.annotations("abstract"))
+
       reporter.info("Now considering '" + vcInfo.kind + "' VC for " + funDef.id + "...")
       reporter.debug("Verification condition (" + vcInfo.kind + ") for ==== " + funDef.id + " ====")
-      reporter.debug(simplifyLets(vc))
+      reporter.debug(simplifyLets(vc).asString(vctx.context))
 
       // try all solvers until one returns a meaningful answer
       solvers.find(sf => {
@@ -151,7 +177,7 @@ object AnalysisPhase extends LeonPhase[Program,VerificationReport] {
     val reporter = ctx.reporter
 
     val baseFactories = Seq(
-      SolverFactory(() => new FairZ3Solver(ctx, program))
+      SolverFactory(() => new FairZ3Solver(ctx, program) with TimeoutSolver)
     )
 
     val solverFactories = timeout match {
@@ -163,10 +189,10 @@ object AnalysisPhase extends LeonPhase[Program,VerificationReport] {
         baseFactories
     }
 
-    val vctx = VerificationContext(ctx, solverFactories, reporter)
+    val vctx = VerificationContext(ctx, program, solverFactories, reporter)
 
     reporter.debug("Running verification condition generation...")
-    val vcs = generateVerificationConditions(reporter, program, functionsToAnalyse)
+    val vcs = generateVerificationConditions(vctx, functionsToAnalyse)
     checkVerificationConditions(vctx, vcs)
   }
 }

@@ -6,23 +6,24 @@ package real
 import leon.purescala.Trees._
 import leon.purescala.Definitions._
 import leon.purescala.Common._
+import leon.utils.{Positioned}
 
 import Approximations._
 
 
-case class Spec(bounds: RationalInterval, absError: Rational)
+case class Spec(id: Identifier, bounds: RationalInterval, absError: Rational)
 
 
 // The condition is pre => post
-class VerificationCondition(val funDef: FunDef, val kind: VCKind.Value, val pre: Expr, val body: Expr,  
-  val post: Expr, val variables: VariablePool, precisions: List[Precision]) extends ScalacPositional {
+class VerificationCondition(val funDef: FunDef, val kind: VCKind.Value, val pre: Expr, val body: Expr,
+  val post: Expr, val variables: VariablePool, precisions: List[Precision]) extends Positioned {
 
   var allFncCalls = Set[String]()
 
   val fncId = funDef.id.toString // not unique
 
   // (lowerBnd, upperBnd) absError
-  var spec: Map[Precision, Option[Spec]] = precisions.map(p => (p, None)).toMap
+  var spec: Map[Precision, Seq[Spec]] = precisions.map(p => (p, Seq())).toMap
 
   // None = still unknown
   // Some(true) = valid
@@ -33,7 +34,6 @@ class VerificationCondition(val funDef: FunDef, val kind: VCKind.Value, val pre:
     this(fD, k, pe, b, po, vars, precs)
     allFncCalls = fncCalls
   }
-
 
   def status(precision: Precision) : String = value(precision) match {
     case None => "unknown"
