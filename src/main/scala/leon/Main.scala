@@ -69,7 +69,9 @@ object Main {
     val allOptionsMap = allOptions.map(o => o.name -> o).toMap
 
     // Detect unknown options:
-    val options = args.filter(_.startsWith("--"))
+    var options = args.filter(_.startsWith("--"))
+    // Make real default
+    if (!options.contains("--real")) options :+= "--real"
 
     val files = args.filterNot(_.startsWith("-")).map(new java.io.File(_))
 
