@@ -1,0 +1,162 @@
+\section{}
+Consider the case of a generic loop, iteratively applying a function $f$.
+\begin{figure}[h!]
+  \centering
+  \lstset{numbers=none}
+  \begin{subfigure}[b]{0.25\textwidth}
+    \begin{lstlisting}
+var x1 = ???
+var x2 = ???
+while(i < N) {
+  (x1, x2) = f(x1, x2)
+}
+(x1, x2)
+    \end{lstlisting}
+    %\caption{A gull}
+    %\label{fig:gull}
+  \end{subfigure}%
+  ~ %add desired spacing between images, e. g. ~, \quad, \qquad etc.
+    %(or a blank line to force the subfigure onto a new line)
+  \begin{subfigure}[b]{0.32\textwidth}
+    \begin{lstlisting}
+    val x1, x2 = ???
+
+    def iter(x1, x2, i) = {
+      if (i < N) {
+        val (y1, y2) = f(x1, x2)
+        iter(y1, y2, i + 1)
+      } else {
+        (x1, x2)
+      }
+    }
+    \end{lstlisting}
+    %\caption{A tiger}
+    %\label{fig:tiger}
+  \end{subfigure}
+  ~ %add desired spacing between images, e. g. ~, \quad, \qquad etc.
+    %(or a blank line to force the subfigure onto a new line)
+  \begin{subfigure}[b]{0.32\textwidth}
+    \begin{lstlisting}
+    val x1, x2 = ???
+
+    def iter(x1, x2, i) = {
+      if (i < N) {
+        val (y1, y2) = iter(x1, x2, i + 1)
+        f(y1, y2)
+      } else {
+        (x1, x2)
+      }
+    }
+    \end{lstlisting}
+    %\caption{A mouse}
+    %\label{fig:mouse}
+  \end{subfigure}
+  %\caption{Pictures of animals}\label{fig:animals}
+\end{figure}
+
+
+We want to find an inductive specification about the output range and output errors.
+
+
+
+\paragraph{Notation:} Let
+\begin{itemize}
+\item $f$ denote the mathematical function $f: \mathbb{R}^n \to \mathbb{R}^n$
+\item $\tilde{f}$ be the finite-precision version of $f$
+\item $\tilde{x}$ be the finite-precision, actually computed, value corresponding to the
+ideal variable $x$
+\item $\lambda$ be an upper bound on the initial error, i.e. $\lv x - \tilde{x} \rv$
+\item $\sigma$ be the roundoff error on evaluating $f$ with exact inputs, i.e.
+  $\lv f(x) - \tilde{f}(x) \rv$
+\end{itemize}
+where $f$ and $x$ may be vectors, in which case the definitions are component-wise.
+
+\subsection{Division of error}
+The overall error on evaluating $f$ in finite-precision arithmetic is
+  $\lv f(x) - \tilde{f}(\tilde{x}) \rv$, where $\lv x - \tilde{x} \rv \le \lambda$.
+
+\begin{align}
+\lv f(x) - \tilde{f}(\tilde{x}) \rv &=
+ \lv f(x) - f(\tilde{x}) + f(\tilde{x}) - \tilde{f}(\tilde{x}) \rv \\
+ &\le \lv f(x) - f(\tilde{x}) \rv + \lv f(\tilde{x}) - \tilde{f}(\tilde{x}) \rv
+\end{align}
+
+Suppose there is a function $g$, such that $\lv f(x) - f(y) \rv \le g(\lv x - y \rv)$.
+Further note that $\lv f(\tilde{x}) - \tilde{f}(\tilde{x}) \rv$ is the roundoff error on
+computing $f$ with exact inputs. Then,
+
+\begin{align}
+\label{errorLoopBody}
+\lv f(x) - \tilde{f}(\tilde{x}) \rv &\le g(\lv x - y \rv) + \sigma
+\end{align}
+We have thus separated the overall error into the error from propagating
+the initial uncertainty and the roundoff error.
+
+Consider iterating $f$, i.e. we are computing $f^n(x) = f(f(...f(x)))$.
+
+{\bf Claim: }
+\begin{equation}
+\lv f^n(x) - \tl{f}^n(\tl{x})\rv \le \sigma + \sum^{n - 1}_{i = 1} g^i(\sigma) + g^n(\lv x - \tl{x} \rv)
+\end{equation}
+
+We show this by induction. The base case, for $n = 1$ is shown above.
+\begin{align}
+\lv  f^n(x) - \tl{f}^n(\tl{x})\rv &\le
+  \lv f^n(x) - f(\tl{f}^{n-1}(\tl{x})) \rv + \lv f(\tl{f}^{n-1}(\tl{x})) - \tl{f}^n(\tl{x})\rv \\
+  &\le g(\lv f^{n-1}(x) - \tl{f}^{n-1}(\tl{x}) \rv) + \sigma \\
+  &\le g (\sigma + \sum^{n - 2}_{i = 1} g^i(\sigma) + g^{n-1}(\lv x - \tl{x} \rv)) + \sigma \\
+  &\le \sigma + \sum^{n - 1}_{i = 1} g^i(\sigma) + g^n(\lv x - \tl{x} \rv)
+\end{align}
+
+\subsection{Lipschitz continuity}
+Now consider $g(x) = K \cdot x$, i.e. which yields Lipschitz continuity:
+$\lv f(x) - f(y) \rv \le K \lv x - y \rv$.
+Note that we need to compute the Lipschitz constant for the mathematical function $f$,
+and not for $\tl{f}$.
+The expression for the error then becomes
+\begin{align}
+\lv f^n(x) - \tl{f}^n(\tl{x})\rv \le K^n + \sum^{n-1}_{i=0}K^i \sigma
+  = K^n \lambda + \sigma \sum^{n-1}_{i=0} K^i
+  = K^n \lambda + \sigma \left(\dfrac{1 - K^n}{1-K} \right)
+\end{align}
+when $K \ne 1$.
+When $K = 1$, $g$ becomes the identity function and so
+\begin{align}
+\lv f^n(x) - \tl{f}^n(\tl{x})\rv \le \sigma + \sum^{n-1}_{i=1}\sigma + \lambda
+= n \cdot \sigma + \lambda
+\end{align}
+
+We want to compute the Lipschitz constant for a function $f: \mathbb{R}^n \to \mathbb{R}$,
+that is, we are computing one constant for each output of the function.
+
+Let $h: [0, 1] \to \mathbb{R}$ such that $h(\theta) := f(z + \theta(y-z))$.
+Then $h(0) = f(z)$ and $h(1) = f(y)$ and
+\eqn{
+  \frac{d}{d\theta}f(\theta) &= \nabla f(z + \theta(y-z)) \cdot (y-z)
+}
+
+\eqn{
+  f(y) - f(z) &= f(1) -f(0) = \int^1_0 f'(\theta)d\theta
+  = \int^1_0\nabla f(z + \theta(y-z)) d\theta \cdot (y-z)
+}
+
+\eqn{
+  \lv f(y) - f(z) \rv &= \lv \int^1_0\nabla f(z + \theta(y-z)) d\theta \cdot (y-z) \rv \\
+&le \int^1_0 \lv \nabla f(z + \theta(y-z))  \cdot (y-z) \rv d\theta \quad
+   \text{ (triangle inequality for integrals)}\\
+&\le \sup\limits_{\theta\in [0,1]} \lv \nabla f(z + \theta(y-z))  \cdot (y-z) \rv \int^1_0 d\theta\\
+\label{eqnG}
+&= \sup\limits_{\theta\in [0,1]} \lv \nabla f(z + \theta(y-z))  \cdot (y-z) \rv \\
+&\le \sup\limits_{\theta\in [0,1]} \lv \nabla f(z + \theta(y-z))  \rv \rv (y-z) \rv
+}
+
+Since $f(y) - f(z) \in \mathbb{R}$, all vectors norms $\lv f(y) - f(z) \rv$
+are equivalent to $|f(y) - f(z)|$ and we can choose any norm.
+
+If possible (and correct!), for precision reasons, we may want to already use Equation \ref{eqnG}  i.e.
+\eqn{
+  g(x) = \sup\limits_{\theta\in [0,1]} \lv \nabla f(z + \theta(y-z))(x)\rv
+}
+
+Thus, in order to compute the Lipschitz constant, we need to bound the gradient of $f$
+over the specified input range.
