@@ -1,97 +1,9 @@
 package leon
-package benchmark
+package experiments
 
 import ceres.common.{DoubleDouble, QuadDouble => QD}
 
-object LoopRunner {
-
-  def main(args: Array[String]) {
-
-    val benchmarks = if (args.size > 0) args else Array("")
-
-    benchmarks.foreach { _ match {
-      case "cube" => cubeRoot(10.0, 5.4)
-      case "newton" =>
-        for(x <- List(0.18, 0.35, -0.53, 0.78, -0.99, 1.19, 1.25, -1.35, 1.89)) {
-          newtonSine(x)
-        }
-      case "harmonic" => harmonicEuler
-      case "harmonicRK" => harmonicRK2
-      case "harmonic4" => harmonicRK4
-      //case "verhulst" => verhulst(0.5f, 45.0f, 11.0f)
-      //case "lotka" => lotkaVolterra
-      case "nbody" => nbody
-      case "predatorPrey" => predatorPrey(20.0, 20.0)
-      case "predatorRK2" => predatorPreyRK2(20.0, 20.0)
-      case "predatorRK4" => predatorPreyRK4(20.0, 20.0)
-      case _ => println("unknown benchmark")
-    }}
-    
-  }
-
-  def cubeRoot(a: Double, x0: Double) = {
-    val aq = QD(a)
-
-    def cube(xn: Double): Double = {
-      xn * ((xn*xn*xn + 2.0*a)/(2.0*xn*xn*xn + a))
-    }
-
-    def cubeQ(xn: QD): QD = {
-      xn * ((xn*xn*xn + QD(2.0)*aq)/(QD(2.0)*xn*xn*xn + aq))
-    }
-
-    var x = x0
-    var xq = QD(x0)
-    
-    for (i <- 0 until 10) {
-      val xi = cube(x)
-      val xiq = cubeQ(xq)
-      
-      val errX = xiq - QD(xi)
-      
-      print(i + ": ")
-      //println(xi + "  -  " + xiq)
-      //println(xiQ + "  -  " + viQ)
-      print("x: " + xi + ", " + errX )
-      println(", rel: " + (errX / xq))
-      x = xi; xq = xiq
-    }
-  }
-
-  def newtonSine(x0: Double) = {
-    //val aq = QD(a)
-
-    def newton(x: Double): Double = {
-      x - (x - (x*x*x)/6.0 + (x*x*x*x*x)/120.0 + (x*x*x*x*x*x*x)/5040.0) / 
-        (1 - (x*x)/2.0 + (x*x*x*x)/24.0 + (x*x*x*x*x*x)/720.0)
-    }
-
-    def newtonQ(x: QD): QD = {
-      x - (x - (x*x*x)/QD(6.0) + (x*x*x*x*x)/QD(120.0) + (x*x*x*x*x*x*x)/QD(5040.0)) / 
-        (QD(1) - (x*x)/QD(2.0) + (x*x*x*x)/QD(24.0) + (x*x*x*x*x*x)/QD(720.0) )
-    }
-
-    var xn = x0
-    var xq = QD(x0)
-
-    println("\nnewton, x0: " + x0)
-    
-    for (i <- 0 until 20) {
-      val xi = newton(xn)
-      val xiq = newtonQ(xq)
-      
-      val errX = xiq - QD(xi)
-      
-      print(i + ": ")
-      //println(xi + "  -  " + xiq)
-      //println(xiQ + "  -  " + viQ)
-      print("x: " + xi + ", " + errX )
-      println(", rel: " + (errX / xq))
-      xn = xi; xq = xiq
-    }
-  }
-
-  
+object SimulationExperiments {
 
   def harmonicEuler = {
     val k = 2.3
@@ -507,19 +419,20 @@ object LoopRunner {
       d.next
       q.next
 
-      //print(i + ": ")
-      //println(d.x + ", " + d.y + ", ")
-    
       printErrors(i, d.x, d.y, q.x, q.y)
     }
   }
 
-  /*def mean = {
-
-    def next()
-  }*/
 
 
+
+  private def printErrors(i: Int, x: Double, xQ: QD) = {
+    val errX = xQ - QD(x)
+      
+    print(i + ": ")
+    print(x + ", " + errX)
+    println(", rel: " + (errX / xQ))
+  }
 
   private def printErrors(i: Int, x: Double, y: Double, xQ: QD, yQ: QD) = {
     val errX = xQ - QD(x)
