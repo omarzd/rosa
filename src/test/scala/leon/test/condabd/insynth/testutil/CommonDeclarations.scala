@@ -9,7 +9,7 @@ import org.junit.Ignore
 import leon.synthesis.condabd.insynth.leon.loader.DeclarationFactory._
 import leon.synthesis.condabd.insynth.leon._
 
-import leon.purescala.Definitions.{ FunDef, VarDecl, Program, ObjectDef }
+import leon.purescala.Definitions.{ FunDef, ValDef, Program, ModuleDef }
 import leon.purescala.Common.{ FreshIdentifier }
 import leon.purescala.TypeTrees._
 import leon.purescala.Trees._
@@ -40,30 +40,32 @@ object CommonDeclarations {
   val functionBoolToIntFunDef = 
     new FunDef(
       FreshIdentifier("function1"),
+      Nil,
       Int32Type,
-      List( VarDecl(FreshIdentifier("var"), BooleanType))
+      List( ValDef(FreshIdentifier("var"), BooleanType))
     )
   
   val functionBoolToIntType =
     FunctionType(List(BooleanType), Int32Type)
       
   val functionBoolToIntDeclaration = makeDeclaration(
-      NaryReconstructionExpression("function1", { args: List[Expr] => FunctionInvocation(functionBoolToIntFunDef, args) }), 
+      NaryReconstructionExpression("function1", { args: List[Expr] => FunctionInvocation(functionBoolToIntFunDef.typed, args) }), 
       functionBoolToIntType
     )     
       
   val functionFun1ToUnitFunDef = 
     new FunDef(
       FreshIdentifier("function2"),
+      Nil,
       UnitType,
-      List( VarDecl(FreshIdentifier("var"), functionBoolToIntType))
+      List( ValDef(FreshIdentifier("var"), functionBoolToIntType))
     )  
   
   val functionFun1ToUnitType =
     FunctionType(List(UnitType), functionBoolToIntType)
       
   val functionFun1ToUnitDeclaration = makeDeclaration(
-      NaryReconstructionExpression("function2", { args: List[Expr] => FunctionInvocation(functionFun1ToUnitFunDef, args) }), 
+      NaryReconstructionExpression("function2", { args: List[Expr] => FunctionInvocation(functionFun1ToUnitFunDef.typed, args) }), 
       functionFun1ToUnitType
     )     
    
@@ -72,10 +74,11 @@ object CommonDeclarations {
   
   val functionIntToIntFunDef= {
     val varId = FreshIdentifier("var")
-    val varDec = VarDecl(varId, Int32Type)
+    val varDec = ValDef(varId, Int32Type)
     
     val funDef = new FunDef(
       FreshIdentifier("functionRec"),
+      Nil,
       Int32Type,
       List( varDec )
     )
@@ -86,7 +89,7 @@ object CommonDeclarations {
   }
   
   val functionIntToIntDeclaration = makeDeclaration(
-    NaryReconstructionExpression("functionRec", { args: List[Expr] => FunctionInvocation(functionIntToIntFunDef, args) }), 
+    NaryReconstructionExpression("functionRec", { args: List[Expr] => FunctionInvocation(functionIntToIntFunDef.typed, args) }), 
     functionIntToIntType
   )
   
@@ -96,16 +99,17 @@ object CommonDeclarations {
   val threeParFunctionDef = 
     new FunDef(
       FreshIdentifier("function3"),
+      Nil,
       Int32Type,
       List(
-        VarDecl(FreshIdentifier("var_1"), Int32Type),
-        VarDecl(FreshIdentifier("var_2"), Int32Type),
-        VarDecl(FreshIdentifier("var_3"), BooleanType)
+        ValDef(FreshIdentifier("var_1"), Int32Type),
+        ValDef(FreshIdentifier("var_2"), Int32Type),
+        ValDef(FreshIdentifier("var_3"), BooleanType)
       )
     )
   
   val threeParFunctionDeclaration = makeDeclaration(
-      NaryReconstructionExpression("function3", { args: List[Expr] => FunctionInvocation(threeParFunctionDef, args) }), 
+      NaryReconstructionExpression("function3", { args: List[Expr] => FunctionInvocation(threeParFunctionDef.typed, args) }), 
       threeParFunctionType
     )
   

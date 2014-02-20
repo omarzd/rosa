@@ -7,6 +7,7 @@ import purescala.Trees._
 import purescala.Common.Tree
 import purescala.Definitions.FunDef
 import purescala.ScalaPrinter
+import purescala.PrinterOptions
 
 import leon.utils.RangePosition
 
@@ -54,12 +55,12 @@ class FileInterface(reporter: Reporter) {
         val before = str.substring(0, from)
         val after  = str.substring(to, str.length)
 
-        val newCode = ScalaPrinter(toTree, fromTree.getPos.col/2)
+        val newCode = ScalaPrinter(toTree, PrinterOptions(baseIndent = fromTree.getPos.col/2))
 
         before + newCode + after
 
-      case _ =>
-        sys.error("Substitution requires RangePos on the input tree: "+fromTree)
+      case p =>
+        sys.error("Substitution requires RangePos on the input tree: "+fromTree +": "+fromTree.getClass+" GOT" +p)
     }
   }
 

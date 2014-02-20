@@ -3,12 +3,13 @@
 package leon
 package real
 
-import leon.purescala.Common._
-import leon.purescala.TypeTrees._
-import leon.purescala.Trees._
-import leon.purescala.Definitions._
-import leon.purescala.Extractors._
-import leon.purescala.{PrettyPrinter, PrettyPrintable, ScalaPrinter}
+import purescala.Common._
+import purescala.TypeTrees._
+import purescala.TypeTreeOps.leastUpperBound
+import purescala.Trees._
+import purescala.Definitions._
+import purescala.Extractors._
+import purescala.{PrettyPrinter, PrettyPrintable, ScalaPrinter}
 
 object Trees {
 
@@ -438,7 +439,7 @@ object Trees {
     }
   }
 
-  case class FncInvocationF(funDef: FunDef, args: Seq[Expr]) extends Expr with FixedType with NAryExtractable with PrettyPrintable {
+  case class FncInvocationF(funDef: TypedFunDef, args: Seq[Expr]) extends Expr with FixedType with NAryExtractable with PrettyPrintable {
     //assert(funDef.returnType == RealType)  doesn't hold any more with tuples
     val fixedType = RealType
 

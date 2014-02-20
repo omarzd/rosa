@@ -1,0 +1,235 @@
+
+\documentclass[10pt]{article}
+\usepackage[top=1in, bottom=1in, left=1in, right=1in]{geometry} % see geometry.pdf on how to lay out the page. There's lots.
+\geometry{a4paper}
+
+\input{common}
+
+\setlength{\parindent}{0pt}
+
+
+\newcommand{\openquestion}[1]{
+ {\bf \colorbox{black}{{\color{orange}Open question}}} \fbox{#1}
+  }
+
+\title{Loops and Uncertainties}
+\author{}
+
+\begin{document}
+
+\maketitle
+
+
+\section{Proving bounds (without uncertainties)}
+\begin{lstlisting}
+def step(x: Real, y: Real, k: Real): (Real, Real) = {
+  require(0 <= k && k <= 10 && -10 <= x && x <= 10 && -10 <= y && y <= 10 &&
+            x*x + y*y < 100)
+
+  // k should be an integer
+  if (k > 1.1) {
+    val x1 = (9*x - y)/10
+    val y1 = (9*y + x)/10
+    step(x1,y1,k-1)
+  } else {
+    (x, y)
+  }
+
+} ensuring (_ match {
+  case (a, b) => -10 <= a && a <= 10 && -10 <= b && b <= 10
+})
+\end{lstlisting}
+
+We can prove the bounds in the above example, by assuming that we start each iteration
+``fresh'', i.e. we assume initial (roundoff) error is zero and show that the precondition
+of the recursive call as well as the postcondition are satisfied, both for real and finite-precision
+numbers.
+
+{\bf Semantics of spec:} the written specification holds over the reals and we want to show the
+same holds for floats, i.e. we replace all variables and operations by their floating-point ones.
+Note that we so have two programs, side by side, without any connection/relation between the variables.
+
+\section{Types of Loops}
+
+\section{Uncertainties}
+The overall error when computing the function $f$ is given by
+$$
+|f(a) - \tilde{f}(\tilde{a})|
+$$
+where $\tilde{}$ denotes the finite precision version.
+From this we get
+\begin{align}
+&|f(a) - \tilde{f}(a) + \tilde{f}(a) - \tilde{f}(\tilde{a})|\\
+\le& |f(a) - \tilde{f}(a)| + |\tilde{f}(a) - \tilde{f}(\tilde{a})|
+\end{align}
+The first difference is the roundoff error between the real function and
+it's finite precision version, assuming no roundoff errors on the input.
+We can already compute this difference with out approximation procedure.
+
+The second difference is the propagation of existing errors. We'd like to
+show that it is bounded by some function $g$:
+$$
+|\tilde{f}(a) - \tilde{f}(\tilde{a})| \le g(|a - \tilde{a}|)
+$$
+A special case of $g$ is when $\tilde{f}$ is Lipschitz continuous, when
+$g(x) = L x$
+
+
+{\bf Notation:}
+\begin{itemize}
+\item $\lambda$ denotes the initial error $|a - \tilde{a}| \le \lambda$
+\item $\sigma$ denotes the roundoff error from one iteration, with exact inputs (no roundoff errors)
+\item $k$ denotes the number of iterations
+\item $\rho_f$ denotes the roundoff in computing $f$
+\end{itemize}
+
+
+\subsection{Dependence on number of iterations}
+Iterating the function 3 times, i.e. $|f^3(a) - \tilde{f}^3(\tilde{a})|$
+we get
+\begin{align}
+|f^3(a) - \tilde{f}^3(a) + \tilde{f}^3(a) - \tilde{f}^3(\tilde{a})| &\le
+  \sigma + g(\sigma + g(\sigma)) + g^3(|a - \tilde{a}|) \\
+&= \sigma + g(\sigma) + g^2(\sigma)+ g^3(\lambda)
+\end{align}
+assuming $g$ is a well-behaved function.
+Note that we get the same result when using a different strategy:
+$|f(f(a)) - \tilde{f}(f(a)) + \tilde{f}(f(a)) - \tilde{f}(\tilde{f}(\tilde{a}))|$
+
+\subsubsection{Multivariate functions}
+The above extends point-wise to multivariate functions $f: \mathbb{R}^n \to \mathbb{R}^n$
+where initial errors are given component-wise $|x_i - \tilde{x}_i| \le \lambda_i$,
+and roundoff errors for one loop iteration are also given component-wise $\sigma_i$.
+Similarly, $g$ is now also vector-valued.
+
+
+\openquestion{What happens as n goes to infinity? How does this compare to what we actually expect?}
+
+
+\subsection{Showing a (finite precision) function Lipschitz continuous}
+We want to show
+$$
+|\tilde{f}(a) - \tilde{f}(\tilde{a})| \le L |a - \tilde{a}|
+$$
+where $|a - \tilde{a}| \le \lambda$, where $\lambda$ is given (by the user or otherwise).
+
+\openquestion{}
+\begin{enumerate}
+\item Using the Mean Value Theorem, and assuming the function is continuously differentiable, then
+$$
+L = sup |f'(\theta)| \quad \text{ where } \theta \in [a, b]
+$$
+\begin{itemize}
+\item could work for floating-points and functions without branches, where we construct $\tilde{f}$ according to
+our real to floating-point translation
+\item However, $\tilde{f}$ is an interval valued function ($\delta_i$'s are bounded
+by the machine epsilon).
+\item Another option would be to compute $L$ (for the real-valued $f$) and from this somehow compute $\tilde{L}$
+by adding roundoff errors.
+\end{itemize}
+
+
+\item Using an floating-point SMT solver, we want to show that
+$
+|\tilde{f}(x) - \tilde{f}(y)| > L |x - y|
+$
+is unsat. The FP solver in Z3 or Mathsat don't succeed in showing unsatisfiability for the case where
+$f(x) = x*x$. Satisfiability seems to work (at least with Z3), but unsatisfiability is unreasonable.
+
+
+\item Next, we could try our approximation as
+$$
+|f(x) \pm [\rho_{fx}] - (f(y) \mp [\rho_{fy}])| > L |x - y|
+$$
+Since $x, y$ are any numbers in the interval $[a, b]$, this gives us the approximation:
+$$
+|f(x) - f(y) \pm [2\rho_{f}])| > L |x - y|
+$$
+which is then a constraint over the reals.
+\end{enumerate}
+
+Note that the above will in principle work for any ``template function'' for g, not only for the Lipschitz
+condition.
+\openquestion{which template is reasonable?}
+
+
+\subsubsection{Fixed-point and piece-wise defined functions}
+Strategy 1 and 2 would only work for fixed-point arithmetic if we can use a bitvector procedure.
+Scalability could become an issue...
+The third strategy should work in all cases though.
+
+
+\section{(Semantics of) Specification language}
+A sample loop (x can be vector valued):
+\begin{lstlisting}
+  i = 0
+  x = init
+  while ( i < n ) {
+    x = f(x)
+  }
+\end{lstlisting}
+
+
+\subsection{Further considerations}
+\begin{itemize}
+\item a precondition $x == 4$ cannot be translated into $x == 4 \wedge x_{\circ} == 4$,
+whereas for bounds this may make sense
+\item How do parametric error specs compare with loop unrolling?
+\end{itemize}
+
+
+\openquestion{Special syntax for loops with a counter}\\
+
+\openquestion{How to specify the error}\\
+Possibilities are to only specify the one-loop bound and the Lipschitz condition,
+but this won't say much. Or, we could specify the complete expression for $g$.
+Or something in between
+
+\subsection{Non-tailrecursive formulation}
+Independent of the front-end syntax, we can transform the loops into a tail-recursive
+formulation (as the first Ellipsoid example), or into a non-tailrecursive version.
+
+\begin{lstlisting}
+def R(x, i) {
+  if (i >= n) x
+  else {
+    val xx = R(x, i + 1)
+    f(xx)
+  }
+}
+\end{lstlisting}
+Note, that the precondition of the recursive call is now easily verified,
+and we ``only'' need to verify the postcondition.
+
+
+
+\section{Examples}
+\begin{itemize}
+\item harmonic oscillator (Euler, RK2, RK4)
+
+\item nbody simulation (non-linear)
+
+\item predator-prey (non-linear) {\color{red} TODO: Runge-Kutta}
+
+\item {\color{red} TODO: dReal benchmarks?}
+
+\item {\color{red} TODO: Keymaera?}
+\end{itemize}
+
+
+\openquestion{Can we formulate the update functions of PDE mesh-based method?}
+Some of the inputs will only be known to be within some interval, but we may be
+able to provide some estimate nonetheless. Some of the state will be carried over
+from one iteration to the next.
+
+\section{Extra features}
+
+\openquestion{Adding method errors modeled as ``roundoff errors''}
+
+\section{On a side note: conditionals}
+Suppose we can show a function with branches to be Lipschitz continuous.
+Then we have shown the error is bounded for all inputs, and we may use the same
+distinction, but with piece-wise defined functions. (How to compute the Lipschitz
+constant in this case is another matter.)
+
+\end{document}
