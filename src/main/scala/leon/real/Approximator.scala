@@ -21,7 +21,8 @@ class Approximator(reporter: Reporter, solver: RealSolver, precision: Precision,
 
   type XRealTuple = Seq[XReal] 
 
-  implicit val debugSection = DebugSectionVerification
+  implicit val debugSection = utils.DebugSectionReals
+
   val verbose = false
   var pathErrorVerbose = false
   val compactingThreshold = 500

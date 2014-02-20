@@ -19,7 +19,7 @@ import Rational._
 
 
 class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[FunDef, Fnc]) {
-  implicit val debugSection = DebugSectionVerification
+  implicit val debugSection = utils.DebugSectionReals
   val reporter = ctx.reporter
   val solver = new RealSolver(ctx, prog, options.z3Timeout)
 

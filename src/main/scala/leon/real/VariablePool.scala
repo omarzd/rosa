@@ -3,6 +3,7 @@
 package leon
 package real
 
+import purescala.TransformerWithPC
 import leon.purescala.Definitions._
 import leon.purescala.Common._
 import leon.purescala.TypeTrees._
@@ -98,7 +99,7 @@ class VariablePool(inputs: Map[Expr, Record], val resIds: Seq[Identifier]) {
     RationalInterval(rec.lo.get, rec.up.get)
   }
 
-  def hasValidInput(varDecl: Seq[VarDecl]): Boolean = {
+  def hasValidInput(varDecl: Seq[ValDef]): Boolean = {
     val params: Seq[Expr] = varDecl.map(vd => Variable(vd.id))
     if (inputs.size != params.size) {
       false

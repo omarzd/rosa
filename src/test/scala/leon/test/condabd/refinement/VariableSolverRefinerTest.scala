@@ -44,7 +44,7 @@ class VariableSolverRefinerTest extends FunSpec with GivenWhenThen {
 		      program.definedFunctions.find { 
 			      _.id.name == "isEmpty"
 			    } match {
-			      case Some(found) => (x: Expr) => FunctionInvocation(found, Seq(x))
+			      case Some(found) => (x: Expr) => FunctionInvocation(found.typed, Seq(x))
 			      case _ => fail("could not extract isEmpty"); null
 			    }
 				    
@@ -52,11 +52,11 @@ class VariableSolverRefinerTest extends FunSpec with GivenWhenThen {
 		      program.definedFunctions.find { 
 			      _.id.name == "isEmptyBad"
 			    } match {
-			      case Some(found) => (x: Expr) => FunctionInvocation(found, Seq(x))
+			      case Some(found) => (x: Expr) => FunctionInvocation(found.typed, Seq(x))
 			      case _ => fail("could not extract isEmpty"); null
 			    }
 			    
-		    val listVal = funDef.args.head.toVariable
+		    val listVal = funDef.params.head.toVariable
 			  val listLeonDeclaration = LeonDeclaration(
 			    ImmediateExpression( "tempVar", listVal ), 
 			    TypeTransformer(listAbstractClass), listAbstractClass
@@ -108,11 +108,11 @@ class VariableSolverRefinerTest extends FunSpec with GivenWhenThen {
 		      program.definedFunctions.find { 
 			      _.id.name == "hasContent"
 			    } match {
-			      case Some(found) => (x: Expr) => FunctionInvocation(found, Seq(x))
+			      case Some(found) => (x: Expr) => FunctionInvocation(found.typed, Seq(x))
 			      case _ => fail("could not extract hasContent"); null
 			    }
 			    
-		    val listVal = funDef.args.head.toVariable
+		    val listVal = funDef.params.head.toVariable
 			  val listLeonDeclaration = LeonDeclaration(
 			    ImmediateExpression( "tempVar", listVal ), 
 			    TypeTransformer(listAbstractClass), listAbstractClass
@@ -164,7 +164,7 @@ class VariableSolverRefinerTest extends FunSpec with GivenWhenThen {
 		      program.definedFunctions.find { 
 			      _.id.name == "isEmpty"
 			    } match {
-			      case Some(found) => (x: Expr) => FunctionInvocation(found, Seq(x))
+			      case Some(found) => (x: Expr) => FunctionInvocation(found.typed, Seq(x))
 			      case _ => fail("could not extract isEmpty"); null
 			    }
 				    
@@ -172,11 +172,11 @@ class VariableSolverRefinerTest extends FunSpec with GivenWhenThen {
 		      program.definedFunctions.find { 
 			      _.id.name == "isEmptyBad"
 			    } match {
-			      case Some(found) => (x: Expr) => FunctionInvocation(found, Seq(x))
+			      case Some(found) => (x: Expr) => FunctionInvocation(found.typed, Seq(x))
 			      case _ => fail("could not extract isEmpty"); null
 			    }
 			    
-		    val listVal = funDef.args.head.toVariable
+		    val listVal = funDef.params.head.toVariable
 			  val listLeonDeclaration = LeonDeclaration(
 			    ImmediateExpression( "tempVar", listVal ), 
 			    TypeTransformer(listAbstractClass), listAbstractClass

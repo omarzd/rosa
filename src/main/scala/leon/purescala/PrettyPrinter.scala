@@ -8,11 +8,13 @@ import Trees._
 import TypeTrees._
 import Definitions._
 
+import utils._
+
 import java.lang.StringBuffer
 
 /** This pretty-printer uses Unicode for some operators, to make sure we
  * distinguish PureScala from "real" Scala (and also because it's cute). */
-class PrettyPrinter(sb: StringBuffer = new StringBuffer) {
+class PrettyPrinter(opts: PrinterOptions, val sb: StringBuffer = new StringBuffer) {
   override def toString = sb.toString
 
   def append(str: String) {
@@ -55,16 +57,31 @@ class PrettyPrinter(sb: StringBuffer = new StringBuffer) {
     sb.append(post)
   }
 
-  def idToString(id: Identifier): String = id.toString
-
   def pp(tree: Tree, parent: Option[Tree])(implicit lvl: Int): Unit = {
     implicit val p = Some(tree)
 
     tree match {
-      case Variable(id) => sb.append(idToString(id))
-      case DeBruijnIndex(idx) => sb.append("_" + idx)
+      case id: Identifier =>
+        if (opts.printUniqueIds) {
+          sb.append(id.uniqueName)
+        } else {
+          sb.append(id.toString)
+        }
+
+      case Variable(id) =>
+        if (opts.printTypes) {
+          sb.append("(")
+          pp(id, p)
+          sb.append(": ")
+          pp(id.getType, p)
+          sb.append(")")
+        } else {
+          pp(id, p)
+        }
+
       case LetTuple(bs,d,e) =>
-        sb.append("(let (" + bs.map(idToString _).mkString(",") + " := ");
+        sb.append("(let ")
+        ppNary(bs, "(", ",", " :=");
         pp(d, p)
         sb.append(") in")
         nl(lvl+1)
@@ -72,7 +89,9 @@ class PrettyPrinter(sb: StringBuffer = new StringBuffer) {
         sb.append(")")
 
       case Let(b,d,e) =>
-        sb.append("(let (" + idToString(b) + " := ");
+        sb.append("(let (")
+        pp(b, p)
+        sb.append(" := ");
         pp(d, p)
         sb.append(") in")
         nl(lvl+1)
@@ -98,34 +117,59 @@ class PrettyPrinter(sb: StringBuffer = new StringBuffer) {
       case BooleanLiteral(v) => sb.append(v)
       case StringLiteral(s) => sb.append("\"" + s + "\"")
       case UnitLiteral => sb.append("()")
+      case GenericValue(tp, id) =>
+        pp(tp, p)
+        sb.append("#"+id)
+
       case t@Tuple(exprs) => ppNary(exprs, "(", ", ", ")")
       case s@TupleSelect(t, i) =>
         pp(t, p)
         sb.append("._" + i)
 
       case c@Choose(vars, pred) =>
-        sb.append("choose("+vars.map(idToString _).mkString(", ")+" => ")
+        sb.append("choose(")
+        ppNary(vars, "", ", ", "")
+        sb.append(" => ")
         pp(pred, p)
         sb.append(")")
 
-      case CaseClass(cd, args) =>
-        sb.append(idToString(cd.id))
-        if (cd.isCaseObject) {
+      case CaseClass(cct, args) =>
+        pp(cct, p)
+        if (cct.classDef.isCaseObject) {
           ppNary(args, "", "", "")
         } else {
           ppNary(args, "(", ", ", ")")
         }
 
-      case CaseClassInstanceOf(cd, e) =>
+      case CaseClassInstanceOf(cct, e) =>
         pp(e, p)
-        sb.append(".isInstanceOf[" + idToString(cd.id) + "]")
+        sb.append(".isInstanceOf[")
+        pp(cct, p)
+        sb.append("]")
 
       case CaseClassSelector(_, cc, id) =>
         pp(cc, p)
-        sb.append("." + idToString(id))
+        sb.append(".")
+        pp(id, p)
 
-      case FunctionInvocation(fd, args) =>
-        sb.append(idToString(fd.id))
+      case MethodInvocation(rec, _, tfd, args) =>
+        pp(rec, p)
+        sb.append(".")
+        pp(tfd.id, p)
+
+        if (tfd.tps.nonEmpty) {
+          ppNary(tfd.tps, "[", ",", "]")
+        }
+
+        ppNary(args, "(", ", ", ")")
+
+      case FunctionInvocation(tfd, args) =>
+        pp(tfd.id, p)
+
+        if (tfd.tps.nonEmpty) {
+          ppNary(tfd.tps, "[", ",", "]")
+        }
+
         ppNary(args, "(", ", ", ")")
 
       case Plus(l,r) => ppBinary(l, r, " + ")
@@ -265,9 +309,10 @@ class PrettyPrinter(sb: StringBuffer = new StringBuffer) {
           pp(rhs, p)(lvl+1)
 
       // Patterns
-      case CaseClassPattern(bndr, ccd, subps) =>
+      case CaseClassPattern(bndr, cct, subps) =>
         bndr.foreach(b => sb.append(b + " @ "))
-        sb.append(idToString(ccd.id)).append("(")
+        pp(cct, p)
+        sb.append("(")
         var c = 0
         val sz = subps.size
         subps.foreach(sp => {
@@ -279,10 +324,10 @@ class PrettyPrinter(sb: StringBuffer = new StringBuffer) {
         sb.append(")")
 
       case WildcardPattern(None)     => sb.append("_")
-      case WildcardPattern(Some(id)) => sb.append(idToString(id))
-      case InstanceOfPattern(bndr, ccd) =>
+      case WildcardPattern(Some(id)) => pp(id, p)
+      case InstanceOfPattern(bndr, cct) =>
         bndr.foreach(b => sb.append(b + " : "))
-        sb.append(idToString(ccd.id))
+        pp(cct, p)
 
       case TuplePattern(bndr, subPatterns) =>
         bndr.foreach(b => sb.append(b + " @ "))
@@ -297,6 +342,7 @@ class PrettyPrinter(sb: StringBuffer = new StringBuffer) {
 
       // Types
       case Untyped => sb.append("???")
+      case BottomType => sb.append("Nothing")
       case UnitType => sb.append("Unit")
       case Int32Type => sb.append("Int")
       case Int64Type => sb.append("Long")
@@ -332,22 +378,29 @@ class PrettyPrinter(sb: StringBuffer = new StringBuffer) {
         }
         sb.append(" => ")
         pp(tt, p)
-      case c: ClassType => sb.append(idToString(c.classDef.id))
+
+      case c: ClassType =>
+        pp(c.classDef.id, p)
+        if (c.tps.nonEmpty) {
+          ppNary(c.tps, "[", ",", "]")
+        }
 
 
       // Definitions
-      case Program(id, mainObj) =>
+      case Program(id, modules) =>
         assert(lvl == 0)
         sb.append("package ")
-        sb.append(idToString(id))
+        pp(id, p)
         sb.append(" {\n")
-        pp(mainObj, p)(lvl+1)
+        modules.foreach {
+          m => pp(m, p)(lvl+1)
+        }
         sb.append("}\n")
 
-      case ObjectDef(id, defs, invs) =>
+      case ModuleDef(id, defs) =>
         nl
         sb.append("object ")
-        sb.append(idToString(id))
+        pp(id, p)
         sb.append(" {")
 
         var c = 0
@@ -364,31 +417,65 @@ class PrettyPrinter(sb: StringBuffer = new StringBuffer) {
         nl
         sb.append("}\n")
 
-      case AbstractClassDef(id, parent) =>
-        nl
+      case acd @ AbstractClassDef(id, tparams, parent) =>
         sb.append("sealed abstract class ")
-        sb.append(idToString(id))
-        parent.foreach(p => sb.append(" extends " + idToString(p.id)))
+        pp(id, p)
 
-      case CaseClassDef(id, parent, varDecls) =>
-        nl
-        sb.append("case class ")
-        sb.append(idToString(id))
-        sb.append("(")
-        var c = 0
-        val sz = varDecls.size
+        if (tparams.nonEmpty) {
+          ppNary(tparams, "[", ",", "]")
+        }
 
-        varDecls.foreach(vd => {
-          sb.append(idToString(vd.id))
-          sb.append(": ")
-          pp(vd.tpe, p)
-          if(c < sz - 1) {
-            sb.append(", ")
+        parent.foreach{ par =>
+          sb.append(" extends ")
+          pp(par.id, p)
+        }
+
+        if (acd.methods.nonEmpty) {
+          sb.append(" {\n")
+          for (md <- acd.methods) {
+            ind(lvl+1)
+            pp(md, p)(lvl+1)
+            sb.append("\n\n")
           }
-          c = c + 1
-        })
-        sb.append(")")
-        parent.foreach(p => sb.append(" extends " + idToString(p.id)))
+          ind
+          sb.append("}")
+        }
+
+      case ccd @ CaseClassDef(id, tparams, parent, isObj) =>
+        if (isObj) {
+          sb.append("case object ")
+        } else {
+          sb.append("case class ")
+        }
+
+        pp(id, p)
+
+        if (tparams.nonEmpty) {
+          ppNary(tparams, "[", ", ", "]")
+        }
+
+        if (!isObj) {
+          ppNary(ccd.fields, "(", ", ", ")")
+        }
+
+        parent.foreach{ par =>
+          sb.append(" extends ")
+          pp(par.id, p)
+        }
+
+        if (ccd.methods.nonEmpty) {
+          sb.append(" {\n")
+          for (md <- ccd.methods) {
+            ind(lvl+1)
+            pp(md, p)(lvl+1)
+            sb.append("\n\n")
+          }
+          ind
+          sb.append("}")
+        }
+
+      case th: This =>
+        sb.append("this")
 
       case fd: FunDef =>
         for(a <- fd.annotations) {
@@ -406,20 +493,21 @@ class PrettyPrinter(sb: StringBuffer = new StringBuffer) {
         fd.postcondition.foreach{ case (id, postc) => {
           ind
           sb.append("@post: ")
-          sb.append(idToString(id)+" => ")
+          pp(id, p)
+          sb.append(" => ")
           pp(postc, p)(lvl)
           sb.append("\n")
         }}
 
         ind
         sb.append("def ")
-        sb.append(idToString(fd.id))
+        pp(fd.id, p)
         sb.append("(")
 
-        val sz = fd.args.size
+        val sz = fd.params.size
         var c = 0
-       
-        fd.args.foreach(arg => {
+        
+        fd.params.foreach(arg => {
           sb.append(arg.id)
           sb.append(" : ")
           pp(arg.tpe, p)
@@ -441,8 +529,25 @@ class PrettyPrinter(sb: StringBuffer = new StringBuffer) {
             sb.append("[unknown function implementation]")
         }
 
+      case TypeParameterDef(tp) =>
+        pp(tp, p)
+
+      case TypeParameter(id) =>
+        pp(id, p)
+
       case _ => sb.append("Tree? (" + tree.getClass + ")")
     }
+    if (opts.printPositions) {
+      ppos(tree.getPos)
+    }
+  }
+
+  def ppos(p: Position) = p match {
+    case op: OffsetPosition =>
+      sb.append("@"+op.toString)
+    case rp: RangePosition =>
+      sb.append("@"+rp.focusBegin.toString+"--"+rp.focusEnd.toString)
+    case _ =>
   }
 }
 
@@ -452,24 +557,37 @@ trait PrettyPrintable {
   def printWith(printer: PrettyPrinter)(implicit lvl: Int): Unit
 }
 
-class EquivalencePrettyPrinter() extends PrettyPrinter() {
-  override def idToString(id: Identifier) = id.name
+class EquivalencePrettyPrinter(opts: PrinterOptions) extends PrettyPrinter(opts) {
+  override def pp(tree: Tree, parent: Option[Tree])(implicit lvl: Int): Unit = {
+    tree match {
+      case id: Identifier =>
+        sb.append(id.name)
+
+      case _ =>
+        super.pp(tree, parent)
+    }
+  }
 }
 
 abstract class PrettyPrinterFactory {
-  def create: PrettyPrinter
+  def create(opts: PrinterOptions): PrettyPrinter
 
-  def apply(tree: Tree, ind: Int = 0): String = {
-    val printer = create
-    printer.pp(tree, None)(ind)
+  def apply(tree: Tree, opts: PrinterOptions = PrinterOptions()): String = {
+    val printer = create(opts)
+    printer.pp(tree, None)(opts.baseIndent)
     printer.toString
+  }
+
+  def apply(tree: Tree, ctx: LeonContext): String = {
+    val opts = PrinterOptions.fromContext(ctx)
+    apply(tree, opts)
   }
 }
 
 object PrettyPrinter extends PrettyPrinterFactory {
-  def create = new PrettyPrinter()
+  def create(opts: PrinterOptions) = new PrettyPrinter(opts)
 }
 
 object EquivalencePrettyPrinter extends PrettyPrinterFactory {
-  def create = new EquivalencePrettyPrinter()
+  def create(opts: PrinterOptions) = new EquivalencePrettyPrinter(opts)
 }

@@ -22,7 +22,7 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
   val name = "Real compilation"
   val description = "compilation of real programs"
 
-  implicit val debugSection = DebugSectionVerification
+  implicit val debugSection = utils.DebugSectionReals
 
   var reporter: Reporter = null
   private def debug(msg: String): Unit = {
@@ -77,7 +77,7 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
       }
 
     val (vcs, fncs) = analyzeThis(fncsToAnalyse, options.precision)
-    if (reporter.errorCount > 0) throw LeonFatalError()
+    if (reporter.errorCount > 0) throw LeonFatalError(None)
 
     //println("functions sorted: " + vcs)
     //fncs.foreach(f => println(f.fncId))
@@ -95,12 +95,12 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
       val (finalPrecision, success) = prover.check(vcs)
       if (success) {
         val codeGenerator = new CodeGenerator(reporter, ctx, options, program, finalPrecision, fncs)
-        val newProgram = codeGenerator.specToCode(program.id, program.mainObject.id, vcs)
+        val newProgram = codeGenerator.specToCode(program.id, program.modules(0).id, vcs)
         val newProgramAsString = ScalaPrinter(newProgram)
         reporter.info("Generated program with %d lines.".format(newProgramAsString.lines.length))
         //reporter.info(newProgramAsString)
 
-        val writer = new PrintWriter(new File("generated/" + newProgram.mainObject.id +".scala"))
+        val writer = new PrintWriter(new File("generated/" + newProgram.modules(0).id +".scala"))
         writer.write(newProgramAsString)
         writer.close()
       }
@@ -123,10 +123,11 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
       reporter.info("Analysing fnc:  %s".format(funDef.id.name))
       debug ("original fnc body: " + funDef.body.get)
 
-      funDef.precondition.map(pre => (pre, VariablePool(pre, funDef.returnType)) ).filter(p => p._2.hasValidInput(funDef.args)).map ({
+      funDef.precondition.map(pre => (pre, VariablePool(pre, funDef.returnType)) ).filter(
+        p => p._2.hasValidInput(funDef.params)).map ({
         case (pre, variables) => {
           debug ("precondition is acceptable")
-          val allFncCalls = functionCallsOf(funDef.body.get).map(invc => invc.funDef.id.toString)
+          val allFncCalls = functionCallsOf(funDef.body.get).map(invc => invc.tfd.id.toString)
 
           // Add default roundoff on inputs
           val precondition = And(pre, And(variables.inputsWithoutNoise.map(i => Roundoff(i))))
