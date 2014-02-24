@@ -1,10 +1,11 @@
+/* Copyright 2009-2014 EPFL, Lausanne */
 import leon.Real
 import Real._
 
-object JetEngine {
+object JetEngineApproxValid {
 
   def jetEngineStar(x1: Real, x2: Real): Real = {
-    require(x1 >< (-5, 5) && x2 >< (-20, 5) && x1 +/- 1e-8 && x2 +/- 1e-8)
+    require(-5 <= x1 && x1 <= 5 && -20 <= x2 && x2 <= 5 && x1 +/- 1e-8 && x2 +/- 1e-8)
 
     val t = (3*x1*x1 + 2*x2 - x1)
 
@@ -12,10 +13,10 @@ object JetEngine {
     (t/(x1*x1 + 1) - 3) + x1*x1*(4*(t/(x1*x1 + 1))-6))*
     (x1*x1 + 1) + 3*x1*x1*(t/(x1*x1 + 1)) + x1*x1*x1 + x1 +
     3*((3*x1*x1 + 2*x2 -x1)/(x1*x1 + 1)))
-  }
+  } ensuring(res => res +/- 0.1400174)
 
   def jetEngine(x1: Real, x2: Real): Real = {
-    require(x1 >< (-5, 5) && x2 >< (-20, 5))
+    require(-5 <= x1 && x1 <= 5 && -20 <= x2 && x2 <= 5)
 
     val t = (3*x1*x1 + 2*x2 - x1)
 
@@ -23,6 +24,6 @@ object JetEngine {
     (t/(x1*x1 + 1) - 3) + x1*x1*(4*(t/(x1*x1 + 1))-6))*
     (x1*x1 + 1) + 3*x1*x1*(t/(x1*x1 + 1)) + x1*x1*x1 + x1 +
     3*((3*x1*x1 + 2*x2 -x1)/(x1*x1 + 1)))
-  }
-
+  } ensuring(res => -1997.0368 < res && res < 5109.33738 && res +/- 1.6170399e-8)
+  
 }
