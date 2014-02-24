@@ -60,7 +60,7 @@ class RealRegression extends LeonTestSuite {
       } else {
 
         val report = pipeline.run(ctx)(file.getPath :: Nil)
-
+        block(Output(displayName, report, ctx.reporter))
       }
     }
   }
@@ -99,13 +99,13 @@ class RealRegression extends LeonTestSuite {
   
   forEachFileIn("valid") { output =>
     val Output(name, report, reporter) = output
-
+    
     val conditionCount = countMap.get(name) match {
       case Some(c) => c
       case None => report.totalConditions
     }    
-
-    assert(report.totalConditions === report.totalValid,
+    
+    assert(conditionCount === report.totalValid,
            "All verification conditions ("+report.totalConditions+") should be valid.")
     assert(reporter.errorCount === 0)
     //assert(reporter.warningCount === 0)
@@ -113,13 +113,14 @@ class RealRegression extends LeonTestSuite {
 
   forEachFileIn("invalid") { output =>
     val Output(name, report, reporter) = output
-
+    println("name: " + name)
+    println(countMap.get(name))
     val conditionCount = countMap.get(name) match {
       case Some(c) => c
       case None => report.totalConditions
     }    
 
-    assert(report.totalConditions === report.totalInvalid,
+    assert(conditionCount === report.totalInvalid,
            "All verification conditions ("+report.totalConditions+") should be invalid.")
     assert(reporter.errorCount === 0)
     //assert(reporter.warningCount === 0)
@@ -127,7 +128,7 @@ class RealRegression extends LeonTestSuite {
 
   forEachFileIn("unknown") { output =>
     val Output(name, report, reporter) = output
-
+    
     val conditionCount = countMap.get(name) match {
       case Some(c) => c
       case None => report.totalConditions
@@ -143,6 +144,7 @@ class RealRegression extends LeonTestSuite {
   //Sometimes some VCs pass, so we if this is the case, we specify here
   // how many should be valid/fail. This clearly does not scale...
   val countMap: Map[String, Int] = Map(
-    "regression/verification/real/unknown/TriangleUnstable.scala" -> 1
+    "regression/verification/real/unknown/TriangleUnstable.scala" -> 1,
+    "regression/verification/real/invalid/SineComparisonInvalid.scala" -> 1
     )
 }

@@ -10,7 +10,7 @@ object TriangleProgressionValid {
 
     val s = (a + b + c)/2.0
     sqrt(s * (s - a) * (s - b) * (s - c))
-  } ensuring (res => 0.29432 < res && res < 35.0741 && res +/- 2.72e-11)
+  } ensuring (res => 0.29663 < res && res < 35.0741 && res +/- 2.693e-11)
 
   def triangle2(a: Real, b: Real, c: Real): Real = {
     require(a >< (1.0, 9.0) && b >< (1.0, 9.0) && c >< (1.0, 9.0) &&
@@ -26,10 +26,10 @@ object TriangleProgressionValid {
 
     val s = (a + b + c)/2.0
     sqrt(s * (s - a) * (s - b) * (s - c))
-  } ensuring (res => 3.16031e-2 < res && res < 35.0741 && res +/- 2.53e-10)
+  } ensuring (res => 0.0316 < res && res < 35.0741 && res +/- 2.53e-10)
 
 
-  def triangle4(a: Real, b: Real, c: Real): Real = {
+  /*def triangle4(a: Real, b: Real, c: Real): Real = {
     require(a >< (1.0, 9.0) && b >< (1.0, 9.0) && c >< (1.0, 9.0) &&
       a + b > c + 1e-4 && a + c > b + 1e-4 && b + c > a + 1e-4)
 
@@ -76,6 +76,6 @@ object TriangleProgressionValid {
     val s = (a + b + c)/2.0
     sqrt(s * (s - a) * (s - b) * (s - c))
   } ensuring (res => 3.0517e-5 < res && res < 35.0741 && res +/- 2.62e-7)
-
+  */
 
 }
