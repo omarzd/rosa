@@ -524,4 +524,40 @@ object Trees {
     }
   }
 
+  case class UpdateFunction(lhs: Expr, rhs: Expr) extends Expr with FixedType with BinaryExtractable with PrettyPrintable {
+    val fixedType = UnitType
+
+    def extract: Option[(Expr, Expr, (Expr, Expr)=>Expr)] = {
+      Some((lhs, rhs, (t1, t2) => UpdateFunction(t1, t2)))
+    }
+    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
+      printer.append("(")
+      printer.pp(lhs, Some(this))
+      printer.append(" <== ")
+      printer.pp(rhs, Some(this))
+      printer.append(")")
+    }
+  } 
+
+  case class Iteration(ids: Seq[Identifier], body: Expr, updateFncs: Seq[Expr]) extends Expr with FixedType with NAryExtractable with PrettyPrintable {
+    val fixedType = TupleType(ids.map(i => RealType))
+
+    def extract: Option[(Seq[Expr], (Seq[Expr])=>Expr)] = {
+      Some((Seq(body) ++ updateFncs, (es) => Iteration(ids, es(0), es.tail)))
+    }
+
+    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
+      printer.append("iterate (")
+      printer.append(ids.mkString(", "))
+      printer.append(") {\n")
+      printer.pp(body, Some(this))(lvl + 1)
+      printer.append("\n")
+      (updateFncs.init).foreach(e => {
+        printer.pp(e,  Some(this))(lvl + 1)
+        printer.append("\n")
+      })
+      printer.pp(updateFncs.last, Some(this))
+      printer.append("}")
+    }
+  }
 }

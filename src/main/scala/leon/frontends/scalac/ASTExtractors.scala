@@ -688,7 +688,26 @@ trait ASTExtractors {
           Some((lhs, arg))
         case _ => None
       }
-    }    
+    }
+
+    object ExIterate {
+      def unapply(tree: Apply): Option[Tree] = tree match {
+        case Apply(select, List(rhs)) if (select.toString == "leon.Real.iterate") =>
+          Some(rhs)
+        case _ => None
+      }
+    }
+
+    object ExUpdateFunction {
+      def unapply(tree: Apply): Option[(Tree, Tree)] = tree match {
+        case Apply(Select(lhs, n), List(rhs)) if (n.toString == "$less$eq$eq" ) =>
+          Some(lhs, rhs)
+
+        case Apply(Select(lhs, n), List(rhs)) if (n.toString == "$less$minus$minus" ) =>
+          Some(lhs, rhs)
+        case _ => None
+      }
+    }
   
     object ExPatternMatching {
       def unapply(tree: Match): Option[(Tree,List[CaseDef])] =

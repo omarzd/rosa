@@ -19,6 +19,20 @@ import real.{FixedPointFormat => FPFormat}
 
 object TreeOps {
 
+  def letsToEquals(expr: Expr): Expr = expr match {
+    case Equals(l, r) => Equals(l, letsToEquals(r))
+    case IfExpr(cond, thenn, elze) =>
+      IfExpr(cond, letsToEquals(thenn), letsToEquals(elze))
+
+    case Let(binder, value, body) =>
+      And(Equals(Variable(binder), letsToEquals(value)), letsToEquals(body))
+
+    case Block(exprs, last) =>
+      And(exprs.map(e => letsToEquals(e)) :+ letsToEquals(last))
+
+    case _ => expr
+  }
+
   def containsIfExpr(expr: Expr): Boolean = {
     exists{
       case _: IfExpr => true

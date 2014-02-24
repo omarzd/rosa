@@ -134,7 +134,7 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
           debug ("precondition: " + precondition)
 
           val resFresh = variables.resIds
-          val body = convertLetsToEquals(funDef.body.get)
+          val body = letsToEquals(funDef.body.get)
 
           funDef.postcondition match {
              //Option[(Identifier, Expr)]
@@ -191,19 +191,6 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
       List(BooleanLiteral(false))
   }
 
-  private def convertLetsToEquals(expr: Expr): Expr = expr match {
-    case Equals(l, r) => Equals(l, convertLetsToEquals(r))
-    case IfExpr(cond, thenn, elze) =>
-      IfExpr(cond, convertLetsToEquals(thenn), convertLetsToEquals(elze))
-
-    case Let(binder, value, body) =>
-      And(Equals(Variable(binder), convertLetsToEquals(value)), convertLetsToEquals(body))
-
-    case Block(exprs, last) =>
-      And(exprs.map(e => convertLetsToEquals(e)) :+ convertLetsToEquals(last))
-
-    case _ => expr
-  }
   /*
   class AssertionRemover extends TransformerWithPC {
     type C = Seq[Expr]

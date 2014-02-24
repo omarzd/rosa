@@ -20,7 +20,8 @@ import purescala.TypeTreeOps._
 import xlang.Trees.{Block => LeonBlock, _}
 import xlang.TreeOps._
 import real.Trees.{UMinusR, PlusR, MinusR, TimesR, DivisionR, SqrtR, RealLiteral, RelError, Noise, InitialNoise, 
-  Actual, Assertion, WithIn}
+  Actual, Assertion, WithIn, UpdateFunction, Iteration}
+import real.TreeOps.letsToEquals
 
 import utils.{DefinedPosition, Position => LeonPosition, OffsetPosition => LeonOffsetPosition, RangePosition => LeonRangePosition}
 
@@ -1043,6 +1044,35 @@ trait CodeExtraction extends ASTExtractors {
             case _ =>
               outOfSubsetError(tr, "invalid use of ><")    
           }
+
+        case ExIterate(es) =>
+          val block = extractTree(es)
+
+          val (updateFncs: Seq[UpdateFunction], body) = letsToEquals(block) match {
+            case And(args) =>
+              args.partition(a => a.isInstanceOf[UpdateFunction])
+            case u: UpdateFunction =>
+              (Seq(u), Seq.empty)
+            case _ =>
+              outOfSubsetError(tr, "iteration is missing the update function")
+          }
+          
+          val ids = updateFncs.map { up =>
+              up.lhs match {
+                case Variable(id) => id
+                case _ => 
+                  outOfSubsetError(tr, "Lhs of update has to be a variable!")
+              }
+            }
+          
+          Iteration(ids, And(body), updateFncs)
+          
+        case ExUpdateFunction(lhs, rhs) =>
+          val lt = extractTree(lhs)
+          val rt = extractTree(rhs)
+          UpdateFunction(lt, rt)
+
+          //outOfSubsetError(tr, "blubb")
           
         case ExFiniteSet(tt, args)  =>
           val underlying = extractType(tt.tpe)
