@@ -34,9 +34,8 @@ class Approximator(reporter: Reporter, solver: RealSolver, precision: Precision,
   }
 
   val leonToZ3 = new LeonToZ3Transformer(inputs, precision)
-  val noiseRemover = new NoiseRemover
-
-  val initialCondition: Expr = leonToZ3.getZ3Expr(noiseRemover.transform(precondition))
+  
+  val initialCondition: Expr = leonToZ3.getZ3Expr(removeErrors(precondition))
   val config = XConfig(solver, initialCondition, solverMaxIterMedium, solverPrecisionMedium)
   if (verbose) println("initial config: " + config)
 
@@ -310,10 +309,12 @@ class Approximator(reporter: Reporter, solver: RealSolver, precision: Precision,
 
           precision match {
             case FPPrecision(bts) => xFixedWithUncertain(fresh, interval,
-              config.addCondition(replace(Map(Variable(resId) -> fresh), leonToZ3.getZ3Condition(noiseRemover.transform(specExpr)))),
+              config.addCondition(replace(Map(Variable(resId) -> fresh),
+                leonToZ3.getZ3Condition(removeErrors(specExpr)))),
               error, false, bts)._1
           case _ => xFloatWithUncertain(fresh, interval,
-            config.addCondition(replace(Map(Variable(resId) -> fresh), leonToZ3.getZ3Condition(noiseRemover.transform(specExpr)))),
+            config.addCondition(replace(Map(Variable(resId) -> fresh),
+              leonToZ3.getZ3Condition(removeErrors(specExpr)))),
             error, false, machineEps)._1
           }
         })
