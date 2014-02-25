@@ -3,6 +3,7 @@
 package leon
 package real
 
+import purescala.TransformerWithPC
 import leon.purescala.Definitions._
 import leon.purescala.Common._
 import leon.purescala.TypeTrees._
@@ -98,12 +99,13 @@ class VariablePool(inputs: Map[Expr, Record], val resIds: Seq[Identifier]) {
     RationalInterval(rec.lo.get, rec.up.get)
   }
 
-  def hasValidInput(varDecl: Seq[VarDecl]): Boolean = {
+  def hasValidInput(varDecl: Seq[ValDef], reporter: Reporter): Boolean = {
     val params: Seq[Expr] = varDecl.map(vd => Variable(vd.id))
-    if (inputs.size != params.size) {
-      false
+    if (inputs.size == params.size && inputs.forall(v => params.contains(v._1) && v._2.isBoundedValid)) {
+      true
     } else {
-      inputs.forall(v => params.contains(v._1) && v._2.isBoundedValid)
+      reporter.warning("skipping, invalid input")
+      false 
     }
   }
 
@@ -170,6 +172,16 @@ object VariablePool {
 
       case GreaterThan(x @ Variable(_), RealLiteral(lwrBnd)) => // x > a
         recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newLo(lwrBnd)); e
+
+      case Equals(x @ Variable(_), RealLiteral(value)) => // x == value
+        recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newLo(value))
+        recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newUp(value))
+        e
+
+      case Equals(RealLiteral(value), x @ Variable(_)) => // x == value
+        recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newLo(value))
+        recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newUp(value))
+        e
 
       case Noise(x @ Variable(_), RealLiteral(value)) =>
         recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newAbsUncert(value)); e

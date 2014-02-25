@@ -3,6 +3,7 @@
 package leon
 package real
 
+import purescala.TransformerWithPC
 import purescala.Common._
 import purescala.Definitions._
 import purescala.Trees._
@@ -17,6 +18,27 @@ import VariableShop._
 import real.{FixedPointFormat => FPFormat}
 
 object TreeOps {
+
+  def letsToEquals(expr: Expr): Expr = expr match {
+    case Equals(l, r) => Equals(l, letsToEquals(r))
+    case IfExpr(cond, thenn, elze) =>
+      IfExpr(cond, letsToEquals(thenn), letsToEquals(elze))
+
+    case Let(binder, value, body) =>
+      And(Equals(Variable(binder), letsToEquals(value)), letsToEquals(body))
+
+    case Block(exprs, last) =>
+      And(exprs.map(e => letsToEquals(e)) :+ letsToEquals(last))
+
+    case _ => expr
+  }
+
+  def containsIfExpr(expr: Expr): Boolean = {
+    exists{
+      case _: IfExpr => true
+      case _ => false
+    }(expr)
+  }
 
   /* ----------------------
          Analysis phase
@@ -193,16 +215,16 @@ object TreeOps {
         }).unzip
 
         val pathToFncCall = And(path ++ morePath)
-        val arguments: Map[Expr, Expr] = funDef.args.map(decl => decl.toVariable).zip(simpleArgs).toMap
+        val arguments: Map[Expr, Expr] = funDef.params.map(decl => decl.toVariable).zip(simpleArgs).toMap
         val toProve = replace(arguments, roundoffRemover.transform(funDef.precondition.get))
 
-        val allFncCalls = functionCallsOf(pathToFncCall).map(invc => invc.funDef.id.toString)
+        val allFncCalls = functionCallsOf(pathToFncCall).map(invc => invc.tfd.id.toString)
         vcs :+= new VerificationCondition(outerFunDef, Precondition, precondition, pathToFncCall, toProve, allFncCalls, variables, precisions)
         e
 
       case Assertion(toProve) =>
         val pathToAssertion = And(path)
-        val allFncCalls = functionCallsOf(pathToAssertion).map(invc => invc.funDef.id.toString)
+        val allFncCalls = functionCallsOf(pathToAssertion).map(invc => invc.tfd.id.toString)
         vcs :+= new VerificationCondition(outerFunDef, Assert, precondition, pathToAssertion, toProve, allFncCalls, variables, precisions)
         e
       case _ =>
@@ -243,9 +265,10 @@ object TreeOps {
     def register(e: Expr, path: C) = path :+ e
 
     override def rec(e: Expr, path: C) = e match {
-      case FunctionInvocation(funDef, args) =>
-        val arguments: Map[Expr, Expr] = funDef.args.map(decl => decl.toVariable).zip(args).toMap
-
+      case FunctionInvocation(typedFunDef, args) =>
+        val funDef = typedFunDef.fd
+        val arguments: Map[Expr, Expr] = funDef.params.map(decl => decl.toVariable).zip(args).toMap
+        
         funDef.postcondition.flatMap({
           case (resId, postExpr) =>
             val resFresh = resId.getType match {
@@ -392,11 +415,11 @@ object TreeOps {
 
     override def rec(e: Expr, path: C) = e match {
       case FunctionInvocation(funDef, args) =>
-        val arguments: Map[Expr, Expr] = funDef.args.map(decl => decl.toVariable).zip(args).toMap
-        val fncBody = fncs(funDef).body
+        val arguments: Map[Expr, Expr] = funDef.fd.params.map(decl => decl.toVariable).zip(args).toMap
+        val fncBody = fncs(funDef.fd).body
 
         val newBody = replace(arguments, fncBody)
-        FncBody(funDef.id.name, newBody, funDef, args)
+        FncBody(funDef.id.name, newBody, funDef.fd, args)
 
       case _ =>
           super.rec(e, path)
@@ -454,13 +477,13 @@ object TreeOps {
 
         val (ssa, newArgs) = argsToSSA.unzip
 
-        val arguments: Map[Expr, Expr] = funDef.args.map(decl => decl.toVariable).zip(newArgs).toMap
-        val fncBody = fncs(funDef).body
+        val arguments: Map[Expr, Expr] = funDef.fd.params.map(decl => decl.toVariable).zip(newArgs).toMap
+        val fncBody = fncs(funDef.fd).body
 
         val newBody = replace(arguments, fncBody)
         
         val tmpVar = getFreshValidTmp
-        (ssa.flatten :+ Equals(tmpVar, FncBody(funDef.id.name, newBody, funDef, newArgs)), tmpVar)
+        (ssa.flatten :+ Equals(tmpVar, FncBody(funDef.id.name, newBody, funDef.fd, newArgs)), tmpVar)
 
     }
 
@@ -809,7 +832,8 @@ object TreeOps {
 
     case GreaterEquals(_, _) | GreaterThan(_, _) | LessEquals(_, _) | LessThan(_, _) => expr
 
-    case FncBodyF(name, body, funDef, args) => FunctionInvocation(funDef, args) 
+    case FncBodyF(name, body, funDef, args) =>
+      FunctionInvocation(TypedFunDef(funDef, Seq.empty), args) 
 
     case EqualsF(vr, PlusF(lhs, rhs)) =>
       val resultFormat = formats(vr)
