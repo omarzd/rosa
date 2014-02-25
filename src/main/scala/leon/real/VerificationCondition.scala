@@ -15,12 +15,15 @@ case class Spec(id: Identifier, bounds: RationalInterval, absError: Rational)
 
 
 // The condition is pre => post
-class VerificationCondition(val funDef: FunDef, val kind: VCKind.Value, val pre: Expr, val body: Expr,
-  val post: Expr, val variables: VariablePool, precisions: List[Precision]) extends Positioned {
+class VerificationCondition(val funDef: FunDef, val kind: VCKind.Value, val pre: Expr,
+  val body: Expr, val post: Expr, val variables: VariablePool,
+  precisions: List[Precision]) extends Positioned {
 
   var allFncCalls = Set[String]()
 
   val fncId = funDef.id.toString // not unique
+
+  val isLoop = TreeOps.containsIteration(body)
 
   // (lowerBnd, upperBnd) absError
   var spec: Map[Precision, Seq[Spec]] = precisions.map(p => (p, Seq())).toMap
@@ -30,7 +33,8 @@ class VerificationCondition(val funDef: FunDef, val kind: VCKind.Value, val pre:
   // Some(false) = invalid
   var value: Map[Precision, Option[Boolean]] = precisions.map(p => (p, None)).toMap
 
-  def this(fD: FunDef, k:VCKind.Value, pe: Expr, b: Expr, po: Expr, fncCalls: Set[String], vars: VariablePool, precs: List[Precision]) = {
+  def this(fD: FunDef, k:VCKind.Value, pe: Expr, b: Expr, po: Expr, fncCalls: Set[String],
+    vars: VariablePool, precs: List[Precision]) = {
     this(fD, k, pe, b, po, vars, precs)
     allFncCalls = fncCalls
   }
@@ -41,8 +45,8 @@ class VerificationCondition(val funDef: FunDef, val kind: VCKind.Value, val pre:
     case Some(false) => "invalid"
   }
 
-  var approximations: Map[Precision, List[Approximation]] = precisions.map(p => (p, List())).toMap
-
+  var approximations: Map[Precision, List[Approximation]] =
+    precisions.map(p => (p, List())).toMap
 
   var time : Option[Double] = None
   var counterExample : Option[Map[Identifier, Expr]] = None

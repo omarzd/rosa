@@ -33,6 +33,13 @@ object TreeOps {
     case _ => expr
   }
 
+  def containsIteration(expr: Expr): Boolean = {
+    exists {
+      case _: Iteration => true
+      case _ => false
+    }(expr)
+  }
+
   def containsIfExpr(expr: Expr): Boolean = {
     exists{
       case _: IfExpr => true

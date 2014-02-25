@@ -5,6 +5,7 @@ object HarmonicOscillator {
 
 
   def euler(x: Real, v: Real): (Real, Real) = {
+    require(0.15 <= x && x <= 0.25 && 3.35 <= v && v <= 3.45)
     iterate {
       val tmp = 0.1 * v
       x <== x + tmp

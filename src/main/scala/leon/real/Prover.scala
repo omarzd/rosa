@@ -1,4 +1,4 @@
-/* Copyright 2013 EPFL, Lausanne */
+/* Copyright 2013-2014 EPFL, Lausanne */
 
 package leon
 package real
@@ -47,6 +47,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
   // Returns the precision with which we can satisfy all constraints, or the last one tried,
   // as well as an indication whether verification was successfull.
   def check(vcs: Seq[VerificationCondition]): (Precision, Boolean) = {
+    reporter.debug("VCs: " + vcs)
     val validApproximations = getApplicableApproximations(vcs)
 
     val precisions = options.precision

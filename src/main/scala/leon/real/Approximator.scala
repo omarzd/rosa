@@ -46,17 +46,18 @@ class Approximator(reporter: Reporter, solver: RealSolver, precision: Precision,
   }
   if (verbose) println("initial variables: " + variables)
 
-  /* 'generateFullConstraint' will ignore the returned approximation and generate a constraint
-     over all (intermediate) variables. This mode should be used for checking pre-conditions.
-    @return (computed constraint, spec of the result, if applicable)
-   */
-  def transformWithSpec(e: Expr, fullConstraint: Boolean): (Expr, Seq[Spec]) = {
-    def constraintFromXFloats(results: Map[Expr, XReal]): Expr = {
+  def constraintFromXFloats(results: Map[Expr, XReal]): Expr = {
       And(results.foldLeft(Seq[Expr]())(
         (seq, kv) => seq ++ Seq(LessEquals(RealLiteral(kv._2.interval.xlo), kv._1),
                                 LessEquals(kv._1, RealLiteral(kv._2.interval.xhi)),
                                 Noise(inputs.getIdeal(kv._1), RealLiteral(kv._2.maxError)))))
     }
+  /* 'generateFullConstraint' will ignore the returned approximation and generate a constraint
+     over all (intermediate) variables. This mode should be used for checking pre-conditions.
+    @return (computed constraint, spec of the result, if applicable)
+   */
+  def transformWithSpec(e: Expr, fullConstraint: Boolean): (Expr, Seq[Spec]) = {
+    
     e match {
       case BooleanLiteral(_) => (e, Seq())  // if no body
       case _ =>
@@ -85,6 +86,15 @@ class Approximator(reporter: Reporter, solver: RealSolver, precision: Precision,
           }
         }
     }
+  }
+
+  // used for loops
+  def computeError(e: Expr): Rational = e match {
+    case BooleanLiteral(_) => Rational.zero
+    case _ =>
+      val approximation = approx(e, Seq())
+      assert(approximation.length == 1, "computing error on tuple-typed expression!")
+      approximation(0).maxError
   }
 
   private def register(path: Seq[Expr], e: Expr) = e match {

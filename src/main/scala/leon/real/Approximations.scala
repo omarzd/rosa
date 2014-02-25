@@ -5,10 +5,12 @@ package real
 
 import purescala.Trees._
 import purescala.Definitions._
+import purescala.TreeOps._
 
-import real.Trees.{Noise, Roundoff, Actual}
+import real.Trees.{Noise, Roundoff, Actual, UpdateFunction, Iteration}
 import real.TreeOps._
 import Rational._
+import Calculus._
 
 class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc],
   reporter: Reporter, solver: RealSolver) {
@@ -19,8 +21,26 @@ class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc],
 
   implicit val debugSection = utils.DebugSectionReals
 
+  private def inlineBody(body: Expr, updateFncs: Seq[UpdateFunction]): Seq[UpdateFunction] = {
+    var valMap: Map[Expr, Expr] = Map.empty
+    preTraversal { expr => expr match {
+        case Equals(v @ Variable(id), rhs) =>
+          valMap = valMap + (v -> replace(valMap,rhs))
+        case _ => ;
+      }
+    }(body)
+    updateFncs.map( uf => UpdateFunction(uf.lhs, replace(valMap, uf.rhs)))
+  }
+
+  private def maxAbs(nums: Seq[Rational]): Rational = nums match {
+    case Seq(n) => abs(n)
+    case _ => max(abs(nums.head), maxAbs(nums.tail))
+  }
+
   // DOC: we only support function calls in fnc bodies, not in pre and post
-  def getApproximation(vc: VerificationCondition, kind: ApproxKind, precision: Precision, postMap: Map[FunDef, Seq[Spec]]): Approximation = {
+  def getApproximation(vc: VerificationCondition, kind: ApproxKind, precision: Precision,
+    postMap: Map[FunDef, Seq[Spec]]): Approximation = {
+    // TODO: check which of these have state
     val postInliner = new PostconditionInliner(precision, postMap)
     val fncInliner = new FunctionInliner(fncs)
     val leonToZ3 = new LeonToZ3Transformer(vc.variables, precision)
@@ -36,68 +56,114 @@ class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc],
       }
     }
 
-    val (pre, bodyFnc, post) = kind.fncHandling match {
-      case Uninterpreted => (vc.pre, vc.body, vc.post)
-      case Postcondition => (vc.pre, postInliner.transform(vc.body), vc.post)
-      case Inlining => (vc.pre, fncInliner.transform(vc.body), vc.post)
-    }
-    if (kind.fncHandling != Uninterpreted) reporter.debug("after FNC handling:\npre: %s\nbody: %s\npost: %s".format(pre,bodyFnc,post))
+    
+    if (vc.isLoop) {
+      reporter.debug("vc is a loop")
+      var constraints = Seq[Constraint]()
 
-    val paths: Set[Path] = kind.pathHandling match {
-      case Pathwise => getPaths(bodyFnc).map {
-        case (cond, expr) => Path(cond, expr, idealToActual(expr, vc.variables))
+      vc.body match {
+        case Iteration(ids, body, updateFncs) =>
+          val inlinedUpdateFns = inlineBody(body, updateFncs.asInstanceOf[Seq[UpdateFunction]])
+          reporter.debug("inlined fncs: " + inlinedUpdateFns)
+
+          val noiseRemover = new NoiseRemover
+          val precondition = noiseRemover.transform(vc.pre)//removeErrors(vc.pre)
+
+          // List[(maxError, max Lipschitz constant)]
+          val errors = inlinedUpdateFns.map({
+            case UpdateFunction(v, expr) =>
+              reporter.debug("")
+              reporter.debug("real update fnc for " + v + ": " + expr)
+              val exprFinite = idealToActual(expr, vc.variables)
+              reporter.debug("finite expr: " + exprFinite)
+
+              // since it's inlined, we may be able to use the same one...
+              val transformer = new Approximator(reporter, solver, precision, vc.pre, vc.variables, false)
+              // TODO: the errors here are computed with initial roundoff error, bt we want exact inputs
+              val maxError = transformer.computeError(exprFinite)
+
+              reporter.debug("maxError: " + maxError)
+              val ls = ids.flatMap { id =>
+                val exprPrime = d(expr, id)
+                val range = solver.getRange(precondition, exprPrime, vc.variables,
+                    solverMaxIterMedium, solverPrecisionMedium) 
+                reporter.debug("Lipschitz constant wrt " + id + ": " + range)
+                Seq(range.xlo, range.xhi)
+              }
+              reporter.debug("Ls: " + ls)
+              (maxError, maxAbs(ls))
+          })
+          reporter.debug("")
+          reporter.debug("errors: " + errors)
+
+        case _ => reporter.error("cannot handle anything but a simple loop...")
       }
-      case Merging =>  Set(Path(True, bodyFnc, idealToActual(bodyFnc, vc.variables)))
-    }
-    reporter.debug("after PATH handling:\nbody: %s".format(paths.mkString("\n")))
 
+      Approximation(kind, constraints, emptySpecTuple)
+    } else { 
 
-    kind.arithmApprox match {
-      case Z3Only =>
-        var constraints = Seq[Constraint]()
-        for (path <- paths) {
-          constraints :+= Constraint(And(pre, path.condition), path.bodyReal, path.bodyFinite, post)
+      val (pre, bodyFnc, post) = kind.fncHandling match {
+        case Uninterpreted => (vc.pre, vc.body, vc.post)
+        case Postcondition => (vc.pre, postInliner.transform(vc.body), vc.post)
+        case Inlining => (vc.pre, fncInliner.transform(vc.body), vc.post)
+      }
+      if (kind.fncHandling != Uninterpreted) reporter.debug("after FNC handling:\npre: %s\nbody: %s\npost: %s".format(pre,bodyFnc,post))
+
+      val paths: Set[Path] = kind.pathHandling match {
+        case Pathwise => getPaths(bodyFnc).map {
+          case (cond, expr) => Path(cond, expr, idealToActual(expr, vc.variables))
         }
-        Approximation(kind, constraints, Seq())
+        case Merging =>  Set(Path(True, bodyFnc, idealToActual(bodyFnc, vc.variables)))
+      }
+      reporter.debug("after PATH handling:\nbody: %s".format(paths.mkString("\n")))
 
-      case JustFloat =>
-        var constraints = Seq[Constraint]()
-        var specsPerPath = Seq[SpecTuple]()
-        var spec: SpecTuple = Seq() // seq since we can have tuples
+      kind.arithmApprox match {
+        case Z3Only =>
+          var constraints = Seq[Constraint]()
+          for (path <- paths) {
+            constraints :+= Constraint(And(pre, path.condition), path.bodyReal, path.bodyFinite, post)
+          }
+          Approximation(kind, constraints, Seq())
 
-        for ( path <- paths if (isFeasible(And(pre, path.condition))) ) {
-          //solver.clearCounts
-          val transformer = new Approximator(reporter, solver, precision, And(pre, path.condition), vc.variables, options.pathError)
-          val (bodyFiniteApprox, nextSpecs) = transformer.transformWithSpec(path.bodyFinite, vc.kind == VCKind.Precondition)
-          //println("solver counts: " + solver.getCounts)
-          spec = mergeSpecs(spec, nextSpecs)
-          //if(!nextSpec.isEmpty)
-          specsPerPath :+= nextSpecs//.get// else specsPerPath :+= DummySpec
-          reporter.debug("body after approx: " + bodyFiniteApprox)
-          constraints :+= Constraint(And(pre, path.condition), path.bodyReal, bodyFiniteApprox, post)
-        }
-        val approx = Approximation(kind, constraints, spec)
-        vc.approximations += (precision -> (vc.approximations(precision) :+ approx))
-        approx.specsPerPath = specsPerPath
-        approx
+        case JustFloat =>
+          var constraints = Seq[Constraint]()
+          var specsPerPath = Seq[SpecTuple]()
+          var spec: SpecTuple = Seq() // seq since we can have tuples
 
-      case FloatNRange => // assumes that a JustFloat approximation has already been computed
-        val justFloatApprox = vc.approximations(precision).find(a =>
-          a.kind.fncHandling == kind.fncHandling && a.kind.pathHandling == kind.pathHandling && a.kind.arithmApprox == JustFloat
-          )
+          for ( path <- paths if (isFeasible(And(pre, path.condition))) ) {
+            //solver.clearCounts
+            val transformer = new Approximator(reporter, solver, precision, And(pre, path.condition), vc.variables, options.pathError)
+            val (bodyFiniteApprox, nextSpecs) = transformer.transformWithSpec(path.bodyFinite, vc.kind == VCKind.Precondition)
+            //println("solver counts: " + solver.getCounts)
+            spec = mergeSpecs(spec, nextSpecs)
+            //if(!nextSpec.isEmpty)
+            specsPerPath :+= nextSpecs//.get// else specsPerPath :+= DummySpec
+            reporter.debug("body after approx: " + bodyFiniteApprox)
+            constraints :+= Constraint(And(pre, path.condition), path.bodyReal, bodyFiniteApprox, post)
+          }
+          val approx = Approximation(kind, constraints, spec)
+          vc.approximations += (precision -> (vc.approximations(precision) :+ approx))
+          approx.specsPerPath = specsPerPath
+          approx
 
-        justFloatApprox match {
-          case Some(approx) =>
-            val newConstraints =
-              for (
-                (cnstr, specs) <- approx.constraints.zip(approx.specsPerPath)
-              ) yield
-                Constraint(cnstr.precondition, And(specs.map(specToRealExpr(_))), cnstr.finiteComp, cnstr.postcondition)
-            Approximation(kind, newConstraints, approx.spec)
-          case None =>
-            throw new RealArithmeticException("Cannot compute Float'n'Range approximation because JustFloat approximation is missing.")
-            null
-        }
+        case FloatNRange => // assumes that a JustFloat approximation has already been computed
+          val justFloatApprox = vc.approximations(precision).find(a =>
+            a.kind.fncHandling == kind.fncHandling && a.kind.pathHandling == kind.pathHandling && a.kind.arithmApprox == JustFloat
+            )
+
+          justFloatApprox match {
+            case Some(approx) =>
+              val newConstraints =
+                for (
+                  (cnstr, specs) <- approx.constraints.zip(approx.specsPerPath)
+                ) yield
+                  Constraint(cnstr.precondition, And(specs.map(specToRealExpr(_))), cnstr.finiteComp, cnstr.postcondition)
+              Approximation(kind, newConstraints, approx.spec)
+            case None =>
+              throw new RealArithmeticException("Cannot compute Float'n'Range approximation because JustFloat approximation is missing.")
+              null
+          }
+      }
     }
   }
 
@@ -108,6 +174,7 @@ object Approximations {
 
   // to avoid confusion with nested sequences
   type SpecTuple = Seq[Spec]
+  val emptySpecTuple: SpecTuple = Seq.empty
 
   def mergeSpecs(currentSpec: SpecTuple, newSpecs: SpecTuple): SpecTuple = (currentSpec, newSpecs) match {
     case (Seq(), specs) => specs
