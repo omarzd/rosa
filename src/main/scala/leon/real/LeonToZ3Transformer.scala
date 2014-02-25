@@ -3,6 +3,7 @@
 package leon
 package real
 
+import purescala.TransformerWithPC
 import purescala.Common._
 import purescala.Trees._
 import purescala.TreeOps._
@@ -51,6 +52,7 @@ class LeonToZ3Transformer(variables: VariablePool, precision: Precision) extends
         Equals(variables.buddy(v), TimesR(PlusR(new RealLiteral(1), delta), v))
 
       // For bspline 3 to work, we need this:
+      // TODO:  test if better in general?
       /*case Noise(v @ Variable(_), r @ RealLiteral(value)) =>
         And(LessEquals(RealLiteral(-value), MinusR(v, variables.buddy(v))),
             LessEquals(MinusR(v, variables.buddy(v)), r))
@@ -155,9 +157,16 @@ class LeonToZ3Transformer(variables: VariablePool, precision: Precision) extends
       case WithIn(x, lwrBnd, upBnd) =>
         And(LessThan(RealLiteral(lwrBnd), x), LessThan(x, RealLiteral(upBnd)))
 
-      case FncValue(spec, specExpr) =>
+      /* 
+      Apparently this is not true:
+      if we allow only tuples as the last return value, this is not needed
+      else we need to modify the whole function to be returning tuples, or we return one, maybe that works too
+      */
+      // TODO: what happens with tuples?
+      case FncValue(specs, specExpr) =>
         val fresh = getNewXFloatVar
-        addExtra(rec(replace(Map(Variable(spec.id) -> fresh), specExpr), path))
+        // tuples: fresh will have to be a tuple?
+        addExtra(rec(replace(Map(Variable(specs(0).id) -> fresh), specExpr), path))
         fresh
 
       case FncBody(name, body, fundef, args) =>

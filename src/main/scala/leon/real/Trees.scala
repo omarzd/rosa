@@ -3,12 +3,13 @@
 package leon
 package real
 
-import leon.purescala.Common._
-import leon.purescala.TypeTrees._
-import leon.purescala.Trees._
-import leon.purescala.Definitions._
-import leon.purescala.Extractors._
-import leon.purescala.{PrettyPrinter, PrettyPrintable, ScalaPrinter}
+import purescala.Common._
+import purescala.TypeTrees._
+import purescala.TypeTreeOps.leastUpperBound
+import purescala.Trees._
+import purescala.Definitions._
+import purescala.Extractors._
+import purescala.{PrettyPrinter, PrettyPrintable, ScalaPrinter}
 
 object Trees {
 
@@ -356,8 +357,8 @@ object Trees {
     }
   }
 
-  // A value returned from a function call desribed by it's specification
-  case class FncValue(spec: Spec, specExpr: Expr) extends Expr with FixedType with UnaryExtractable with PrettyPrintable {
+  // A value returned from a function call described by it's specification
+  case class FncValue(spec: Seq[Spec], specExpr: Expr) extends Expr with FixedType with UnaryExtractable with PrettyPrintable {
     val fixedType = RealType
     def extract: Option[(Expr, (Expr)=>Expr)] = {
       Some((specExpr, (e) => FncValue(spec, e)))
@@ -369,7 +370,7 @@ object Trees {
     }
   }
 
-  case class FncValueF(spec: Spec, specExpr: Expr) extends Expr with FixedType with UnaryExtractable with PrettyPrintable {
+  case class FncValueF(spec: Seq[Spec], specExpr: Expr) extends Expr with FixedType with UnaryExtractable with PrettyPrintable {
     val fixedType = RealType
     def extract: Option[(Expr, (Expr)=>Expr)] = {
       Some((specExpr, (e) => FncValueF(spec, e)))
@@ -438,8 +439,8 @@ object Trees {
     }
   }
 
-  case class FncInvocationF(funDef: FunDef, args: Seq[Expr]) extends Expr with FixedType with NAryExtractable with PrettyPrintable {
-    assert(funDef.returnType == RealType)
+  case class FncInvocationF(funDef: TypedFunDef, args: Seq[Expr]) extends Expr with FixedType with NAryExtractable with PrettyPrintable {
+    //assert(funDef.returnType == RealType)  doesn't hold any more with tuples
     val fixedType = RealType
 
     def extract: Option[(Seq[Expr], (Seq[Expr])=>Expr)] = {
@@ -523,4 +524,40 @@ object Trees {
     }
   }
 
+  case class UpdateFunction(lhs: Expr, rhs: Expr) extends Expr with FixedType with BinaryExtractable with PrettyPrintable {
+    val fixedType = UnitType
+
+    def extract: Option[(Expr, Expr, (Expr, Expr)=>Expr)] = {
+      Some((lhs, rhs, (t1, t2) => UpdateFunction(t1, t2)))
+    }
+    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
+      printer.append("(")
+      printer.pp(lhs, Some(this))
+      printer.append(" <== ")
+      printer.pp(rhs, Some(this))
+      printer.append(")")
+    }
+  } 
+
+  case class Iteration(ids: Seq[Identifier], body: Expr, updateFncs: Seq[Expr]) extends Expr with FixedType with NAryExtractable with PrettyPrintable {
+    val fixedType = TupleType(ids.map(i => RealType))
+
+    def extract: Option[(Seq[Expr], (Seq[Expr])=>Expr)] = {
+      Some((Seq(body) ++ updateFncs, (es) => Iteration(ids, es(0), es.tail)))
+    }
+
+    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
+      printer.append("iterate (")
+      printer.append(ids.mkString(", "))
+      printer.append(") {\n")
+      printer.pp(body, Some(this))(lvl + 1)
+      printer.append("\n")
+      (updateFncs.init).foreach(e => {
+        printer.pp(e,  Some(this))(lvl + 1)
+        printer.append("\n")
+      })
+      printer.pp(updateFncs.last, Some(this))
+      printer.append("}")
+    }
+  }
 }

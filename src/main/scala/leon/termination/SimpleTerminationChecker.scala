@@ -18,7 +18,7 @@ class SimpleTerminationChecker(context: LeonContext, program: Program) extends T
   val description = "The simplest form of Terminator™"
 
   private lazy val callGraph: Map[FunDef, Set[FunDef]] =
-    program.callGraph.groupBy(_._1).mapValues(_.map(_._2)) // one liner from hell
+    program.callGraph.allCalls.groupBy(_._1).mapValues(_.map(_._2)) // one liner from hell
 
   private lazy val components = ComponentBuilder.run(callGraph)
   val allVertices = callGraph.keySet ++ callGraph.values.flatten
@@ -91,13 +91,13 @@ class SimpleTerminationChecker(context: LeonContext, program: Program) extends T
         oe.map { e =>
           functionCallsOf(
             simplifyLets(
-              matchToIfThenElse(e))).filter(_.funDef == funDef)
+              matchToIfThenElse(e))).filter(_.tfd.fd == funDef)
         } getOrElse Set.empty[FunctionInvocation]
       }
 
       val callsToAnalyze = callsOfInterest(funDef.body) ++ callsOfInterest(funDef.precondition) ++ callsOfInterest(funDef.postcondition.map(_._2))
 
-      val funDefArgsIDs = funDef.args.map(_.id).toSet
+      val funDefArgsIDs = funDef.params.map(_.id).toSet
 
       if (callsToAnalyze.forall { fi =>
         fi.args.exists { arg =>

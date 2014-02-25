@@ -3,6 +3,7 @@
 package leon
 package real
 
+import purescala.TransformerWithPC
 import purescala.Definitions._
 import purescala.Trees._
 import purescala.TreeOps._
@@ -50,7 +51,7 @@ class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, 
       if (bts <= 32) specToFixedCode(programId, objectId, vcs, bts)
       else {
         reporter.error("Fixed-point code generation not possible for bitlengths larger than 32 bits.")
-        Program(programId, ObjectDef(objectId, Seq.empty, Seq.empty))
+        Program(programId, List())
       }
     case _ => specToFloatCode(programId, objectId, vcs, precision)
   }
@@ -58,21 +59,36 @@ class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, 
 
   private def specToFloatCode(programId: Identifier, objectId: Identifier, vcs: Seq[VerificationCondition], precision: Precision): Program = {
     var defs: Seq[Definition] = Seq.empty
-    val invariants: Seq[Expr] = Seq.empty
-
+    
     for (vc <- vcs if (vc.kind == VCKind.Postcondition || vc.kind == VCKind.SpecGen)) {
       val f = vc.funDef
       val id = f.id
       val floatType = nonRealType
-      val args: Seq[VarDecl] = f.args.map(decl => VarDecl(decl.id, floatType))
+      val args: Seq[ValDef] = f.params.map(decl => ValDef(decl.id, floatType))
 
-      val funDef = new FunDef(id, floatType, args)
+      val funDef = new FunDef(id, Seq.empty, floatType, args)
       funDef.body = convertToFloatConstant(f.body)
 
       funDef.precondition = f.precondition
 
       vc.spec(precision) match {
-        case Some(spec) =>
+        case specs: Seq[Spec] if (specs.length > 1) =>
+          val resId = FreshIdentifier("res").setType(TupleType(Seq(RealType, RealType)))
+          val a = FreshIdentifier("a").setType(RealType)
+          val b = FreshIdentifier("b").setType(RealType)
+
+          val specExpr = And(specs.map( specToExpr(_) ))
+
+          val resMap: Map[Expr, Expr] = specs.map(s => Variable(s.id)).zip(List(Variable(a), Variable(b))).toMap
+          println("resMap: " + resMap)
+          println("specExpr: " + specExpr)
+
+          val postExpr = MatchExpr(Variable(resId), 
+            Seq(SimpleCase(TuplePattern(None, List(WildcardPattern(Some(a)), WildcardPattern(Some(b)))),
+              replace(resMap, specExpr))))
+
+          funDef.postcondition = Some((resId, postExpr))
+        case Seq(spec) =>
           val resId = FreshIdentifier("res")
           funDef.postcondition = Some((resId, replace(Map(Variable(spec.id) -> Variable(resId).setType(RealType)), specToExpr(spec))))
         case _ =>
@@ -81,7 +97,7 @@ class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, 
       defs = defs :+ funDef
     }
 
-    val newProgram = Program(programId, ObjectDef(objectId, defs, invariants))
+    val newProgram = Program(programId, List(ModuleDef(objectId, defs)))
     newProgram
   }
 
@@ -100,8 +116,8 @@ class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, 
     for (vc <- vcs if (vc.kind == VCKind.Postcondition || vc.kind == VCKind.SpecGen)) {
       val f = vc.funDef
       val id = f.id
-      val args = f.args.map(decl => VarDecl(decl.id, intType))
-      val funDef = new FunDef(id, intType, args)
+      val args = f.params.map(decl => ValDef(decl.id, intType))
+      val funDef = new FunDef(id, Seq.empty, intType, args)
 
       //println("\n ==== \nfnc id: " + id)
       //println("vc.kind " + vc.kind)
@@ -127,7 +143,7 @@ class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, 
       defs = defs :+ funDef
     }
 
-    val newProgram = Program(programId, ObjectDef(objectId, defs, invariants))
+    val newProgram = Program(programId, List(ModuleDef(objectId, defs)))
     newProgram
   }
 

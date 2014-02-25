@@ -1,6 +1,8 @@
 package leon
 package termination
 
+import utils._
+
 import purescala.Trees._
 import purescala.TreeOps._
 import purescala.Common._
@@ -39,8 +41,8 @@ class Strengthener(relationComparator: RelationComparator) {
     val old = funDef.postcondition
     val (res, postcondition) = {
       val (res, post) = old.getOrElse(FreshIdentifier("res").setType(funDef.returnType) -> BooleanLiteral(true))
-      val args = funDef.args.map(_.toVariable)
-      val sizePost = cmp(Tuple(funDef.args.map(_.toVariable)), res.toVariable)
+      val args = funDef.params.map(_.toVariable)
+      val sizePost = cmp(Tuple(funDef.params.map(_.toVariable)), res.toVariable)
       (res, And(post, sizePost))
     }
 
@@ -63,8 +65,8 @@ class Strengthener(relationComparator: RelationComparator) {
 
   def strengthenPostconditions(funDefs: Set[FunDef])(implicit solver: Processor with Solvable) {
     // Strengthen postconditions on all accessible functions by adding size constraints
-    val callees : Set[FunDef] = funDefs.map(fd => solver.checker.program.transitiveCallees(fd)).flatten
-    val sortedCallees : Seq[FunDef] = callees.toSeq.sortWith((fd1, fd2) => solver.checker.program.transitivelyCalls(fd2, fd1))
+    val callees : Set[FunDef] = funDefs.map(fd => solver.checker.program.callGraph.transitiveCallees(fd)).flatten
+    val sortedCallees : Seq[FunDef] = callees.toSeq.sortWith((fd1, fd2) => solver.checker.program.callGraph.transitivelyCalls(fd2, fd1))
     for (funDef <- sortedCallees if !strengthened(funDef) && funDef.hasBody && solver.checker.terminates(funDef).isGuaranteed) {
       // test if size is smaller or equal to input
       val weekConstraintHolds = strengthenPostcondition(funDef, relationComparator.softDecreasing)
@@ -95,11 +97,10 @@ trait Solvable { self: Processor =>
     val structDefs = structuralSize.defs
     if (structDefs != lastDefs || solvers == null) {
       val program     : Program         = self.checker.program
-      val allDefs     : Seq[Definition] = program.mainObject.defs ++ structDefs
-      val newProgram  : Program         = program.copy(mainObject = program.mainObject.copy(defs = allDefs))
+      val newProgram  : Program         = program.copy(modules = ModuleDef(FreshIdentifier("structDefs"), structDefs.toSeq) :: program.modules)
       val context     : LeonContext     = self.checker.context
 
-      solvers = new TimeoutSolverFactory(SolverFactory(() => new FairZ3Solver(context, newProgram)), 500) :: Nil
+      solvers = new TimeoutSolverFactory(SolverFactory(() => new FairZ3Solver(context, newProgram) with TimeoutSolver), 500) :: Nil
     }
   }
 
@@ -111,11 +112,13 @@ trait Solvable { self: Processor =>
     // make Leon unroll them forever...)
     val dangerousCallsMap : Map[Expr, Expr] = functionCallsOf(problem).collect({
       // extra definitions (namely size functions) are quaranteed to terminate because structures are non-looping
-      case fi @ FunctionInvocation(fd, args) if !structuralSize.defs(fd) && !self.checker.terminates(fd).isGuaranteed =>
+      case fi @ FunctionInvocation(tfd, args) if !structuralSize.defs(tfd.fd) && !self.checker.terminates(tfd.fd).isGuaranteed =>
         fi -> FreshIdentifier("noRun", true).setType(fi.getType).toVariable
     }).toMap
 
-    val expr = searchAndReplace(dangerousCallsMap.get, recursive=false)(problem)
+    // TODO: Fix&check without the recursive=false
+    //val expr = searchAndReplace(dangerousCallsMap.get, recursive=false)(problem)
+    val expr = postMap(dangerousCallsMap.lift)(problem)
 
     object Solved {
       def unapply(se: SolverFactory[Solver]): Option[Solution] = {
@@ -184,7 +187,7 @@ class ProcessingPipeline(program: Program, context: LeonContext, _processors: Pr
   def clear(fd: FunDef) : Boolean = {
     lazy val unsolvedDefs = unsolved.map(_.funDefs).flatten.toSet
     lazy val problemDefs = problems.map({ case (problem, _) => problem.funDefs }).flatten.toSet
-    def issue(defs: Set[FunDef]) : Boolean = defs(fd) || (defs intersect program.transitiveCallees(fd)).nonEmpty
+    def issue(defs: Set[FunDef]) : Boolean = defs(fd) || (defs intersect program.callGraph.transitiveCallees(fd)).nonEmpty
     ! (issue(unsolvedDefs) || issue(problemDefs))
   }
 

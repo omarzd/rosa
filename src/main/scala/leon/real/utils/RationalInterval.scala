@@ -19,7 +19,7 @@ case class RationalInterval(xlo: Rational, xhi: Rational) {
   val mid: Rational = xlo/Rational(2.0) + xhi/Rational(2.0)
   val radius: Rational = abs(xhi - xlo) / Rational(2.0)
 
-  // FIXME: not sound
+  // TODO: not sound
   val toInterval: Interval = Interval(xlo.toDouble, xhi.toDouble)
 
   def unary_-(): RationalInterval = RationalInterval(-xhi, -xlo)

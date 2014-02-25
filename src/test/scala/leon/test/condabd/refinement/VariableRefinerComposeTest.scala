@@ -43,11 +43,11 @@ class VariableRefinerComposeTest extends FunSpec with GivenWhenThen {
           program.definedFunctions.find { 
             _.id.name == "isSorted"
           } match {
-            case Some(found) => (x: Expr) => FunctionInvocation(found, Seq(x))
+            case Some(found) => (x: Expr) => FunctionInvocation(found.typed, Seq(x))
             case _ => fail("could not extract isSorted"); null
           }
             
-        val listVal = funDef.args.find(_.id.name == "l").get.toVariable
+        val listVal = funDef.params.find(_.id.name == "l").get.toVariable
         val listLeonDeclaration = LeonDeclaration(
           ImmediateExpression( "tempVar", listVal ), 
           TypeTransformer(listAbstractClass), listAbstractClass
@@ -114,11 +114,11 @@ class VariableRefinerComposeTest extends FunSpec with GivenWhenThen {
           program.definedFunctions.find { 
             _.id.name == "isSorted"
           } match {
-            case Some(found) => (x: Expr) => FunctionInvocation(found, Seq(x))
+            case Some(found) => (x: Expr) => FunctionInvocation(found.typed, Seq(x))
             case _ => fail("could not extract isSorted"); null
           }
             
-        val listVal = funDef.args.find(_.id.name == "l").get.toVariable
+        val listVal = funDef.params.find(_.id.name == "l").get.toVariable
         val listLeonDeclaration = LeonDeclaration(
           ImmediateExpression( "tempVar", listVal ), 
           TypeTransformer(listAbstractClass), listAbstractClass

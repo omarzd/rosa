@@ -3,6 +3,7 @@
 package leon
 package real
 
+import purescala.TransformerWithPC
 import leon.purescala.Definitions._
 import leon.purescala.Common._
 import leon.purescala.TypeTrees._
@@ -43,14 +44,16 @@ object EmptyRecord extends Record(False, False, None, None, None, None)
   and such things.
   @param map indexed by ideal variable
 */
-class VariablePool(inputs: Map[Expr, Record], val resId: Identifier) {
+class VariablePool(inputs: Map[Expr, Record], val resIds: Seq[Identifier]) {
   import VariablePool._
   private var allVars = inputs
 
-  allVars += (Variable(resId) -> emptyRecord(Variable(resId)))
+  val resultVars = resIds.map(Variable(_))
+  resultVars foreach ( resVar =>
+    allVars += (resVar -> emptyRecord(resVar))
+  )
 
-  val resultVar = Variable(resId)
-  val fResultVar = buddy(resultVar)
+  val fResultVars = resultVars.map( buddy(_) )
 
   def add(idSet: Set[Identifier]): Unit = {
     for (i <- idSet) {
@@ -96,12 +99,13 @@ class VariablePool(inputs: Map[Expr, Record], val resId: Identifier) {
     RationalInterval(rec.lo.get, rec.up.get)
   }
 
-  def hasValidInput(varDecl: Seq[VarDecl]): Boolean = {
+  def hasValidInput(varDecl: Seq[ValDef], reporter: Reporter): Boolean = {
     val params: Seq[Expr] = varDecl.map(vd => Variable(vd.id))
-    if (inputs.size != params.size) {
-      false
+    if (inputs.size == params.size && inputs.forall(v => params.contains(v._1) && v._2.isBoundedValid)) {
+      true
     } else {
-      inputs.forall(v => params.contains(v._1) && v._2.isBoundedValid)
+      reporter.warning("skipping, invalid input")
+      false 
     }
   }
 
@@ -122,7 +126,18 @@ object VariablePool {
   def apply(expr: Expr, returnType: TypeTree): VariablePool = {
     val collector = new VariableCollector
     collector.transform(expr)
-    new VariablePool(collector.recordMap, FreshIdentifier("result", true).setType(returnType))
+
+    val resIds = returnType match {
+      case TupleType(baseTypes) =>
+        baseTypes.zipWithIndex.map( {
+          case (baseType, i) => FreshIdentifier("result" + i, true).setType(baseType)
+          })
+
+      case _ =>
+        Seq(FreshIdentifier("result", true).setType(returnType))
+    }
+
+    new VariablePool(collector.recordMap, resIds)
   }
 
   private class VariableCollector extends TransformerWithPC {
@@ -157,6 +172,16 @@ object VariablePool {
 
       case GreaterThan(x @ Variable(_), RealLiteral(lwrBnd)) => // x > a
         recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newLo(lwrBnd)); e
+
+      case Equals(x @ Variable(_), RealLiteral(value)) => // x == value
+        recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newLo(value))
+        recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newUp(value))
+        e
+
+      case Equals(RealLiteral(value), x @ Variable(_)) => // x == value
+        recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newLo(value))
+        recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newUp(value))
+        e
 
       case Noise(x @ Variable(_), RealLiteral(value)) =>
         recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newAbsUncert(value)); e
