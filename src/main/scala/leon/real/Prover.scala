@@ -7,7 +7,6 @@ import purescala.Trees._
 import purescala.Definitions._
 import purescala.TreeOps._
 
-//import real.{StandaloneRealSolver => RealSolver}
 import real.Trees.{Noise, Roundoff, Actual}
 import real.TreeOps._
 import Sat._
