@@ -17,7 +17,7 @@ import Rational._
 import VariableShop._
 
 
-class Approximator(reporter: Reporter, solver: RealSolver, precision: Precision, precondition: Expr, inputs: VariablePool,
+class Approximator(reporter: Reporter, solver: RangeSolver, precision: Precision, precondition: Expr, inputs: VariablePool,
   checkPathError: Boolean = false) {
 
   type XRealTuple = Seq[XReal] 

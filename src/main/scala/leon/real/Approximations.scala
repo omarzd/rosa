@@ -11,7 +11,7 @@ import real.TreeOps._
 import Rational._
 
 class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc],
-  reporter: Reporter, solver: RealSolver) {
+  reporter: Reporter, solver: RangeSolver) {
   import Approximations._
   import FncHandling._
   import ArithmApprox._

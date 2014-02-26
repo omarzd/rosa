@@ -7,6 +7,7 @@ import purescala.Trees._
 import purescala.Definitions._
 import purescala.TreeOps._
 
+//import real.{StandaloneRealSolver => RealSolver}
 import real.Trees.{Noise, Roundoff, Actual}
 import real.TreeOps._
 import Sat._
@@ -21,7 +22,7 @@ import Rational._
 class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[FunDef, Fnc]) {
   implicit val debugSection = utils.DebugSectionReals
   val reporter = ctx.reporter
-  val solver = new RealSolver(ctx, prog, options.z3Timeout)
+  val solver = new RangeSolver(options.z3Timeout)
   val approx = new Approximations(options, fncs, reporter, solver)
 
   // TODO: this is ugly!!!
