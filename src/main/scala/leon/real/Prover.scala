@@ -21,7 +21,7 @@ import Rational._
 class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[FunDef, Fnc]) {
   implicit val debugSection = utils.DebugSectionReals
   val reporter = ctx.reporter
-  val solver = new RealSolver(ctx, prog, options.z3Timeout)
+  val solver = new RangeSolver(options.z3Timeout)
   val approx = new Approximations(options, fncs, reporter, solver)
 
   // TODO: this is ugly!!!
@@ -181,8 +181,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
           case (SAT, model) =>
             if (app.kind.allowsRealModel) {
               // Idea: check if we get a counterexample for the real part only, that is then a possible counterexample, (depends on the approximation)
-              val realFilter = new RealFilter
-              val realOnlyConstraint = realFilter.transform(And(And(cnstr.precondition, realCnstr), negate(cnstr.postcondition)))
+              val realOnlyConstraint = removeErrorsAndActual(And(And(cnstr.precondition, realCnstr), negate(cnstr.postcondition)))
               val massaged = massageArithmetic(transformer.getZ3Expr(realOnlyConstraint))
               solver.checkSat(massaged) match {
                 case (SAT, model) =>
