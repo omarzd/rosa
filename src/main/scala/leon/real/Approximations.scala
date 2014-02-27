@@ -53,6 +53,7 @@ class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc],
       }
     }
 
+    // TODO: we should still at least allow the function calls
     if (vc.isLoop) {
       reporter.debug("vc is a loop")
       var constraints = Seq[Constraint]()
@@ -62,8 +63,7 @@ class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc],
           val inlinedUpdateFns = inlineBody(body, updateFncs.asInstanceOf[Seq[UpdateFunction]])
           reporter.debug("inlined fncs: " + inlinedUpdateFns)
 
-          val noiseRemover = new NoiseRemover
-          val precondition = noiseRemover.transform(vc.pre)//removeErrors(vc.pre)
+          val precondition = removeErrors(vc.pre)//removeErrors(vc.pre)
 
           // List[(maxError, max Lipschitz constant)]
           val errors = inlinedUpdateFns.map({
@@ -90,7 +90,7 @@ class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc],
               (maxError, maxAbs(ls))
           })
           reporter.debug("")
-          reporter.debug("errors: " + errors)
+          reporter.info("errors: (maxError, Lipschitz constant)\n" + errors)
 
         case _ => reporter.error("cannot handle anything but a simple loop for now...")
       }
@@ -100,8 +100,8 @@ class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc],
 
       val (pre, bodyFnc, post) = kind.fncHandling match {
         case Uninterpreted => (vc.pre, vc.body, vc.post)
-        case Postcondition => (vc.pre, inlinePostcondition(vc.body), vc.post)
-        case Inlining => (vc.pre, inlineFunctions(vc.body), vc.post)
+        case Postcondition => (vc.pre, inlinePostcondition(vc.body, precision, postMap), vc.post)
+        case Inlining => (vc.pre, inlineFunctions(vc.body, fncs), vc.post)
       }
       if (kind.fncHandling != Uninterpreted) reporter.debug("after FNC handling:\npre: %s\nbody: %s\npost: %s".format(pre,bodyFnc,post))
 

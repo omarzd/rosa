@@ -123,4 +123,12 @@ package object real {
     val UNSAT = Value("UNSAT")
     val Unknown = Value("Unknown")
   }
+
+  object Valid extends Enumeration {
+    type Valid = Value
+    val VALID = Value("VALID")
+    val INVALID = Value("INVALID")
+    val UNKNOWN = Value("Unknown")
+    val NothingToShow = Value("n/a")
+  }
 }

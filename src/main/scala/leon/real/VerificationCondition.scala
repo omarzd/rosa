@@ -9,6 +9,7 @@ import leon.purescala.Common._
 import leon.utils.{Positioned}
 
 import Approximations._
+import Valid._
 
 
 case class Spec(id: Identifier, bounds: RationalInterval, absError: Rational)
@@ -23,7 +24,7 @@ class VerificationCondition(val funDef: FunDef, val kind: VCKind.Value, val pre:
 
   val fncId = funDef.id.toString // not unique
 
-  val isLoop = TreeOps.containsIteration(body)
+  val isLoop = kind == VCKind.LoopError
 
   // (lowerBnd, upperBnd) absError
   var spec: Map[Precision, Seq[Spec]] = precisions.map(p => (p, Seq())).toMap
@@ -31,7 +32,7 @@ class VerificationCondition(val funDef: FunDef, val kind: VCKind.Value, val pre:
   // None = still unknown
   // Some(true) = valid
   // Some(false) = invalid
-  var value: Map[Precision, Option[Boolean]] = precisions.map(p => (p, None)).toMap
+  var value: Map[Precision, Valid] = precisions.map(p => (p, UNKNOWN)).toMap
 
   def this(fD: FunDef, k:VCKind.Value, pe: Expr, b: Expr, po: Expr, fncCalls: Set[String],
     vars: VariablePool, precs: List[Precision]) = {
@@ -39,11 +40,11 @@ class VerificationCondition(val funDef: FunDef, val kind: VCKind.Value, val pre:
     allFncCalls = fncCalls
   }
 
-  def status(precision: Precision) : String = value(precision) match {
+  def status(precision: Precision): String = value(precision).toString/* match {
     case None => "unknown"
     case Some(true) => "valid"
     case Some(false) => "invalid"
-  }
+  }*/
 
   var approximations: Map[Precision, List[Approximation]] =
     precisions.map(p => (p, List())).toMap
@@ -60,4 +61,6 @@ object VCKind extends Enumeration {
   val Postcondition = Value("postcond.")
   val Assert = Value("assert.")
   val SpecGen = Value("specgen")
+  val LoopInvariant = Value("loop-inv")
+  val LoopError = Value("loop-err")
 }

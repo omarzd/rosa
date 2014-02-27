@@ -10,6 +10,7 @@ import purescala.TreeOps._
 import real.Trees.{Noise, Roundoff, Actual}
 import real.TreeOps._
 import Sat._
+import Valid._
 import Approximations._
 import FncHandling._
 import ArithmApprox._
@@ -107,17 +108,20 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
           if (vc.kind == VCKind.SpecGen) true  // specGen, no need to check, only uses first approximation
           else
             checkValid(currentApprox, vc.variables, precision) match {
-              case Some(true) =>
+              case VALID =>
                 reporter.info("==== VALID ====")
-                vc.value += (precision -> Some(true))
+                vc.value += (precision -> VALID)
                 true
-              case Some(false) =>
+              case INVALID =>
                 reporter.info("=== INVALID ===")
-                vc.value += (precision -> Some(false))
+                vc.value += (precision -> INVALID)
                 true
-              case None =>
+              case UNKNOWN =>
                 reporter.info("---- Unknown ----")
                 false
+              case NothingToShow =>
+                vc.value += (precision -> NothingToShow)
+                true
             }
         } catch {
           case PostconditionInliningFailedException(msg) =>
@@ -150,10 +154,10 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
       reporter.info("generated spec: " + spec + " in " + (vc.time.get / 1000.0))
     }
 
-    vcs.forall( vc => vc.kind == VCKind.SpecGen || !vc.value(precision).isEmpty )
+    vcs.forall( vc => vc.kind == VCKind.SpecGen || vc.value(precision) != UNKNOWN )
   }
 
-  def checkValid(app: Approximation, variables: VariablePool, precision: Precision): Option[Boolean] = {
+  def checkValid(app: Approximation, variables: VariablePool, precision: Precision): Valid = {
     reporter.debug("checking for valid: " + app.constraints)
 
     val transformer = new LeonToZ3Transformer(variables, precision)
@@ -200,9 +204,10 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
         }
       }
     }
-    if ( (validCount + invalidCount) < app.constraints.length) None
-    else if (invalidCount > 0) Some(false)
-    else Some(true)
+    if (app.constraints.isEmpty) NothingToShow
+    else if ( (validCount + invalidCount) < app.constraints.length) UNKNOWN
+    else if (invalidCount > 0) INVALID
+    else VALID
   }
 
   // if true, we're sane

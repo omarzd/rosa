@@ -82,6 +82,8 @@ class Approximator(reporter: Reporter, solver: RangeSolver, precision: Precision
             (constraintFromXFloats(variables), Seq())
           } else {
             reporter.warning("default case reached in transformWithSpec")
+            reporter.warning(approximation)
+            reporter.warning(e)
             (True, Seq())
           }
         }

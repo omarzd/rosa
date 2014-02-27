@@ -11,11 +11,11 @@ import purescala.Trees._
 import purescala.TreeOps._
 import purescala.ScalaPrinter
 
-import xlang.Trees._
+//import xlang.Trees._
 
-import real.Trees._
-import real.TreeOps._
-import VCKind._
+//import real.Trees._
+//import real.TreeOps._
+//import VCKind._
 
 
 object CompilationPhase extends LeonPhase[Program,CompilationReport] {
@@ -76,7 +76,7 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
         toAnalyze
       }
 
-    val (vcs, fncs) = analyzeThis(fncsToAnalyse, options.precision)
+    val (vcs, fncs) = Analyser.analyzeThis(fncsToAnalyse, options.precision, reporter)
     if (reporter.errorCount > 0) throw LeonFatalError(None)
 
     //println("functions sorted: " + vcs)
@@ -112,96 +112,4 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
     }
 
   }
-
-
-
-  private def analyzeThis(sortedFncs: Seq[FunDef], precisions: List[Precision]): (Seq[VerificationCondition], Map[FunDef, Fnc]) = {
-    var vcs = Seq[VerificationCondition]()
-    var fncs = Map[FunDef, Fnc]()
-
-    for (funDef <- sortedFncs if (funDef.body.isDefined)) {
-      reporter.info("Analysing fnc:  %s".format(funDef.id.name))
-      debug ("original fnc body: " + funDef.body.get)
-
-      funDef.precondition.map(pre => (pre, VariablePool(pre, funDef.returnType)) ).filter(
-        p => p._2.hasValidInput(funDef.params, reporter)).map ({
-        case (pre, variables) => {
-          debug ("precondition is acceptable")
-          val allFncCalls = functionCallsOf(funDef.body.get).map(invc => invc.tfd.id.toString)
-
-          // Add default roundoff on inputs
-          val precondition = And(pre, And(variables.inputsWithoutNoise.map(i => Roundoff(i))))
-          debug ("precondition: " + precondition)
-
-          val resFresh = variables.resIds
-          val body = letsToEquals(funDef.body.get)
-
-          funDef.postcondition match {
-             //Option[(Identifier, Expr)]
-             // TODO: invariants
-             /*case Some((ResultVariable()) =>
-               val posts = getInvariantCondition(funDef.body.get)
-               val bodyWOLets = convertLetsToEquals(funDef.body.get)
-               val body = replace(posts.map(p => (p, True)).toMap, bodyWOLets)
-               (body, body, Or(posts))*/
-
-            case Some((resId, postExpr)) =>
-              val postcondition = extractPostCondition(resId, postExpr, resFresh)
-
-              val vcBody = new VerificationCondition(funDef, Postcondition, precondition, body, postcondition,
-                allFncCalls, variables, precisions)
-
-              val assertionCollector = new AssertionCollector(funDef, precondition, variables, precisions)
-              assertionCollector.transform(body)
-
-              // for function inlining
-              (assertionCollector.vcs :+ vcBody, Fnc(precondition, body, postcondition))
-
-            case None => // only want to generate specs
-              val vcBody = new VerificationCondition(funDef, SpecGen, precondition, body, True,
-                allFncCalls, variables, precisions)
-
-              (Seq(vcBody), Fnc(precondition, body, True))
-
-          }
-        }
-      }).foreach({
-        case (conds, fnc) =>
-          vcs ++= conds
-          fncs += ((funDef -> fnc))
-        })
-    }
-    (vcs.sortWith((vc1, vc2) => lt(vc1, vc2)), fncs)
-  }
-
-  private def lt(vc1: VerificationCondition, vc2: VerificationCondition): Boolean = {
-    if (vc1.allFncCalls.isEmpty) vc1.fncId < vc2.fncId
-    else if (vc1.allFncCalls.contains(vc2.fncId)) false
-    else true //vc1.fncId < vc2.fncId
-  }
-
-  // can return several, as we may have an if-statement
-  private def getInvariantCondition(expr: Expr): List[Expr] = expr match {
-    case IfExpr(cond, thenn, elze) => getInvariantCondition(thenn) ++ getInvariantCondition(elze)
-    case Let(binder, value, body) => getInvariantCondition(body)
-    case LessEquals(_, _) | LessThan(_, _) | GreaterThan(_, _) | GreaterEquals(_, _) => List(expr)
-    case Equals(_, _) => List(expr)
-    case _ =>
-      println("!!! Expected invariant, but found: " + expr.getClass)
-      List(BooleanLiteral(false))
-  }
-
-  /*
-  class AssertionRemover extends TransformerWithPC {
-    type C = Seq[Expr]
-    val initC = Nil
-
-    def register(e: Expr, path: C) = path :+ e
-
-    override def rec(e: Expr, path: C) = e match {
-      case Assertion(expr) => True
-      case _ =>
-        super.rec(e, path)
-    }
-  }*/
 }

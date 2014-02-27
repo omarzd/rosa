@@ -101,12 +101,7 @@ class VariablePool(inputs: Map[Expr, Record], val resIds: Seq[Identifier]) {
 
   def hasValidInput(varDecl: Seq[ValDef], reporter: Reporter): Boolean = {
     val params: Seq[Expr] = varDecl.map(vd => Variable(vd.id))
-    if (inputs.size == params.size && inputs.forall(v => params.contains(v._1) && v._2.isBoundedValid)) {
-      true
-    } else {
-      reporter.warning("skipping, invalid input")
-      false 
-    }
+    (inputs.size == params.size && inputs.forall(v => params.contains(v._1) && v._2.isBoundedValid))
   }
 
   def inputsWithoutNoise: Seq[Expr] = {
