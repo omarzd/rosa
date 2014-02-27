@@ -37,7 +37,7 @@ class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc],
     case _ => max(abs(nums.head), maxAbs(nums.tail))
   }
 
-  // DOC: we only support function calls in fnc bodies, not in pre and post
+  // Note: only supports function calls in fnc bodies, not in pre and post
   def getApproximation(vc: VerificationCondition, kind: ApproxKind, precision: Precision,
     postMap: Map[FunDef, Seq[Spec]]): Approximation = {
     val leonToZ3 = new LeonToZ3Transformer(vc.variables, precision)
@@ -92,7 +92,7 @@ class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc],
           reporter.debug("")
           reporter.debug("errors: " + errors)
 
-        case _ => reporter.error("cannot handle anything but a simple loop...")
+        case _ => reporter.error("cannot handle anything but a simple loop for now...")
       }
 
       Approximation(kind, constraints, emptySpecTuple)

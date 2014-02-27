@@ -3,7 +3,39 @@ import Real._
 
 object Spiral {
 
-  def step(x: Real, y: Real, k: Real): (Real, Real) = {
+  def spiral(x: Real, y: Real): (Real, Real) = {
+    require(x*x + y*y < 100 && -10 <= x && x <= 10 && -10 <= y && y <= 10)
+
+    iterate {
+      x <== (9.9*x - y) / 10.0
+      y <== (9.9*y + x) / 10.0
+    }
+
+  } ensuring (_ match {
+    case (a, b) => -10 <= a && a <= 10 && -10 <= b && b <= 10 //&& a +/- 1e-12 && b +/- 1e-12
+  })
+
+
+  /*def spiralBack(x: Real, y: Real, k: Int): (Real, Real) = {
+    require(0 <= k && k <= 10 && x*x + y*y < 100 && -10 <= x && x <= 10 &&
+            -10 <= y && y <= 10)
+    
+    if (k > 1) {
+      val (xn, yn) = spiralBack(x, y, k - 1)
+
+      val x1 = (9.9*xn - yn)/10
+      val y1 = (9.9*yn + xn)/10
+      (x1,y1)
+
+    } else {
+      (x, y)
+    }
+
+  } ensuring (_ match {
+    case (a, b) => -10 < a && a < 10 && -10 < b && b < 10 //&& a +/- 1e-12 && b +/- 1e-12
+  })*/
+
+  /*def spiralForward(x: Real, y: Real, k: Real): (Real, Real) = {
     require(0 <= k && k <= 10 && x*x + y*y < 100 && -10 <= x && x <= 10 &&
             -10 <= y && y <= 10)
     
@@ -11,11 +43,11 @@ object Spiral {
     if (k > 1.1) {
       val x1 = (9.9*x - y)/10
       val y1 = (9.9*y + x)/10
-      step(x1,y1,k-1)
+      spiralForward(x1,y1,k-1)
     } else {
       (x, y)
     }
 
   } ensuring (_ match {
-    case (a, b) => 0 <= a && a < 100 && 0 <= b && b < 100 //&& a +/- 1e-12 && b +/- 1e-12
-  })
+    case (a, b) => -10 < a && a < 10 && -10 < b && b < 10 //&& a +/- 1e-12 && b +/- 1e-12
+  })*/
