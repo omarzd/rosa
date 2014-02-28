@@ -3,7 +3,7 @@
 package leon.test
 package real
 
-import leon.real.Prover._
+import leon.real.TreeOps._
 
 import leon.purescala.Trees._
 import leon.purescala.Common._

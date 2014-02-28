@@ -53,12 +53,18 @@ class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc],
       }
     }
 
-    // TODO: we should still at least allow the function calls
+    val (pre, bodyFnc, post) = kind.fncHandling match {
+      case Uninterpreted => (vc.pre, vc.body, vc.post)
+      case Postcondition => (vc.pre, inlinePostcondition(vc.body, precision, postMap), vc.post)
+      case Inlining => (vc.pre, inlineFunctions(vc.body, fncs), vc.post)
+    }
+    if (kind.fncHandling != Uninterpreted) reporter.debug("after FNC handling:\npre: %s\nbody: %s\npost: %s".format(pre,bodyFnc,post))
+
     if (vc.isLoop) {
       reporter.debug("vc is a loop")
       var constraints = Seq[Constraint]()
 
-      vc.body match {
+      bodyFnc match {
         case Iteration(ids, body, updateFncs) =>
           val inlinedUpdateFns = inlineBody(body, updateFncs.asInstanceOf[Seq[UpdateFunction]])
           reporter.debug("inlined fncs: " + inlinedUpdateFns)
@@ -96,15 +102,7 @@ class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc],
       }
 
       Approximation(kind, constraints, emptySpecTuple)
-    } else { 
-
-      val (pre, bodyFnc, post) = kind.fncHandling match {
-        case Uninterpreted => (vc.pre, vc.body, vc.post)
-        case Postcondition => (vc.pre, inlinePostcondition(vc.body, precision, postMap), vc.post)
-        case Inlining => (vc.pre, inlineFunctions(vc.body, fncs), vc.post)
-      }
-      if (kind.fncHandling != Uninterpreted) reporter.debug("after FNC handling:\npre: %s\nbody: %s\npost: %s".format(pre,bodyFnc,post))
-
+    } else {
       val paths: Set[Path] = kind.pathHandling match {
         case Pathwise => getPaths(bodyFnc).map {
           case (cond, expr) => Path(cond, expr, idealToActual(expr, vc.variables))

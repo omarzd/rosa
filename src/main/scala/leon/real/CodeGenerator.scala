@@ -26,11 +26,28 @@ class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, 
     case _ => Int32Type
   }
 
+  def getReturnType(realType: TypeTree): TypeTree = realType match {
+    case TupleType(args) => TupleType(args.map(a => getReturnType(a)))
+    case simpleType => nonRealType
+  }
+
   def convertToFloatConstant(e: Option[Expr]) = (e, precision) match {
     case (Some(expr), Float32) =>
       val transformer = new FloatConstantConverter
-      Some(transformer.transform(expr))
+
+      val tmp = transformer.transform(expr)
+      val tmp2 = convertConstants(expr)
+      assert(tmp == tmp2)
+
+      Some(tmp)
     case _ => e
+  }
+
+  def convertConstants(e: Expr): Expr = {
+    preMap {
+      case r: RealLiteral => r.floatType = true; Some(r)
+      case _ => None
+    }(e)
   }
 
   class FloatConstantConverter extends TransformerWithPC {
@@ -60,18 +77,51 @@ class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, 
   private def specToFloatCode(programId: Identifier, objectId: Identifier, vcs: Seq[VerificationCondition], precision: Precision): Program = {
     var defs: Seq[Definition] = Seq.empty
     
-    for (vc <- vcs if (vc.kind == VCKind.Postcondition || vc.kind == VCKind.SpecGen)) {
+    for (vc <- vcs if (vc.kind == VCKind.Postcondition || vc.kind == VCKind.SpecGen || vc.kind == VCKind.LoopInvariant)) {
       val f = vc.funDef
       val id = f.id
       val floatType = nonRealType
       val args: Seq[ValDef] = f.params.map(decl => ValDef(decl.id, floatType))
+      val returnType = getReturnType(vc.funDef.returnType)
 
-      val funDef = new FunDef(id, Seq.empty, floatType, args)
-      funDef.body = convertToFloatConstant(f.body)
+      //val funDef = new FunDef(id, Seq.empty, floatType, args)
+      //funDef.body = convertToFloatConstant(f.body)
+      val funDef = if(vc.kind == VCKind.LoopInvariant) {
+        val counterId = FreshIdentifier("_counter").setType(Int32Type)
+        val maxCounterId = FreshIdentifier("_MAX_COUNTER").setType(Int32Type)
 
-      funDef.precondition = f.precondition
+        val fD = new FunDef(id, Seq.empty, returnType, args :+ ValDef(counterId, Int32Type) :+ ValDef(maxCounterId, Int32Type))
+        val loopBody = convertToFloatConstant(f.body)
+        
+        fD.body =  loopBody.get match {
+          case Iteration(ids, bd, upFncs) =>
+            val cond = LessThan(Variable(counterId), Variable(maxCounterId))
 
-      vc.spec(precision) match {
+            val thenn = Block(if (bd == True) Seq.empty else Seq(bd),
+              FunctionInvocation(TypedFunDef(fD, Seq.empty),
+                upFncs.asInstanceOf[Seq[UpdateFunction]].map(uf => uf.rhs)))
+
+            val elze = Tuple(ids.map(i => Variable(i)))
+
+            Some(IfExpr(cond, thenn, elze))
+
+            /*if (counter < MAXCOUNTER) {
+              body
+              fncCall(upFncs)
+            } else {
+              (ids)
+            }*/
+
+          case _ => throw new Exception("Unsupported loop! Don't know how to generate.")
+        }
+
+         
+        fD
+      } else {
+        val fD = new FunDef(id, Seq.empty, returnType, args)
+        fD.body = convertToFloatConstant(f.body)
+
+        vc.spec(precision) match {
         case specs: Seq[Spec] if (specs.length > 1) =>
           val resId = FreshIdentifier("res").setType(TupleType(Seq(RealType, RealType)))
           val a = FreshIdentifier("a").setType(RealType)
@@ -87,12 +137,20 @@ class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, 
             Seq(SimpleCase(TuplePattern(None, List(WildcardPattern(Some(a)), WildcardPattern(Some(b)))),
               replace(resMap, specExpr))))
 
-          funDef.postcondition = Some((resId, postExpr))
+          fD.postcondition = Some((resId, postExpr))
         case Seq(spec) =>
           val resId = FreshIdentifier("res")
-          funDef.postcondition = Some((resId, replace(Map(Variable(spec.id) -> Variable(resId).setType(RealType)), specToExpr(spec))))
+          fD.postcondition = Some((resId, replace(Map(Variable(spec.id) -> Variable(resId).setType(RealType)), specToExpr(spec))))
         case _ =>
       }
+        fD
+      }
+
+      
+      funDef.precondition = f.precondition
+
+
+      
 
       defs = defs :+ funDef
     }
