@@ -50,14 +50,15 @@ object Analyser {
       if (containsIteration(body)) {
         (body, funDef.postcondition) match {
           case (Iteration(ids, lb, upFncs), Some((resId, postExpr))) =>
-            // TODO: this may/should be simplified
-            val loopInv = And(preGiven, extractPostCondition(resId, postExpr, ids))
-            //println(s"loopInv: $loopInv")
+            
+            val loopInv = simplifyConstraint(And(preGiven, extractPostCondition(resId, postExpr, ids)))
+            
+            debug (s"loopInv: $loopInv")
             
             val loopInvAfterLoop = replace(ids.zip(resFresh).map({ 
                 case (id, r) => (Variable(id) -> Variable(r))
               }).toMap, loopInv)
-            //println(s"loopInvAfterLoop: $loopInvAfterLoop")
+            debug (s"loopInvAfterLoop: $loopInvAfterLoop")
             
             /*val updates = resFresh.zip(upFncs).map({
               case (res, UpdateFunction(Variable(id), rhs)) =>
@@ -66,7 +67,7 @@ object Analyser {
             val update = Tuple(upFncs.map(uf => uf.asInstanceOf[UpdateFunction].rhs))
               
             val loopBody = And(Seq(lb) :+ update)
-            //println(s"loopBody: $loopBody")
+            debug (s"loopBody: $loopBody")
 
             val vc = new VerificationCondition(funDef, LoopInvariant, loopInv, loopBody, loopInvAfterLoop,
               allFncCalls, variables, precisions)

@@ -3,6 +3,8 @@
 package leon
 package real
 
+import Valid._
+
 // @param precision the precision that we were able to prove stuff with (or not)
 class CompilationReport(val allVCs: Seq[VerificationCondition], precision: Precision) {
   val realVCs = allVCs.filter(vc => vc.kind != VCKind.SpecGen)
@@ -11,11 +13,11 @@ class CompilationReport(val allVCs: Seq[VerificationCondition], precision: Preci
 
   lazy val totalTime : Double = realVCs.foldLeft(0.0d)((t,c) => t + c.time.getOrElse(0.0d) / 1000)
 
-  lazy val totalValid : Int = realVCs.count(_.value(precision) == Some(true))
+  lazy val totalValid : Int = realVCs.count(_.value(precision) == VALID)
 
-  lazy val totalInvalid : Int = realVCs.count(_.value(precision) == Some(false))
+  lazy val totalInvalid : Int = realVCs.count(_.value(precision) == INVALID)
 
-  lazy val totalUnknown : Int = realVCs.count(_.value(precision) == None)
+  lazy val totalUnknown : Int = realVCs.count(_.value(precision) == UNKNOWN)
 
   def summaryString : String = if(totalConditions >= 0) {
     CompilationReport.infoHeader +

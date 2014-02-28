@@ -3,7 +3,7 @@ import Real._
 
 object Spiral {
 
-  def spiral(x: Real, y: Real): (Real, Real) = {
+  def spiralReal(x: Real, y: Real): (Real, Real) = {
     require(x*x + y*y < 100 && -10 <= x && x <= 10 && -10 <= y && y <= 10)
 
     iterate {
@@ -13,6 +13,19 @@ object Spiral {
 
   } ensuring (_ match {
     case (a, b) => -10 <= a && a <= 10 && -10 <= b && b <= 10
+  })
+
+  def spiralBoth(x: Real, y: Real): (Real, Real) = {
+    require(x*x + y*y < 100 && -10 <= x && x <= 10 && -10 <= y && y <= 10)
+
+    iterate {
+      x <== (9.9*x - y) / 10.0
+      y <== (9.9*y + x) / 10.0
+    }
+
+  } ensuring (_ match {
+    case (a, b) => -10 <= a && a <= 10 && -10 <= b && b <= 10 &&
+      -10 <= ~a && ~a <= 10 && -10 <= ~b && ~b <= 10
   })
 
 
