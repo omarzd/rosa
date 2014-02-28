@@ -273,7 +273,8 @@ class RangeSolver(timeout: Long) {
     val res = solver.check match {
       case Some(true) =>
         if (verbose) println("--> cond: SAT")
-        //val model = solver.getModel
+        val model = solver.getModel
+        //println("counterexample: " + model)
         //(Some(false), Some(modelToMap(model, variables)))
         (Some(false), None)
       case Some(false) =>

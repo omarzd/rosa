@@ -6,6 +6,7 @@ package real
 import purescala.Trees._
 import purescala.Definitions._
 import purescala.TreeOps._
+import purescala.TransformerWithPC
 
 import real.Trees.{Noise, Roundoff, Actual, RealLiteral, RelError, WithIn}
 import real.TreeOps._
@@ -22,7 +23,8 @@ object Prover {
     - equality propagation
     - removing of redundant bounds constraints (included in another)
   */
-  def simplifyConstraint(e: Expr, removeBounds: Boolean = true, equalityPropagation: Boolean = true): Expr = {
+  def simplifyConstraint(e: Expr, removeBounds: Boolean = true,
+    equalityPropagation: Boolean = true): Expr = {
     // for bounds, first collect all bounds, then re-generate constraints
     val (boundsConstraint, remainder) = if (removeBounds) {
       val boundsCollector = new TightBoundsCollector
@@ -317,14 +319,10 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
       val finiteCnstr = addResultsF(cnstr.finiteComp, variables.fResultVars)
 
       val sanityConstraint = And(cnstr.precondition, And(realCnstr, finiteCnstr))
-      val toCheck = And(sanityConstraint, negate(cnstr.postcondition))
+      
+      val sanityConstraintSimpl = simplifyConstraint( sanityConstraint )
 
-      println("\ntoCheck before: ")
-      println(toCheck)
-
-      println("\nsimplified: ")
-      println(simplifyConstraint(toCheck))
-
+      val toCheck = And(sanityConstraintSimpl, negate(cnstr.postcondition))
 
       val z3constraint = massageArithmetic(transformer.getZ3Expr(toCheck))
       val sanityExpr = massageArithmetic(transformer.getZ3Expr(sanityConstraint))
