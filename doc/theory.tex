@@ -132,11 +132,11 @@ that is, we are computing one constant for each output of the function.
 Let $h: [0, 1] \to \mathbb{R}$ such that $h(\theta) := f(z + \theta(y-z))$.
 Then $h(0) = f(z)$ and $h(1) = f(y)$ and
 \eqn{
-  \frac{d}{d\theta}f(\theta) &= \nabla f(z + \theta(y-z)) \cdot (y-z)
+  \frac{d}{d\theta}h(\theta) &= \nabla f(z + \theta(y-z)) \cdot (y-z)
 }
 
 \eqn{
-  f(y) - f(z) &= f(1) -f(0) = \int^1_0 f'(\theta)d\theta
+  f(y) - f(z) &= h(1) - h(0) = \int^1_0 h'(\theta)d\theta
   = \int^1_0\nabla f(z + \theta(y-z)) d\theta \cdot (y-z)
 }
 

@@ -11,7 +11,7 @@ import real.TreeOps._
 import Rational._
 
 class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc],
-  reporter: Reporter, solver: RealSolver) {
+  reporter: Reporter, solver: RangeSolver) {
   import Approximations._
   import FncHandling._
   import ArithmApprox._
@@ -21,8 +21,6 @@ class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc],
 
   // DOC: we only support function calls in fnc bodies, not in pre and post
   def getApproximation(vc: VerificationCondition, kind: ApproxKind, precision: Precision, postMap: Map[FunDef, Seq[Spec]]): Approximation = {
-    val postInliner = new PostconditionInliner(precision, postMap)
-    val fncInliner = new FunctionInliner(fncs)
     val leonToZ3 = new LeonToZ3Transformer(vc.variables, precision)
 
     def isFeasible(pre: Expr): Boolean = {
@@ -38,8 +36,8 @@ class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc],
 
     val (pre, bodyFnc, post) = kind.fncHandling match {
       case Uninterpreted => (vc.pre, vc.body, vc.post)
-      case Postcondition => (vc.pre, postInliner.transform(vc.body), vc.post)
-      case Inlining => (vc.pre, fncInliner.transform(vc.body), vc.post)
+      case Postcondition => (vc.pre, inlinePostcondition(vc.body, precision, postMap), vc.post)
+      case Inlining => (vc.pre, inlineFunctions(vc.body, fncs), vc.post)
     }
     if (kind.fncHandling != Uninterpreted) reporter.debug("after FNC handling:\npre: %s\nbody: %s\npost: %s".format(pre,bodyFnc,post))
 
