@@ -94,9 +94,9 @@ class RealRegression extends LeonTestSuite {
       _.endsWith(".txt"))
     for(f <- ignoredFiles) {
       mkIgnore(f)
-    }    
+    }
   }
-  
+
   forEachFileIn("valid") { output =>
     val Output(name, report, reporter) = output
     
