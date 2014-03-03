@@ -6,7 +6,7 @@ object Spiral {
   def spiralReal(x: Real, y: Real): (Real, Real) = {
     require(x*x + y*y < 100 && -10 <= x && x <= 10 && -10 <= y && y <= 10)
 
-    iterate {
+    iterate(x, y) {
       x <== (9.9*x - y) / 10.0
       y <== (9.9*y + x) / 10.0
     }
@@ -18,7 +18,7 @@ object Spiral {
   def spiralBoth(x: Real, y: Real): (Real, Real) = {
     require(x*x + y*y < 100 && -10 <= x && x <= 10 && -10 <= y && y <= 10)
 
-    iterate {
+    iterate(x, y) {
       x <== (9.9*x - y) / 10.0
       y <== (9.9*y + x) / 10.0
     }

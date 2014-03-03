@@ -46,6 +46,7 @@ object Analyser {
 
       val resFresh = variables.resIds
       val body = letsToEquals(funDef.body.get)
+      debug("body: " + body)
 
       if (containsIteration(body)) {
         (body, funDef.postcondition) match {
