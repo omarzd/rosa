@@ -230,16 +230,18 @@ object TreeOps {
     }
   }
 
-  //hardcoded for 2-tuples
   def extractPostCondition(resId: Identifier, postExpr: Expr, resFresh: Seq[Identifier]): Expr = postExpr match {
     case MatchExpr(Variable(scrutinee),
-      Seq(SimpleCase(TuplePattern(None, List(WildcardPattern(Some(a)), WildcardPattern(Some(b)))), caseExpr))) if (scrutinee == resId) =>
-
-      assert(resFresh.length == 2)
-      replace(List(Variable(a), Variable(b)).zip(resFresh.map(Variable(_))).toMap, caseExpr)
-
+      Seq(SimpleCase(TuplePattern(None, wildcards), caseExpr))) if (scrutinee == resId) =>
+      val replaceMap: Map[Expr, Expr] = wildcards.map({
+        case WildcardPattern(Some(id)) => Variable(id)
+        case _ => throw new Exception("Unsupported match expression"); null
+        }).zip(resFresh.map(Variable(_))).toMap
+      
+      replace(replaceMap, caseExpr)
+     
     case m: MatchExpr =>
-      throw new Exception("Wrong use of match expression for postcondition!")
+      throw new Exception("! Wrong use of match expression for postcondition !")
       null
 
     case _ => // simple case (no tuples)
