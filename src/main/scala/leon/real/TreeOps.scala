@@ -359,6 +359,14 @@ object TreeOps {
     case SqrtR(t) =>
       val tt = inIntervals(t, vars)
       RationalInterval(sqrtDown(tt.xlo), sqrtUp(tt.xhi))
+    case PowerR(lhs, IntLiteral(p)) =>
+      assert(p > 1)
+      val lhsInIntervals = inIntervals(lhs, vars)
+      var x = lhsInIntervals
+      for (i <- 1 until p ){
+        x = x * lhsInIntervals
+      }
+      x
   }
 
 
