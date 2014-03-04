@@ -3,7 +3,27 @@ import Real._
 
 object SineNewton {
 
-  def newton(x: Real, i: Int): Real = {
+  def newton(x: Real): Real = {
+    require(-1.0 < x && x < 1.0)
+
+    iterate(x) {
+      x <== x - (x - (x°°3)/6.0 + (x°°5)/120.0 + (x°°7)/5040.0) / 
+        (1 - (x*x)/2.0 + (x°°4)/24.0 + (x°°6)/720.0)
+    }
+  } ensuring (res => -1.0 < x && x < 1.0)
+
+
+  def newtonUnstable(x: Real): Real = {
+    require(-1.2 < x && x < 1.2)
+
+    iterate(x) {
+      x <== x - (x - (x°°3)/6.0 + (x°°5)/120.0 + (x°°7)/5040.0) / 
+        (1 - (x*x)/2.0 + (x°°4)/24.0 + (x°°6)/720.0)
+    }
+  } ensuring (res => -1.2 < x && x < 1.2)
+
+
+  /*def newton(x: Real, i: Int): Real = {
     require(-1.0 < x && x < 1.0)
 
     if (i < 10) {
@@ -28,5 +48,5 @@ object SineNewton {
     }
     
   } ensuring(res => -1.0 < x && x < 1.0)  // diverges (in some cases)!
-
+  */
 }

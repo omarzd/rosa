@@ -360,7 +360,7 @@ object TreeOps {
       val tt = inIntervals(t, vars)
       RationalInterval(sqrtDown(tt.xlo), sqrtUp(tt.xhi))
     case PowerR(lhs, IntLiteral(p)) =>
-      assert(p > 1)
+      assert(p > 1, "p is " + p + " in " + expr)
       val lhsInIntervals = inIntervals(lhs, vars)
       var x = lhsInIntervals
       for (i <- 1 until p ){
@@ -452,9 +452,9 @@ object TreeOps {
               case TupleType(bases) => Seq(getFresh, getFresh)
               case _ => Seq(getFresh)
             }
-            println(s"$resFresh")
+            //println(s"$resFresh")
             val postcondition = extractPostCondition(resId, postExpr, resFresh)
-            println(s"$postcondition")
+            //println(s"$postcondition")
 
             try {
               val specs: Seq[Spec] = resFresh.map( r => {
@@ -775,8 +775,10 @@ object TreeOps {
     val t3 = collectProducts(t2)
     //println("t3: " + t3)
     val t4 = transformPowers(t3)
-    //println("t4: " + t4)
-    simplifyArithmetic(t4)
+    //println("\nt4: " + t4)
+    val res = simplifyArithmetic(t4)
+    //println("res: " + res)
+    res
   }
 
 

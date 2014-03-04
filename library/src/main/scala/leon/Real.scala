@@ -10,6 +10,7 @@ import scala.math.{ScalaNumericConversions, ScalaNumber}
 
     def sqrt(x: Real): Real = ???
 
+    def iterate(x: Real)(updateFnc: Boolean): Real = ???
     def iterate(x1: Real, x2: Real)(
         updateFnc: Boolean): (Real, Real) = ???
     def iterate(x1: Real, x2: Real, x3: Real)(
@@ -65,7 +66,7 @@ import scala.math.{ScalaNumericConversions, ScalaNumber}
     //def in(a: Real, b: Real): Boolean = { throw new NotExecutableException(exMsg); false }
     def ><(a: (Real, Real)): Boolean = ???
 
-    def ^(power: Int): Real = ???
+    //def ^(power: Int): Real = ???
     def °(power: Int): Real = ???
     def °°(power: Int): Real = ???
 

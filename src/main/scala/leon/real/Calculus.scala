@@ -93,6 +93,7 @@ object Calculus {
     case UMinusR(RealLiteral(r)) => RealLiteral(-r)
     case UMinusR(UMinusR(x)) => x
     case PowerR(b, RealLiteral(r)) if (r == one) => b
+    case PowerR(b, IntLiteral(i)) if (i == 1) => b
     case TimesR(UMinusR(x), UMinusR(y)) => TimesR(x, y)
     case UMinusR(TimesR(x, UMinusR(y))) => TimesR(x, y)
     case UMinusR(TimesR(UMinusR(x), y)) => TimesR(x, y)

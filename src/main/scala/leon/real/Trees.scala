@@ -218,6 +218,9 @@ object Trees {
   }
   case class PowerR(lhs: Expr, rhs: Expr) extends Expr with FixedType with BinaryExtractable with PrettyPrintable with RealArithmetic {
     val fixedType = RealType
+    /*rhs match {
+      case IntLiteral(i) => assert (i > 1)
+    }*/
     def extract: Option[(Expr, Expr, (Expr, Expr)=>Expr)] = {
       Some((lhs, rhs, (t1, t2) => PowerR(t1, t2)))
     }
