@@ -13,6 +13,6 @@ case class RealOptions(
   solverMaxIter: Int            = solverMaxIterMedium,
   solverPrecision: Rational     = solverPrecisionMedium,
   specGen: Boolean              = false,        // generate specs for functions without postconditions?
-  pathError: Boolean            = false         // checking path error, experimental feature :-)
-
+  pathError: Boolean            = false,        // checking path error, experimental feature :-)
+  loopUnrolling: Boolean        = true          // whether to (also) unroll loops up to max given by loopBound annotation
 )

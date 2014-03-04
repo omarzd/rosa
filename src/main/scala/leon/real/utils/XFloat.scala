@@ -73,6 +73,22 @@ object XFloat {
     (variableMap, indexMap)
   }
 
+  def variables2xfloatsExact(vars: VariablePool, config: XConfig, machineEps: Rational): Map[Expr, XFloat] = {
+    var variableMap: Map[Expr, XFloat] = Map.empty
+    
+    for(rec <- vars.getValidRecords) {
+      rec match {
+        case Record(v @ Variable(_), a @ Variable(_), Some(lo), Some(up), _, _) =>
+          val xfloat = XFloat.xFloatExact(v, RationalInterval(lo, up), config, machineEps)
+          variableMap = variableMap + (a -> xfloat)
+
+        case _ =>
+          throw new Exception("bug!")
+      }
+    }
+    variableMap
+  }
+
 
   // double constant (we include rdoff error)
   def apply(d: Double, config: XConfig, machineEps: Rational): XFloat = {
@@ -98,6 +114,16 @@ object XFloat {
     val rndoff = roundoff(range, machineEps)
     val (newError, index) = addNoiseWithIndex(new XRationalForm(Rational.zero), rndoff)
     (new XFloat(v, range, newError, config, machineEps), index)
+  }
+
+  /**
+    Creates an XFloat and adds the max roundoff error over the range automatically.
+    @param v variable associated with this XFloat
+    @param range real-valued range of this XFloat
+    @param config solver, precondition, which precision to choose
+  **/
+  def xFloatExact(v: Variable, range: RationalInterval, config: XConfig, machineEps: Rational): XFloat = {
+    new XFloat(v, range, new XRationalForm(Rational.zero), config, machineEps)
   }
 
   /**

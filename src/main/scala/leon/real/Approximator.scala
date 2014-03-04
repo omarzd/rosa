@@ -17,8 +17,8 @@ import Rational._
 import VariableShop._
 
 
-class Approximator(reporter: Reporter, solver: RangeSolver, precision: Precision, precondition: Expr, inputs: VariablePool,
-  checkPathError: Boolean = false) {
+class Approximator(reporter: Reporter, solver: RangeSolver, precision: Precision, precondition: Expr,
+  inputs: VariablePool, checkPathError: Boolean = false, exactInputs: Boolean = false) {
 
   type XRealTuple = Seq[XReal] 
 
@@ -41,8 +41,13 @@ class Approximator(reporter: Reporter, solver: RangeSolver, precision: Precision
   if (verbose) println("initial config: " + config)
 
   var variables: Map[Expr, XReal] = precision match {
-    case Float32 | Float64 | DoubleDouble | QuadDouble => variables2xfloats(inputs, config, machineEps)._1
-    case FPPrecision(bits) => variables2xfixed(inputs, config, bits)._1
+    case Float32 | Float64 | DoubleDouble | QuadDouble =>
+      if (exactInputs) variables2xfloatsExact(inputs, config, machineEps)
+      else variables2xfloats(inputs, config, machineEps)._1
+    
+    case FPPrecision(bits) => 
+      if (exactInputs) reporter.warning("no exact inputs for fixedpoint")
+      variables2xfixed(inputs, config, bits)._1
   }
   if (verbose) println("initial variables: " + variables)
 

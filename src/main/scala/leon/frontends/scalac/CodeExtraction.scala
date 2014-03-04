@@ -362,6 +362,14 @@ trait CodeExtraction extends ASTExtractors {
         if (name startsWith "leon.Annotations.") {
           fd.addAnnotation(name.split("\\.", 3)(2))
         }
+        if (name startsWith "leon.RealAnnotations.") {
+          if (name.split("\\.")(2) == "loopbound") {
+            a.args(0) match {
+              case Literal(Constant(i: Int)) =>
+                fd.loopBound = Some(i)
+            }
+          }
+        }
       }
 
       defsToDefs += sym -> fd

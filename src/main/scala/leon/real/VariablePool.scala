@@ -44,7 +44,7 @@ object EmptyRecord extends Record(False, False, None, None, None, None)
   and such things.
   @param map indexed by ideal variable
 */
-class VariablePool(inputs: Map[Expr, Record], val resIds: Seq[Identifier]) {
+class VariablePool(val inputs: Map[Expr, Record], val resIds: Seq[Identifier]) {
   import VariablePool._
   private var allVars = inputs
 
@@ -108,7 +108,7 @@ class VariablePool(inputs: Map[Expr, Record], val resIds: Seq[Identifier]) {
     inputs.filter(x => x._2.uncertainty.isEmpty).keySet.toSeq
   }
 
-  override def toString: String = allVars.toString
+  override def toString: String = allVars.toString 
 }
 
 

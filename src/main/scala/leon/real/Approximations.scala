@@ -58,7 +58,8 @@ class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc],
       case Postcondition => (vc.pre, inlinePostcondition(vc.body, precision, postMap), vc.post)
       case Inlining => (vc.pre, inlineFunctions(vc.body, fncs), vc.post)
     }
-    if (kind.fncHandling != Uninterpreted) reporter.debug("after FNC handling:\npre: %s\nbody: %s\npost: %s".format(pre,bodyFnc,post))
+    if (kind.fncHandling != Uninterpreted)
+      reporter.debug("after FNC handling:\npre: %s\nbody: %s\npost: %s".format(pre,bodyFnc,post))
 
     if (vc.isLoop) {
       reporter.debug("vc is a loop")
@@ -80,8 +81,8 @@ class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc],
               reporter.debug("finite expr: " + exprFinite)
 
               // since it's inlined, we may be able to use the same one...
-              val transformer = new Approximator(reporter, solver, precision, vc.pre, vc.variables, false)
-              // TODO: the errors here are computed with initial roundoff error, bt we want exact inputs
+              val transformer = new Approximator(reporter, solver, precision, vc.pre, vc.variables,
+                false, true)
               val maxError = transformer.computeError(exprFinite)
 
               reporter.debug("maxError: " + maxError)
@@ -95,8 +96,32 @@ class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc],
               reporter.debug("Ls: " + ls)
               (maxError, maxAbs(ls))
           })
+
           reporter.debug("")
-          reporter.info("errors: (maxError, Lipschitz constant)\n" + errors)
+          reporter.info("errors: (maxError, Lipschitz constant)\n")
+          errors.foreach({
+            case (sigma, k) =>
+              if (vc.funDef.loopBound.nonEmpty) {
+                val n = vc.funDef.loopBound.get
+
+                val machineEps = getUnitRoundoff(precision)
+                var maxInitialRange = zero
+                vc.variables.inputs.values.foreach { record => 
+                  println("record: " + record)
+                  maxInitialRange = max(maxInitialRange, record.lo.get)
+                  maxInitialRange = max(maxInitialRange, record.up.get) 
+                }
+                println("maxInitialRoundoff: " + maxInitialRange)
+                val initialRoundoff = machineEps * maxInitialRange 
+                println("initialRoundoff: " + initialRoundoff)
+
+                reporter.info(s"($sigma, $k), error after " + n + "iterations: " +
+                  errorFromMaxIterations(n, initialRoundoff, sigma, k)) 
+              } else {
+                reporter.info(s"($sigma, $k)")  
+              }
+
+            })
 
         case _ => reporter.error("cannot handle anything but a simple loop for now...")
       }
@@ -159,12 +184,23 @@ class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc],
           }
       }
     }
-  }
-
-  
+  }  
 }
 
 object Approximations {
+
+  /*
+    @param n number of iterations
+    @param lambda initial error
+    @param sigma error of one loop iteration
+    @param K Lipschitz constant
+  */
+  def errorFromMaxIterations(n: Int, lambda: Rational, sigma: Rational, k: Rational): Rational = {
+    var kn = k
+    for (i <- 1 until n) { kn *= k }
+
+    kn * lambda + sigma * ((one - kn)/(one - k))
+  }
 
   // to avoid confusion with nested sequences
   type SpecTuple = Seq[Spec]

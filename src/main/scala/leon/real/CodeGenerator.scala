@@ -130,9 +130,7 @@ class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, 
           val specExpr = And(specs.map( specToExpr(_) ))
 
           val resMap: Map[Expr, Expr] = specs.map(s => Variable(s.id)).zip(List(Variable(a), Variable(b))).toMap
-          println("resMap: " + resMap)
-          println("specExpr: " + specExpr)
-
+          
           val postExpr = MatchExpr(Variable(resId), 
             Seq(SimpleCase(TuplePattern(None, List(WildcardPattern(Some(a)), WildcardPattern(Some(b)))),
               replace(resMap, specExpr))))

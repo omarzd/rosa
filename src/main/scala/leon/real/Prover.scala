@@ -170,9 +170,9 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
 
       val sanityConstraint = And(cnstr.precondition, And(realCnstr, finiteCnstr))
       
-      val sanityConstraintSimpl = simplifyConstraint( sanityConstraint )
+      //val sanityConstraintSimpl = simplifyConstraint( sanityConstraint )
 
-      val toCheck = And(sanityConstraintSimpl, negate(cnstr.postcondition))
+      val toCheck = And(sanityConstraint, negate(cnstr.postcondition))
 
       val z3constraint = massageArithmetic(transformer.getZ3Expr(toCheck))
       val sanityExpr = massageArithmetic(transformer.getZ3Expr(sanityConstraint))

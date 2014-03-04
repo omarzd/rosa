@@ -1,8 +1,10 @@
-import leon.Real
+import leon._
 import Real._
+import RealAnnotations._
 
 object Spiral {
 
+  @loopbound(5)
   def spiralReal(x: Real, y: Real): (Real, Real) = {
     require(x*x + y*y < 100 && -10 <= x && x <= 10 && -10 <= y && y <= 10)
 
@@ -15,7 +17,7 @@ object Spiral {
     case (a, b) => -10 <= a && a <= 10 && -10 <= b && b <= 10
   })
 
-  def spiralBoth(x: Real, y: Real): (Real, Real) = {
+  /*def spiralBoth(x: Real, y: Real): (Real, Real) = {
     require(x*x + y*y < 100 && -10 <= x && x <= 10 && -10 <= y && y <= 10)
 
     iterate(x, y) {
@@ -26,7 +28,7 @@ object Spiral {
   } ensuring (_ match {
     case (a, b) => -10 <= a && a <= 10 && -10 <= b && b <= 10 &&
       -10 <= ~a && ~a <= 10 && -10 <= ~b && ~b <= 10
-  })
+  })*/
 
 
   /*def spiralBack(x: Real, y: Real, k: Int): (Real, Real) = {

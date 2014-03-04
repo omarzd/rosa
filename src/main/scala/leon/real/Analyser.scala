@@ -3,9 +3,10 @@
 package leon
 package real
 
-//import purescala.Common._
+import purescala.Common._
 import purescala.Definitions.{FunDef}
 import purescala.Trees._
+import purescala.TypeTrees.RealType
 import purescala.TreeOps.replace
 import purescala.TreeOps.functionCallsOf
 
@@ -83,6 +84,23 @@ object Analyser {
             // TODO: include recursive functions in overall functions
             //fncs += ((funDef -> Fnc() ))
 
+            if (funDef.loopBound.nonEmpty) {
+              val varMap: Map[Expr, Expr] = ids.map(i => (Variable(i), Variable(i))).toMap
+              val unrolledBody = unroll(Seq.empty, upFncs.asInstanceOf[Seq[UpdateFunction]], funDef.loopBound.get, varMap, Seq.empty, 1)
+              println("unrolledBody: " + unrolledBody.mkString("\n"))
+
+              // TODO: need to add roundoff to precondition?
+
+              funDef.postcondition match {
+                case Some((resId, postExpr)) =>
+                  val postcondition = extractPostCondition(resId, postExpr, resFresh)
+                  
+                  val vcUnrolled = new VerificationCondition(funDef, Postcondition, preGiven, And(unrolledBody),
+                    postcondition, allFncCalls, variables, precisions)
+                  vcs :+= vcUnrolled
+              }
+            }
+
           // Error computation only
           case (_, None) =>
             // TODO
@@ -153,4 +171,38 @@ object Analyser {
         super.rec(e, path)
     }
   }*/
+
+  // TODO: ignoring body for now
+  private def unroll(body: Seq[Expr], updates: Seq[UpdateFunction], max: Int, varMap: Map[Expr, Expr],
+    unrolled: Seq[Expr], count: Int): Seq[Expr] = {
+    
+    if (count >= max) {
+      val newUpdates = updates.map({
+        case UpdateFunction(lhs, rhs) =>
+          replace(varMap, rhs)
+        })
+
+
+      unrolled :+ Tuple(newUpdates)
+    } else {
+      println("loop " + count)
+      println("varMap: " + varMap)
+      var newVarMap: Map[Expr, Expr] = Map.empty
+      val newUpdates = updates.map({
+        case UpdateFunction(lhs, rhs) =>
+          val newVal = Variable(FreshIdentifier(lhs.toString + count)).setType(RealType)
+          newVarMap += ((lhs -> newVal))
+          Equals(newVal, replace(varMap, rhs))
+        })
+      println("newUpdates: " + newUpdates)
+      println("newVarMap: " + newVarMap)
+      //val newLoop = body  
+
+      unroll(body, updates, max, newVarMap, unrolled ++ newUpdates, count + 1)
+    }
+
+
+  }
+
+
 }
