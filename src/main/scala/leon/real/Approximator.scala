@@ -52,11 +52,14 @@ class Approximator(reporter: Reporter, solver: RangeSolver, precision: Precision
   if (verbose) println("initial variables: " + variables)
 
   def constraintFromXFloats(results: Map[Expr, XReal]): Expr = {
-      And(results.foldLeft(Seq[Expr]())(
+    And(results.foldLeft(Seq[Expr]())(
         (seq, kv) => seq ++ Seq(LessEquals(RealLiteral(kv._2.interval.xlo), kv._1),
                                 LessEquals(kv._1, RealLiteral(kv._2.interval.xhi)),
                                 Noise(inputs.getIdeal(kv._1), RealLiteral(kv._2.maxError)))))
-    }
+  }
+
+
+  
   /* 'generateFullConstraint' will ignore the returned approximation and generate a constraint
      over all (intermediate) variables. This mode should be used for checking pre-conditions.
     @return (computed constraint, spec of the result, if applicable)
@@ -95,6 +98,16 @@ class Approximator(reporter: Reporter, solver: RangeSolver, precision: Precision
     }
   }
 
+  /* Expects the expression to be open, i.e. to return a value
+   * (as opposed to last expr being x == ...) 
+   *  Will work also for tupled results
+   */
+  def getXRealForResult(e: Expr): Seq[XReal] = {
+    approx(e, Seq())
+  }
+
+  
+
   // used for loops
   def computeError(e: Expr): Rational = e match {
     case BooleanLiteral(_) => Rational.zero
@@ -104,6 +117,7 @@ class Approximator(reporter: Reporter, solver: RangeSolver, precision: Precision
       approximation(0).maxError
   }
 
+  // TODO: I don't think this function is needed
   private def register(path: Seq[Expr], e: Expr) = e match {
     // We allow only these conditions in if-then-else
     case LessThan(_,_) | LessEquals(_,_) | GreaterThan(_,_) | GreaterEquals(_,_) =>

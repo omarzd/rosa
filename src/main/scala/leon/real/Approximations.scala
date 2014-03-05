@@ -3,6 +3,7 @@
 package leon
 package real
 
+import purescala.Common._
 import purescala.Trees._
 import purescala.Definitions._
 import purescala.TreeOps._
@@ -21,22 +22,6 @@ class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc],
 
   implicit val debugSection = utils.DebugSectionReals
 
-  private def inlineBody(body: Expr, updateFncs: Seq[UpdateFunction]): Seq[UpdateFunction] = {
-    var valMap: Map[Expr, Expr] = Map.empty
-    preTraversal { expr => expr match {
-        case Equals(v @ Variable(id), rhs) =>
-          valMap = valMap + (v -> replace(valMap,rhs))
-        case _ => ;
-      }
-    }(body)
-    updateFncs.map( uf => UpdateFunction(uf.lhs, replace(valMap, uf.rhs)))
-  }
-
-  private def maxAbs(nums: Seq[Rational]): Rational = nums match {
-    case Seq(n) => abs(n)
-    case _ => max(abs(nums.head), maxAbs(nums.tail))
-  }
-
   // Note: only supports function calls in fnc bodies, not in pre and post
   def getApproximation(vc: VerificationCondition, kind: ApproxKind, precision: Precision,
     postMap: Map[FunDef, Seq[Spec]]): Approximation = {
@@ -53,6 +38,29 @@ class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc],
       }
     }
 
+    /*
+      Computing sigma (roundoff error, strating with exact inputs) and
+      K, Lipschitz constant, of a potentially multivariate function.
+      @param ids function variables 
+    */
+    def getSigmaK(precondition: Expr, expr: Expr, exprf: Expr, ids: Seq[Identifier]): (Rational, Rational) = {
+      val transformer = new Approximator(reporter, solver, precision, vc.pre, vc.variables, false, true)
+      val sigma = transformer.computeError(exprf)
+
+      reporter.debug("\u03C3: " + sigma)
+      val k = maxAbs(ids.flatMap { x =>
+        val exprPrime = d(expr, x)
+        val rangeDerivative = solver.getRange(precondition, exprPrime, vc.variables,
+                    solverMaxIterMedium, solverPrecisionMedium) 
+        reporter.debug("Lipschitz constants wrt " + x + ": " + rangeDerivative.xlo +
+                        ", " + rangeDerivative.xhi)
+        Seq(rangeDerivative.xlo, rangeDerivative  .xhi)
+        })
+      reporter.debug("k: " + k)
+      (sigma, k)
+    }
+
+    /* --------------  Functions -------------- */
     val (pre, bodyFnc, post) = kind.fncHandling match {
       case Uninterpreted => (vc.pre, vc.body, vc.post)
       case Postcondition => (vc.pre, inlinePostcondition(vc.body, precision, postMap), vc.post)
@@ -60,6 +68,17 @@ class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc],
     }
     if (kind.fncHandling != Uninterpreted)
       reporter.debug("after FNC handling:\npre: %s\nbody: %s\npost: %s".format(pre,bodyFnc,post))
+
+    /* -------------- If-then-else -------------- */
+    val paths: Set[Path] = kind.pathHandling match {
+      case Pathwise => getPaths(bodyFnc).map {
+        case (cond, expr) => Path(cond, expr, idealToActual(expr, vc.variables))
+      }
+      case Merging =>  Set(Path(True, bodyFnc, idealToActual(bodyFnc, vc.variables)))
+    }
+    reporter.debug("after PATH handling:\nbody: %s".format(paths.mkString("\n")))
+
+
 
     if (vc.isLoop) {
       reporter.debug("vc is a loop")
@@ -72,70 +91,35 @@ class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc],
 
           val precondition = removeErrors(vc.pre)//removeErrors(vc.pre)
 
-          // List[(maxError, max Lipschitz constant)]
-          val errors = inlinedUpdateFns.map({
+          // List[(maxError, max Lipschitz constant, max loop error)]
+          val errors: Seq[(Rational, Rational, Option[Rational])] = inlinedUpdateFns.map({
             case UpdateFunction(v, expr) =>
               reporter.debug("")
               reporter.debug("real update fnc for " + v + ": " + expr)
+              // TODO: this has already been done before (with path handling)
               val exprFinite = idealToActual(expr, vc.variables)
               reporter.debug("finite expr: " + exprFinite)
 
-              // since it's inlined, we may be able to use the same one...
-              val transformer = new Approximator(reporter, solver, precision, vc.pre, vc.variables,
-                false, true)
-              val maxError = transformer.computeError(exprFinite)
-
-              reporter.debug("maxError: " + maxError)
-              val ls = ids.flatMap { id =>
-                val exprPrime = d(expr, id)
-                val range = solver.getRange(precondition, exprPrime, vc.variables,
-                    solverMaxIterMedium, solverPrecisionMedium) 
-                reporter.debug("Lipschitz constant wrt " + id + ": " + range)
-                Seq(range.xlo, range.xhi)
+              val (sigma, k) = getSigmaK(precondition, expr, exprFinite, ids)
+              
+              vc.funDef.loopBound match {
+                case Some(n) =>
+                  val initErrors = getInitialErrors(vc.variables, precision)
+                  println("initErrors" + initErrors)
+                  val totalError = errorFromNIterations(n, maxAbs(initErrors.values.toSeq), sigma, k)
+                  reporter.info(s"($sigma, $k), error after " + n + "iterations: " + totalError)
+                     
+                  (sigma, k, Some(totalError))
+                case _ => 
+                  reporter.info(s"($sigma, $k)")  
+                  (sigma, k, None)
               }
-              reporter.debug("Ls: " + ls)
-              (maxError, maxAbs(ls))
           })
-
-          reporter.debug("")
-          reporter.info("errors: (maxError, Lipschitz constant)\n")
-          errors.foreach({
-            case (sigma, k) =>
-              if (vc.funDef.loopBound.nonEmpty) {
-                val n = vc.funDef.loopBound.get
-
-                val machineEps = getUnitRoundoff(precision)
-                var maxInitialRange = zero
-                vc.variables.inputs.values.foreach { record => 
-                  println("record: " + record)
-                  maxInitialRange = max(maxInitialRange, record.lo.get)
-                  maxInitialRange = max(maxInitialRange, record.up.get) 
-                }
-                println("maxInitialRoundoff: " + maxInitialRange)
-                val initialRoundoff = machineEps * maxInitialRange 
-                println("initialRoundoff: " + initialRoundoff)
-
-                reporter.info(s"($sigma, $k), error after " + n + "iterations: " +
-                  errorFromMaxIterations(n, initialRoundoff, sigma, k)) 
-              } else {
-                reporter.info(s"($sigma, $k)")  
-              }
-
-            })
-
         case _ => reporter.error("cannot handle anything but a simple loop for now...")
       }
 
       Approximation(kind, constraints, emptySpecTuple)
     } else {
-      val paths: Set[Path] = kind.pathHandling match {
-        case Pathwise => getPaths(bodyFnc).map {
-          case (cond, expr) => Path(cond, expr, idealToActual(expr, vc.variables))
-        }
-        case Merging =>  Set(Path(True, bodyFnc, idealToActual(bodyFnc, vc.variables)))
-      }
-      reporter.debug("after PATH handling:\nbody: %s".format(paths.mkString("\n")))
-
       kind.arithmApprox match {
         case Z3Only =>
           var constraints = Seq[Constraint]()
@@ -150,12 +134,26 @@ class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc],
           var spec: SpecTuple = Seq() // seq since we can have tuples
 
           for ( path <- paths if (isFeasible(And(pre, path.condition))) ) {
+
+            // TODO: only works on straight-line code
+            val ids = vc.variables.inputs.keys.map(k => k.asInstanceOf[Variable].id).toSeq
+            reporter.debug("ids: " + ids)
+            // TODO: removing errors here is not sound, we need total ranges, including errors
+            val (sigma, k) = getSigmaK(removeErrors(vc.pre), path.bodyReal, path.bodyFinite, ids)
+            val initErrors = getInitialErrors(vc.variables, precision)
+            reporter.debug("initial errors: " + initErrors)
+            val totalError = errorFromNIterations(1, maxAbs(initErrors.values.toSeq), sigma, k)
+            reporter.info(s"($sigma, $k), total error: " + totalError)
+
             //solver.clearCounts
-            val transformer = new Approximator(reporter, solver, precision, And(pre, path.condition), vc.variables, options.pathError)
-            val (bodyFiniteApprox, nextSpecs) = transformer.transformWithSpec(path.bodyFinite, vc.kind == VCKind.Precondition)
+            val transformer = new Approximator(reporter, solver, precision, And(pre, path.condition),
+                                                vc.variables, options.pathError)
+            val (bodyFiniteApprox, nextSpecs) =
+              transformer.transformWithSpec(path.bodyFinite, vc.kind == VCKind.Precondition)
             //println("solver counts: " + solver.getCounts)
             spec = mergeSpecs(spec, nextSpecs)
             //if(!nextSpec.isEmpty)
+            reporter.info("traditionally computed error: " + nextSpecs)
             specsPerPath :+= nextSpecs//.get// else specsPerPath :+= DummySpec
             reporter.debug("body after approx: " + bodyFiniteApprox)
             constraints :+= Constraint(And(pre, path.condition), path.bodyReal, bodyFiniteApprox, post)
@@ -184,7 +182,41 @@ class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc],
           }
       }
     }
-  }  
+  }
+
+
+  
+
+  private def inlineBody(body: Expr, updateFncs: Seq[UpdateFunction]): Seq[UpdateFunction] = {
+    var valMap: Map[Expr, Expr] = Map.empty
+    preTraversal { expr => expr match {
+        case Equals(v @ Variable(id), rhs) =>
+          valMap = valMap + (v -> replace(valMap,rhs))
+        case _ => ;
+      }
+    }(body)
+    updateFncs.map( uf => UpdateFunction(uf.lhs, replace(valMap, uf.rhs)))
+  }
+
+  private def maxAbs(nums: Seq[Rational]): Rational = nums match {
+    case Seq(n) => abs(n)
+    case _ => max(abs(nums.head), maxAbs(nums.tail))
+  }
+
+
+  def getInitialErrors(variables: VariablePool, precision: Precision): Map[Identifier, Rational] = {
+    var map = Map[Identifier, Rational]()
+    val machineEps = getUnitRoundoff(precision)
+    variables.inputs.map({
+      case (Variable(id), Record(_,_, Some(lo),Some(up), Some(absError), _)) =>
+        map += (id -> absError)
+      case (Variable(id), Record(_,_, Some(lo),Some(up), _, _)) =>
+        map += (id -> machineEps * max(abs(lo), abs(up)))
+    })
+    map
+  }
+
+    
 }
 
 object Approximations {
@@ -195,7 +227,7 @@ object Approximations {
     @param sigma error of one loop iteration
     @param K Lipschitz constant
   */
-  def errorFromMaxIterations(n: Int, lambda: Rational, sigma: Rational, k: Rational): Rational = {
+  def errorFromNIterations(n: Int, lambda: Rational, sigma: Rational, k: Rational): Rational = {
     var kn = k
     for (i <- 1 until n) { kn *= k }
 

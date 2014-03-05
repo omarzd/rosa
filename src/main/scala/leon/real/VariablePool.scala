@@ -13,7 +13,8 @@ import purescala.TreeOps._
 import real.Trees._
 import Rational.{max, abs}
 
-case class Record(ideal: Expr, actual: Expr, lo: Option[Rational], up: Option[Rational], absUncert: Option[Rational], relUncert: Option[Rational]) {
+case class Record(ideal: Expr, actual: Expr, lo: Option[Rational], up: Option[Rational],
+  absUncert: Option[Rational], relUncert: Option[Rational]) {
   def newLo(n: Rational): Record = Record(ideal, actual, Some(n), up, absUncert, relUncert)
   def newUp(n: Rational): Record = Record(ideal, actual, lo, Some(n), absUncert, relUncert)
   def newAbsUncert(n: Rational): Record = Record(ideal, actual, lo, up, Some(n), relUncert)
