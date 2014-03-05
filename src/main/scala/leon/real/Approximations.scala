@@ -8,7 +8,7 @@ import purescala.Trees._
 import purescala.Definitions._
 import purescala.TreeOps._
 
-import real.Trees.{Noise, Roundoff, Actual, UpdateFunction, Iteration}
+import real.Trees.{Noise, Roundoff, Actual, UpdateFunction, Iteration, RealLiteral}
 import real.TreeOps._
 import Rational._
 import Calculus._
@@ -58,6 +58,45 @@ class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc],
         })
       reporter.debug("k: " + k)
       (sigma, k)
+    }
+
+    /*
+      Get approximation for results of an expression.
+    */
+    def getApproximationAndSpec_ResultOnly(e: Expr): (Expr, Seq[Spec]) = {
+      val approximator = new Approximator(reporter, solver, precision, And(pre, path.condition),
+                                                  vc.variables, options.pathError)
+
+      val approxs = approximator.getXRealForResult(e)
+      val zipped = vc.variables.fResultVars.zip(approx)
+
+      val specs = zipped.map({
+        case (fresVar: Variable, resXFloat: XReal) =>
+          Spec(fresVar.id, RationalInterval(resXFloat.realInterval.xlo, resXFloat.realInterval.xhi), resXFloat.maxError)
+        })
+
+      val constraint = And(zipped.foldLeft(Seq[Expr]())(
+          (seq, kv) => seq ++ Seq(LessEquals(RealLiteral(kv._2.interval.xlo), kv._1),
+                                  LessEquals(kv._1, RealLiteral(kv._2.interval.xhi)),
+                                  Noise(inputs.getIdeal(kv._1), RealLiteral(kv._2.maxError)))))
+      (constraint, specs)
+    }
+
+    /*
+      Get approximation for results and all intermediate variables.
+      Used for proving preconditions.
+    */
+    def getApproximationAndSpec_AllVars(e: Expr): Expr = {
+      val approximator = new Approximator(reporter, solver, precision, And(pre, path.condition),
+                                                  vc.variables, options.pathError)
+
+      val approxs: Map[Expr, XReal] = approximator.getXRealForAllVars(e)
+      
+      val constraint = And(approxs.foldLeft(Seq[Expr]())(
+          (seq, kv) => seq ++ Seq(LessEquals(RealLiteral(kv._2.interval.xlo), kv._1),
+                                  LessEquals(kv._1, RealLiteral(kv._2.interval.xhi)),
+                                  Noise(inputs.getIdeal(kv._1), RealLiteral(kv._2.maxError)))))
+      constraint
     }
 
     /* --------------  Functions -------------- */
@@ -145,7 +184,21 @@ class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc],
             val totalError = errorFromNIterations(1, maxAbs(initErrors.values.toSeq), sigma, k)
             reporter.info(s"($sigma, $k), total error: " + totalError)
 
+
             //solver.clearCounts
+            
+            if (vc.kind == VCKind.Precondition) {
+              val bodyApprox = getApproximationAndSpec_AllVars(path.bodyFinite)
+              constraints :+= Constraint(And(pre, path.condition), path.bodyReal, bodyApprox, post)
+            } else {
+              val (bodyApprox, nextSpecs) = getApproximationAndSpec_ResultOnly(path.bodyFinite)
+              spec = mergeSpecs(spec, nextSpecs) //TODO do at the end?
+              specsPerPath :+= nextSpecs
+              constraints :+= Constraint(And(pre, path.condition), path.bodyReal, bodyApprox, post)
+              reporter.debug("body approx: " + bodyApprox)    
+            }
+
+            /*
             val transformer = new Approximator(reporter, solver, precision, And(pre, path.condition),
                                                 vc.variables, options.pathError)
             val (bodyFiniteApprox, nextSpecs) =
@@ -157,6 +210,7 @@ class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc],
             specsPerPath :+= nextSpecs//.get// else specsPerPath :+= DummySpec
             reporter.debug("body after approx: " + bodyFiniteApprox)
             constraints :+= Constraint(And(pre, path.condition), path.bodyReal, bodyFiniteApprox, post)
+          */
           }
           val approx = Approximation(kind, constraints, spec)
           vc.approximations += (precision -> (vc.approximations(precision) :+ approx))
@@ -185,6 +239,23 @@ class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc],
   }
 
 
+  
+
+  /*private def constraintFromXFloats(results: Map[Expr, XReal]): Expr = {
+    And(results.foldLeft(Seq[Expr]())(
+        (seq, kv) => seq ++ Seq(LessEquals(RealLiteral(kv._2.interval.xlo), kv._1),
+                                LessEquals(kv._1, RealLiteral(kv._2.interval.xhi)),
+                                Noise(inputs.getIdeal(kv._1), RealLiteral(kv._2.maxError)))))
+  }*/
+
+  /*private def constraintFromXReal(inputs: VariablePool, approx: Seq[XReal]): Expr = {
+    val zipped = inputs.fResultVars.zip(approx)
+    
+    And(zipped.foldLeft(Seq[Expr]())(
+        (seq, kv) => seq ++ Seq(LessEquals(RealLiteral(kv._2.interval.xlo), kv._1),
+                                LessEquals(kv._1, RealLiteral(kv._2.interval.xhi)),
+                                Noise(inputs.getIdeal(kv._1), RealLiteral(kv._2.maxError))))) 
+  }*/
   
 
   private def inlineBody(body: Expr, updateFncs: Seq[UpdateFunction]): Seq[UpdateFunction] = {

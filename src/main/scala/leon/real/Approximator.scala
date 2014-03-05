@@ -106,7 +106,13 @@ class Approximator(reporter: Reporter, solver: RangeSolver, precision: Precision
     approx(e, Seq())
   }
 
-  
+  def getXRealForAllVars(e: Expr): Map[Expr, XReal] = {
+    val app = approx(e, Seq())
+    //sanity check
+    assert(app.length == 0, "computing xreals for equations but open expression found")
+    // TODO: remove input vars?
+    variables
+  }
 
   // used for loops
   def computeError(e: Expr): Rational = e match {
