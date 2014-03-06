@@ -21,3 +21,9 @@ last.log
 
 # generated file
 generated/*.scala
+
+# Latex aux files
+*.aux
+*.fdb_latexmk
+*.synctex.gz
+*.log
