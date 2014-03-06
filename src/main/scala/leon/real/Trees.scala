@@ -65,7 +65,7 @@ object Trees {
   case class Roundoff(expr: Expr) extends Expr with FixedType with UnaryExtractable with PrettyPrintable {
     val fixedType = BooleanType
     def extract: Option[(Expr, (Expr)=>Expr)] = {
-      Some((expr, (e) => Actual(e)))
+      Some((expr, (e) => Roundoff(e)))
     }
     def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
       printer.append("rndoof(")
