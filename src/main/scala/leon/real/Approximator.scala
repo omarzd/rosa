@@ -51,52 +51,6 @@ class Approximator(reporter: Reporter, solver: RangeSolver, precision: Precision
   }
   if (verbose) println("initial variables: " + variables)
 
-  def constraintFromXFloats(results: Map[Expr, XReal]): Expr = {
-    And(results.foldLeft(Seq[Expr]())(
-        (seq, kv) => seq ++ Seq(LessEquals(RealLiteral(kv._2.interval.xlo), kv._1),
-                                LessEquals(kv._1, RealLiteral(kv._2.interval.xhi)),
-                                Noise(inputs.getIdeal(kv._1), RealLiteral(kv._2.maxError)))))
-  }
-
-
-  
-  /* 'generateFullConstraint' will ignore the returned approximation and generate a constraint
-     over all (intermediate) variables. This mode should be used for checking pre-conditions.
-    @return (computed constraint, spec of the result, if applicable)
-   */
-  def transformWithSpec(e: Expr, fullConstraint: Boolean): (Expr, Seq[Spec]) = {
-    
-    e match {
-      case BooleanLiteral(_) => (e, Seq())  // if no body
-      case _ =>
-        val approximation = approx(e, Seq())
-
-        if (approximation.length == inputs.fResultVars.length) {
-          if (fullConstraint) reporter.warning("result from approximation, but want to generate full constraint")
-          val zipped = inputs.fResultVars.zip(approximation)
-
-          val specs = zipped.map({
-            case (fresVar: Variable, resXFloat: XReal) =>
-              Spec(fresVar.id, RationalInterval(resXFloat.realInterval.xlo, resXFloat.realInterval.xhi), resXFloat.maxError)
-            })
-
-          (constraintFromXFloats(zipped.toMap), specs)
-        } else {
-          if (approximation.length > 0 && !fullConstraint) {
-            reporter.warning("Number of resVars and computed approximation does not match!")
-            reporter.warning("# approximations: " + approximation.length + ", # resVars: " + inputs.fResultVars.length)
-            (True, Seq())
-          } else if (fullConstraint) {
-            (constraintFromXFloats(variables), Seq())
-          } else {
-            reporter.warning("default case reached in transformWithSpec")
-            reporter.warning(approximation)
-            reporter.warning(e)
-            (True, Seq())
-          }
-        }
-    }
-  }
 
   /* Expects the expression to be open, i.e. to return a value
    * (as opposed to last expr being x == ...) 

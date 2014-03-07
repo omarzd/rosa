@@ -60,60 +60,84 @@ class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc],
       (sigma, k)
     }
 
+    def getErrorWithLipschitz(preReal: Expr, path: Path): Option[Rational] = {
+      // check whether we can apply this
+      // no ifs and no tuples (for now)
+      if (containsIfExpr(path.bodyReal) || vc.variables.resIds.length > 1) {
+        None
+      } else {
+        val ids = vc.variables.inputs.keys.map(k => k.asInstanceOf[Variable].id).toSeq
+        reporter.debug("ids: " + ids)
+        // TODO: removing errors here is not sound, we need total ranges, including errors
+        val (sigma, k) = getSigmaK(preReal, inlineBody(path.bodyReal), path.bodyFinite, ids)
+        val initErrors = getInitialErrors(vc.variables, precision)
+        reporter.debug("initial errors: " + initErrors)
+        val totalError = k * maxAbs(initErrors.values.toSeq) + sigma
+        reporter.info(s"($sigma, $k), total error: " + totalError)
+        Some(totalError)
+      }  
+    }
+    
     /*
       Get approximation for results of an expression.
     */
-    def getApproximationAndSpec_ResultOnly(e: Expr): (Expr, Seq[Spec]) = {
-      val approximator = new Approximator(reporter, solver, precision, And(pre, path.condition),
+    def getApproximationAndSpec_ResultOnly(path: Path): (Expr, Seq[Spec]) = path.bodyFinite match {
+      //case True => (True, Seq())
+      case body =>
+        val approximator = new Approximator(reporter, solver, precision, And(vc.pre, path.condition),
                                                   vc.variables, options.pathError)
+        val approx = approximator.getXRealForResult(body)
+        val zipped = vc.variables.fResultVars.zip(approx)
 
-      val approxs = approximator.getXRealForResult(e)
-      val zipped = vc.variables.fResultVars.zip(approx)
+        val specs = zipped.map({
+          case (fresVar: Variable, resXFloat: XReal) =>
+            Spec(fresVar.id, RationalInterval(resXFloat.realInterval.xlo, resXFloat.realInterval.xhi), resXFloat.maxError)
+          })
 
-      val specs = zipped.map({
-        case (fresVar: Variable, resXFloat: XReal) =>
-          Spec(fresVar.id, RationalInterval(resXFloat.realInterval.xlo, resXFloat.realInterval.xhi), resXFloat.maxError)
-        })
-
-      val constraint = And(zipped.foldLeft(Seq[Expr]())(
+        val constraint = And(zipped.foldLeft(Seq[Expr]())(
           (seq, kv) => seq ++ Seq(LessEquals(RealLiteral(kv._2.interval.xlo), kv._1),
                                   LessEquals(kv._1, RealLiteral(kv._2.interval.xhi)),
-                                  Noise(inputs.getIdeal(kv._1), RealLiteral(kv._2.maxError)))))
-      (constraint, specs)
+                                  Noise(vc.variables.getIdeal(kv._1), RealLiteral(kv._2.maxError)))))
+        (constraint, specs)
     }
 
     /*
       Get approximation for results and all intermediate variables.
       Used for proving preconditions.
     */
-    def getApproximationAndSpec_AllVars(e: Expr): Expr = {
-      val approximator = new Approximator(reporter, solver, precision, And(pre, path.condition),
-                                                  vc.variables, options.pathError)
-
-      val approxs: Map[Expr, XReal] = approximator.getXRealForAllVars(e)
-      
-      val constraint = And(approxs.foldLeft(Seq[Expr]())(
-          (seq, kv) => seq ++ Seq(LessEquals(RealLiteral(kv._2.interval.xlo), kv._1),
-                                  LessEquals(kv._1, RealLiteral(kv._2.interval.xhi)),
-                                  Noise(inputs.getIdeal(kv._1), RealLiteral(kv._2.maxError)))))
-      constraint
+    def getApproximationAndSpec_AllVars(path: Path): Expr = path.bodyFinite match {
+      case True => True // noop
+      case body => 
+        val approximator = new Approximator(reporter, solver, precision, And(vc.pre, path.condition),
+                                                    vc.variables, options.pathError)
+        val approxs: Map[Expr, XReal] = approximator.getXRealForAllVars(body)
+        
+        val constraint = And(approxs.foldLeft(Seq[Expr]())(
+            (seq, kv) => seq ++ Seq(LessEquals(RealLiteral(kv._2.interval.xlo), kv._1),
+                                    LessEquals(kv._1, RealLiteral(kv._2.interval.xhi)),
+                                    Noise(vc.variables.getIdeal(kv._1), RealLiteral(kv._2.maxError)))))
+        constraint
     }
+
+    val precondition = vc.pre
+    val preReal = removeErrors(precondition)
+    val postcondition = vc.post
 
     /* --------------  Functions -------------- */
-    val (pre, bodyFnc, post) = kind.fncHandling match {
-      case Uninterpreted => (vc.pre, vc.body, vc.post)
-      case Postcondition => (vc.pre, inlinePostcondition(vc.body, precision, postMap), vc.post)
-      case Inlining => (vc.pre, inlineFunctions(vc.body, fncs), vc.post)
+    val body = kind.fncHandling match {
+      case Uninterpreted => vc.body
+      case Postcondition => inlinePostcondition(vc.body, precision, postMap)
+      case Inlining => inlineFunctions(vc.body, fncs)
     }
     if (kind.fncHandling != Uninterpreted)
-      reporter.debug("after FNC handling:\npre: %s\nbody: %s\npost: %s".format(pre,bodyFnc,post))
+      reporter.debug("after FNC handling:\npre: %s\nbody: %s\npost: %s".format(precondition,body,postcondition))
 
     /* -------------- If-then-else -------------- */
     val paths: Set[Path] = kind.pathHandling match {
-      case Pathwise => getPaths(bodyFnc).map {
+      case Pathwise => getPaths(body).map {
         case (cond, expr) => Path(cond, expr, idealToActual(expr, vc.variables))
       }
-      case Merging =>  Set(Path(True, bodyFnc, idealToActual(bodyFnc, vc.variables)))
+      case Merging =>  Set(Path(True, body, idealToActual(body, vc.variables)))
     }
     reporter.debug("after PATH handling:\nbody: %s".format(paths.mkString("\n")))
 
@@ -123,12 +147,10 @@ class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc],
       reporter.debug("vc is a loop")
       var constraints = Seq[Constraint]()
 
-      bodyFnc match {
+      body match {
         case Iteration(ids, body, updateFncs) =>
           val inlinedUpdateFns = inlineBody(body, updateFncs.asInstanceOf[Seq[UpdateFunction]])
           reporter.debug("inlined fncs: " + inlinedUpdateFns)
-
-          val precondition = removeErrors(vc.pre)//removeErrors(vc.pre)
 
           // List[(maxError, max Lipschitz constant, max loop error)]
           val errors: Seq[(Rational, Rational, Option[Rational])] = inlinedUpdateFns.map({
@@ -139,7 +161,7 @@ class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc],
               val exprFinite = idealToActual(expr, vc.variables)
               reporter.debug("finite expr: " + exprFinite)
 
-              val (sigma, k) = getSigmaK(precondition, expr, exprFinite, ids)
+              val (sigma, k) = getSigmaK(preReal, expr, exprFinite, ids)
               
               vc.funDef.loopBound match {
                 case Some(n) =>
@@ -163,7 +185,7 @@ class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc],
         case Z3Only =>
           var constraints = Seq[Constraint]()
           for (path <- paths) {
-            constraints :+= Constraint(And(pre, path.condition), path.bodyReal, path.bodyFinite, post)
+            constraints :+= Constraint(And(precondition, path.condition), path.bodyReal, path.bodyFinite, postcondition)
           }
           Approximation(kind, constraints, Seq())
 
@@ -172,45 +194,21 @@ class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc],
           var specsPerPath = Seq[SpecTuple]()
           var spec: SpecTuple = Seq() // seq since we can have tuples
 
-          for ( path <- paths if (isFeasible(And(pre, path.condition))) ) {
-
-            // TODO: only works on straight-line code
-            val ids = vc.variables.inputs.keys.map(k => k.asInstanceOf[Variable].id).toSeq
-            reporter.debug("ids: " + ids)
-            // TODO: removing errors here is not sound, we need total ranges, including errors
-            val (sigma, k) = getSigmaK(removeErrors(vc.pre), path.bodyReal, path.bodyFinite, ids)
-            val initErrors = getInitialErrors(vc.variables, precision)
-            reporter.debug("initial errors: " + initErrors)
-            val totalError = errorFromNIterations(1, maxAbs(initErrors.values.toSeq), sigma, k)
-            reporter.info(s"($sigma, $k), total error: " + totalError)
-
-
-            //solver.clearCounts
-            
+          for ( path <- paths if (isFeasible(And(precondition, path.condition))) ) {
+            //solver.clearCounts          
             if (vc.kind == VCKind.Precondition) {
-              val bodyApprox = getApproximationAndSpec_AllVars(path.bodyFinite)
-              constraints :+= Constraint(And(pre, path.condition), path.bodyReal, bodyApprox, post)
+              val bodyApprox = getApproximationAndSpec_AllVars(path)
+              constraints :+= Constraint(And(precondition, path.condition), path.bodyReal, bodyApprox, postcondition)
             } else {
-              val (bodyApprox, nextSpecs) = getApproximationAndSpec_ResultOnly(path.bodyFinite)
+              val lipschitzError = getErrorWithLipschitz(preReal, path)
+              reporter.info("lipschitzError: " + lipschitzError)
+
+              val (bodyApprox, nextSpecs) = getApproximationAndSpec_ResultOnly(path)
               spec = mergeSpecs(spec, nextSpecs) //TODO do at the end?
               specsPerPath :+= nextSpecs
-              constraints :+= Constraint(And(pre, path.condition), path.bodyReal, bodyApprox, post)
+              constraints :+= Constraint(And(precondition, path.condition), path.bodyReal, bodyApprox, postcondition)
               reporter.debug("body approx: " + bodyApprox)    
             }
-
-            /*
-            val transformer = new Approximator(reporter, solver, precision, And(pre, path.condition),
-                                                vc.variables, options.pathError)
-            val (bodyFiniteApprox, nextSpecs) =
-              transformer.transformWithSpec(path.bodyFinite, vc.kind == VCKind.Precondition)
-            //println("solver counts: " + solver.getCounts)
-            spec = mergeSpecs(spec, nextSpecs)
-            //if(!nextSpec.isEmpty)
-            reporter.info("traditionally computed error: " + nextSpecs)
-            specsPerPath :+= nextSpecs//.get// else specsPerPath :+= DummySpec
-            reporter.debug("body after approx: " + bodyFiniteApprox)
-            constraints :+= Constraint(And(pre, path.condition), path.bodyReal, bodyFiniteApprox, post)
-          */
           }
           val approx = Approximation(kind, constraints, spec)
           vc.approximations += (precision -> (vc.approximations(precision) :+ approx))
@@ -238,26 +236,6 @@ class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc],
     }
   }
 
-
-  
-
-  /*private def constraintFromXFloats(results: Map[Expr, XReal]): Expr = {
-    And(results.foldLeft(Seq[Expr]())(
-        (seq, kv) => seq ++ Seq(LessEquals(RealLiteral(kv._2.interval.xlo), kv._1),
-                                LessEquals(kv._1, RealLiteral(kv._2.interval.xhi)),
-                                Noise(inputs.getIdeal(kv._1), RealLiteral(kv._2.maxError)))))
-  }*/
-
-  /*private def constraintFromXReal(inputs: VariablePool, approx: Seq[XReal]): Expr = {
-    val zipped = inputs.fResultVars.zip(approx)
-    
-    And(zipped.foldLeft(Seq[Expr]())(
-        (seq, kv) => seq ++ Seq(LessEquals(RealLiteral(kv._2.interval.xlo), kv._1),
-                                LessEquals(kv._1, RealLiteral(kv._2.interval.xhi)),
-                                Noise(inputs.getIdeal(kv._1), RealLiteral(kv._2.maxError))))) 
-  }*/
-  
-
   private def inlineBody(body: Expr, updateFncs: Seq[UpdateFunction]): Seq[UpdateFunction] = {
     var valMap: Map[Expr, Expr] = Map.empty
     preTraversal { expr => expr match {
@@ -268,6 +246,21 @@ class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc],
     }(body)
     updateFncs.map( uf => UpdateFunction(uf.lhs, replace(valMap, uf.rhs)))
   }
+
+  private def inlineBody(body: Expr): Expr = {
+    var valMap: Map[Expr, Expr] = Map.empty
+    val lastInstruction = preMap { expr => expr match {
+        case Equals(v @ Variable(id), rhs) =>
+          valMap = valMap + (v -> replace(valMap,rhs))
+          Some(True)
+        case x => Some(x)  //last instruction
+      }
+    }(body)
+    println("last instruction: " + lastInstruction)
+    val res = replace(valMap, lastInstruction)
+    println("res: " + res)
+    res
+  }  
 
   private def maxAbs(nums: Seq[Rational]): Rational = nums match {
     case Seq(n) => abs(n)

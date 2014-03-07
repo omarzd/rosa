@@ -55,28 +55,14 @@ class Simulator(ctx: LeonContext, options: RealOptions, prog: Program, reporter:
 
   private def runFixedpointSimulation(inputs: Map[Variable, (RationalInterval, Rational)], vc: VerificationCondition,
     precision: Precision): (Double, Interval) = {
+    import CodeGenerator._
 
     val bitlength = precision.asInstanceOf[FPPrecision].bitlength
 
-    val constConstructor =
-      if (bitlength <= 16) (r: Rational, f: Int) => { IntLiteral(rationalToInt(r, f)) }
-      else (r: Rational, f: Int) => { LongLiteral(rationalToLong(r, f)) }
-
     // first generate the comparison code
     val solver = new RangeSolver(options.z3Timeout)
-    val ssaBody = idealToActual(toSSA(vc.body, fncs), vc.variables)
-    val transformer = new Approximator(reporter, solver, precision, vc.pre, vc.variables)
-    val (newBody, newSpec) = transformer.transformWithSpec(ssaBody, false)
-
-    val formats = transformer.variables.map {
-      case (v, r) => (v, FPFormat.getFormat(r.interval.xlo, r.interval.xhi, bitlength))
-    }
-    val fpBody = translateToFP(ssaBody, formats, bitlength, constConstructor)
-    val fixedBody = actualToIdealVars(fpBody, vc.variables)
-
+    val (fixedBody, resFracBits) = getFPCode(vc, solver, bitlength, fncs, reporter)
     val realBody = vc.body
-    //println("\nfixedBody: " + fixedBody)
-    //println("\nrealBody: " + realBody)
 
     // Now do the actual simulation
     val r = new scala.util.Random(System.currentTimeMillis)
@@ -87,8 +73,7 @@ class Simulator(ctx: LeonContext, options: RealOptions, prog: Program, reporter:
     var inputFormats = inputs.map {
       case (v, (interval, error)) => (v -> FPFormat.getFormat(interval.xlo, interval.xhi, bitlength))
     }
-    var resFracBits = formats(vc.variables.fResultVars.head).f
-
+    
     while(counter < simSize) {
       var randomInputsRational = new collection.immutable.HashMap[Expr, Rational]()
       var randomInputsFixed = new collection.immutable.HashMap[Expr, Long]()

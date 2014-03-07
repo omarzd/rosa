@@ -7,7 +7,7 @@ import leon.Utils._
 object SineApproximations {
 
   def comparisonValid(x: Real): Real = {
-    require(-2.0 < x)// && x < 2.0)
+    require(-2.0 < x && x < 2.0)
     val z1 = sineTaylor(x)
     val z2 = sineOrder3(x)
     z1 - z2

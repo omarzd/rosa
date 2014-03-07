@@ -16,7 +16,40 @@ import real.{FixedPointFormat => FPFormat}
 import FPFormat._
 import real.Trees._
 
+
+object CodeGenerator {
+
+  val constConstructorInt = (r: Rational, f: Int) => { IntLiteral(rationalToInt(r, f)) }
+      
+  val constConstructorLong = (r: Rational, f: Int) => { LongLiteral(rationalToLong(r, f)) }
+
+  /*
+    Turns the VC body into fixed-point code.
+    @return (fixed-point body, number of fractional bits of the result)
+  */
+  def getFPCode(vc: VerificationCondition, solver: RangeSolver, bitlength: Int, fncs: Map[FunDef, Fnc],
+    reporter: Reporter): (Expr, Int) = {
+    
+    val ssaBody = idealToActual(toSSA(vc.body, fncs), vc.variables)
+    val transformer = new Approximator(reporter, solver, FPPrecision(bitlength), vc.pre, vc.variables,
+      checkPathError = false)
+    val approxVariables = transformer.getXRealForAllVars(ssaBody)
+     
+    val formats = approxVariables.map {
+      case (v, r) => (v, FPFormat.getFormat(r.interval.xlo, r.interval.xhi, bitlength))
+    }
+    //println("formats: " + formats); println("ssaBody: " + ssaBody)
+    val fpBody = translateToFP(ssaBody, formats, bitlength,
+       if (bitlength <= 16) constConstructorInt else constConstructorLong)
+
+    var resFracBits = formats(vc.variables.fResultVars.head).f
+
+    (actualToIdealVars(fpBody, vc.variables), resFracBits)
+  }
+}
+
 class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, prog: Program, precision: Precision, fncs: Map[FunDef, Fnc]) {
+  import CodeGenerator._
 
   val nonRealType: TypeTree = (precision: @unchecked) match {
     case Float64 => Float64Type
@@ -163,10 +196,7 @@ class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, 
     val invariants: Seq[Expr] = Seq.empty
 
     val intType = if (bitlength <= 16) Int32Type else Int64Type
-    val constConstructor =
-      if (bitlength <= 16) (r: Rational, f: Int) => { IntLiteral(rationalToInt(r, f)) }
-      else (r: Rational, f: Int) => { LongLiteral(rationalToLong(r, f)) }
-
+    
     val solver = new RangeSolver(options.z3Timeout)    
 
     for (vc <- vcs if (vc.kind == VCKind.Postcondition || vc.kind == VCKind.SpecGen)) {
@@ -175,27 +205,9 @@ class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, 
       val args = f.params.map(decl => ValDef(decl.id, intType))
       val funDef = new FunDef(id, Seq.empty, intType, args)
 
-      //println("\n ==== \nfnc id: " + id)
-      //println("vc.kind " + vc.kind)
-      //println("generating code for: " + vc.body)
+      val fpBody = getFPCode(vc, solver, bitlength, fncs, reporter)._1
 
-      // convert to SSA form, then run through Approximator to get ranges of all intermediate variables
-      val ssaBody = idealToActual(toSSA(vc.body, fncs), vc.variables)
-      //println("\n ssaBody: " + ssaBody)
-      val transformer = new Approximator(reporter, solver, precision, vc.pre, vc.variables, checkPathError = false)
-      val (newBody, newSpec) = transformer.transformWithSpec(ssaBody, false)
-
-      val formats = transformer.variables.map {
-        case (v, r) => (v, FPFormat.getFormat(r.interval.xlo, r.interval.xhi, bitlength))
-      }
-      //println("formats: " + formats)
-      //println("ssaBody: " + ssaBody)
-
-
-      val fpBody = translateToFP(ssaBody, formats, bitlength, constConstructor)
-
-      funDef.body = Some(mathToCode(actualToIdealVars(fpBody, vc.variables)))
-
+      funDef.body = Some(mathToCode(fpBody))
       defs = defs :+ funDef
     }
 
@@ -209,6 +221,4 @@ class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, 
     case IfExpr(c, t, e) => IfExpr(c, mathToCode(t), mathToCode(e))
     case _ => expr
   }
-
-
 }

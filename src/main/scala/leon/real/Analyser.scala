@@ -85,19 +85,23 @@ object Analyser {
             //fncs += ((funDef -> Fnc() ))
 
             if (funDef.loopBound.nonEmpty) {
-              val varMap: Map[Expr, Expr] = ids.map(i => (Variable(i), Variable(i))).toMap
-              val unrolledBody = unroll(Seq.empty, upFncs.asInstanceOf[Seq[UpdateFunction]], funDef.loopBound.get, varMap, Seq.empty, 1)
-              println("unrolledBody: " + unrolledBody.mkString("\n"))
+              if (lb == True) {
+                val varMap: Map[Expr, Expr] = ids.map(i => (Variable(i), Variable(i))).toMap
+                val unrolledBody = unroll(Seq.empty, upFncs.asInstanceOf[Seq[UpdateFunction]], funDef.loopBound.get, varMap, Seq.empty, 1)
+                println("unrolledBody: " + unrolledBody.mkString("\n"))
 
-              // TODO: need to add roundoff to precondition?
+                // TODO: need to add roundoff to precondition?
 
-              funDef.postcondition match {
-                case Some((resId, postExpr)) =>
-                  val postcondition = extractPostCondition(resId, postExpr, resFresh)
-                  
-                  val vcUnrolled = new VerificationCondition(funDef, Postcondition, preGiven, And(unrolledBody),
-                    postcondition, allFncCalls, variables, precisions)
-                  vcs :+= vcUnrolled
+                funDef.postcondition match {
+                  case Some((resId, postExpr)) =>
+                    val postcondition = extractPostCondition(resId, postExpr, resFresh)
+                    
+                    val vcUnrolled = new VerificationCondition(funDef, LoopUnroll, preGiven, And(unrolledBody),
+                      postcondition, allFncCalls, variables, precisions)
+                    vcs :+= vcUnrolled
+                }
+              } else {
+                reporter.warning("cannot unroll iteration with body (yet)")
               }
             }
 

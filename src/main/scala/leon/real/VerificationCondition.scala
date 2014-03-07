@@ -62,5 +62,6 @@ object VCKind extends Enumeration {
   val Assert = Value("assert.")
   val SpecGen = Value("specgen")
   val LoopInvariant = Value("loop-inv")
-  val LoopError = Value("loop-err")
+  val LoopError = Value("loop-error")
+  val LoopUnroll = Value("loop-unroll")
 }
