@@ -9,3 +9,22 @@
 
 % comment out if you want automatic paragraph indenting
 \setlength{\parindent}{0pt}
+
+\newcommand{\lv}{\lVert}
+\newcommand{\rv}{\rVert}
+\newcommand{\tl}{\tilde}
+\newcommand{\eqn}[1]{
+ \begin{align} #1
+ \end{align}}
+
+\newcommand*\colvec[3]{
+    \begin{pmatrix}#1\\#2\\#3\end{pmatrix}
+}
+
+\newcommand*\norm[1]{
+  \lVert #1 \rVert
+}
+
+\newcommand*\partialDer[2]{
+  \frac{\partial #1}{\partial #2}
+}

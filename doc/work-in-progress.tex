@@ -3,15 +3,6 @@
 \geometry{a4paper}
 
 \input{common}
-
-\newcommand{\lv}{\lVert}
-\newcommand{\rv}{\rVert}
-\newcommand{\tl}{\tilde}
-\newcommand{\eqn}[1]{
- \begin{align} #1
- \end{align}}
-
-
 \setlength{\parindent}{0pt}
 
 
@@ -23,6 +14,30 @@
 
 \maketitle
 
-\input{theory}
+\section{What is missing}
+\begin{itemize}
+\item more precise error computation for multivariate functions (component-wise)
+
+\item code generation
+
+\item how to specify the error requirements in the specification
+
+\item loop unrolling (with body)
+
+\item straight-line examples using Lipschitz as well
+
+\item specs for open loops
+
+\item additional constraints for harmonic oscillator and such
+
+\item can we exploit the Lipschitz information as to which
+inputs are most sensitive to noise?
+
+\item try different norms
+\end{itemize}
+
+\input{inductive_specs}
+
+\input{theory_errors}
 
 \end{document}
