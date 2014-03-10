@@ -184,7 +184,6 @@ object TreeOps {
 
   }
 
-
   def letsToEquals(expr: Expr): Expr = expr match {
     case Equals(l, r) => Equals(l, letsToEquals(r))
     case IfExpr(cond, thenn, elze) =>
@@ -346,33 +345,6 @@ object TreeOps {
 
 
   /* -----------------------
-           Evaluation
-   ------------------------- */
-  def inIntervals(expr: Expr, vars: VariablePool): RationalInterval = expr match {
-    case RealLiteral(r) => RationalInterval(r, r)
-    case v @ Variable(_) => vars.getInterval(v)
-    case UMinusR(t) => - inIntervals(t, vars)
-    case PlusR(l, r) => inIntervals(l, vars) + inIntervals(r, vars)
-    case MinusR(l, r) => inIntervals(l, vars) - inIntervals(r, vars)
-    case TimesR(l, r) => inIntervals(l, vars) * inIntervals(r, vars)
-    case DivisionR(l, r) => inIntervals(l, vars) / inIntervals(r, vars)
-    case SqrtR(t) =>
-      val tt = inIntervals(t, vars)
-      RationalInterval(sqrtDown(tt.xlo), sqrtUp(tt.xhi))
-    case PowerR(lhs, IntLiteral(p)) =>
-      assert(p > 1, "p is " + p + " in " + expr)
-      val lhsInIntervals = inIntervals(lhs, vars)
-      var x = lhsInIntervals
-      for (i <- 1 until p ){
-        x = x * lhsInIntervals
-      }
-      x
-  }
-
-
-
-
-  /* -----------------------
         Function calls
    ------------------------- */
   class AssertionCollector(outerFunDef: FunDef, precondition: Expr, variables: VariablePool, precisions: List[Precision]) extends TransformerWithPC {
@@ -516,7 +488,6 @@ object TreeOps {
 
       case Times(_, _) | Plus(_, _) | Division(_, _) | Minus(_, _) | UMinus(_) =>
         throw new Exception("found integer arithmetic in ResultCollector")
-        null
 
       case _ => ;
     } (e)
@@ -574,111 +545,6 @@ object TreeOps {
 
       case _ =>  None
     }(e)
-  }
-
-  /* -----------------------
-       Fixed-points
-   ------------------------- */
-
-  def toSSA(expr: Expr, fncs: Map[FunDef, Fnc]): Expr = {
-    val transformer = new SSATransformer(fncs)
-    transformer.transform(expr)
-  }
-
-  private class SSATransformer(fncs: Map[FunDef, Fnc]) extends TransformerWithPC {
-    type C = Seq[Expr]
-    val initC = Nil
-
-    // Note that this transforms real arithmetic to float arithmetic
-    private def arithToSSA(expr: Expr): (Seq[Expr], Expr) = expr match {
-      case PlusR(lhs, rhs) =>
-        val (lSeq, lVar) = arithToSSA(lhs)
-        val (rSeq, rVar) = arithToSSA(rhs)
-        val tmpVar = getFreshValidTmp
-        (lSeq ++ rSeq :+ Equals(tmpVar, PlusR(lVar, rVar)), tmpVar)
-
-      case MinusR(lhs, rhs) =>
-        val (lSeq, lVar) = arithToSSA(lhs)
-        val (rSeq, rVar) = arithToSSA(rhs)
-        val tmpVar = getFreshValidTmp
-        (lSeq ++ rSeq :+ Equals(tmpVar, MinusR(lVar, rVar)), tmpVar)
-
-      case TimesR(lhs, rhs) =>
-        val (lSeq, lVar) = arithToSSA(lhs)
-        val (rSeq, rVar) = arithToSSA(rhs)
-        val tmpVar = getFreshValidTmp
-        (lSeq ++ rSeq :+ Equals(tmpVar, TimesR(lVar, rVar)), tmpVar)
-
-      case DivisionR(lhs, rhs) =>
-        val (lSeq, lVar) = arithToSSA(lhs)
-        val (rSeq, rVar) = arithToSSA(rhs)
-        val tmpVar = getFreshValidTmp
-        (lSeq ++ rSeq :+ Equals(tmpVar, DivisionR(lVar, rVar)), tmpVar)
-
-      case UMinusR(t) =>
-        val (seq, v) = arithToSSA(t)
-        val tmpVar = getFreshValidTmp
-        (seq :+ Equals(tmpVar, UMinusR(v)), tmpVar)
-
-      case RealLiteral(_) | Variable(_) => (Seq[Expr](), expr)
-
-      case FunctionInvocation(funDef, args) =>
-        val argsToSSA: Seq[(Seq[Expr], Expr)] = args.map( arithToSSA(_) )
-
-        val (ssa, newArgs) = argsToSSA.unzip
-
-        val arguments: Map[Expr, Expr] = funDef.fd.params.map(decl => decl.toVariable).zip(newArgs).toMap
-        val fncBody = fncs(funDef.fd).body
-
-        val newBody = replace(arguments, fncBody)
-        
-        val tmpVar = getFreshValidTmp
-        (ssa.flatten :+ Equals(tmpVar, FncBody(funDef.id.name, newBody, funDef.fd, newArgs)), tmpVar)
-
-    }
-
-    def register(e: Expr, path: C) = path :+ e
-
-    override def rec(e: Expr, path: C) = e match {
-      case Equals(v, arithExpr: RealArithmetic) =>
-        val (seq, tmpVar) = arithToSSA(arithExpr)
-        And(And(seq), EqualsF(v, tmpVar))
-
-      case Equals(v, fnc: FunctionInvocation) =>
-        val (seq, tmpVar) = arithToSSA(fnc)
-        And(And(seq), EqualsF(v, tmpVar))
-      
-      case IfExpr(GreaterEquals(l, r), t, e) =>
-        val (seqLhs, tmpVarLhs) = arithToSSA(l)
-        val (seqRhs, tmpVarRhs) = arithToSSA(r)
-        And(And(seqLhs ++ seqRhs), IfExpr(GreaterEquals(tmpVarLhs, tmpVarRhs), rec(t, path), rec(e, path)))
-
-      case IfExpr(LessEquals(l, r), t, e) =>
-        val (seqLhs, tmpVarLhs) = arithToSSA(l)
-        val (seqRhs, tmpVarRhs) = arithToSSA(r)
-        And(And(seqLhs ++ seqRhs), IfExpr(LessEquals(tmpVarLhs, tmpVarRhs), rec(t, path), rec(e, path)))
-
-      case IfExpr(GreaterThan(l, r), t, e) =>
-        val (seqLhs, tmpVarLhs) = arithToSSA(l)
-        val (seqRhs, tmpVarRhs) = arithToSSA(r)
-        And(And(seqLhs ++ seqRhs), IfExpr(GreaterThan(tmpVarLhs, tmpVarRhs), rec(t, path), rec(e, path)))
-
-      case IfExpr(LessThan(l, r), t, e) =>
-        val (seqLhs, tmpVarLhs) = arithToSSA(l)
-        val (seqRhs, tmpVarRhs) = arithToSSA(r)
-        And(And(seqLhs ++ seqRhs), IfExpr(LessThan(tmpVarLhs, tmpVarRhs), rec(t, path), rec(e, path)))
-
-      case arithExpr: RealArithmetic =>
-        val (seq, tmpVar) = arithToSSA(arithExpr)
-        And(And(seq), tmpVar)
-
-      case fnc: FunctionInvocation =>
-        val (seq, tmpVar) = arithToSSA(fnc)
-        And(And(seq), tmpVar)
-
-      case _ =>
-        super.rec(e, path)
-    }
   }
 
   /**
