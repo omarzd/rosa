@@ -4,13 +4,6 @@
 
 \input{common}
 
-\newcommand{\lv}{\lVert}
-\newcommand{\rv}{\rVert}
-\newcommand{\tl}{\tilde}
-\newcommand{\eqn}[1]{
- \begin{align} #1
- \end{align}}
-
 
 \setlength{\parindent}{0pt}
 
@@ -23,9 +16,53 @@
 
 \maketitle
 
+Consider the case of a generic loop, iteratively applying a function $f$.
+The following three definitions are equivalent.
+\begin{figure}[h!]
+  \centering
+  \lstset{numbers=none}
+  \begin{subfigure}[b]{0.25\textwidth}
+    \begin{lstlisting}
+var x1 = ???
+var x2 = ???
+while(i < N) {
+  (x1, x2) = f(x1, x2)
+}
+(x1, x2)
+    \end{lstlisting}
+  \end{subfigure}%
+  \begin{subfigure}[b]{0.32\textwidth}
+    \begin{lstlisting}
+    val x1, x2 = ???
+
+    def iter(x1, x2, i) = {
+      if (i < N) {
+        val (y1, y2) = f(x1, x2)
+        iter(y1, y2, i + 1)
+      } else {
+        (x1, x2)
+      }
+    }
+    \end{lstlisting}
+  \end{subfigure}
+  \begin{subfigure}[b]{0.32\textwidth}
+    \begin{lstlisting}
+    val x1, x2 = ???
+
+    def iter(x1, x2, i) = {
+      if (i < N) {
+        val (y1, y2) = iter(x1, x2, i + 1)
+        f(y1, y2)
+      } else {
+        (x1, x2)
+      }
+    }
+    \end{lstlisting}
+  \end{subfigure}
+\end{figure}
 
 
-\input{theory}
+\input{theory_errors}
 
 
 %\subsection{Applications}
