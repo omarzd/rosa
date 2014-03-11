@@ -1,14 +1,14 @@
-import leon.Real
+import leon._
 import Real._
+import RealAnnotations._
 
 object HarmonicOscillator {
 
-
+  @loopbound(10)
   def euler(x: Real, v: Real): (Real, Real) = {
     require(0.15 <= x && x <= 0.25 && 3.35 <= v && v <= 3.45)
-    iterate {
-      val tmp = 0.1 * v
-      x <== x + tmp
+    iterate (x, v) {
+      x <== x + 0.1 * v
       v <== v - 2.3 * 0.1 * x
     }
   } ensuring (_ match {
@@ -19,7 +19,7 @@ object HarmonicOscillator {
   def rungeKutta2(x: Real, v: Real): (Real, Real) = {
     require(0.15 <= x && x <= 0.25 && 3.35 <= v && v <= 3.45)
 
-    iterate {
+    iterate (x, v) {
 
       val k: Real = 2.3
       val h: Real = 0.1
@@ -39,7 +39,7 @@ object HarmonicOscillator {
   def rungeKutta4(x: Real, v: Real): (Real, Real) = {
     require(0.15 <= x && x <= 0.25 && 3.35 <= v && v <= 3.45)
  
-    iterate {
+    iterate (x, v) {
 
       val k: Real = 2.3
       val h: Real = 0.1

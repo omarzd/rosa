@@ -1,8 +1,10 @@
-import leon.Real
+import leon._
 import Real._
+import RealAnnotations._
 
 object SineNewton {
 
+  @loopbound(3)
   def newton(x: Real): Real = {
     require(-1.0 < x && x < 1.0)
 
@@ -12,7 +14,7 @@ object SineNewton {
     }
   } ensuring (res => -1.0 < x && x < 1.0)
 
-
+  @loopbound(3)
   def newtonUnstable(x: Real): Real = {
     require(-1.2 < x && x < 1.2)
 

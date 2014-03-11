@@ -20,7 +20,7 @@ class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc],
   import ArithmApprox._
   import PathHandling._
 
-  implicit val debugSection = utils.DebugSectionReals
+  implicit val debugSection = utils.DebugSectionLipschitz
 
   // Note: only supports function calls in fnc bodies, not in pre and post
   def getApproximation(vc: VerificationCondition, kind: ApproxKind, precision: Precision,
@@ -54,13 +54,64 @@ class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc],
                     solverMaxIterMedium, solverPrecisionMedium) 
         reporter.debug("Lipschitz constants wrt " + x + ": " + rangeDerivative.xlo +
                         ", " + rangeDerivative.xhi)
-        Seq(rangeDerivative.xlo, rangeDerivative  .xhi)
+        Seq(rangeDerivative.xlo, rangeDerivative.xhi)
         })
       reporter.debug("k: " + k)
       (sigma, k)
     }
 
-    def getErrorWithLipschitz(preReal: Expr, path: Path): Option[Rational] = {
+    def getSigmaKMap(precondition: Expr, expr: Expr, exprf: Expr, ids: Seq[Identifier]): 
+      (Rational, Map[Identifier, Rational]) = {
+      val transformer = new Approximator(reporter, solver, precision, vc.pre, vc.variables, false, true)
+      val sigma = transformer.computeError(exprf)
+
+      reporter.debug("\u03C3: " + sigma)
+      val kMap = ids.map { x =>
+        val exprPrime = d(expr, x)
+        val rangeDerivative = solver.getRange(precondition, exprPrime, vc.variables,
+                    solverMaxIterMedium, solverPrecisionMedium) 
+        reporter.debug("Lipschitz constants wrt " + x + ": " + rangeDerivative.xlo +
+                        ", " + rangeDerivative.xhi)
+        //println("Lipschitz constants wrt " + x + ": " + rangeDerivative.xlo +
+        //                ", " + rangeDerivative.xhi)
+        (x, maxAbs(Seq(rangeDerivative.xlo, rangeDerivative.xhi)))
+        }.toMap
+      reporter.debug("ks: " + kMap)
+      (sigma, kMap)
+    }
+
+    def getLoopErrorInfinityNorm(preReal: Expr, expr: Expr, exprFinite: Expr,
+      ids: Seq[Identifier]): (Rational, Rational, Option[Rational]) = {
+      val (sigma, k) = getSigmaK(preReal, expr, exprFinite, ids)
+              
+      vc.funDef.loopBound match {
+        case Some(n) =>
+          val initErrors = getInitialErrors(vc.variables, precision)
+          val totalError = errorFromNIterations(n, maxAbs(initErrors.values.toSeq), sigma, k)
+          (sigma, k, Some(totalError))
+        case _ => 
+          (sigma, k, None)
+      }
+    }
+
+    /*def getLoopErrorComponentWise(preReal: Expr, expr: Expr, exprFinite: Expr,
+      ids: Seq[Identifier]): (Rational, Rational, Option[Rational]) = {
+      val (sigma, kMap) = getSigmaKMap(preReal, expr, exprFinite, ids)
+              
+      vc.funDef.loopBound match {
+        case Some(n) =>
+          val initErrors = getInitialErrors(vc.variables, precision)
+
+          // TODO: we have to do this for all update functions simultaneously
+
+          val totalError = errorFromNIterations(n, maxAbs(initErrors.values.toSeq), sigma, k)   
+          (sigma, k, Some(totalError))
+        case _ =>
+          (sigma, k, None)
+      }
+    }*/
+
+    def getErrorWithLipschitzInfinityNorm(preReal: Expr, path: Path): Option[Rational] = {
       // check whether we can apply this
       // no ifs and no tuples (for now)
       if (containsIfExpr(path.bodyReal) || vc.variables.resIds.length > 1) {
@@ -74,6 +125,31 @@ class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc],
         reporter.debug("initial errors: " + initErrors)
         val totalError = k * maxAbs(initErrors.values.toSeq) + sigma
         reporter.info(s"($sigma, $k), total error: " + totalError)
+        Some(totalError)
+      }  
+    }
+
+    def getErrorWithLipschitzComponentWise(preReal: Expr, path: Path): Option[Rational] = {
+      // check whether we can apply this
+      // no ifs and no tuples (for now)
+      if (containsIfExpr(path.bodyReal) || vc.variables.resIds.length > 1) {
+        None
+      } else {
+        val ids = vc.variables.inputs.keys.map(k => k.asInstanceOf[Variable].id).toSeq
+        reporter.debug("ids: " + ids)
+        // TODO: removing errors here is not sound, we need total ranges, including errors
+        val (sigma, kMap) = getSigmaKMap(preReal, inlineBody(path.bodyReal), path.bodyFinite, ids)
+        val initErrors = getInitialErrors(vc.variables, precision)
+
+        val rowSum = kMap.foldLeft(zero){
+          case (sum, (id, k)) => 
+            //println(id + ", k: " + k + ", init error: " + initErrors(id) + ", contrib.: " + k*initErrors(id))
+            sum + k*initErrors(id) 
+        }
+        reporter.debug("initial errors: " + initErrors)
+        val totalError = rowSum + sigma
+        //val totalError = k * maxAbs(initErrors.values.toSeq) + sigma
+        reporter.info(s"($sigma, " + kMap.values.mkString(";") + "), total error (componentwise): " + totalError)
         Some(totalError)
       }  
     }
@@ -161,20 +237,9 @@ class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc],
               val exprFinite = idealToActual(expr, vc.variables)
               reporter.debug("finite expr: " + exprFinite)
 
-              val (sigma, k) = getSigmaK(preReal, expr, exprFinite, ids)
-              
-              vc.funDef.loopBound match {
-                case Some(n) =>
-                  val initErrors = getInitialErrors(vc.variables, precision)
-                  println("initErrors" + initErrors)
-                  val totalError = errorFromNIterations(n, maxAbs(initErrors.values.toSeq), sigma, k)
-                  reporter.info(s"($sigma, $k), error after " + n + "iterations: " + totalError)
-                     
-                  (sigma, k, Some(totalError))
-                case _ => 
-                  reporter.info(s"($sigma, $k)")  
-                  (sigma, k, None)
-              }
+              val (sigma, k, err) = getLoopErrorInfinityNorm(preReal, expr, exprFinite, ids)
+              reporter.info(s"$v: (sigma: $sigma, k: $k), total error: " + err)
+              (sigma, k, err)
           })
         case _ => reporter.error("cannot handle anything but a simple loop for now...")
       }
@@ -200,8 +265,11 @@ class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc],
               val bodyApprox = getApproximationAndSpec_AllVars(path)
               constraints :+= Constraint(And(precondition, path.condition), path.bodyReal, bodyApprox, postcondition)
             } else {
-              val lipschitzError = getErrorWithLipschitz(preReal, path)
-              reporter.info("lipschitzError: " + lipschitzError)
+              val lipschitzErrorInf = getErrorWithLipschitzInfinityNorm(preReal, path)
+              reporter.info("lipschitzError (infinity norm): \n" + lipschitzErrorInf)
+
+              val lipschitzErrorComp = getErrorWithLipschitzComponentWise(preReal, path)
+              reporter.info("lipschitzError (component-wise): \n" + lipschitzErrorComp)
 
               val (bodyApprox, nextSpecs) = getApproximationAndSpec_ResultOnly(path)
               spec = mergeSpecs(spec, nextSpecs) //TODO do at the end?
@@ -256,9 +324,9 @@ class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc],
         case x => Some(x)  //last instruction
       }
     }(body)
-    println("last instruction: " + lastInstruction)
+    //println("last instruction: " + lastInstruction)
     val res = replace(valMap, lastInstruction)
-    println("res: " + res)
+    //println("res: " + res)
     res
   }  
 

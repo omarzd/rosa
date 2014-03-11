@@ -23,8 +23,12 @@ object XRationalForm {
   def apply(interval: RationalInterval): XRationalForm = {
     val a = interval.xlo
     val b = interval.xhi
-    val un = (b - a)/ Rational(2)
-    new XRationalForm(a + un, un)
+    if (a == b) {
+      new XRationalForm(a)
+    } else {
+      val un = (b - a)/ Rational(2)
+      new XRationalForm(a + un, un)
+    }
   }
 
   // This is the equivalent of adding [-a, a]
@@ -109,6 +113,7 @@ case class XRationalForm(val x0: Rational, var noise: Queue[Deviation]) {
   def -(y: XRationalForm): XRationalForm = new XRationalForm(this.x0 - y.x0, subtractQueues(this.noise, y.noise))
 
   def *(y: XRationalForm): XRationalForm = {
+    //println("---> multiplying x: " + this.longString + "  , y: " + y.longString)
     var z0 = this.x0 * y.x0
 
     //var (zqueue, delta) =
