@@ -1,3 +1,4 @@
+%!TEX root = work-in-progress.tex
 \section{Inductive Specifications}
 
 Consider the case of a generic loop, iteratively applying a function $f$.
@@ -48,9 +49,11 @@ while(i < N) {
   \end{subfigure}
 \end{figure}
 
+\newpage
 \subsection{Specification language for loops}
 We propose the following DSL for writing the specific type of loops given above.
 \begin{lstlisting}
+@loopbound(5)
 def spiral(x: Real, y: Real): (Real, Real) = {
     require(x*x + y*y < 100 && -10 <= x && x <= 10 && -10 <= y && y <= 10)
 
