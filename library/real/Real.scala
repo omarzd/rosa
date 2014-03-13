@@ -1,19 +1,26 @@
-package leon
+package leon.real
+import leon.annotation._
 
 import scala.language.implicitConversions
 
 import scala.math.{ScalaNumericConversions, ScalaNumber}
 
-  object Real {
-    implicit def double2real(d: Double): Real = new Real(d)
-    implicit def int2real(i: Int): Real = new Real(i.toDouble)
+  object RealOps {
+    @proxy
+    implicit def double2real(d: Double): Real = Real(d)
 
+    @proxy
+    implicit def int2real(i: Int): Real = Real(i.toDouble)
+
+    @proxy
     def sqrt(x: Real): Real = ???
 
-    def iterate(updateFnc: Boolean): (Real, Real) = ??? 
+    @proxy
+    def iterate(updateFnc: Boolean): (Real, Real) = ???
   }
 
-  case class Real private(v: Double) extends ScalaNumber with ScalaNumericConversions with Ordered[Real] {
+  @ignore
+  case class Real private[real](v: Double) extends ScalaNumber with ScalaNumericConversions with Ordered[Real] {
     import Real._
 
     def unary_-(): Real = ???
@@ -55,7 +62,6 @@ import scala.math.{ScalaNumericConversions, ScalaNumber}
     // Error of this value
     def unary_!(): Real = ???
 
-      
     def <==(rhs: Real): Boolean = ???
     def <--(rhs: Real): Boolean = ???
   }

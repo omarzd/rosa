@@ -166,7 +166,7 @@ trait CodeExtraction extends ASTExtractors {
             var standaloneDefs = List[Tree]()
 
             val modules: List[(String, List[Tree])] = lst.flatMap { _ match {
-              case od @ ExObjectDef(_, _) if annotationsOf(od.symbol) contains "ignore" =>
+              case t if annotationsOf(t.symbol) contains "ignore" =>
                 None
 
               case ExObjectDef(n, templ) =>

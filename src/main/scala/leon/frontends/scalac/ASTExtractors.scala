@@ -30,7 +30,7 @@ trait ASTExtractors {
   protected lazy val arraySym           = classFromName("scala.Array")
   protected lazy val someClassSym       = classFromName("scala.Some")
   protected lazy val function1TraitSym  = classFromName("scala.Function1")
-  protected lazy val realSym            = classFromName("leon.Real")
+  protected lazy val realSym            = classFromName("leon.real.Real")
 
   def isTuple2(sym : Symbol) : Boolean = sym == tuple2Sym
   def isTuple3(sym : Symbol) : Boolean = sym == tuple3Sym
