@@ -13,7 +13,7 @@ import scala.math.{ScalaNumericConversions, ScalaNumber}
     def iterate(updateFnc: Boolean): (Real, Real) = ??? 
   }
 
-  class Real private(v: Double) extends ScalaNumber with ScalaNumericConversions with Ordered[Real] {
+  case class Real private(v: Double) extends ScalaNumber with ScalaNumericConversions with Ordered[Real] {
     import Real._
 
     def unary_-(): Real = ???

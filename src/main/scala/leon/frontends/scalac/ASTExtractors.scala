@@ -640,6 +640,7 @@ trait ASTExtractors {
           Some((i.symbol, i))
         case _ => None
       }
+    }
 
     object ExCircle {
       def unapply(tree: Apply): Option[(Tree,Tree)] = tree match {
@@ -722,11 +723,6 @@ trait ASTExtractors {
       }
     }
   
-    object ExPatternMatching {
-      def unapply(tree: Match): Option[(Tree,List[CaseDef])] =
-        if(tree != null) Some((tree.selector, tree.cases)) else None
-    }
-
     object ExIsInstanceOf {
       def unapply(tree: TypeApply) : Option[(Tree, Tree)] = tree match {
         case TypeApply(Select(t, isInstanceOfName), typeTree :: Nil) if isInstanceOfName.toString == "isInstanceOf" => Some((typeTree, t))
