@@ -301,6 +301,7 @@ class CompilationUnit(val ctx: LeonContext,
         }
       }
 
+
       for(single <- m.singleCaseClasses) {
         defineClass(single)
       }
@@ -348,9 +349,8 @@ class CompilationUnit(val ctx: LeonContext,
 
 object CompilationUnit {
   private var _nextExprId = 0
-  private def nextExprId = {
+  private def nextExprId = synchronized {
     _nextExprId += 1
     _nextExprId
   }
 }
-

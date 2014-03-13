@@ -1,6 +1,6 @@
 name := "Leon"
 
-version := "2.2"
+version := "2.3"
 
 organization := "ch.epfl.lara"
 
@@ -45,4 +45,11 @@ logBuffered in Test := false
 
 testOptions in Test += Tests.Argument("-oD")
 
+javaOptions in test += "-Xss32M"
+
+parallelExecution in Test := false
+
 sourcesInBase in Compile := false
+
+// do not skip parent Eclipse project definition
+EclipseKeys.skipParents in ThisBuild := false
