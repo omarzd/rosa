@@ -608,7 +608,7 @@ trait ASTExtractors {
 
     object ExSqrt {
       def unapply(tree: Apply): Option[Tree] = tree match {
-        case Apply(select, List(arg)) if (select.toString == "leon.Real.sqrt") => Some(arg)
+        case Apply(select, List(arg)) if (select.toString == "leon.real.RealOps.sqrt") => Some(arg)
         case _ => None
       }
     }
@@ -616,7 +616,7 @@ trait ASTExtractors {
     object ExImplicitInt2Real {
       def unapply(tree: Apply): Option[Int] = tree match {
         case Apply(select, List(Literal(c @ Constant(i))))
-          if (select.toString == "leon.Real.int2real") =>
+          if (select.toString == "leon.real.RealOps.int2real") =>
           assert(c.tpe == IntClass.tpe)
           Some(c.intValue)
         case _ => None
@@ -626,7 +626,7 @@ trait ASTExtractors {
     object ExImplicitDouble2Real {
       def unapply(tree: Apply): Option[Double] = tree match {
         case Apply(select, List(Literal(c @ Constant(i))))
-          if (select.toString == "leon.Real.double2real") =>
+          if (select.toString == "leon.real.RealOps.double2real") =>
           assert(c.tpe == DoubleClass.tpe)
           Some(c.doubleValue)
         case _ => None
@@ -636,7 +636,7 @@ trait ASTExtractors {
     object ExImplicitDouble2RealVar {
       def unapply(tree: Apply): Option[(Symbol, Tree)] = tree match {
         case Apply(select, List(i @ Ident(s)))
-          if (select.toString == "leon.Real.double2real") =>
+          if (select.toString == "leon.real.RealOps.double2real") =>
           Some((i.symbol, i))
         case _ => None
       }
@@ -706,7 +706,7 @@ trait ASTExtractors {
 
     object ExIterate {
       def unapply(tree: Apply): Option[Tree] = tree match {
-        case Apply(select, List(rhs)) if (select.toString == "leon.Real.iterate") =>
+        case Apply(select, List(rhs)) if (select.toString == "leon.real.RealOps.iterate") =>
           Some(rhs)
         case _ => None
       }

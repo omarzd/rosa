@@ -224,12 +224,13 @@ object Main {
 
     val argsl = args.toList
 
-    // By default we add --library from Main
+    val realArgs = argsl
+    /*// By default we add --library from Main
     val realArgs = if (!args.exists(_.contains("--library"))) {
       "--library" :: argsl
     } else {
       argsl
-    }
+    }*/
 
     // Process options
     val ctx = processOptions(realArgs)
