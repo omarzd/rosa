@@ -26,6 +26,9 @@ class VerificationCondition(val funDef: FunDef, val kind: VCKind.Value, val pre:
 
   val isLoop = kind == VCKind.LoopError
 
+  // whether this VC comes from a recursive function
+  var recursive = false
+
   // (lowerBnd, upperBnd) absError
   var spec: Map[Precision, Seq[Spec]] = precisions.map(p => (p, Seq())).toMap
 
@@ -62,6 +65,7 @@ object VCKind extends Enumeration {
   val Assert = Value("assert.")
   val SpecGen = Value("specgen")
   val LoopInvariant = Value("loop-inv")
+  val LoopPost = Value("loop-post")
   val LoopError = Value("loop-error")
   val LoopUnroll = Value("loop-unroll")
 }

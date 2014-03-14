@@ -20,7 +20,7 @@ import purescala.TypeTreeOps._
 import xlang.Trees.{Block => LeonBlock, _}
 import xlang.TreeOps._
 import real.Trees.{UMinusR, PlusR, MinusR, TimesR, DivisionR, SqrtR, RealLiteral, RelError, Noise, InitialNoise, 
-  Actual, Assertion, WithIn, UpdateFunction, Iteration}
+  Actual, Assertion, WithIn, UpdateFunction, Iteration, LoopCounter}
 import real.TreeOps.letsToEquals
 
 import utils.{DefinedPosition, Position => LeonPosition, OffsetPosition => LeonOffsetPosition, RangePosition => LeonRangePosition}
@@ -1093,6 +1093,15 @@ trait CodeExtraction extends ASTExtractors {
             case _ =>
               outOfSubsetError(tr, "invalid use of ><")    
           }
+
+        case ExLoopCounter(v) =>
+          val varr = extractTree(v)
+          varr match {
+            case Variable(id) => LoopCounter(id)
+            case _ =>
+              outOfSubsetError(tr, "loopCounter only applicable to a variable!")
+          }
+          
 
         case ExIterate(args, es) =>
           val block = extractTree(es)

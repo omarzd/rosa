@@ -9,9 +9,12 @@ import purescala.Trees._
 import purescala.TypeTrees.RealType
 import purescala.TreeOps.replace
 import purescala.TreeOps.functionCallsOf
+import purescala.TransformerWithPC
 
-import real.Trees.{Roundoff, Iteration, UpdateFunction}
+import real.Trees.{Roundoff, Iteration, UpdateFunction, Assertion, LoopCounter}
 import real.TreeOps._
+import real.VariableShop._
+import purescala.TreeOps._
 
 import VCKind._
 
@@ -27,17 +30,22 @@ object Analyser {
     var fncs = Map[FunDef, Fnc]()
 
     // completeness of specs checks
-    val (complete, incomplete) = sortedFncs.partition(f =>  f.body.isDefined && f.precondition.nonEmpty)
+    val (complete, incomplete) = sortedFncs.partition(f => {
+      reporter.debug(f.id.name + ": precond.: " + f.precondition)
+      f.body.isDefined && f.precondition.nonEmpty})
+
+    
     incomplete.foreach(f => reporter.warning(f.id.name + ": body or precondition empty, skipping"))
     val (validFncs, invalidInputs) = complete.map(
       funDef => {
         val variables = VariablePool(funDef.precondition.get, funDef.returnType)
+        println("variables: " + variables)
         (funDef, variables)
       }).partition( x => x._2.hasValidInput(x._1.params, reporter))
     invalidInputs.foreach(x => reporter.warning(x._1.id.name + ": inputs incomplete, skipping!"))
 
     for ((funDef, variables) <- validFncs) {
-      val preGiven = funDef.precondition.get
+      val preGiven = removeLoopCounter( funDef.precondition.get )
       debug ("precondition is acceptable")
       val allFncCalls = functionCallsOf(funDef.body.get).map(invc => invc.tfd.id.toString)
 
@@ -122,12 +130,13 @@ object Analyser {
 
         case Some((resId, postExpr)) =>
           val postcondition = extractPostCondition(resId, postExpr, resFresh)
-
-          val vcBody = new VerificationCondition(funDef, Postcondition, precondition, body, postcondition,
-            allFncCalls, variables, precisions)
-
+          
           val assertionCollector = new AssertionCollector(funDef, precondition, variables, precisions)
           assertionCollector.transform(body)
+
+          val bodyVCKind = if (assertionCollector.recursive) LoopPost else Postcondition
+          val vcBody = new VerificationCondition(funDef, bodyVCKind, precondition, body, postcondition,
+            allFncCalls, variables, precisions)
 
           vcs ++= assertionCollector.vcs :+ vcBody
           // for function inlining
@@ -141,8 +150,10 @@ object Analyser {
           fncs += ((funDef -> Fnc(precondition, body, True)))
       }}
     }
-
-    (vcs.sortWith((vc1, vc2) => lt(vc1, vc2)), fncs)
+    val sorted = vcs.sortWith((vc1, vc2) => lt(vc1, vc2))
+    reporter.debug("VCs:")
+    sorted.foreach(vc => reporter.debug(vc.longString))
+    (sorted, fncs)
   }
 
   // can return several, as we may have an if-statement
@@ -208,5 +219,55 @@ object Analyser {
 
   }
 
+  private def removeLoopCounter(e: Expr): Expr = {
+    preMap {
+      case LoopCounter(_) => Some(True)
+      case _ => None
+    }(e)
+  }
+
+  class AssertionCollector(outerFunDef: FunDef, precondition: Expr, variables: VariablePool, precisions: List[Precision]) extends TransformerWithPC {
+    type C = Seq[Expr]
+    val initC = Nil
+
+    var vcs = Seq[VerificationCondition]()
+    var recursive = false
+
+    def register(e: Expr, path: C) = path :+ e
+
+    override def rec(e: Expr, path: C) = e match {
+      case FunctionInvocation(funDef, args) if (funDef.precondition.isDefined) =>
+
+        val (simpleArgs, morePath) = args.map(a => a match {
+          case Variable(_) => (a, True)
+          case _ =>
+            val fresh = getFreshTmp
+            (fresh, Equals(fresh, a))
+        }).unzip
+
+        val pathToFncCall = And(path ++ morePath)
+        val arguments: Map[Expr, Expr] = funDef.params.map(decl => decl.toVariable).zip(simpleArgs).toMap
+        val toProve = replace(arguments, removeLoopCounter( removeRoundoff(funDef.precondition.get)) )
+
+        val allFncCalls = functionCallsOf(pathToFncCall).map(invc => invc.tfd.id.toString)
+        val kind = if (outerFunDef.id == funDef.id) {
+          recursive = true
+          LoopInvariant
+        } else {
+          Precondition
+        }
+
+        vcs :+= new VerificationCondition(outerFunDef, kind, precondition, pathToFncCall, toProve, allFncCalls, variables, precisions)
+        e
+
+      case Assertion(toProve) =>
+        val pathToAssertion = And(path)
+        val allFncCalls = functionCallsOf(pathToAssertion).map(invc => invc.tfd.id.toString)
+        vcs :+= new VerificationCondition(outerFunDef, Assert, precondition, pathToAssertion, toProve, allFncCalls, variables, precisions)
+        e
+      case _ =>
+        super.rec(e, path)
+    }
+  }
 
 }

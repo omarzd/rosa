@@ -713,6 +713,14 @@ trait ASTExtractors {
       }
     }
 
+    object ExLoopCounter {
+      def unapply(tree: Apply): Option[Tree] = tree match {
+        case Apply(select, List(rhs)) if (select.toString == "leon.real.RealOps.loopCounter") =>
+          Some(rhs)
+        case _ => None
+      }
+    }
+
     object ExIterate {
       def unapply(tree: Apply): Option[(Seq[Tree], Tree)] = tree match {
         case Apply(Apply(select, args), List(rhs)) if (select.toString == "leon.real.RealOps.iterate") =>

@@ -347,42 +347,7 @@ object TreeOps {
   /* -----------------------
         Function calls
    ------------------------- */
-  class AssertionCollector(outerFunDef: FunDef, precondition: Expr, variables: VariablePool, precisions: List[Precision]) extends TransformerWithPC {
-    type C = Seq[Expr]
-    val initC = Nil
-
-    var vcs = Seq[VerificationCondition]()
-
-    def register(e: Expr, path: C) = path :+ e
-
-    override def rec(e: Expr, path: C) = e match {
-      case FunctionInvocation(funDef, args) if (funDef.precondition.isDefined) =>
-
-        val (simpleArgs, morePath) = args.map(a => a match {
-          case Variable(_) => (a, True)
-          case _ =>
-            val fresh = getFreshTmp
-            (fresh, Equals(fresh, a))
-        }).unzip
-
-        val pathToFncCall = And(path ++ morePath)
-        val arguments: Map[Expr, Expr] = funDef.params.map(decl => decl.toVariable).zip(simpleArgs).toMap
-        val toProve = replace(arguments, removeRoundoff(funDef.precondition.get))
-
-        val allFncCalls = functionCallsOf(pathToFncCall).map(invc => invc.tfd.id.toString)
-        vcs :+= new VerificationCondition(outerFunDef, Precondition, precondition, pathToFncCall, toProve, allFncCalls, variables, precisions)
-        e
-
-      case Assertion(toProve) =>
-        val pathToAssertion = And(path)
-        val allFncCalls = functionCallsOf(pathToAssertion).map(invc => invc.tfd.id.toString)
-        vcs :+= new VerificationCondition(outerFunDef, Assert, precondition, pathToAssertion, toProve, allFncCalls, variables, precisions)
-        e
-      case _ =>
-        super.rec(e, path)
-    }
-  }
-
+  
   def extractPostCondition(resId: Identifier, postExpr: Expr, resFresh: Seq[Identifier]): Expr = postExpr match {
     case MatchExpr(Variable(scrutinee),
       Seq(SimpleCase(TuplePattern(None, wildcards), caseExpr))) if (scrutinee == resId) =>
@@ -401,107 +366,7 @@ object TreeOps {
       replace(Map(Variable(resId) -> Variable(resFresh.head)), postExpr)
   }
 
-  /*
-    Replace the function call with its specification. For translation to Z3 FncValue needs to be translated
-    with a fresh variable. For approximation, translate the spec into an XFloat.
-  */
-  def inlinePostcondition(expr: Expr, precision: Precision, postMap: Map[FunDef, Seq[Spec]]): Expr = {
-    var tmpCounter = 0
-
-    def getFresh: Identifier = {
-      tmpCounter = tmpCounter + 1
-      FreshIdentifier("#tmp" + tmpCounter).setType(RealType)
-    }
-
-    preMap {
-      case FunctionInvocation(typedFunDef, args) =>
-        val funDef = typedFunDef.fd
-        val arguments: Map[Expr, Expr] = funDef.params.map(decl => decl.toVariable).zip(args).toMap
-        
-        funDef.postcondition.flatMap({
-          case (resId, postExpr) =>
-            val resFresh = resId.getType match {
-              case TupleType(bases) => Seq(getFresh, getFresh)
-              case _ => Seq(getFresh)
-            }
-            //println(s"$resFresh")
-            val postcondition = extractPostCondition(resId, postExpr, resFresh)
-            //println(s"$postcondition")
-
-            try {
-              val specs: Seq[Spec] = resFresh.map( r => {
-                extractSpecs(postcondition, r).get
-              })
-              val deltaMap: Map[Identifier, Rational] = specs.map( s => (s.id, s.absError)).toMap
-
-              val realSpecExpr = actualToRealSpec(postcondition, deltaMap)
-
-              Some(FncValue(specs, replace(arguments, realSpecExpr)))
-            } catch {
-              case e: Exception => None
-            }
-        }) match {
-          case Some(fncValue) => Some(fncValue)
-          case _ => postMap.getOrElse(funDef, Seq()) match {
-            case specs: Seq[Spec] if specs.nonEmpty =>
-              val specsExpr = And(specs.map(specToExpr(_)))
-              Some(FncValue(specs, replace(arguments, specsExpr)))
-            case _ =>
-              throw PostconditionInliningFailedException("missing postcondition for " + funDef.id.name);
-              null
-          }
-        }
-
-      case _ => None
-    }(expr)
-  }
-
-
-  def extractSpecs(e: Expr, id: Identifier): Option[Spec] = {
-    var lwrBoundReal: Option[Rational] = None
-    var upBoundReal: Option[Rational] = None
-    var lwrBoundActual: Option[Rational] = None
-    var upBoundActual: Option[Rational] = None
-    var error: Option[Rational] = None
-    var extras = List[Expr]()
-
-    preTraversal{
-      case LessEquals(RealLiteral(lwrBnd), Variable(id)) => lwrBoundReal = Some(lwrBnd)
-      case LessEquals(Variable(id), RealLiteral(uprBnd)) => upBoundReal = Some(uprBnd)
-      case LessThan(RealLiteral(lwrBnd), Variable(id)) => lwrBoundReal = Some(lwrBnd)
-      case LessThan(Variable(id), RealLiteral(uprBnd)) =>  upBoundReal = Some(uprBnd)
-      case GreaterEquals(RealLiteral(uprBnd), Variable(id)) =>  upBoundReal = Some(uprBnd)
-      case GreaterEquals(Variable(id), RealLiteral(lwrBnd)) => lwrBoundReal = Some(lwrBnd)
-      case GreaterThan(RealLiteral(uprBnd), Variable(id)) =>  upBoundReal = Some(uprBnd)
-      case GreaterThan(Variable(id), RealLiteral(lwrBnd)) => lwrBoundReal = Some(lwrBnd)
-
-      case LessEquals(RealLiteral(lwrBnd), Actual(Variable(id))) => lwrBoundActual = Some(lwrBnd)
-      case LessEquals(Actual(Variable(id)), RealLiteral(uprBnd)) => upBoundActual = Some(uprBnd)
-      case LessThan(RealLiteral(lwrBnd), Actual(Variable(id))) => lwrBoundActual = Some(lwrBnd)
-      case LessThan(Actual(Variable(id)), RealLiteral(uprBnd)) => upBoundActual = Some(uprBnd)
-      case GreaterEquals(RealLiteral(uprBnd), Actual(Variable(id))) => upBoundActual = Some(uprBnd)
-      case GreaterEquals(Actual(Variable(id)), RealLiteral(lwrBnd)) => lwrBoundActual = Some(lwrBnd)
-      case GreaterThan(RealLiteral(uprBnd), Actual(Variable(id))) => upBoundActual = Some(uprBnd)
-      case GreaterThan(Actual(Variable(id)), RealLiteral(lwrBnd)) => lwrBoundActual = Some(lwrBnd)
-
-      case Noise(Variable(id), RealLiteral(value)) => error = Some(value)
-
-      case Times(_, _) | Plus(_, _) | Division(_, _) | Minus(_, _) | UMinus(_) =>
-        throw new Exception("found integer arithmetic in ResultCollector")
-
-      case _ => ;
-    } (e)
-
-    error flatMap ( err => {
-        if ((lwrBoundReal.nonEmpty || lwrBoundActual.nonEmpty) && (upBoundReal.nonEmpty || upBoundActual.nonEmpty)) {
-          Some(Spec(id, RationalInterval(lwrBoundReal.getOrElse(lwrBoundActual.get + err),
-               upBoundReal.getOrElse(upBoundActual.get - err)), err))
-        } else {
-          None
-        }
-      })
-  }
-
+  
   def actualToRealSpec(e: Expr, deltas: Map[Identifier, Rational]): Expr = {
     val ids = deltas.keys.toSeq
 
@@ -534,18 +399,7 @@ object TreeOps {
     }(e)
   }
 
-  def inlineFunctions(e: Expr, fncs: Map[FunDef, Fnc]): Expr = {
-    preMap {
-      case FunctionInvocation(funDef, args) =>
-        val arguments: Map[Expr, Expr] = funDef.fd.params.map(decl => decl.toVariable).zip(args).toMap
-        val fncBody = fncs(funDef.fd).body
-
-        val newBody = replace(arguments, fncBody)
-        Some(FncBody(funDef.id.name, newBody, funDef.fd, args))
-
-      case _ =>  None
-    }(e)
-  }
+  
 
   /**
     Removes all error terms.

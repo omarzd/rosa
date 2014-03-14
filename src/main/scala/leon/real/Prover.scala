@@ -23,33 +23,12 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
   implicit val debugSection = utils.DebugSectionReals
   val reporter = ctx.reporter
   val solver = new RangeSolver(options.z3Timeout)
-  val approx = new Approximations(options, fncs, reporter, solver)
-
-  // TODO: this is ugly!!!
-  def getApplicableApproximations(vcs: Seq[VerificationCondition]): Map[VerificationCondition, List[ApproxKind]] =
-    vcs.map { vc =>
-        val list = (
-          if (vc.allFncCalls.isEmpty) {
-            if (containsIfExpr(vc.body))
-              if (options.pathError) a_NoFncIf.filter(ak => ak.pathHandling == Merging)
-              else a_NoFncIf
-            else a_NoFncNoIf
-          } else {
-            if (containsIfExpr(vc.body))
-              if (options.pathError) a_FncIf.filter(ak => ak.pathHandling == Merging)
-              else a_FncIf
-            else a_FncNoIf
-          })
-
-        if (!options.z3Only) (vc, list.filter(ak => ak.arithmApprox != Z3Only))
-        else (vc, list)
-      }.toMap
 
   // Returns the precision with which we can satisfy all constraints, or the last one tried,
   // as well as an indication whether verification was successfull.
   def check(vcs: Seq[VerificationCondition]): (Precision, Boolean) = {
     reporter.debug("VCs: " + vcs)
-    val validApproximations = getApplicableApproximations(vcs)
+    val approximations = vcs.map(vc => (vc, Approximations(options, fncs, reporter, solver, vc))).toMap
 
     val precisions = options.precision
 
@@ -58,7 +37,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
       else {
         val mid = lowerBnd + (upperBnd - lowerBnd) / 2// ceiling int division
         reporter.info("Checking precision: " + precisions(mid))
-        if (checkVCsInPrecision(vcs, precisions(mid), validApproximations)) {
+        if (checkVCsInPrecision(vcs, precisions(mid), approximations)) {
           if (lowerBnd == mid) (precisions(lowerBnd), true)
           else {
             findPrecision(lowerBnd, mid)
@@ -74,13 +53,13 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
     }
 
     reporter.debug("approximation kinds:")
-    validApproximations.foreach(x => reporter.debug(x._1 + ": " + x._2))
+    approximations.foreach(x => reporter.debug(x._1 + ": " + x._2.kinds))
 
     findPrecision(0, precisions.length - 1)
   }
 
   def checkVCsInPrecision(vcs: Seq[VerificationCondition], precision: Precision,
-    validApproximations: Map[VerificationCondition, List[ApproxKind]]): Boolean = {
+    approximations: Map[VerificationCondition, Approximations]): Boolean = {
     var postMap: Map[FunDef, Seq[Spec]] = vcs.map(vc => (vc.funDef -> Seq())).toMap
 
     //println("checking vcs: ")
@@ -94,14 +73,15 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
       val start = System.currentTimeMillis
       var spec: Seq[Spec] = Seq()
 
-      val approximations = validApproximations(vc)
+      val approx = approximations(vc)
 
       // TODO: can we re-use some of the approximation work across precision?
-      approximations.find(aKind => {
+      approx.kinds.find(aKind => {
         reporter.info("approx: " + aKind)
 
         try {
-          val currentApprox = approx.getApproximation(vc, aKind, precision, postMap)
+          println("trying...")
+          val currentApprox = approx.getApproximation(aKind, precision, postMap)
           spec = mergeSpecs(spec, currentApprox.spec)
           postMap += (vc.funDef -> currentApprox.spec)
 

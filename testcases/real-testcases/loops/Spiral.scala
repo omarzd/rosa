@@ -1,6 +1,6 @@
-import leon._
-import Real._
-import RealAnnotations._
+import leon.real._
+import RealOps._
+import realannotations._
 
 object Spiral {
 
