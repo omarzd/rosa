@@ -1,4 +1,4 @@
-package leon
+/*package leon
 
 import scala.language.implicitConversions
 
@@ -46,4 +46,4 @@ import scala.math.{ScalaNumericConversions, ScalaNumber}
     def floatValue(): Float = { throw new NotExecutableException(exMsg); 0.0f }
     def longValue(): Long = { throw new NotExecutableException(exMsg); 0l }
     def intValue(): Int = { throw new NotExecutableException(exMsg); 0 }
-  }
+  }*/

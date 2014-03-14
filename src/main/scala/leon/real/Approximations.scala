@@ -114,7 +114,7 @@ class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc],
     def getErrorWithLipschitzInfinityNorm(preReal: Expr, path: Path): Option[Rational] = {
       // check whether we can apply this
       // no ifs and no tuples (for now)
-      if (containsIfExpr(path.bodyReal) || vc.variables.resIds.length > 1) {
+      if (containsIfExpr(path.bodyReal) || containsFunctionCalls(path.bodyReal) || vc.variables.resIds.length > 1) {
         None
       } else {
         val ids = vc.variables.inputs.keys.map(k => k.asInstanceOf[Variable].id).toSeq
@@ -132,7 +132,7 @@ class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc],
     def getErrorWithLipschitzComponentWise(preReal: Expr, path: Path): Option[Rational] = {
       // check whether we can apply this
       // no ifs and no tuples (for now)
-      if (containsIfExpr(path.bodyReal) || vc.variables.resIds.length > 1) {
+      if (containsIfExpr(path.bodyReal) || containsFunctionCalls(path.bodyReal) || vc.variables.resIds.length > 1) {
         None
       } else {
         val ids = vc.variables.inputs.keys.map(k => k.asInstanceOf[Variable].id).toSeq
@@ -265,12 +265,12 @@ class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc],
               val bodyApprox = getApproximationAndSpec_AllVars(path)
               constraints :+= Constraint(And(precondition, path.condition), path.bodyReal, bodyApprox, postcondition)
             } else {
-              val lipschitzErrorInf = getErrorWithLipschitzInfinityNorm(preReal, path)
+              /*val lipschitzErrorInf = getErrorWithLipschitzInfinityNorm(preReal, path)
               reporter.info("lipschitzError (infinity norm): \n" + lipschitzErrorInf)
 
               val lipschitzErrorComp = getErrorWithLipschitzComponentWise(preReal, path)
               reporter.info("lipschitzError (component-wise): \n" + lipschitzErrorComp)
-
+              */
               val (bodyApprox, nextSpecs) = getApproximationAndSpec_ResultOnly(path)
               spec = mergeSpecs(spec, nextSpecs) //TODO do at the end?
               specsPerPath :+= nextSpecs

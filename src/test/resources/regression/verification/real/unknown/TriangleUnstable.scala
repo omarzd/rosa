@@ -1,6 +1,6 @@
 /* Copyright 2009-2014 EPFL, Lausanne */
-import leon.Real
-import Real._
+import leon.real._
+import RealOps._
 
 
 object TriangleUnstable {

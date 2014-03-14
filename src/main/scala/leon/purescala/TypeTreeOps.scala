@@ -23,13 +23,16 @@ object TypeTreeOps {
   }
 
   def bestRealType(t: TypeTree) : TypeTree = t match {
-    case c: ClassType if c.classDef.isInstanceOf[CaseClassDef] => {
+    case c: CaseClassType =>
       c.classDef.parent match {
-        case None => CaseClassType(c.classDef.asInstanceOf[CaseClassDef], c.tps)
-        case Some(p) => instantiateType(p, (c.classDef.tparams zip c.tps).toMap)
+        case None    =>
+          c
+
+        case Some(p) =>
+          instantiateType(p, (c.classDef.tparams zip c.tps).toMap)
       }
-    }
-    case other => other
+
+    case NAryType(tps, builder) => builder(tps.map(bestRealType))
   }
 
   def leastUpperBound(t1: TypeTree, t2: TypeTree): Option[TypeTree] = (t1,t2) match {
@@ -114,7 +117,11 @@ object TypeTreeOps {
 
       def rec(idsMap: Map[Identifier, Identifier])(e: Expr): Expr = {
         def freshId(id: Identifier, newTpe: TypeTree) = {
-          FreshIdentifier(id.name, true).setType(newTpe).copiedFrom(id)
+          if (id.getType != newTpe) {
+            FreshIdentifier(id.name, true).setType(newTpe).copiedFrom(id)
+          } else {
+            id
+          }
         }
 
         // Simple rec without affecting map
@@ -136,6 +143,14 @@ object TypeTreeOps {
           case l @ Let(id, value, body) =>
             val newId = freshId(id, tpeSub(id.getType))
             Let(newId, srec(value), rec(idsMap + (id -> newId))(body)).copiedFrom(l)
+
+          case l @ LetTuple(ids, value, body) =>
+            val newIds = ids.map(id => freshId(id, tpeSub(id.getType)))
+            LetTuple(newIds, srec(value), rec(idsMap ++ (ids zip newIds))(body)).copiedFrom(l)
+
+          case c @ Choose(xs, pred) =>
+            val newXs = xs.map(id => freshId(id, tpeSub(id.getType)))
+            Choose(newXs, rec(idsMap ++ (xs zip newXs))(pred)).copiedFrom(c)
 
           case m @ MatchExpr(e, cases) =>
             val newTpe = tpeSub(e.getType)
@@ -181,6 +196,9 @@ object TypeTreeOps {
                 val newOb = ob.map(id => freshId(id, expTpe))
 
                 (WildcardPattern(newOb), (ob zip newOb).toMap)
+
+              case _ =>
+                sys.error("woot!?")
             }
 
             MatchExpr(srec(e), cases.map(trCase)).copiedFrom(m)

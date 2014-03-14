@@ -68,9 +68,11 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
     //println("options: " + options)
 
     val fncsToAnalyse  =
-      if(fncNamesToAnalyse.isEmpty) program.definedFunctions
+      if(fncNamesToAnalyse.isEmpty) program.definedFunctions.filter(f =>
+        !f.annotations.contains("proxy"))
       else {
-        val toAnalyze = program.definedFunctions.filter(f => fncNamesToAnalyse.contains(f.id.name))
+        val toAnalyze = program.definedFunctions.filter(f => {
+          !f.annotations.contains("proxy") && fncNamesToAnalyse.contains(f.id.name)})
         val notFound = fncNamesToAnalyse -- toAnalyze.map(fncDef => fncDef.id.name).toSet
         notFound.foreach(fn => reporter.error("Did not find function \"" + fn + "\" though it was marked for analysis."))
         toAnalyze
@@ -112,4 +114,5 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
     }
 
   }
+
 }

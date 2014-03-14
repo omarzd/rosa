@@ -1,10 +1,10 @@
-/* Copyright 2009-2013 EPFL, Lausanne */
-
 package leon
 
-import  scala.language.implicitConversions
+import leon.annotation._
+import scala.language.implicitConversions
 
-object Utils {
+@ignore
+object lang {
   sealed class IsValid(val property : Boolean) {
     def holds : Boolean = {
       assert(property)
@@ -19,8 +19,8 @@ object Utils {
   object InvariantFunction {
     def invariant(x: Boolean): Unit = ()
   }
-  implicit def while2Invariant(u: Unit) = InvariantFunction
 
+  implicit def while2Invariant(u: Unit) = InvariantFunction
 
   def waypoint[A](i: Int, expr: A): A = expr
 

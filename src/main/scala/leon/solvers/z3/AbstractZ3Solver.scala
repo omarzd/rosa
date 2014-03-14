@@ -364,7 +364,6 @@ trait AbstractZ3Solver
     sorts += Int32Type -> z3.mkIntSort
     sorts += BooleanType -> z3.mkBoolSort
     sorts += UnitType -> us
-    sorts += RealType -> z3.mkRealSort
 
     unitValue = unitCons()
 
@@ -383,22 +382,26 @@ trait AbstractZ3Solver
     reverseADTFieldSelectors = Map.empty
   }
 
+  def normalizeType(t: TypeTree): TypeTree = {
+    bestRealType(t)
+  }
+
   // assumes prepareSorts has been called....
-  protected[leon] def typeToSort(tt: TypeTree): Z3Sort = tt match {
+  protected[leon] def typeToSort(oldtt: TypeTree): Z3Sort = normalizeType(oldtt) match {
     case Int32Type | BooleanType | UnitType =>
-      sorts.toZ3(tt)
+      sorts.toZ3(oldtt)
 
     case act: AbstractClassType =>
-      sorts.toZ3OrCompute(rootType(act)) {
-        declareADTSort(rootType(act))
+      sorts.toZ3OrCompute(act) {
+        declareADTSort(act)
       }
 
     case cct: CaseClassType =>
-      sorts.toZ3OrCompute(rootType(cct)) {
-        declareADTSort(rootType(cct))
+      sorts.toZ3OrCompute(cct) {
+        declareADTSort(cct)
       }
 
-    case SetType(base) =>
+    case tt @ SetType(base) =>
       sorts.toZ3OrCompute(tt) {
         val newSetSort = z3.mkSetSort(typeToSort(base))
 
@@ -408,7 +411,7 @@ trait AbstractZ3Solver
         newSetSort
       }
 
-    case MapType(fromType, toType) =>
+    case tt @ MapType(fromType, toType) =>
       sorts.toZ3OrCompute(tt) {
         val fromSort = typeToSort(fromType)
         val toSort = mapRangeSort(toType)
@@ -416,7 +419,7 @@ trait AbstractZ3Solver
         z3.mkArraySort(fromSort, toSort)
       }
 
-    case ArrayType(base) =>
+    case tt @ ArrayType(base) =>
       sorts.toZ3OrCompute(tt) {
         val intSort = typeToSort(Int32Type)
         val toSort = typeToSort(base)
@@ -428,7 +431,7 @@ trait AbstractZ3Solver
 
         ats
       }
-    case TupleType(tpes) =>
+    case tt @ TupleType(tpes) =>
       sorts.toZ3OrCompute(tt) {
         val tpesSorts = tpes.map(typeToSort)
         val sortSymbol = z3.mkFreshStringSymbol("Tuple")
@@ -439,7 +442,7 @@ trait AbstractZ3Solver
         tupleSort
       }
 
-    case TypeParameter(id) =>
+    case tt @ TypeParameter(id) =>
       sorts.toZ3OrCompute(tt) {
         val symbol = z3.mkFreshStringSymbol(id.name)
         val newTPSort = z3.mkUninterpretedSort(symbol)
@@ -472,13 +475,13 @@ trait AbstractZ3Solver
     def rec(ex: Expr): Z3AST = ex match {
       case tu @ Tuple(args) =>
         typeToSort(tu.getType) // Make sure we generate sort & meta info
-        val meta = tupleMetaDecls(tu.getType)
+        val meta = tupleMetaDecls(normalizeType(tu.getType))
 
         meta.cons(args.map(rec(_)): _*)
 
       case ts @ TupleSelect(tu, i) =>
         typeToSort(tu.getType) // Make sure we generate sort & meta info
-        val meta = tupleMetaDecls(tu.getType)
+        val meta = tupleMetaDecls(normalizeType(tu.getType))
 
         meta.selects(i-1)(rec(tu))
 
@@ -521,9 +524,7 @@ trait AbstractZ3Solver
       case Not(e) => z3.mkNot(rec(e))
       case IntLiteral(v) => z3.mkInt(v, typeToSort(Int32Type))
       case BooleanLiteral(v) => if (v) z3.mkTrue() else z3.mkFalse()
-      case RealLiteral(r) =>
-          z3.mkNumeral(r.n.toString + "/" + r.d.toString, typeToSort(RealType))
-      case UnitLiteral => unitValue
+      case UnitLiteral() => unitValue
       case Equals(l, r) => z3.mkEq(rec( l ), rec( r ) )
       case Plus(l, r) => z3.mkAdd(rec(l), rec(r))
       case Minus(l, r) => z3.mkSub(rec(l), rec(r))
@@ -531,6 +532,7 @@ trait AbstractZ3Solver
       case Division(l, r) => z3.mkDiv(rec(l), rec(r))
       case Modulo(l, r) => z3.mkMod(rec(l), rec(r))
       case UMinus(e) => z3.mkUnaryMinus(rec(e))
+      // TODO: remove? shouldn't need this any more with the new independent solver....
       case PlusR(l, r) => z3.mkAdd(rec(l), rec(r))
       case MinusR(l, r) => z3.mkSub(rec(l), rec(r))
       case TimesR(l, r) => z3.mkMul(rec(l), rec(r))
@@ -603,7 +605,7 @@ trait AbstractZ3Solver
       case fill @ ArrayFill(length, default) =>
         val at @ ArrayType(base) = fill.getType
         typeToSort(at)
-        val meta = arrayMetaDecls(at)
+        val meta = arrayMetaDecls(normalizeType(at))
 
         val ar = z3.mkConstArray(typeToSort(base), rec(default))
         val res = meta.cons(ar, rec(length))
@@ -612,14 +614,14 @@ trait AbstractZ3Solver
       case ArraySelect(a, index) =>
         typeToSort(a.getType)
         val ar = rec(a)
-        val getArray = arrayMetaDecls(a.getType).select
+        val getArray = arrayMetaDecls(normalizeType(a.getType)).select
         val res = z3.mkSelect(getArray(ar), rec(index))
         res
 
       case ArrayUpdated(a, index, newVal) =>
         typeToSort(a.getType)
         val ar = rec(a)
-        val meta = arrayMetaDecls(a.getType)
+        val meta = arrayMetaDecls(normalizeType(a.getType))
 
         val store = z3.mkStore(meta.select(ar), rec(index), rec(newVal))
         val res = meta.cons(store, meta.length(ar))
@@ -628,7 +630,7 @@ trait AbstractZ3Solver
       case ArrayLength(a) =>
         typeToSort(a.getType)
         val ar = rec(a)
-        val meta = arrayMetaDecls(a.getType)
+        val meta = arrayMetaDecls(normalizeType(a.getType))
         val res = meta.length(ar)
         res
 
@@ -695,7 +697,7 @@ trait AbstractZ3Solver
                 val rargs = args.map(rec)
                 Tuple(rargs)
 
-              case LeonType(ArrayType(dt)) =>
+              case LeonType(at @ ArrayType(dt)) =>
                 assert(args.size == 2)
                 val IntLiteral(length) = rec(args(1))
                 model.getArrayValue(args(0)) match {
@@ -709,7 +711,7 @@ trait AbstractZ3Solver
 
                     FiniteArray(for (i <- 1 to length) yield {
                       valuesMap.getOrElse(i, elseValue)
-                    })
+                    }).setType(at)
                 }
 
               case LeonType(tpe @ MapType(kt, vt)) =>
@@ -733,7 +735,7 @@ trait AbstractZ3Solver
                 }
 
               case LeonType(UnitType) =>
-                UnitLiteral
+                UnitLiteral()
 
               case _ =>
                 import Z3DeclKind._
