@@ -1,7 +1,5 @@
-import leon.Real
-import Real._
-
-import leon.Utils._
+import leon.real._
+import RealOps._
 
 //http://www.coranac.com/2009/07/sines/
 object SineApproximations {

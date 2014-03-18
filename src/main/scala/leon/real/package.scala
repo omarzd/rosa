@@ -32,6 +32,14 @@ package object real {
 
   case class Path(condition: Expr, bodyReal: Expr, bodyFinite: Expr)
 
+  /**
+    Represents a specification of a variable.
+    @param id identifier this spec belongs to
+    @param bounds real-valued (ideal) bounds
+    @param absError maximum absolute error
+  */
+  case class Spec(id: Identifier, bounds: RationalInterval, absError: Rational)
+
 
   def formatOption[T](res: Option[T]): String = res match {
     case Some(xf) => xf.toString
