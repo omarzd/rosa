@@ -1,7 +1,7 @@
 
 
-import leon.Real
-import Real._
+import leon.real._
+import RealOps._
 
 /*
   Benchmark from http://www.cprover.org/cdfpl/

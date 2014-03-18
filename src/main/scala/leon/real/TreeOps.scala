@@ -494,8 +494,8 @@ object TreeOps {
 
     error flatMap ( err => {
         if ((lwrBoundReal.nonEmpty || lwrBoundActual.nonEmpty) && (upBoundReal.nonEmpty || upBoundActual.nonEmpty)) {
-          Some(Spec(id, RationalInterval(lwrBoundReal.getOrElse(lwrBoundActual.get + err),
-               upBoundReal.getOrElse(upBoundActual.get - err)), err))
+          Some(Spec(id, RationalInterval(lwrBoundReal.getOrElse(lwrBoundActual.get - err),
+               upBoundReal.getOrElse(upBoundActual.get + err)), err))
         } else {
           None
         }
@@ -507,28 +507,28 @@ object TreeOps {
 
     preMap {
       case LessEquals(RealLiteral(lwrBnd), Actual(Variable(id))) if (ids.contains(id)) =>
-        Some(LessEquals(RealLiteral(lwrBnd + deltas(id)), Variable(id)))
+        Some(LessEquals(RealLiteral(lwrBnd - deltas(id)), Variable(id)))
 
       case LessEquals(Actual(Variable(id)), RealLiteral(uprBnd)) if (ids.contains(id)) =>
-        Some(LessEquals(Variable(id), RealLiteral(uprBnd - deltas(id))))
+        Some(LessEquals(Variable(id), RealLiteral(uprBnd + deltas(id))))
 
       case LessThan(RealLiteral(lwrBnd), Actual(Variable(id))) if (ids.contains(id)) =>
-        Some(LessThan(RealLiteral(lwrBnd + deltas(id)), Variable(id)))
+        Some(LessThan(RealLiteral(lwrBnd - deltas(id)), Variable(id)))
 
       case LessThan(Actual(Variable(id)), RealLiteral(uprBnd)) if (ids.contains(id)) =>
-        Some(LessThan(Variable(id), RealLiteral(uprBnd - deltas(id))))
+        Some(LessThan(Variable(id), RealLiteral(uprBnd + deltas(id))))
 
       case GreaterEquals(RealLiteral(uprBnd), Actual(Variable(id))) if (ids.contains(id)) =>
-        Some(GreaterEquals(RealLiteral(uprBnd - deltas(id)), Variable(id)))
+        Some(GreaterEquals(RealLiteral(uprBnd + deltas(id)), Variable(id)))
 
       case GreaterEquals(Actual(Variable(id)), RealLiteral(lwrBnd)) if (ids.contains(id)) =>
-        Some(GreaterEquals(Variable(id), RealLiteral(lwrBnd + deltas(id))))
+        Some(GreaterEquals(Variable(id), RealLiteral(lwrBnd - deltas(id))))
 
       case GreaterThan(RealLiteral(uprBnd), Actual(Variable(id))) if (ids.contains(id)) =>
-        Some(GreaterThan(RealLiteral(uprBnd - deltas(id)), Variable(id)))
+        Some(GreaterThan(RealLiteral(uprBnd + deltas(id)), Variable(id)))
 
       case GreaterThan(Actual(Variable(id)), RealLiteral(lwrBnd)) if (ids.contains(id)) =>
-        Some(GreaterThan(Variable(id), RealLiteral(lwrBnd + deltas(id))))
+        Some(GreaterThan(Variable(id), RealLiteral(lwrBnd - deltas(id))))
 
       case _ => None
     }(e)
