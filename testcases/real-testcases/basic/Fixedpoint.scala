@@ -1,6 +1,6 @@
 
-import leon.Real
-import Real._
+import leon.real._
+import RealOps._
 
 /* From:
   To Sample or not to Sample: Self-Triggered Control for Nonlinear Systems,

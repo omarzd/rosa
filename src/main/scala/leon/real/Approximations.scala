@@ -470,8 +470,8 @@ object Approximations {
         println(extras)
 
         if ((lwrBoundReal.nonEmpty || lwrBoundActual.nonEmpty) && (upBoundReal.nonEmpty || upBoundActual.nonEmpty)) {
-          Some(Spec(id, RationalInterval(lwrBoundReal.getOrElse(lwrBoundActual.get + err),
-               upBoundReal.getOrElse(upBoundActual.get - err)), err))
+          Some(Spec(id, RationalInterval(lwrBoundReal.getOrElse(lwrBoundActual.get - err),
+               upBoundReal.getOrElse(upBoundActual.get + err)), err))
         } else {
           None
         }

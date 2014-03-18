@@ -1,6 +1,6 @@
 
-import leon.Real
-import Real._
+import leon.real._
+import RealOps._
 
 /**
   Equation and initial ranges from:

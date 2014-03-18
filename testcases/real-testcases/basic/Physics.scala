@@ -1,7 +1,7 @@
 
 
-import leon.Real
-import Real._
+import leon.real._
+import RealOps._
 
 /*From:
   - Mathematical Biology, An Introduction, Murray, 2002

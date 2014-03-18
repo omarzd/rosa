@@ -12,9 +12,6 @@ import Approximations._
 import Valid._
 
 
-case class Spec(id: Identifier, bounds: RationalInterval, absError: Rational)
-
-
 // The condition is pre => post
 class VerificationCondition(val funDef: FunDef, val kind: VCKind.Value, val pre: Expr,
   val body: Expr, val post: Expr, val variables: VariablePool,
