@@ -379,7 +379,7 @@ object Trees {
       Some((specExpr, (e) => FncValueF(spec, e)))
     }
     def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
-      printer.append("fncVal(" + spec.toString + ")(")
+      printer.append("fncValF(" + spec.toString + ")(")
       printer.pp(specExpr, Some(this))
       printer.append(")")
     }

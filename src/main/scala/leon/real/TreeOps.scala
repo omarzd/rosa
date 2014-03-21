@@ -248,7 +248,8 @@ object TreeOps {
       assert(specs.length == variables.length)
       And(variables.zip(specs).map({
         case (resVar, spec) =>
-          And(specToExpr(spec), Equals(resVar, Variable(spec.id)))
+          //And(specToExpr(spec), Equals(resVar, Variable(spec.id)))
+          And(specExpr, Equals(resVar, Variable(spec.id)))
         }))
     
     // TODO: this won't work with tuples
@@ -284,11 +285,12 @@ object TreeOps {
 
     case Not(t) => Not(addResultsF(t, variables))
 
-    case FncValue(specs, specExpr) =>
+    case FncValueF(specs, specExpr) =>
       assert(specs.length == variables.length)
       And(variables.zip(specs).map({
         case (resVar, spec) =>
-          And(specToExpr(spec), EqualsF(resVar, Variable(spec.id)))
+          //And(specToExpr(spec), EqualsF(resVar, Actual(Variable(spec.id))))
+          And(specExpr, EqualsF(resVar, Actual(Variable(spec.id))))
         }))
     
     // TODO: this won't work with tuples
@@ -365,40 +367,6 @@ object TreeOps {
     case _ => // simple case (no tuples)
       replace(Map(Variable(resId) -> Variable(resFresh.head)), postExpr)
   }
-
-
-  def actualToRealSpec(e: Expr, deltas: Map[Identifier, Rational]): Expr = {
-    val ids = deltas.keys.toSeq
-
-    preMap {
-      case LessEquals(RealLiteral(lwrBnd), Actual(Variable(id))) if (ids.contains(id)) =>
-        Some(LessEquals(RealLiteral(lwrBnd - deltas(id)), Variable(id)))
-
-      case LessEquals(Actual(Variable(id)), RealLiteral(uprBnd)) if (ids.contains(id)) =>
-        Some(LessEquals(Variable(id), RealLiteral(uprBnd + deltas(id))))
-
-      case LessThan(RealLiteral(lwrBnd), Actual(Variable(id))) if (ids.contains(id)) =>
-        Some(LessThan(RealLiteral(lwrBnd - deltas(id)), Variable(id)))
-
-      case LessThan(Actual(Variable(id)), RealLiteral(uprBnd)) if (ids.contains(id)) =>
-        Some(LessThan(Variable(id), RealLiteral(uprBnd + deltas(id))))
-
-      case GreaterEquals(RealLiteral(uprBnd), Actual(Variable(id))) if (ids.contains(id)) =>
-        Some(GreaterEquals(RealLiteral(uprBnd + deltas(id)), Variable(id)))
-
-      case GreaterEquals(Actual(Variable(id)), RealLiteral(lwrBnd)) if (ids.contains(id)) =>
-        Some(GreaterEquals(Variable(id), RealLiteral(lwrBnd - deltas(id))))
-
-      case GreaterThan(RealLiteral(uprBnd), Actual(Variable(id))) if (ids.contains(id)) =>
-        Some(GreaterThan(RealLiteral(uprBnd + deltas(id)), Variable(id)))
-
-      case GreaterThan(Actual(Variable(id)), RealLiteral(lwrBnd)) if (ids.contains(id)) =>
-        Some(GreaterThan(Variable(id), RealLiteral(lwrBnd - deltas(id))))
-
-      case _ => None
-    }(e)
-  }
-
   
 
   /**
@@ -432,6 +400,47 @@ object TreeOps {
     }(e)
   }
 
+  private def belongsToActual(e: Expr): Boolean = {
+    var contains = false
+    preTraversal {
+      case Actual(_) | Noise(_,_) | RelError(_,_) => contains = true
+      case UMinusF(_) | PlusF(_,_) | MinusF(_,_) | TimesF(_,_) | DivisionF(_,_) | SqrtF(_) =>
+        contains = true
+      case EqualsF(_,_) => contains = true
+      case _ => ;
+    }(e)
+    contains
+  }
+
+  def filterOutIdeal(expr: Expr): Expr = expr match {
+    case And(args) =>
+      And(args.map(a => filterOutIdeal(a)))
+
+    case LessThan(l, r) if (!belongsToActual(l) && !belongsToActual(r)) => True
+    case LessEquals(l, r) if (!belongsToActual(l) && !belongsToActual(r)) => True
+    case GreaterThan(l, r) if (!belongsToActual(l) && !belongsToActual(r)) => True
+    case GreaterEquals(l, r) if (!belongsToActual(l) && !belongsToActual(r)) => True
+    case _ => expr
+  }
+
+  def filterOutActualInFncVal(e: Expr): Expr = {
+    def filterOutActual(expr: Expr): Expr = expr match {
+      case And(args) =>
+        And(args.map(a => filterOutActual(a)))
+
+      case LessThan(l, r) if (belongsToActual(l) || belongsToActual(r)) => True
+      case LessEquals(l, r) if (belongsToActual(l) || belongsToActual(r)) => True
+      case GreaterThan(l, r) if (belongsToActual(l) || belongsToActual(r)) => True
+      case GreaterEquals(l, r) if (belongsToActual(l) || belongsToActual(r)) => True
+      case _ => expr
+    }
+
+    preMap {
+      case FncValue(s, sexpr) => Some(FncValue(s, filterOutActual(sexpr)))
+      case _ => None
+    }(e)
+  }
+
   def idealToActual(expr: Expr, vars: VariablePool): Expr = {
     val transformer = new RealToFloatTransformer(vars)
     transformer.transform(expr)
@@ -459,7 +468,8 @@ object TreeOps {
       // leave conditions on if-then-else in reals, as they will be passed as conditions to Z3
       case LessEquals(_,_) | LessThan(_,_) | GreaterEquals(_,_) | GreaterThan(_,_) => e
 
-      case FncValue(s, id) => FncValueF(s, id)
+      case FncValue(s, sexpr) => FncValueF(s, filterOutIdeal(sexpr))
+
       case FncBody(n, b, f, a) => FncBodyF(n, rec(b, path), f, a)
       case FunctionInvocation(fundef, args) =>
         FncInvocationF(fundef, args.map(a => rec(a, path)))
@@ -471,16 +481,6 @@ object TreeOps {
         super.rec(e, path)
     }
   }
-
-  def specToExpr(s: Spec): Expr = {
-    And(And(LessEquals(RealLiteral(s.bounds.xlo), Variable(s.id)),
-            LessEquals(Variable(s.id), RealLiteral(s.bounds.xhi))),
-            Noise(Variable(s.id), RealLiteral(s.absError)))
-  }
-
-  def specToRealExpr(spec: Spec): Expr =
-    And(LessEquals(RealLiteral(spec.bounds.xlo), Variable(spec.id)),
-            LessEquals(Variable(spec.id), RealLiteral(spec.bounds.xhi)))
 
   /* --------------------
         Arithmetic ops

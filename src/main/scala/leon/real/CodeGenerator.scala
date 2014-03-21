@@ -222,7 +222,7 @@ class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, 
 
       //val funDef = new FunDef(id, Seq.empty, floatType, args)
       //funDef.body = convertToFloatConstant(f.body)
-      val funDef = if(vc.kind == VCKind.LoopInvariant) {
+      val funDef = /*if(vc.kind == VCKind.LoopInvariant) {
         val counterId = FreshIdentifier("_counter").setType(Int32Type)
         val maxCounterId = FreshIdentifier("_MAX_COUNTER").setType(Int32Type)
 
@@ -253,30 +253,30 @@ class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, 
 
          
         fD
-      } else {
-        val fD = new FunDef(id, Seq.empty, returnType, args)
+      } else {*/
+      {  val fD = new FunDef(id, Seq.empty, returnType, args)
         fD.body = convertToFloatConstant(f.body)
 
         vc.spec(precision) match {
-        case specs: Seq[Spec] if (specs.length > 1) =>
-          val resId = FreshIdentifier("res").setType(TupleType(Seq(RealType, RealType)))
-          val a = FreshIdentifier("a").setType(RealType)
-          val b = FreshIdentifier("b").setType(RealType)
+          case specs: Seq[Spec] if (specs.length > 1) =>
+            val resId = FreshIdentifier("res").setType(TupleType(Seq(RealType, RealType)))
+            val a = FreshIdentifier("a").setType(RealType)
+            val b = FreshIdentifier("b").setType(RealType)
 
-          val specExpr = And(specs.map( specToExpr(_) ))
+            val specExpr = And(specs.map( _.toExpr ))
 
-          val resMap: Map[Expr, Expr] = specs.map(s => Variable(s.id)).zip(List(Variable(a), Variable(b))).toMap
-          
-          val postExpr = MatchExpr(Variable(resId), 
-            Seq(SimpleCase(TuplePattern(None, List(WildcardPattern(Some(a)), WildcardPattern(Some(b)))),
-              replace(resMap, specExpr))))
+            val resMap: Map[Expr, Expr] = specs.map(s => Variable(s.id)).zip(List(Variable(a), Variable(b))).toMap
+            
+            val postExpr = MatchExpr(Variable(resId), 
+              Seq(SimpleCase(TuplePattern(None, List(WildcardPattern(Some(a)), WildcardPattern(Some(b)))),
+                replace(resMap, specExpr))))
 
-          fD.postcondition = Some((resId, postExpr))
-        case Seq(spec) =>
-          val resId = FreshIdentifier("res")
-          fD.postcondition = Some((resId, replace(Map(Variable(spec.id) -> Variable(resId).setType(RealType)), specToExpr(spec))))
-        case _ =>
-      }
+            fD.postcondition = Some((resId, postExpr))
+          case Seq(spec) =>
+            val resId = FreshIdentifier("res")
+            fD.postcondition = Some((resId, replace(Map(Variable(spec.id) -> Variable(resId).setType(RealType)), spec.toExpr)))
+          case _ =>
+        }
         fD
       }
 

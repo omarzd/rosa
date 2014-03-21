@@ -32,13 +32,16 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
 
   var kinds = allApprox
 
-  if (!options.z3Only) kinds = kinds.filter(_.arithmApprox != Z3Only)
+  if (vc.kind == VCKind.LoopPost) kinds = kinds.filter(_.arithmApprox == NoApprox)
+  else if (!options.z3Only) kinds = kinds.filter(_.arithmApprox != NoApprox)
+
   //println("after z3Only: " + kinds)
 
   if (!containsIfs || options.pathError) kinds = kinds.filter(_.pathHandling == Merging)
   //println("after ifs: " + kinds)
 
   if (!containsFncs) kinds = kinds.filter(_.fncHandling == Uninterpreted)
+  else kinds = kinds.filter(_.fncHandling != Uninterpreted)
   //println("after fnc: " + kinds)
 
   if (vc.kind == VCKind.LoopPost) kinds = kinds.filter(ak => ak.fncHandling == Postcondition && ak.pathHandling == Pathwise)
@@ -57,7 +60,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
     val k = maxAbs(ids.flatMap { x =>
       val exprPrime = d(expr, x)
       val rangeDerivative = solver.getRange(precondition, exprPrime, vc.variables,
-                  solverMaxIterMedium, solverPrecisionMedium) 
+                solverMaxIterMedium, solverPrecisionMedium) 
       reporter.debug("Lipschitz constants wrt " + x + ": " + rangeDerivative.xlo +
                       ", " + rangeDerivative.xhi)
       Seq(rangeDerivative.xlo, rangeDerivative.xhi)
@@ -173,7 +176,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
 
       val specs = zipped.map({
         case (fresVar: Variable, resXFloat: XReal) =>
-          Spec(fresVar.id, RationalInterval(resXFloat.realInterval.xlo, resXFloat.realInterval.xhi), resXFloat.maxError)
+          Spec(fresVar.id, RationalInterval(resXFloat.realInterval.xlo, resXFloat.realInterval.xhi), Some(resXFloat.maxError))
         })
 
       val constraint = And(zipped.foldLeft(Seq[Expr]())(
@@ -216,10 +219,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
           false
       }
     }
-    
-    
-   
-
+  
     val precondition = vc.pre
     val preReal = removeErrors(precondition)
     val postcondition = vc.post
@@ -239,8 +239,11 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
         case IfExpr(c, thenn, elze) if (validLoopCondition(c)) =>
           val thennClean = thenn//removeLoopCounterUpdate(thenn)
           val elzeClean = elze//removeLoopCounterUpdate(elze)
-          Set(Path(True, thennClean, idealToActual(thennClean, vc.variables)),
-            Path(True, elzeClean, idealToActual(elzeClean, vc.variables)))
+
+          Set(Path(True, filterOutActualInFncVal(thennClean), idealToActual(thennClean, vc.variables)),
+            Path(True, filterOutActualInFncVal(elzeClean), idealToActual(elzeClean, vc.variables)))
+          //Set(Path(True, thennClean, True), Path(True, elzeClean, True))
+
         case _ =>
           println(body.getClass)
           reporter.error("Unsupported loop type.")
@@ -248,13 +251,13 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
       }     
 
       case (_, Pathwise) => getPaths(body).map {
-        case (cond, expr) => Path(cond, expr, idealToActual(expr, vc.variables))
+        case (cond, expr) => Path(cond, filterOutActualInFncVal(expr), idealToActual(expr, vc.variables))
       }
       case (VCKind.LoopInvariant, Merging) =>
         val bodyClean = removeLoopCounterUpdate(body)
-        Set(Path(True, bodyClean, idealToActual(bodyClean, vc.variables)))
+        Set(Path(True, filterOutActualInFncVal(bodyClean), idealToActual(bodyClean, vc.variables)))
 
-      case (_, Merging) =>  Set(Path(True, body, idealToActual(body, vc.variables)))
+      case (_, Merging) =>  Set(Path(True, filterOutActualInFncVal(body), idealToActual(body, vc.variables)))
     }
     reporter.debug("after PATH handling:\nbody: %s".format(paths.mkString("\n")))
 
@@ -286,13 +289,13 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
       Approximation(kind, constraints, emptySpecTuple)
     } else {
       kind.arithmApprox match {
-        case Z3Only =>
+        case NoApprox =>
           var constraints = Seq[Constraint]()
           for (path <- paths) {
             constraints :+= Constraint(And(precondition, path.condition), path.bodyReal, path.bodyFinite, postcondition)
           }
           Approximation(kind, constraints, Seq())
-
+          
         case JustFloat =>
           var constraints = Seq[Constraint]()
           var specsPerPath = Seq[SpecTuple]()
@@ -335,7 +338,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
                 for (
                   (cnstr, specs) <- approx.constraints.zip(approx.specsPerPath)
                 ) yield
-                  Constraint(cnstr.precondition, And(specs.map(specToRealExpr(_))), cnstr.finiteComp, cnstr.postcondition)
+                  Constraint(cnstr.precondition, And(specs.map(_.toRealExpr)), cnstr.finiteComp, cnstr.postcondition)
               Approximation(kind, newConstraints, approx.spec)
             case None =>
               throw new RealArithmeticException("Cannot compute Float'n'Range approximation because JustFloat approximation is missing.")
@@ -461,21 +464,34 @@ object Approximations {
       case _ => ;
     } (e)
 
-    error flatMap ( err => {
-        println(lwrBoundReal)
-        println(upBoundReal)
-        println(lwrBoundActual)
-        println(upBoundActual)
-        println(error)
-        println(extras)
 
+    // TODO: for loops the error won't be given, we need to extract this anyway somehow
+    
+    error match {
+      case Some(err) =>
         if ((lwrBoundReal.nonEmpty || lwrBoundActual.nonEmpty) && (upBoundReal.nonEmpty || upBoundActual.nonEmpty)) {
           Some(Spec(id, RationalInterval(lwrBoundReal.getOrElse(lwrBoundActual.get - err),
-               upBoundReal.getOrElse(upBoundActual.get + err)), err))
+             upBoundReal.getOrElse(upBoundActual.get + err)), error))
         } else {
           None
         }
-      })
+        // if we don't have the error, we cannot convert the actual range into a real one
+      case None => 
+        if (lwrBoundReal.nonEmpty && upBoundReal.nonEmpty) {
+          Some(Spec(id, RationalInterval(lwrBoundReal.get, upBoundReal.get), None))
+        } else {
+          None
+        }
+    }
+    /*
+    //error flatMap ( err => {
+    if ((lwrBoundReal.nonEmpty || lwrBoundActual.nonEmpty) && (upBoundReal.nonEmpty || upBoundActual.nonEmpty)) {
+       Some(Spec(id, RationalInterval(lwrBoundReal.getOrElse(lwrBoundActual.get - err),
+             upBoundReal.getOrElse(upBoundActual.get + err)), error))
+    } else {
+      None
+    }
+    })*/
   }
 
 
@@ -496,7 +512,41 @@ object Approximations {
     Replace the function call with its specification. For translation to Z3 FncValue needs to be translated
     with a fresh variable. For approximation, translate the spec into an XFloat.
   */
-  def inlinePostcondition(expr: Expr, precision: Precision, postMap: Map[FunDef, Seq[Spec]]): Expr = {
+  def inlinePostcondition(expr: Expr, precision: Precision, postcondMap: Map[FunDef, Seq[Spec]]): Expr = {
+    def actualToRealSpec(e: Expr, deltas: Map[Identifier, Rational]): Expr = {
+      val ids = deltas.keys.toSeq
+
+      // this is replacing the actuals, we will probably want to keep
+      // either both, or what was given, maybe the latter would be better...
+      postMap {
+        case e @ LessEquals(RealLiteral(lwrBnd), Actual(Variable(id))) if (ids.contains(id)) =>
+          Some(And(e, LessEquals(RealLiteral(lwrBnd - deltas(id)), Variable(id))))
+
+        case e @ LessEquals(Actual(Variable(id)), RealLiteral(uprBnd)) if (ids.contains(id)) =>
+          Some(And(e, LessEquals(Variable(id), RealLiteral(uprBnd + deltas(id)))))
+
+        case e @ LessThan(RealLiteral(lwrBnd), Actual(Variable(id))) if (ids.contains(id)) =>
+          Some(And(e, LessThan(RealLiteral(lwrBnd - deltas(id)), Variable(id))))
+
+        case e @ LessThan(Actual(Variable(id)), RealLiteral(uprBnd)) if (ids.contains(id)) =>
+          Some(And(e, LessThan(Variable(id), RealLiteral(uprBnd + deltas(id)))))
+
+        case e @ GreaterEquals(RealLiteral(uprBnd), Actual(Variable(id))) if (ids.contains(id)) =>
+          Some(And(e, GreaterEquals(RealLiteral(uprBnd + deltas(id)), Variable(id))))
+
+        case e @ GreaterEquals(Actual(Variable(id)), RealLiteral(lwrBnd)) if (ids.contains(id)) =>
+          Some(And(e, GreaterEquals(Variable(id), RealLiteral(lwrBnd - deltas(id)))))
+
+        case e @ GreaterThan(RealLiteral(uprBnd), Actual(Variable(id))) if (ids.contains(id)) =>
+          Some(And(e, GreaterThan(RealLiteral(uprBnd + deltas(id)), Variable(id))))
+
+        case e @ GreaterThan(Actual(Variable(id)), RealLiteral(lwrBnd)) if (ids.contains(id)) =>
+          Some(And(e, GreaterThan(Variable(id), RealLiteral(lwrBnd - deltas(id)))))
+
+        case _ => None
+      }(e)
+    }
+
     var tmpCounter = 0
 
     def getFresh: Identifier = {
@@ -508,8 +558,6 @@ object Approximations {
       case FunctionInvocation(typedFunDef, args) =>
         val funDef = typedFunDef.fd
         val arguments: Map[Expr, Expr] = funDef.params.map(decl => decl.toVariable).zip(args).toMap
-        println("inlining...")
-        println(funDef.postcondition)
         funDef.postcondition.flatMap({
           case (resId, postExpr) =>
             val resFresh = resId.getType match {
@@ -518,29 +566,29 @@ object Approximations {
             }
             //println(s"$resFresh")
             val postcondition = extractPostCondition(resId, postExpr, resFresh)
-            println(s"extracted: $postcondition")
+            //println(s"extracted: $postcondition")
 
             try {
-              val specs: Seq[Spec] = resFresh.map( r => {
-                extractSpecs(postcondition, r).get
-              })
-              println("specs: " + specs)
-              val deltaMap: Map[Identifier, Rational] = specs.map( s => (s.id, s.absError)).toMap
-              println("deltaMap: " + deltaMap)
-              val realSpecExpr = actualToRealSpec(postcondition, deltaMap)
-              println("realSpecExpr: " + realSpecExpr)
+              val specs: Seq[Spec] = resFresh.map( r => { extractSpecs(postcondition, r).get })
+              //println("specs: " + specs)
 
-              Some(FncValue(specs, replace(arguments, realSpecExpr)))
+              val deltaMap: Map[Identifier, Rational] =
+                specs.filter(s => s.absError.nonEmpty).map( s => (s.id, s.absError.get)).toMap
+              //println("deltaMap: " + deltaMap)
+              val realSpecExpr = actualToRealSpec(postcondition, deltaMap)
+              //println("realSpecExpr: " + realSpecExpr)
+
+              Some(FncValue(specs, realSpecExpr))
             } catch {
               case e: Exception =>
-                println("Exception: " + e)
+                //Some(FncValue(Seq.empty, replace(arguments, postcondition)))
                 None
             }
         }) match {
           case Some(fncValue) => Some(fncValue)
-          case _ => postMap.getOrElse(funDef, Seq()) match {
+          case _ => postcondMap.getOrElse(funDef, Seq()) match {
             case specs: Seq[Spec] if specs.nonEmpty =>
-              val specsExpr = And(specs.map(specToExpr(_)))
+              val specsExpr = And(specs.map(_.toExpr))
               Some(FncValue(specs, replace(arguments, specsExpr)))
             case _ =>
               throw PostconditionInliningFailedException("missing postcondition for " + funDef.id.name);
@@ -579,9 +627,9 @@ object Approximations {
         case (s1, s2) =>
           val lowerBnd = min(s1.bounds.xlo, s2.bounds.xlo)
           val upperBnd = max(s1.bounds.xhi, s2.bounds.xhi)
-          val err = max(s1.absError, s2.absError)
+          val err = max(s1.absError.get, s2.absError.get)
           assert(s1.id == s2.id)
-          Spec(s1.id, RationalInterval(lowerBnd, upperBnd), err)
+          Spec(s1.id, RationalInterval(lowerBnd, upperBnd), Some(err))
         })
   }
 
@@ -615,7 +663,7 @@ object Approximations {
 
   object ArithmApprox extends Enumeration {
     type ArithmApprox = Value
-    val Z3Only = Value("Z3Only")
+    val NoApprox = Value("NoApprox")
     val JustFloat = Value("JustFloat") // evaluate the float. part with xfloat
     val FloatNRange = Value("Float'n'Range") // also replace the real with an approx. of the range
   }
@@ -624,7 +672,7 @@ object Approximations {
   case class ApproxKind(fncHandling: FncHandling.Value, pathHandling: PathHandling.Value, arithmApprox: ArithmApprox.Value) {
     val allowsRealModel = (fncHandling == Uninterpreted && arithmApprox == JustFloat) || // no functions
                           (fncHandling == Inlining && arithmApprox == JustFloat) || // with fncs
-                          (fncHandling == Inlining && arithmApprox == Z3Only) // with fncs
+                          (fncHandling == Inlining && arithmApprox == NoApprox) // with fncs
   }
 
   /*val a_FncIf = List(
@@ -675,24 +723,24 @@ object Approximations {
 
   // approximations are tried in this order
   val allApprox = List(
-    ApproxKind(Uninterpreted, Merging, Z3Only),
+    ApproxKind(Uninterpreted, Merging, NoApprox),
     ApproxKind(Uninterpreted, Merging, JustFloat),
     ApproxKind(Uninterpreted, Merging, FloatNRange),
-    ApproxKind(Uninterpreted, Pathwise, Z3Only),
+    ApproxKind(Uninterpreted, Pathwise, NoApprox),
     ApproxKind(Uninterpreted, Pathwise, JustFloat),
     ApproxKind(Uninterpreted, Pathwise, FloatNRange),
 
-    ApproxKind(Postcondition, Merging, Z3Only),
+    ApproxKind(Postcondition, Merging, NoApprox),
     ApproxKind(Postcondition, Merging, JustFloat),
     ApproxKind(Postcondition, Merging, FloatNRange),
-    ApproxKind(Postcondition, Pathwise, Z3Only),
+    ApproxKind(Postcondition, Pathwise, NoApprox),
     ApproxKind(Postcondition, Pathwise, JustFloat),
     ApproxKind(Postcondition, Pathwise, FloatNRange),
 
-    ApproxKind(Inlining, Merging, Z3Only),
+    ApproxKind(Inlining, Merging, NoApprox),
     ApproxKind(Inlining, Merging, JustFloat),
     ApproxKind(Inlining, Merging, FloatNRange),
-    ApproxKind(Inlining, Pathwise, Z3Only),
+    ApproxKind(Inlining, Pathwise, NoApprox),
     ApproxKind(Inlining, Pathwise, JustFloat),
     ApproxKind(Inlining, Pathwise, FloatNRange)
     )

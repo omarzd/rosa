@@ -116,9 +116,9 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
           case SqrtNotImplementedException(msg) =>
             reporter.warning(msg)
             false
-          case UnsoundBoundsException(msg) =>
-            reporter.error(msg)
-            return false
+          //case UnsoundBoundsException(msg) =>
+          //  reporter.error(msg)
+          //  return false
 
         }
 
@@ -138,7 +138,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
   }
 
   def checkValid(app: Approximation, variables: VariablePool, precision: Precision): Valid = {
-    reporter.debug("checking for valid: " + app.constraints)
+    reporter.debug("checking for valid: " + app.constraints.mkString("\n"))
 
     val transformer = new LeonToZ3Transformer(variables, precision)
     var validCount = 0
@@ -154,13 +154,16 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
 
       val toCheck = And(sanityConstraint, negate(cnstr.postcondition))
 
-      val z3constraint = massageArithmetic(transformer.getZ3Expr(toCheck))
+      val toCheckZ3 = transformer.getZ3Expr(toCheck)
+      reporter.debug("z3constraint ("+index+"): " + toCheckZ3)
+
+      val z3constraint = massageArithmetic(toCheckZ3)
       val sanityExpr = massageArithmetic(transformer.getZ3Expr(sanityConstraint))
 
 
 
 
-      reporter.debug("z3constraint ("+index+"): " + z3constraint)
+     
 
       if (reporter.errorCount == 0 && sanityCheck(sanityExpr)) {
         solver.checkSat(z3constraint) match {

@@ -57,6 +57,7 @@ class Approximator(reporter: Reporter, solver: RangeSolver, precision: Precision
    *  Will work also for tupled results
    */
   def getXRealForResult(e: Expr): Seq[XReal] = {
+    println("approximating " + e)
     approx(e, Seq())
   }
 
@@ -295,18 +296,21 @@ class Approximator(reporter: Reporter, solver: RangeSolver, precision: Precision
         mergeXRealWithExtraError(thenBranch, elseBranch, And(path), pathError)
 
       case FncValueF(specs, specExpr) =>
+        // TODO: we should filter out any non-real parts from the spec expression here
+        //println("\nfncValueF: " + specs)
+        //println("specExpr: " + specExpr)
         specs.map (spec => {
-          val (resId, interval, error, constraints) = (spec.id, spec.bounds, spec.absError, True) // constraints not (yet) used
+          val (resId, interval, error, constraints) = (spec.id, spec.bounds, spec.absError.get, True) // constraints not (yet) used
           val fresh = getNewXFloatVar
-
+          //println("fresh: " + fresh)
           precision match {
             case FPPrecision(bts) => xFixedWithUncertain(fresh, interval,
               config.addCondition(replace(Map(Variable(resId) -> fresh),
-                leonToZ3.getZ3Condition(removeErrors(specExpr)))),
+                leonToZ3.getZ3Condition(And(removeErrors(specExpr), spec.toRealExpr)))),
               error, false, bts)._1
           case _ => xFloatWithUncertain(fresh, interval,
             config.addCondition(replace(Map(Variable(resId) -> fresh),
-              leonToZ3.getZ3Condition(removeErrors(specExpr)))),
+              leonToZ3.getZ3Condition(And(removeErrors(specExpr), spec.toRealExpr)))),
             error, false, machineEps)._1
           }
         })
@@ -341,6 +345,7 @@ class Approximator(reporter: Reporter, solver: RangeSolver, precision: Precision
     }
 
     seq.map( x => {
+
       if (overflowPossible(x.interval)) {
         reporter.warning("Possible overflow detected at: " + x)
       }

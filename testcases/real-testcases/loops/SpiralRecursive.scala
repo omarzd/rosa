@@ -5,8 +5,9 @@ import realannotations._
 object Spiral {
 
   def spiralTail(x: Real, y: Real, k: Int): (Real, Real) = {
-    require(loopCounter(k) && x*x + y*y < 100 && -10 <= x && x <= 10 &&
-            -10 <= y && y <= 10)
+    require(loopCounter(k) && x*x + y*y < 100 &&
+      -10 <= x && x <= 10 && -10 <= y && y <= 10 &&
+      -10 <= ~x && ~x <= 10 && -10 <= ~y && ~y <= 10)
     
     // k should be an integer
     if (k < 5) {
@@ -18,8 +19,8 @@ object Spiral {
     }
 
   } ensuring (_ match {
-    case (a, b) => -10 < a && a < 10 && -10 < b && b < 10 &&
-                  -10 < ~a && ~a < 10 && -10 < ~b && ~b < 10
+    case (a, b) => -10 <= a && a <= 10 && -10 <= b && b <= 10 &&
+                  -10 <= ~a && ~a <= 10 && -10 <= ~b && ~b <= 10
   })
 
 
