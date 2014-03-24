@@ -79,7 +79,7 @@ object Analyser {
             val loopBody = And(Seq(lb) :+ update)
             debug (s"loopBody: $loopBody")
 
-            val vc = new VerificationCondition(funDef, LoopInvariant, loopInv, loopBody, loopInvAfterLoop,
+            val vc = new VerificationCondition(funDef, LoopIteration, loopInv, loopBody, loopInvAfterLoop,
               allFncCalls, variables, precisions)
 
             //println("\nfinal VC: \n" + vc.longString)
@@ -91,6 +91,8 @@ object Analyser {
             vcs ++= Seq(vc, vcError)
             // TODO: include recursive functions in overall functions
             //fncs += ((funDef -> Fnc() ))
+
+            println("funDef.loopBound: " + funDef.loopBound)
 
             if (funDef.loopBound.nonEmpty) {
               if (lb == True) {

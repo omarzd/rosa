@@ -398,15 +398,13 @@ trait CodeExtraction extends ASTExtractors {
 
       fd.addAnnotation(annotationsOf(sym).toSeq : _*)
 
-      // TODO: simplify this, resp. do we need this at all?
+      // extract real annotation which has a parameter
       for(a <- sym.annotations) {
         val name = a.atp.safeToString
-        if (name startsWith "leon.RealAnnotations.") {
-          if (name.split("\\.")(2) == "loopbound") {
-            a.args(0) match {
-              case Literal(Constant(i: Int)) =>
-                fd.loopBound = Some(i)
-            }
+        if (name.startsWith("leon.real.annotations.") && name.split("\\.")(3) == "loopbound") {
+          a.args(0) match {
+            case Literal(Constant(i: Int)) =>
+              fd.loopBound = Some(i)
           }
         }
       }

@@ -8,7 +8,7 @@ import scala.math.{ScalaNumericConversions, ScalaNumber}
 import scala.annotation.StaticAnnotation
 
 @leon.annotation.ignore
-object realannotations {
+object annotations {
   class loopbound(max: Int) extends StaticAnnotation
 }
 
