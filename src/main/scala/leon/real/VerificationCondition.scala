@@ -53,6 +53,7 @@ class VerificationCondition(val funDef: FunDef, val kind: VCKind.Value, val pre:
   var counterExample : Option[Map[Identifier, Expr]] = None
 
   def longString: String = "vc (%s,%s): (%s && %s) -> %s".format(fncId, kind, pre, body, post)
+  def longStringWithBreaks: String = "vc (%s,%s)\n P: %s\n body: %s\nQ: %s".format(fncId, kind, pre, body, post)
   override def toString: String = "%s (%s)".format(fncId, kind)
 }
 

@@ -39,7 +39,7 @@ object Analyser {
     val (validFncs, invalidInputs) = complete.map(
       funDef => {
         val variables = VariablePool(funDef.precondition.get, funDef.returnType)
-        println("variables: " + variables)
+        //println("variables: " + variables)
         (funDef, variables)
       }).partition( x => x._2.hasValidInput(x._1.params, reporter))
     invalidInputs.foreach(x => reporter.warning(x._1.id.name + ": inputs incomplete, skipping!"))

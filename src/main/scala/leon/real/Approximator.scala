@@ -57,7 +57,6 @@ class Approximator(reporter: Reporter, solver: RangeSolver, precision: Precision
    *  Will work also for tupled results
    */
   def getXRealForResult(e: Expr): Seq[XReal] = {
-    println("approximating " + e)
     approx(e, Seq())
   }
 

@@ -3,6 +3,8 @@
 package leon
 package real
 
+import java.io.{PrintWriter, File}
+
 import purescala.Trees._
 import purescala.Definitions._
 import purescala.TreeOps._
@@ -80,7 +82,6 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
         reporter.info("approx: " + aKind)
 
         try {
-          println("trying...")
           val currentApprox = approx.getApproximation(aKind, precision, postMap)
           spec = mergeSpecs(spec, currentApprox.spec)
           postMap += (vc.funDef -> currentApprox.spec)
@@ -88,18 +89,20 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
           if (vc.kind == VCKind.SpecGen) true  // specGen, no need to check, only uses first approximation
           else
             checkValid(currentApprox, vc.variables, precision) match {
-              case VALID =>
+              case (VALID, str) =>
                 reporter.info("==== VALID ====")
                 vc.value += (precision -> VALID)
+                writeToFile(vc, str)
                 true
-              case INVALID =>
+              case (INVALID, str) =>
                 reporter.info("=== INVALID ===")
                 vc.value += (precision -> INVALID)
+                writeToFile(vc, str)
                 true
-              case UNKNOWN =>
+              case (UNKNOWN, _) =>
                 reporter.info("---- Unknown ----")
                 false
-              case NothingToShow =>
+              case (NothingToShow, _) =>
                 vc.value += (precision -> NothingToShow)
                 true
             }
@@ -137,8 +140,12 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
     vcs.forall( vc => vc.kind == VCKind.SpecGen || vc.value(precision) != UNKNOWN )
   }
 
-  def checkValid(app: Approximation, variables: VariablePool, precision: Precision): Valid = {
+  /*
+    @return (status, what we actually proved)
+  */
+  def checkValid(app: Approximation, variables: VariablePool, precision: Precision): (Valid, String) = {
     reporter.debug("checking for valid: " + app.constraints.mkString("\n"))
+    var str = app.kind + "\n\n"
 
     val transformer = new LeonToZ3Transformer(variables, precision)
     var validCount = 0
@@ -147,6 +154,9 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
     for ((cnstr, index) <- app.constraints.zipWithIndex) {
       val realCnstr = addResults(cnstr.realComp, variables.resultVars)
       val finiteCnstr = addResultsF(cnstr.finiteComp, variables.fResultVars)
+
+      str = str + "%d:\nP: %s\n\nreal: %s\n\nfin: %s\n\nQ: %s\n\n".format(index, cnstr.precondition,
+        realCnstr, finiteCnstr, transformer.getZ3Expr(cnstr.postcondition)) 
 
       val sanityConstraint = And(cnstr.precondition, And(realCnstr, finiteCnstr))
       
@@ -159,11 +169,6 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
 
       val z3constraint = massageArithmetic(toCheckZ3)
       val sanityExpr = massageArithmetic(transformer.getZ3Expr(sanityConstraint))
-
-
-
-
-     
 
       if (reporter.errorCount == 0 && sanityCheck(sanityExpr)) {
         solver.checkSat(z3constraint) match {
@@ -192,10 +197,10 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
         }
       }
     }
-    if (app.constraints.isEmpty) NothingToShow
-    else if ( (validCount + invalidCount) < app.constraints.length) UNKNOWN
-    else if (invalidCount > 0) INVALID
-    else VALID
+    if (app.constraints.isEmpty) (NothingToShow, "")
+    else if ( (validCount + invalidCount) < app.constraints.length) (UNKNOWN, "")
+    else if (invalidCount > 0) (INVALID, str)
+    else (VALID, str)
   }
 
   // if true, we're sane
@@ -211,5 +216,12 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
         reporter.info("Sanity check failed! ")// + sanityCondition)
         false
     }
+  }
+
+
+  private def writeToFile(vc: VerificationCondition, str: String) = {
+    val writer = new PrintWriter(new File("vcs/" + vc.toString + ".txt"))
+    writer.write("VC: " + vc.longStringWithBreaks + "\n\n\n" + "proved by " + str)
+    writer.close()
   }
 }

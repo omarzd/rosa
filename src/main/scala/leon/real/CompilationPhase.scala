@@ -11,12 +11,6 @@ import purescala.Trees._
 import purescala.TreeOps._
 import purescala.ScalaPrinter
 
-//import xlang.Trees._
-
-//import real.Trees._
-//import real.TreeOps._
-//import VCKind._
-
 
 object CompilationPhase extends LeonPhase[Program,CompilationReport] {
   val name = "Real compilation"
