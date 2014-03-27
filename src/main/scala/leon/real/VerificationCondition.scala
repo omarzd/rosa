@@ -8,6 +8,7 @@ import leon.purescala.Definitions._
 import leon.purescala.Common._
 import leon.utils.{Positioned}
 
+import real.Trees.{UpdateFunction}
 import Approximations._
 import Valid._
 
@@ -24,7 +25,8 @@ class VerificationCondition(val funDef: FunDef, val kind: VCKind.Value, val pre:
   val isLoop = kind == VCKind.LoopError
 
   // whether this VC comes from a recursive function
-  var recursive = false
+  //var recursive = false
+  var updateFunctions = Seq[UpdateFunction]()
 
   // (lowerBnd, upperBnd) absError
   var spec: Map[Precision, Seq[Spec]] = precisions.map(p => (p, Seq())).toMap

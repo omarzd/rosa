@@ -40,14 +40,22 @@ class Approximator(reporter: Reporter, solver: RangeSolver, precision: Precision
   val config = XConfig(solver, initialCondition, solverMaxIterMedium, solverPrecisionMedium)
   if (verbose) println("initial config: " + config)
 
-  var variables: Map[Expr, XReal] = precision match {
-    case Float32 | Float64 | DoubleDouble | QuadDouble =>
-      if (exactInputs) variables2xfloatsExact(inputs, config, machineEps)
-      else variables2xfloats(inputs, config, machineEps)._1
-    
-    case FPPrecision(bits) => 
-      if (exactInputs) reporter.warning("no exact inputs for fixedpoint")
-      variables2xfixed(inputs, config, bits)._1
+  // This is the only state, and we should not get into trouble with using one instance
+  // multiple times, since the variables will get overwritten.
+  // But just to make sure, we can re-initialize this each time...
+  // Just make sure the 'exactInputs' is the same for all calls!
+  var variables: Map[Expr, XReal] = Map.empty
+
+  def init = {
+    variables = precision match {
+      case Float32 | Float64 | DoubleDouble | QuadDouble =>
+        if (exactInputs) variables2xfloatsExact(inputs, config, machineEps)
+        else variables2xfloats(inputs, config, machineEps)._1
+      
+      case FPPrecision(bits) => 
+        if (exactInputs) reporter.warning("no exact inputs for fixedpoint")
+        variables2xfixed(inputs, config, bits)._1
+    }
   }
   if (verbose) println("initial variables: " + variables)
 
@@ -57,10 +65,12 @@ class Approximator(reporter: Reporter, solver: RangeSolver, precision: Precision
    *  Will work also for tupled results
    */
   def getXRealForResult(e: Expr): Seq[XReal] = {
+    init
     approx(e, Seq())
   }
 
   def getXRealForAllVars(e: Expr): Map[Expr, XReal] = {
+    init
     val app = approx(e, Seq())
     //sanity check
     assert(app.length == 0, "computing xreals for equations but open expression found")
@@ -72,6 +82,7 @@ class Approximator(reporter: Reporter, solver: RangeSolver, precision: Precision
   def computeError(e: Expr): Rational = e match {
     case BooleanLiteral(_) => Rational.zero
     case _ =>
+      init
       val approximation = approx(e, Seq())
       assert(approximation.length == 1, "computing error on tuple-typed expression!")
       approximation(0).maxError

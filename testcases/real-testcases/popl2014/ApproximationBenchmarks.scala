@@ -5,37 +5,40 @@ import RealOps._
 object ApproximationBenchmarks {
 
   def doppler1Star(u: Real, v: Real, T: Real): Real = {
-    require(u >< (-100, 100) && v >< (20, 20000) && T >< (-30, 50) && u +/- 1e-7 && v +/- 1e-9 && T +/- 1e-6)
+    require(-100.0 <= u && u <= 100 && 20 <= v && v <= 20000 && -30 <= T && T <= 50 &&
+            u +/- 1e-7 && v +/- 1e-9 && T +/- 1e-6)
     val t1 = 331.4 + 0.6 * T
     (- (t1) *v) / ((t1 + u)*(t1 + u))
   }
 
   def doppler1(u: Real, v: Real, T: Real): Real = {
-    require(u >< (-100, 100) && v >< (20, 20000) && T >< (-30, 50))
+    require(-100.0 <= u && u <= 100 && 20 <= v && v <= 20000 && -30 <= T && T <= 50)
     val t1 = 331.4 + 0.6 * T
     (- (t1) *v) / ((t1 + u)*(t1 + u))
   } ensuring(res => res +/- 1e-12)
 
   def doppler2Star(u: Real, v: Real, T: Real): Real = {
-    require(u >< (-125, 125) && v >< (15, 25000) && T >< (-40, 60) && u +/- 1e-12 && v +/- 1e-3 && T +/- 1e-5)
+    require(-125.0 <= u && u <= 125.0 && 15.0 <= v && v <= 25000 && -40 <= T && T <= 60 &&
+            u +/- 1e-12 && v +/- 1e-3 && T +/- 1e-5)
     val t1 = 331.4 + 0.6 * T
     (- (t1) *v) / ((t1 + u)*(t1 + u))
   }
 
   def doppler2(u: Real, v: Real, T: Real): Real = {
-    require(u >< (-125, 125) && v >< (15, 25000) && T >< (-40, 60))
+    require(-125.0 <= u && u <= 125.0 && 15.0 <= v && v <= 25000 && -40 <= T && T <= 60)
     val t1 = 331.4 + 0.6 * T
     (- (t1) *v) / ((t1 + u)*(t1 + u))
   }
 
   def doppler3Star(u: Real, v: Real, T: Real): Real = {
-    require(u >< (-30, 120) && v >< (320, 20300) && T >< (-50, 30) && u +/- 1e-4 && v +/- 1e-5 && T +/- 1e-9)
+    require(-30 <= u && u <= 120 && 320.0 <= v && v <= 20300 && -50 <= T && T <= 30 &&
+            u +/- 1e-4 && v +/- 1e-5 && T +/- 1e-9)
     val t1 = 331.4 + 0.6 * T
     (- (t1) *v) / ((t1 + u)*(t1 + u))
   }
 
   def doppler3(u: Real, v: Real, T: Real): Real = {
-    require(u >< (-30, 120) && v >< (320, 20300) && T >< (-50, 30))
+    require(-30 <= u && u <= 120 && 320.0 <= v && v <= 20300 && -50 <= T && T <= 30)
     val t1 = 331.4 + 0.6 * T
     (- (t1) *v) / ((t1 + u)*(t1 + u))
   }

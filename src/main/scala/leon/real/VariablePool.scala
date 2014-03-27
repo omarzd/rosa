@@ -114,6 +114,11 @@ class VariablePool(val inputs: Map[Expr, Record], val resIds: Seq[Identifier], v
     inputs.filter(x => x._2.uncertainty.isEmpty).keySet.toSeq
   }
 
+  def isLoopCounter(x: Expr): Boolean = (loopCounter, x) match {
+    case (Some(l), Variable(id)) => l == id 
+    case _ => false
+  }
+
   override def toString: String = allVars.toString 
 }
 

@@ -202,8 +202,8 @@ object Analyser {
 
       unrolled :+ Tuple(newUpdates)
     } else {
-      println("loop " + count)
-      println("varMap: " + varMap)
+      //println("loop " + count)
+      //println("varMap: " + varMap)
       var newVarMap: Map[Expr, Expr] = Map.empty
       val newUpdates = updates.map({
         case UpdateFunction(lhs, rhs) =>
@@ -211,8 +211,8 @@ object Analyser {
           newVarMap += ((lhs -> newVal))
           Equals(newVal, replace(varMap, rhs))
         })
-      println("newUpdates: " + newUpdates)
-      println("newVarMap: " + newVarMap)
+      //println("newUpdates: " + newUpdates)
+      //println("newVarMap: " + newVarMap)
       //val newLoop = body  
 
       unroll(body, updates, max, newVarMap, unrolled ++ newUpdates, count + 1)
@@ -229,6 +229,19 @@ object Analyser {
   }
 
   class AssertionCollector(outerFunDef: FunDef, precondition: Expr, variables: VariablePool, precisions: List[Precision]) extends TransformerWithPC {
+    def inlineBody(body: Expr): Map[Expr, Expr] = {
+      var valMap: Map[Expr, Expr] = Map.empty
+      preTraversal {
+        expr => expr match {
+          case Equals(v @ Variable(id), rhs) =>
+            valMap = valMap + (v -> replace(valMap,rhs))
+
+          case _ => ;
+        }
+      }(body)
+      valMap
+    }
+
     type C = Seq[Expr]
     val initC = Nil
 
@@ -248,18 +261,37 @@ object Analyser {
         }).unzip
 
         val pathToFncCall = And(path ++ morePath)
+        
         val arguments: Map[Expr, Expr] = funDef.params.map(decl => decl.toVariable).zip(simpleArgs).toMap
+        
         val toProve = replace(arguments, removeLoopCounter( removeRoundoff(funDef.precondition.get)) )
+        
 
         val allFncCalls = functionCallsOf(pathToFncCall).map(invc => invc.tfd.id.toString)
-        val kind = if (outerFunDef.id == funDef.id) {
+        if (outerFunDef.id == funDef.id) {
           recursive = true
-          LoopInvariant
+          //println(s"pathToFncCall: $pathToFncCall")
+          //println(s"arguments: $arguments")
+          val valMap = inlineBody(pathToFncCall)
+          val updateFncs = arguments.filter(x => !variables.isLoopCounter(x._1) ).map {
+            case (k, v) => UpdateFunction(k, valMap(v))
+          }
+          //println(updateFncs)
+          //(LoopInvariant, updateFncs)
+          val vc = new VerificationCondition(outerFunDef, LoopInvariant, precondition, pathToFncCall, toProve,
+            allFncCalls, variables, precisions)
+          vc.updateFunctions = updateFncs.toSeq
+          vcs :+= vc
         } else {
-          Precondition
+          //(Precondition, Seq[UpdateFunction]())
+
+          vcs :+= new VerificationCondition(outerFunDef, Precondition, precondition, pathToFncCall, toProve,
+            allFncCalls, variables, precisions)
         }
 
-        vcs :+= new VerificationCondition(outerFunDef, kind, precondition, pathToFncCall, toProve, allFncCalls, variables, precisions)
+         
+        
+
         e
 
       case Assertion(toProve) =>

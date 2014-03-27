@@ -395,7 +395,18 @@ object TreeOps {
   def removeErrorsAndActual(e: Expr): Expr = {
     preMap {
       case Noise(_,_) | Roundoff(_) | RelError(_,_) => Some(True)
-      case Actual(e) => Some(e)
+      case LessThan(Actual(e), _ ) => Some(True)
+      case LessThan(_, Actual(e)) => Some(True)
+
+      case LessEquals(Actual(e), _ ) => Some(True)
+      case LessEquals(_, Actual(e)) => Some(True)
+      
+      case GreaterThan(Actual(e), _ ) => Some(True)
+      case GreaterThan(_, Actual(e)) => Some(True)
+      
+      case GreaterEquals(Actual(e), _ ) => Some(True)
+      case GreaterEquals(_, Actual(e)) => Some(True)
+      
       case _ => None
     }(e)
   }
