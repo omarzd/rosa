@@ -89,7 +89,7 @@ Consider iterating $f$, i.e. we are computing $f^n(x) = f(f(...f(x)))$.
 
 {\bf Claim: }
 \eqn{
-\norm{ f^m(x)_i - \tl{f}^m(\tl{x})_i } \le \left( \sigma + \sum^{m - 1}_{i = 1} g^i(\sigma) + g^m(\norm{x - \tl{x}}) \right)_i
+\norm{ f^m(x)_i - \tl{f}^m(\tl{x})_i } \le \left( \sigma + \sum^{m - 1}_{j = 1} g^j(\sigma) + g^m(\norm{x - \tl{x}}) \right)_i
 }
 
 We show this by induction. The base case, for $n = 1$ is shown above.
@@ -102,8 +102,8 @@ We show this by induction. The base case, for $n = 1$ is shown above.
   &\le g\colvec{
   \norm{f^m(x)_1 - f(\tl{f}^{m-1}(\tl{x}))_1}}{\vdots}{\norm{f^m(x)_n - f(\tl{f}^{m-1}(\tl{x}))_n}} +
   \colvec{\sigma_1}{\vdots}{\sigma_n}\\
-  &\le g \left(\vec{\sigma} + \sum^{m-2}_{i = 1} g^i(\vec{\sigma}) + g^{m-1}(\vec{\lambda}) \right)+ \vec{\sigma}\\
-  &=\sum^{m-1}_{i = 1} g^i(\vec{\sigma}) + g^m(\vec{\lambda}) + \vec{\sigma}
+  &\le g \left(\vec{\sigma} + \sum^{m-2}_{j = 1} g^j(\vec{\sigma}) + g^{m-1}(\vec{\lambda}) \right)+ \vec{\sigma}\\
+  &=\sum^{m-1}_{j = 1} g^j(\vec{\sigma}) + g^m(\vec{\lambda}) + \vec{\sigma}
 }
 
 
@@ -115,7 +115,7 @@ Note that we need to compute the Lipschitz constant for the mathematical functio
 and not for $\tl{f}$.
 The expression for the error then becomes
 \begin{align}
-\lv f^n(x) - \tl{f}^n(\tl{x})\rv \le K^n + \sum^{n-1}_{i=0}K^i \sigma
+\lv f^n(x) - \tl{f}^n(\tl{x})\rv \le K^n \lambda + \sum^{n-1}_{i=0}K^i \sigma
   = K^n \lambda + \sigma \sum^{n-1}_{i=0} K^i
   = K^n \lambda + \sigma \left(\dfrac{1 - K^n}{1-K} \right)
 \end{align}
@@ -200,3 +200,11 @@ By the mean value theorem:
 %&\le \sup\limits_{\theta\in [0,1]} \lv \nabla f(z + \theta(y-z))  \cdot (y-z) \rv\\
 %&\le \sup\limits_{\theta\in [0,1]} \lv \nabla f(z + \theta(y-z))  \rv \rv (y-z) \rv
 }
+
+Hence, we get
+\begin{align}
+\lv f^n(x) - \tl{f}^n(\tl{x})\rv \le K^n \lambda + \sum^{n-1}_{i=0}K^i \sigma
+  = K^n \lambda + \sigma \sum^{n-1}_{i=0} K^i
+  = K^n \lambda + \sigma (I-K)^{-1}(I - K^n)
+\end{align}
+where $K$ is now a matrix with $K_{ij} = \partialDer{f_i}{w_j}$.
