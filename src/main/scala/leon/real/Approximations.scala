@@ -325,8 +325,8 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
               println("update fncs:" + vc.updateFunctions)
               val ids = vc.updateFunctions.map(u => u.lhs.asInstanceOf[Variable].id)
 
-              val (sigmeInf, kInf, errInf) = getLoopErrorInfinityNorm(preReal, vc.updateFunctions, ids, precision)
-              reporter.info(reporter.info(s"component-wise\n(sigma: $sigmaInf, k: $kInf), total error: $errInf")
+              val (sigmaInf, kInf, errInf) = getLoopErrorInfinityNorm(preReal, vc.updateFunctions, ids, precision)
+              reporter.info(reporter.info(s"component-wise\n(sigma: $sigmaInf, k: $kInf), total error: $errInf"))
 
               val (sigma, k, err) = getLoopErrorComponentWise(preReal, vc.updateFunctions, ids, precision)
               reporter.info(s"component-wise\n(sigma: $sigma, k: $k), total error: " + err)
