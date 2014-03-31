@@ -48,7 +48,7 @@ case class RMatrix (dim: Int, val data: Seq[Seq[Rational]]) extends Matrix[Ratio
   // TODO: redundant
   def rows: Seq[Seq[Rational]] = data
 
-  def columns: Seq[Seq[Rational]] = {
+  private def columns: Seq[Seq[Rational]] = {
     val firstRow = data(0)
 
     firstRow.zipWithIndex.map({
@@ -85,7 +85,13 @@ case class RMatrix (dim: Int, val data: Seq[Seq[Rational]]) extends Matrix[Ratio
     x
   }
 
-  def *(vec: Seq[Rational])
+  def *(vec: Seq[Rational]): Seq[Rational] = {
+    data.map( row => {
+      row.zip(vec).foldLeft(zero)({
+        case (sum, (r, v)) => sum + r*v
+        })
+      })
+  }
 
   def determinant: Rational = dim match {
     case 2 =>

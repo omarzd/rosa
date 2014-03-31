@@ -22,6 +22,8 @@ class MatrixOps extends LeonTestSuite {
   val i2 = RMatrix(Seq(Seq(1, 0), Seq(0, 1)))
   val i3 = RMatrix(Seq(Seq(1, 0, 0), Seq(0, 1, 0), Seq(0, 0, 1)))
 
+  val t1 = Seq(R(4), R(5), R(6))
+  val t2 = Seq(R(1), R(2), R(3))
 
   test("matrix mult 1") {
     val result = m1 * m2
@@ -92,6 +94,20 @@ class MatrixOps extends LeonTestSuite {
 
     val trueResult = RMatrix(Seq(Seq(3577226, 4047909, 3765490), Seq(3577214, 4047911, 3765500),
       Seq(3577224, 4047904, 3765497)))
+    assert(result === trueResult)
+  }
+
+  test("m1 * t1") {
+    val result = m1*t1
+
+    val trueResult = Seq(R(32), R(28), R(31))
+    assert(result === trueResult)
+  }
+
+  test("m2 * t2") {
+    val result = m2*t2
+
+    val trueResult = Seq(R(32), R(28), R(31))
     assert(result === trueResult)
   }
 }
