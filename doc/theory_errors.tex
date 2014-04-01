@@ -203,8 +203,24 @@ By the mean value theorem:
 
 Hence, we get
 \begin{align}
-\lv f^n(x) - \tl{f}^n(\tl{x})\rv \le K^n \lambda + \sum^{n-1}_{i=0}K^i \sigma
-  = K^n \lambda + \sigma \sum^{n-1}_{i=0} K^i
-  = K^n \lambda + \sigma (I-K)^{-1}(I - K^n)
+\lv f^n(x) - \tl{f}^n(\tl{x})\rv &\le K^n \lambda + \sum^{n-1}_{i=0}K^i \sigma\\
+  &= K^n \lambda + (\sum^{n-1}_{i=0} K^i) \sigma\\
+  &= K^n \lambda + ( (I-K)^{-1}(I - K^n) )\sigma
 \end{align}
-where $K$ is now a matrix with $K_{ij} = \partialDer{f_i}{w_j}$.
+where $K$ is now a matrix with $K_{ij} = sup(\partialDer{f_i}{w_j})$.
+
+\subsection{A little bit of linear algebra}
+For the multivariate case, we need to evaluate $K^n$ and $(I-K)^{-1}(I - K^n)$,
+where $K$ is a matrix. There are two options:
+\begin{enumerate}
+\item Do the actual iteration. We use rationals, hence the result is going to be accurate,
+and thus sound, although not efficient for large $n$. Also, for dimensions up to 3,
+computing the inverse can be done with an analytic expression. For larger dimensions,
+this approach becomes impractical.
+
+\item Find a basis transform $P$ such that we can bring $K$ into Jordan normal form.
+That is, we want to find $P, D$ such that $K = P^{-1}DP$ where $D$ is block diagonal.
+The big question is, how do you find the basis transformation and how do you compute the
+eigenvalues/$D$.
+\end{enumerate}
+
