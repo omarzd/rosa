@@ -22,7 +22,7 @@ import Rational._
 
 
 class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[FunDef, Fnc]) {
-  implicit val debugSection = utils.DebugSectionReals
+  implicit val debugSection = utils.DebugSectionRealProver
   val reporter = ctx.reporter
   val solver = new RangeSolver(options.z3Timeout)
 
@@ -158,17 +158,24 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
       str = str + "%d:\nP: %s\n\nreal: %s\n\nfin: %s\n\nQ: %s\n\n".format(index, cnstr.precondition,
         realCnstr, finiteCnstr, transformer.getZ3Expr(cnstr.postcondition)) 
 
-      val sanityConstraint = And(cnstr.precondition, And(realCnstr, finiteCnstr))
-      
-      //val sanityConstraintSimpl = simplifyConstraint( sanityConstraint )
+      var sanityConstraint: Expr = And(cnstr.precondition, And(realCnstr, finiteCnstr))  
+      if (options.removeRedundant) {
+        val args = removeRedundantConstraints(sanityConstraint, cnstr.postcondition)
+        sanityConstraint = And(args.toSeq)
+      }
+      if (options.simplifyCnstr) {
+        sanityConstraint = simplifyConstraint( sanityConstraint )
+      }
+      if (options.massageArithmetic) {
+        sanityConstraint = massageArithmetic (sanityConstraint)
+      }
 
       val toCheck = And(sanityConstraint, negate(cnstr.postcondition))
 
-      val toCheckZ3 = transformer.getZ3Expr(toCheck)
-      reporter.debug("z3constraint ("+index+"): " + toCheckZ3)
+      val z3constraint = transformer.getZ3Expr(toCheck)
+      reporter.debug("z3constraint ("+index+"): " + z3constraint)
 
-      val z3constraint = massageArithmetic(toCheckZ3)
-      val sanityExpr = massageArithmetic(transformer.getZ3Expr(sanityConstraint))
+      val sanityExpr = transformer.getZ3Expr(sanityConstraint)
 
       if (reporter.errorCount == 0 && sanityCheck(sanityExpr)) {
         solver.checkSat(z3constraint) match {
@@ -178,15 +185,25 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
           case (SAT, model) =>
             if (app.kind.allowsRealModel) {
               // Idea: check if we get a counterexample for the real part only, that is then a possible counterexample, (depends on the approximation)
-              val realOnlyConstraint = removeErrorsAndActual(And(And(cnstr.precondition, realCnstr), negate(cnstr.postcondition)))
-              val massaged = massageArithmetic(transformer.getZ3Expr(realOnlyConstraint))
-              solver.checkSat(massaged) match {
-                case (SAT, model) =>
-                  // TODO: pretty-print the models
-                  reporter.info("counterexample: " + model)
-                  invalidCount += 1
-                case (UNSAT, _) =>
-                case _ =>
+              
+              val realOnlyPost = removeErrorsAndActual(cnstr.postcondition)
+
+              if (realOnlyPost == True) { // i.e. if the constraint is trivially true
+                reporter.info("Nothing to prove for real-only part.")
+              } else {
+                var realOnlyConstraint = And(removeErrorsAndActual(And(cnstr.precondition, realCnstr)), negate(realOnlyPost))
+                
+                if (options.massageArithmetic) {
+                  realOnlyConstraint = massageArithmetic(realOnlyConstraint)
+                }
+                solver.checkSat(transformer.getZ3Expr(realOnlyConstraint)) match {
+                  case (SAT, model) =>
+                    // TODO: pretty-print the models
+                    reporter.info("counterexample: " + model)
+                    invalidCount += 1
+                  case (UNSAT, _) =>
+                  case _ =>
+                }
               }
             } else {
               reporter.info(s"Constraint with $index is unknown.")

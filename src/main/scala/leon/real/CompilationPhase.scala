@@ -31,7 +31,11 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
     LeonValueOptionDef("precision", "--precision=single", "Which precision to assume of the underlying"+
       "floating-point arithmetic: single, double, doubledouble, quaddouble or all (sorted from smallest)."),
     LeonFlagOptionDef("pathError", "--pathError", "Check also the path error (default is to not check)"),
-    LeonFlagOptionDef("specGen", "--specGen", "Generate specs also for functions without postconditions")
+    LeonFlagOptionDef("specGen", "--specGen", "Generate specs also for functions without postconditions"),
+    LeonFlagOptionDef("simplify", "--noSimplify", "Simplify constraint before passing to Z3."),
+    LeonFlagOptionDef("remRedundant", "--remRedundant", "Remove redundant constraints before passing to Z3"),
+    LeonFlagOptionDef("noMassageArith", "--noMassageArith", "Massage arithmetic before passing to Z3"),
+    LeonFlagOptionDef("lipschitz", "--lipschitz", "compute lipschitz constants")
   )
 
   def run(ctx: LeonContext)(program: Program): CompilationReport = {
@@ -40,13 +44,17 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
 
     var fncNamesToAnalyse = Set[String]()
     var options = RealOptions()
-
+    
     for (opt <- ctx.options) opt match {
       case LeonValueOption("functions", ListValue(fs)) => fncNamesToAnalyse = Set() ++ fs
       case LeonFlagOption("simulation", v) => options = options.copy(simulation = v)
       case LeonFlagOption("z3Only", v) => options = options.copy(z3Only = v)
       case LeonFlagOption("pathError", v) => options = options.copy(pathError = v)
       case LeonFlagOption("specGen", v) => options = options.copy(specGen = v)
+      //case LeonFlagOption("simplify", v) => options = options.copy(simplifyCnstr = v)
+      //case LeonFlagOption("remRedundant", v) => options = options.copy(removeRedundant = v)
+      case LeonFlagOption("noMassageArith", v) => options = options.copy(massageArithmetic = !v)
+      case LeonFlagOption("lipschitz", v) => options = options.copy(lipschitz = v)
       case LeonValueOption("z3Timeout", ListValue(tm)) => options = options.copy(z3Timeout = tm.head.toLong)
       case LeonValueOption("precision", ListValue(ps)) => options = options.copy(precision = ps.flatMap {
         case "single" => List(Float32)
@@ -59,8 +67,7 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
       case _ =>
     }
 
-    //println("options: " + options)
-
+    
     val fncsToAnalyse  =
       if(fncNamesToAnalyse.isEmpty) program.definedFunctions.filter(f =>
         !f.annotations.contains("proxy"))

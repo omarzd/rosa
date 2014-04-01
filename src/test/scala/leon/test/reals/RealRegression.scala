@@ -20,8 +20,8 @@ class RealRegression extends LeonTestSuite {
     leon.frontends.scalac.ExtractionPhase andThen leon.utils.SubtypingPhase andThen leon.real.CompilationPhase
 
   // for now one, but who knows
-  val realLibraryFiles = filesInResourceDir(
-    "regression/verification/real/library", _.endsWith(".scala"))
+  //val realLibraryFiles = filesInResourceDir(
+  //  "regression/verification/real/library", _.endsWith(".scala"))
 
   private def mkTest(file : File, leonOptions : Seq[LeonOption], forError: Boolean)(block: Output=>Unit) = {
     val fullName = file.getPath()
@@ -37,18 +37,18 @@ class RealRegression extends LeonTestSuite {
       assert(file.exists && file.isFile && file.canRead,
              "Benchmark %s is not a readable file".format(displayName))
 
-
       val ctx = testContext.copy(
         settings = Settings(
           synthesis = false,
           xlang     = false,
-          verify    = false,
-          real = true
+          verify    = false
+          //real = false
         ),
         options = leonOptions.toList,
-        files = List(file) ++ realLibraryFiles
+        files = List(file)// ++ realLibraryFiles
         //reporter = new SilentReporter
-        //reporter = new DefaultReporter
+        //reporter = new DefaultReporter(testContext.settings.copy(debugSections = Set(utils.DebugSectionReals,
+        //  utils.DebugSectionApprox, utils.DebugSectionRealProver)))
       )
 
       val pipeline = mkPipeline
@@ -86,7 +86,7 @@ class RealRegression extends LeonTestSuite {
       _.endsWith(".scala"))
 
     for(f <- fs) {
-      mkTest(f, List(LeonFlagOption("real", true)), forError)(block)
+      mkTest(f, List(), forError)(block)
     }
 
     val ignoredFiles = filesInResourceDir(
@@ -133,7 +133,7 @@ class RealRegression extends LeonTestSuite {
       case Some(c) => c
       case None => report.totalConditions
     }
-
+    
     assert(conditionCount === report.totalUnknown,
            "All verification conditions ("+report.totalConditions+") should be unknown.")
     assert(reporter.errorCount === 0) 

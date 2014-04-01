@@ -4,6 +4,7 @@ import RealAnnotations._
 
 object HarmonicOscillator {
 
+  @loopbound(10)
   def eulerRec(x: Real, v: Real, i: Int): (Real, Real) = {
     require(loopCounter(i) && 0.15 <= x && x <= 0.25 && 3.35 <= v && v <= 3.45)
     
@@ -16,7 +17,7 @@ object HarmonicOscillator {
     case (a, b) => -10 <= a && a <= 10 && -10 <= b && b <= 10   
   })
 
-
+  @loopbound(10)
   def rungeKutta2Rec(x: Real, v: Real, i: Int): (Real, Real) = {
     require(loopCounter(i) && 0.15 <= x && x <= 0.25 && 3.35 <= v && v <= 3.45)
 
@@ -36,6 +37,7 @@ object HarmonicOscillator {
     case (a, b) => -10 <= a && a <= 10 && -10 <= b && b <= 10   
   })
 
+  @loopbound(10)
   def rungeKutta4Rec(x: Real, v: Real, i: Int): (Real, Real) = {
     require(loopCounter(i) && 0.15 <= x && x <= 0.25 && 3.35 <= v && v <= 3.45)
  
@@ -71,7 +73,7 @@ object HarmonicOscillator {
 
 
 
-  @loopbound(10)
+  /*@loopbound(10)
   def euler(x: Real, v: Real): (Real, Real) = {
     require(0.15 <= x && x <= 0.25 && 3.35 <= v && v <= 3.45)
     iterate (x, v) {
@@ -129,7 +131,7 @@ object HarmonicOscillator {
 
   } ensuring (_ match {
     case (a, b) => -10 <= a && a <= 10 && -10 <= b && b <= 10   
-  })
+  })*/
 
 
   // k = 2.3, dt = 0.1

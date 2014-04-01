@@ -37,7 +37,7 @@ package object real {
 
   /**
     Represents a specification of a variable.
-    @param id identifier this spec belongs to
+    @param id real/ideal identifier this spec belongs to
     @param bounds real-valued (ideal) bounds
     @param absError maximum absolute error
   */

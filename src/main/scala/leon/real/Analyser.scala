@@ -74,7 +74,13 @@ object Analyser {
               case (res, UpdateFunction(Variable(id), rhs)) =>
                 Equals(Variable(res), rhs)
               })*/
-            val update = Tuple(upFncs.map(uf => uf.asInstanceOf[UpdateFunction].rhs))
+            val update = if (upFncs.length > 1) {
+              Tuple(upFncs.map(uf => uf.asInstanceOf[UpdateFunction].rhs))  
+            } else {
+              upFncs.head.asInstanceOf[UpdateFunction].rhs
+            }
+
+            
               
             val loopBody = And(Seq(lb) :+ update)
             debug (s"loopBody: $loopBody")
@@ -200,7 +206,8 @@ object Analyser {
         })
 
 
-      unrolled :+ Tuple(newUpdates)
+      if (updates.length > 1) { unrolled :+ Tuple(newUpdates) }
+      else { unrolled :+ newUpdates.head }
     } else {
       //println("loop " + count)
       //println("varMap: " + varMap)

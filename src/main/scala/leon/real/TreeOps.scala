@@ -36,6 +36,7 @@ object TreeOps {
       (True, e)
     }
 
+
     if (equalityPropagation) {
       // for equality propagation, replace variables by their definition
       val equalsPropagator = new EqualsPropagator
@@ -46,6 +47,10 @@ object TreeOps {
     } else {
       And(boundsConstraint, remainder)
     }
+
+    // Remove redundant constraints
+
+
   }
 
   def propagateEquals(body: Expr): Expr = {
@@ -76,6 +81,47 @@ object TreeOps {
     }
   }
 
+
+  def removeRedundantConstraints(body: Expr, post: Expr): Set[Expr] = {
+    def extractClauses(e: Expr): Set[Expr] = e match {
+      case And(args) => args.toSet
+      case _ => Set(e)
+    }
+    //println("Computing needed for " + post)
+    // we can try a fixed-point computation, starting with the constraint from the postcondition,
+    // and the set of constraints from the body, iteratively adding constraints which contain
+    // variables needed to prove the postcondition
+
+    var neededVars: Set[Identifier] = variablesOf(post)
+    var currentNeeded: Set[Expr] = Set.empty
+    var currentWaiting: Set[Expr] = extractClauses(body)
+
+    var continue = true
+    while( continue ) {
+      //println("\nNew round")
+      //println(s"neededVars: $neededVars")
+      //println(s"currentNeeded: $currentNeeded")
+      //println(s"currentWaiting: $currentWaiting")
+
+      val newNeeded = currentWaiting.filter(e => {
+        variablesOf(e).intersect(neededVars).size > 0
+        })
+      //println("newNeeded: " + newNeeded)
+      val newVars = variablesOf(And(newNeeded.toSeq)).diff(neededVars)
+      //println("newVars: " + newVars)
+
+      currentNeeded = currentNeeded ++ newNeeded
+      
+      if (newVars.size == 0) {
+        continue = false
+      } else {
+        continue = true
+        neededVars = neededVars ++ newVars
+      }
+    }
+    //println("\nfinal result: " + currentNeeded)
+    currentNeeded
+  } 
 
   private class TightBoundsCollector extends TransformerWithPC {
     type C = Seq[Expr]
