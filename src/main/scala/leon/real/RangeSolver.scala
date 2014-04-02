@@ -213,6 +213,10 @@ class RangeSolver(timeout: Long) {
 
     try {
       val res = Some(rec(expr))
+
+      // if we need to check a constraint with Z3, we need to have the variable declarations
+      //z3Vars.values.foreach( v => println("(declare-fun %s () Real)".format(v.toString)))
+        
       res
     } catch {
       case e: CantTranslateException => None
@@ -240,11 +244,11 @@ class RangeSolver(timeout: Long) {
   def getCounts: String = "timeouts: %d, tight: %d, hit precision: %d, hit iteration: %d".format(
     countTimeouts, countTightRanges, countHitPrecisionThreshold, countHitIterationThreshold)
 
-
   def checkSat(expr: Expr): (Sat, Z3Model) = {
     solver.push
     val variables = variablesOf(expr)
     val cnstr = toZ3Formula(expr)
+    //println("\nz3 constraint: " + cnstr)
     solver.assertCnstr(cnstr.get)
     val res: (Sat, Z3Model) = solver.check match {
       case Some(true) =>

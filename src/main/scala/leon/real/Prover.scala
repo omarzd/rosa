@@ -88,7 +88,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
 
           if (vc.kind == VCKind.SpecGen) true  // specGen, no need to check, only uses first approximation
           else
-            checkValid(currentApprox, vc.variables, precision) match {
+            checkValid(currentApprox, vc.variables, precision, vc.toString) match {
               case (VALID, str) =>
                 reporter.info("==== VALID ====")
                 vc.value += (precision -> VALID)
@@ -143,7 +143,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
   /*
     @return (status, what we actually proved)
   */
-  def checkValid(app: Approximation, variables: VariablePool, precision: Precision): (Valid, String) = {
+  def checkValid(app: Approximation, variables: VariablePool, precision: Precision, name: String): (Valid, String) = {
     reporter.debug("checking for valid: " + app.constraints.mkString("\n"))
     var str = app.kind + "\n\n"
 
@@ -177,7 +177,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
 
       val sanityExpr = transformer.getZ3Expr(sanityConstraint)
 
-      if (reporter.errorCount == 0 && sanityCheck(sanityExpr)) {
+      if (reporter.errorCount == 0 && sanityCheck(sanityExpr, name + "-" +app.kind.toString)) {
         solver.checkSat(z3constraint) match {
           case (UNSAT, _) =>
             reporter.info(s"Constraint with $index is valid.")
@@ -222,12 +222,13 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
 
   // if true, we're sane
   // TODO: make a method in the solver and then we don't need to duplicate
-  private def sanityCheck(pre: Expr, body: Expr = BooleanLiteral(true)): Boolean = {
+  private def sanityCheck(pre: Expr, name: String = "", body: Expr = BooleanLiteral(true)): Boolean = {
     val sanityCondition = And(pre, body)
     solver.checkSat(sanityCondition) match {
       case (SAT, model) => true
       case (UNSAT, model) =>
         reporter.warning("Not sane! " + sanityCondition)
+        //writeToFile( SMTLib.printSMTLib2(sanityCondition), name="not-sane-"+name)
         false
       case _ =>
         reporter.info("Sanity check failed! ")// + sanityCondition)
@@ -239,6 +240,14 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
   private def writeToFile(vc: VerificationCondition, str: String) = {
     val writer = new PrintWriter(new File("vcs/" + vc.toString + ".txt"))
     writer.write("VC: " + vc.longStringWithBreaks + "\n\n\n" + "proved by " + str)
+    writer.close()
+  }
+
+  private def writeToFile(assertions: Seq[String], name: String) = {
+    val writer = new PrintWriter(new File("smt/" + name + ".smt2"))
+    assertions.foreach{ a =>
+      writer.write(a+ "\n")
+    }
     writer.close()
   }
 }
