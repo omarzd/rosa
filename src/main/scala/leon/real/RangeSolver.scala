@@ -15,6 +15,7 @@ import purescala.TreeOps._
 import real.Trees._
 import Sat._
 import real.TreeOps._
+import real.RationalAffineUtils._
 
 // We don't want this to depend on anything Leon internal such as context
 class RangeSolver(timeout: Long) {
@@ -289,9 +290,61 @@ class RangeSolver(timeout: Long) {
     res
   }
 
-  // Just so we have it
+  
+
+
   def getRange(precond: Expr, expr: Expr, variables: VariablePool, maxIter: Int, prec: Rational) = {
+    def inIntervalsWithZ3(expr: Expr, vars: VariablePool): RationalInterval = {
+      val tmp = expr match {
+        case RealLiteral(r) => RationalInterval(r, r)
+        case v @ Variable(_) => vars.getInterval(v)
+        case UMinusR(t) => - inIntervalsWithZ3(t, vars)
+        case PlusR(l, r) => inIntervalsWithZ3(l, vars) + inIntervalsWithZ3(r, vars)
+        case MinusR(l, r) => inIntervalsWithZ3(l, vars) - inIntervalsWithZ3(r, vars)
+        case TimesR(l, r) => inIntervalsWithZ3(l, vars) * inIntervalsWithZ3(r, vars)
+        case DivisionR(l, r) => inIntervalsWithZ3(l, vars) / inIntervalsWithZ3(r, vars)
+        case SqrtR(t) =>
+          val tt = inIntervalsWithZ3(t, vars)
+          RationalInterval(sqrtDown(tt.xlo), sqrtUp(tt.xhi))
+        case PowerR(lhs, IntLiteral(p)) =>
+          assert(p > 1, "p is " + p + " in " + expr)
+          val lhsInIntervals = inIntervalsWithZ3(lhs, vars)
+          var x = lhsInIntervals
+          for (i <- 1 until p ){
+            x = x * lhsInIntervals
+          }
+          x
+      }
+      tightenRange(expr, precond, tmp, maxIter, prec)
+    }
+    inIntervalsWithZ3(expr, variables)
+  }
+
+  def getRangeSimple(precond: Expr, expr: Expr, variables: VariablePool, maxIter: Int, prec: Rational) = {
+    def inIntervals(expr: Expr, vars: VariablePool): RationalInterval = expr match {
+      case RealLiteral(r) => RationalInterval(r, r)
+      case v @ Variable(_) => vars.getInterval(v)
+      case UMinusR(t) => - inIntervals(t, vars)
+      case PlusR(l, r) => inIntervals(l, vars) + inIntervals(r, vars)
+      case MinusR(l, r) => inIntervals(l, vars) - inIntervals(r, vars)
+      case TimesR(l, r) => inIntervals(l, vars) * inIntervals(r, vars)
+      case DivisionR(l, r) => inIntervals(l, vars) / inIntervals(r, vars)
+      case SqrtR(t) =>
+        val tt = inIntervals(t, vars)
+        RationalInterval(sqrtDown(tt.xlo), sqrtUp(tt.xhi))
+      case PowerR(lhs, IntLiteral(p)) =>
+        assert(p > 1, "p is " + p + " in " + expr)
+        val lhsInIntervals = inIntervals(lhs, vars)
+        var x = lhsInIntervals
+        for (i <- 1 until p ){
+          x = x * lhsInIntervals
+        }
+        x
+    }
+    clearCounts
     val approx = inIntervals(expr, variables)
+    if(countTimeouts != 0)
+      println("\n ******** \nSolver timed out during getRangeSimple computation")
     tightenRange(massageArithmetic(expr), precond, approx, maxIter, prec)
   }
 

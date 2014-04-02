@@ -121,7 +121,7 @@ class PrettyPrinter(opts: PrinterOptions, val sb: StringBuffer = new StringBuffe
         pp(tp, p)
         sb.append("#"+id)
 
-      case t@Tuple(exprs) => ppNary(exprs, "(", ", ", ")")
+      case t@Tuple(exprs) => ppNary(exprs, "T(", ", ", ")")
       case s@TupleSelect(t, i) =>
         pp(t, p)
         sb.append("._" + i)

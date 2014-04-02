@@ -1,7 +1,9 @@
-/* Copyright 2013 EPFL, Lausanne */
+/* Copyright 2013-2014 EPFL, Lausanne */
 
 package leon
 package real
+
+import java.io.{PrintWriter, File}
 
 import purescala.Trees._
 import purescala.Definitions._
@@ -11,198 +13,24 @@ import purescala.TransformerWithPC
 import real.Trees.{Noise, Roundoff, Actual, RealLiteral, RelError, WithIn}
 import real.TreeOps._
 import Sat._
+import Valid._
 import Approximations._
 import FncHandling._
 import ArithmApprox._
 import PathHandling._
 import Rational._
 
-object Prover {
-  /*
-    Performs some pre-processing of the constraint in order to increase solving success.
-    - equality propagation
-    - removing of redundant bounds constraints (included in another)
-  */
-  def simplifyConstraint(e: Expr, removeBounds: Boolean = true,
-    equalityPropagation: Boolean = true): Expr = {
-    // for bounds, first collect all bounds, then re-generate constraints
-    val (boundsConstraint, remainder) = if (removeBounds) {
-      val boundsCollector = new TightBoundsCollector
-      val rem = boundsCollector.transform(e)
-      (And(boundsCollector.getConstraints), rem)
-    } else {
-      (True, e)
-    }
-
-    if (equalityPropagation) {
-      // for equality propagation, replace variables by their definition
-      val equalsPropagator = new EqualsPropagator
-      val equalities = equalsPropagator.transform(remainder)
-      And(boundsConstraint, equalities)
-    } else {
-      And(boundsConstraint, remainder)
-    }
-  }
-
-
-  private class EqualsPropagator extends TransformerWithPC {
-    type C = Map[Expr, Expr]
-    val initC = Map[Expr, Expr]()
-
-    def register(e: Expr, path: Map[Expr, Expr]): Map[Expr, Expr] = e match {
-      case Equals(v @ Variable(id), expr) => path + (v -> replace(path, expr))
-      case _ => path
-    }
-
-    override def rec(e: Expr, path: Map[Expr, Expr]): Expr = e match {
-      case Equals(v, expr) =>
-        Equals(v, replace(path, expr))
-      case _ =>
-        super.rec(e, path)
-    }
-  }
-
-
-  private class TightBoundsCollector extends TransformerWithPC {
-    type C = Seq[Expr]
-    val initC = Nil
-
-    case class Bound(loEq: Option[Rational], lo: Option[Rational], up: Option[Rational], upEq: Option[Rational], absUncert: Option[Rational], relUncert: Option[Rational]) {
-      // update to tightest bounds
-      def updateLoEqTight(n: Rational): Bound = {
-        if (loEq.nonEmpty) Bound(Some(max(n, loEq.get)), lo, up, upEq, absUncert, relUncert)
-        else Bound(Some(n), lo, up, upEq, absUncert, relUncert)
-      }
-      def updateLoTight(n: Rational): Bound = {
-        if (lo.nonEmpty) Bound(loEq, Some(max(n, lo.get)), up, upEq, absUncert, relUncert)
-        else Bound(loEq, Some(n), up, upEq, absUncert, relUncert)
-      }
-      def updateUpTight(n: Rational): Bound = {
-        if (up.nonEmpty) Bound(loEq, lo, Some(min(n, up.get)), upEq, absUncert, relUncert)
-        else Bound(loEq, lo, Some(n), upEq, absUncert, relUncert)
-      }
-      def updateUpEqTight(n: Rational): Bound = {
-        if (upEq.nonEmpty) Bound(loEq, lo, up, Some(min(n, upEq.get)), absUncert, relUncert)
-        else Bound(loEq, lo, up, Some(n), absUncert, relUncert)
-      }
-      def updateAbsUncertTight(n: Rational): Bound = {
-        if (absUncert.nonEmpty) Bound(loEq, lo, up, upEq, Some(min(n, absUncert.get)), relUncert)
-        else Bound(loEq, lo, up, upEq, Some(n), relUncert)
-      }
-      def updateRelUncertTight(n: Rational): Bound = {
-        if (relUncert.nonEmpty) Bound(loEq, lo, up, upEq, absUncert, Some(min(n, relUncert.get)))
-        else Bound(loEq, lo, up, upEq, absUncert, Some(n))
-      }
-    }
-    val emptyBound = Bound(None, None, None, None, None, None)
-
-    // indexed by variable
-    var boundMap = Map[Expr, Bound]()
-
-    def register(e: Expr, path: C): C = path :+ e
-
-    // (Sound) Overapproximation in the case of strict inequalities
-    // Removes the recorded constraints
-    override def rec(e: Expr, path: C): Expr = e match {
-      case LessEquals(RealLiteral(lwrBnd), x @ Variable(_)) => // a <= x
-        boundMap += (x -> boundMap.getOrElse(x, emptyBound).updateLoEqTight(lwrBnd)); True
-
-      case LessEquals(x @ Variable(_), RealLiteral(uprBnd)) => // x <= b
-        boundMap += (x -> boundMap.getOrElse(x, emptyBound).updateUpEqTight(uprBnd)); True
-
-      case LessThan(RealLiteral(lwrBnd), x @ Variable(_)) => // a < x
-        boundMap += (x -> boundMap.getOrElse(x, emptyBound).updateLoTight(lwrBnd)); True
-
-      case LessThan(x @ Variable(_), RealLiteral(uprBnd)) => // x < b
-        boundMap += (x -> boundMap.getOrElse(x, emptyBound).updateUpTight(uprBnd)); True
-
-      case GreaterEquals(RealLiteral(uprBnd), x @ Variable(_)) => // b >= x
-        boundMap += (x -> boundMap.getOrElse(x, emptyBound).updateUpEqTight(uprBnd)); True
-
-      case GreaterEquals(x @ Variable(_), RealLiteral(lwrBnd)) => // x >= a
-        boundMap += (x -> boundMap.getOrElse(x, emptyBound).updateLoEqTight(lwrBnd)); True
-
-      case GreaterThan(RealLiteral(uprBnd), x @ Variable(_)) => // b > x
-        boundMap += (x -> boundMap.getOrElse(x, emptyBound).updateUpTight(uprBnd)); True
-
-      case GreaterThan(x @ Variable(_), RealLiteral(lwrBnd)) => // x > a
-        boundMap += (x -> boundMap.getOrElse(x, emptyBound).updateLoTight(lwrBnd)); True
-
-      case Noise(x @ Variable(_), RealLiteral(value)) =>
-        boundMap += (x -> boundMap.getOrElse(x, emptyBound).updateAbsUncertTight(value)); True
-
-      case Noise(_, _) =>
-        throw UnsupportedRealFragmentException(e.toString); True
-
-      case RelError(x @ Variable(id), RealLiteral(value)) =>
-        boundMap += (x -> boundMap.getOrElse(x, emptyBound).updateRelUncertTight(value)); True
-
-      case WithIn(x @ Variable(_), lwrBnd, upBnd) =>
-        boundMap += (x -> boundMap.getOrElse(x, emptyBound).updateLoTight(lwrBnd).updateUpTight(upBnd)); True
-
-      case WithIn(e, lwrBnd, upBnd) =>
-        throw UnsupportedRealFragmentException(e.toString); True
-
-      case Or(_) | Not(_) =>
-        throw new Exception("OR and NOT are not allowed when computing bounds"); e
-
-      case i: IfExpr => i
-      case _ =>
-        super.rec(e, path)
-
-    }
-
-    def getConstraints: Seq[Expr] = {
-      boundMap.map({
-        case (v, Bound(loEq, lo, up, upEq, absUncert, relUncert)) =>
-          var cnstrs = Seq[Expr]()
-          if (loEq.nonEmpty) cnstrs :+= LessEquals(RealLiteral(loEq.get), v)
-          if (lo.nonEmpty) cnstrs :+= LessThan(RealLiteral(lo.get), v)
-
-          if (up.nonEmpty) cnstrs :+= LessThan(v, RealLiteral(up.get))
-          if (upEq.nonEmpty) cnstrs :+= LessEquals(v, RealLiteral(upEq.get))
-
-          if (absUncert.nonEmpty) cnstrs :+= Noise(v, RealLiteral(absUncert.get))
-          if (relUncert.nonEmpty) cnstrs :+= RelError(v, RealLiteral(relUncert.get))
-          (v -> And(cnstrs))
-        }).values.toSeq
-    }
-
-  }
-
-}
 
 class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[FunDef, Fnc]) {
-  import Prover._
-  implicit val debugSection = utils.DebugSectionReals
+  implicit val debugSection = utils.DebugSectionRealProver
   val reporter = ctx.reporter
   val solver = new RangeSolver(options.z3Timeout)
-  val approx = new Approximations(options, fncs, reporter, solver)
-
-  // TODO: this is ugly!!!
-  def getApplicableApproximations(vcs: Seq[VerificationCondition]): Map[VerificationCondition, List[ApproxKind]] =
-    vcs.map { vc =>
-        val list = (
-          if (vc.allFncCalls.isEmpty) {
-            if (containsIfExpr(vc.body))
-              if (options.pathError) a_NoFncIf.filter(ak => ak.pathHandling == Merging)
-              else a_NoFncIf
-            else a_NoFncNoIf
-          } else {
-            if (containsIfExpr(vc.body))
-              if (options.pathError) a_FncIf.filter(ak => ak.pathHandling == Merging)
-              else a_FncIf
-            else a_FncNoIf
-          })
-
-        if (!options.z3Only) (vc, list.filter(ak => ak.arithmApprox != Z3Only))
-        else (vc, list)
-      }.toMap
 
   // Returns the precision with which we can satisfy all constraints, or the last one tried,
   // as well as an indication whether verification was successfull.
   def check(vcs: Seq[VerificationCondition]): (Precision, Boolean) = {
-    val validApproximations = getApplicableApproximations(vcs)
+    reporter.debug("VCs: " + vcs)
+    val approximations = vcs.map(vc => (vc, Approximations(options, fncs, reporter, solver, vc))).toMap
 
     val precisions = options.precision
 
@@ -211,7 +39,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
       else {
         val mid = lowerBnd + (upperBnd - lowerBnd) / 2// ceiling int division
         reporter.info("Checking precision: " + precisions(mid))
-        if (checkVCsInPrecision(vcs, precisions(mid), validApproximations)) {
+        if (checkVCsInPrecision(vcs, precisions(mid), approximations)) {
           if (lowerBnd == mid) (precisions(lowerBnd), true)
           else {
             findPrecision(lowerBnd, mid)
@@ -227,13 +55,13 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
     }
 
     reporter.debug("approximation kinds:")
-    validApproximations.foreach(x => reporter.debug(x._1 + ": " + x._2))
+    approximations.foreach(x => reporter.debug(x._1 + ": " + x._2.kinds))
 
     findPrecision(0, precisions.length - 1)
   }
 
   def checkVCsInPrecision(vcs: Seq[VerificationCondition], precision: Precision,
-    validApproximations: Map[VerificationCondition, List[ApproxKind]]): Boolean = {
+    approximations: Map[VerificationCondition, Approximations]): Boolean = {
     var postMap: Map[FunDef, Seq[Spec]] = vcs.map(vc => (vc.funDef -> Seq())).toMap
 
     //println("checking vcs: ")
@@ -247,31 +75,36 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
       val start = System.currentTimeMillis
       var spec: Seq[Spec] = Seq()
 
-      val approximations = validApproximations(vc)
+      val approx = approximations(vc)
 
       // TODO: can we re-use some of the approximation work across precision?
-      approximations.find(aKind => {
+      approx.kinds.find(aKind => {
         reporter.info("approx: " + aKind)
 
         try {
-          val currentApprox = approx.getApproximation(vc, aKind, precision, postMap)
+          val currentApprox = approx.getApproximation(aKind, precision, postMap)
           spec = mergeSpecs(spec, currentApprox.spec)
           postMap += (vc.funDef -> currentApprox.spec)
 
           if (vc.kind == VCKind.SpecGen) true  // specGen, no need to check, only uses first approximation
           else
             checkValid(currentApprox, vc.variables, precision) match {
-              case Some(true) =>
+              case (VALID, str) =>
                 reporter.info("==== VALID ====")
-                vc.value += (precision -> Some(true))
+                vc.value += (precision -> VALID)
+                writeToFile(vc, str)
                 true
-              case Some(false) =>
+              case (INVALID, str) =>
                 reporter.info("=== INVALID ===")
-                vc.value += (precision -> Some(false))
+                vc.value += (precision -> INVALID)
+                writeToFile(vc, str)
                 true
-              case None =>
+              case (UNKNOWN, _) =>
                 reporter.info("---- Unknown ----")
                 false
+              case (NothingToShow, _) =>
+                vc.value += (precision -> NothingToShow)
+                true
             }
         } catch {
           case PostconditionInliningFailedException(msg) =>
@@ -286,9 +119,9 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
           case SqrtNotImplementedException(msg) =>
             reporter.warning(msg)
             false
-          case UnsoundBoundsException(msg) =>
-            reporter.error(msg)
-            return false
+          //case UnsoundBoundsException(msg) =>
+          //  reporter.error(msg)
+          //  return false
 
         }
 
@@ -304,11 +137,15 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
       reporter.info("generated spec: " + spec + " in " + (vc.time.get / 1000.0))
     }
 
-    vcs.forall( vc => vc.kind == VCKind.SpecGen || !vc.value(precision).isEmpty )
+    vcs.forall( vc => vc.kind == VCKind.SpecGen || vc.value(precision) != UNKNOWN )
   }
 
-  def checkValid(app: Approximation, variables: VariablePool, precision: Precision): Option[Boolean] = {
-    reporter.debug("checking for valid: " + app.constraints)
+  /*
+    @return (status, what we actually proved)
+  */
+  def checkValid(app: Approximation, variables: VariablePool, precision: Precision): (Valid, String) = {
+    reporter.debug("checking for valid: " + app.constraints.mkString("\n"))
+    var str = app.kind + "\n\n"
 
     val transformer = new LeonToZ3Transformer(variables, precision)
     var validCount = 0
@@ -318,19 +155,27 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
       val realCnstr = addResults(cnstr.realComp, variables.resultVars)
       val finiteCnstr = addResultsF(cnstr.finiteComp, variables.fResultVars)
 
-      val sanityConstraint = And(cnstr.precondition, And(realCnstr, finiteCnstr))
-      
-      val sanityConstraintSimpl = simplifyConstraint( sanityConstraint )
+      str = str + "%d:\nP: %s\n\nreal: %s\n\nfin: %s\n\nQ: %s\n\n".format(index, cnstr.precondition,
+        realCnstr, finiteCnstr, transformer.getZ3Expr(cnstr.postcondition)) 
 
-      val toCheck = And(sanityConstraintSimpl, negate(cnstr.postcondition))
+      var sanityConstraint: Expr = And(cnstr.precondition, And(realCnstr, finiteCnstr))  
+      if (options.removeRedundant) {
+        val args = removeRedundantConstraints(sanityConstraint, cnstr.postcondition)
+        sanityConstraint = And(args.toSeq)
+      }
+      if (options.simplifyCnstr) {
+        sanityConstraint = simplifyConstraint( sanityConstraint )
+      }
+      if (options.massageArithmetic) {
+        sanityConstraint = massageArithmetic (sanityConstraint)
+      }
 
-      val z3constraint = massageArithmetic(transformer.getZ3Expr(toCheck))
-      val sanityExpr = massageArithmetic(transformer.getZ3Expr(sanityConstraint))
+      val toCheck = And(sanityConstraint, negate(cnstr.postcondition))
 
-
-
-
+      val z3constraint = transformer.getZ3Expr(toCheck)
       reporter.debug("z3constraint ("+index+"): " + z3constraint)
+
+      val sanityExpr = transformer.getZ3Expr(sanityConstraint)
 
       if (reporter.errorCount == 0 && sanityCheck(sanityExpr)) {
         solver.checkSat(z3constraint) match {
@@ -340,15 +185,25 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
           case (SAT, model) =>
             if (app.kind.allowsRealModel) {
               // Idea: check if we get a counterexample for the real part only, that is then a possible counterexample, (depends on the approximation)
-              val realOnlyConstraint = removeErrorsAndActual(And(And(cnstr.precondition, realCnstr), negate(cnstr.postcondition)))
-              val massaged = massageArithmetic(transformer.getZ3Expr(realOnlyConstraint))
-              solver.checkSat(massaged) match {
-                case (SAT, model) =>
-                  // TODO: pretty-print the models
-                  reporter.info("counterexample: " + model)
-                  invalidCount += 1
-                case (UNSAT, _) =>
-                case _ =>
+              
+              val realOnlyPost = removeErrorsAndActual(cnstr.postcondition)
+
+              if (realOnlyPost == True) { // i.e. if the constraint is trivially true
+                reporter.info("Nothing to prove for real-only part.")
+              } else {
+                var realOnlyConstraint = And(removeErrorsAndActual(And(cnstr.precondition, realCnstr)), negate(realOnlyPost))
+                
+                if (options.massageArithmetic) {
+                  realOnlyConstraint = massageArithmetic(realOnlyConstraint)
+                }
+                solver.checkSat(transformer.getZ3Expr(realOnlyConstraint)) match {
+                  case (SAT, model) =>
+                    // TODO: pretty-print the models
+                    reporter.info("counterexample: " + model)
+                    invalidCount += 1
+                  case (UNSAT, _) =>
+                  case _ =>
+                }
               }
             } else {
               reporter.info(s"Constraint with $index is unknown.")
@@ -359,9 +214,10 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
         }
       }
     }
-    if ( (validCount + invalidCount) < app.constraints.length) None
-    else if (invalidCount > 0) Some(false)
-    else Some(true)
+    if (app.constraints.isEmpty) (NothingToShow, "")
+    else if ( (validCount + invalidCount) < app.constraints.length) (UNKNOWN, "")
+    else if (invalidCount > 0) (INVALID, str)
+    else (VALID, str)
   }
 
   // if true, we're sane
@@ -380,6 +236,9 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
   }
 
 
-
-
+  private def writeToFile(vc: VerificationCondition, str: String) = {
+    val writer = new PrintWriter(new File("vcs/" + vc.toString + ".txt"))
+    writer.write("VC: " + vc.longStringWithBreaks + "\n\n\n" + "proved by " + str)
+    writer.close()
+  }
 }

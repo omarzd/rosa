@@ -5,7 +5,14 @@ import scala.language.implicitConversions
 
 import scala.math.{ScalaNumericConversions, ScalaNumber}
 
-  object RealOps {
+import scala.annotation.StaticAnnotation
+
+@leon.annotation.ignore
+object annotations {
+  class loopbound(max: Int) extends StaticAnnotation
+}
+
+object RealOps {
     @proxy
     implicit def double2real(d: Double): Real = Real(d)
 
@@ -15,12 +22,42 @@ import scala.math.{ScalaNumericConversions, ScalaNumber}
     @proxy
     def sqrt(x: Real): Real = ???
 
-    @proxy
-    def iterate(updateFnc: Boolean): (Real, Real) = ???
-  }
+    @ignore
+    def iterate(x: Real)(updateFnc: Boolean): Real = ???
 
-  @ignore
-  case class Real private[real](v: Double) extends ScalaNumber with ScalaNumericConversions with Ordered[Real] {
+    @ignore
+    def iterate(x1: Real, x2: Real)(
+        updateFnc: Boolean): (Real, Real) = ???
+    @ignore
+    def iterate(x1: Real, x2: Real, x3: Real)(
+        updateFnc: Boolean): (Real, Real, Real) = ???
+    @ignore
+    def iterate(x1: Real, x2: Real, x3: Real, x4: Real)(
+        updateFnc: Boolean): (Real, Real, Real, Real) = ???
+    @ignore
+    def iterate(x1: Real, x2: Real, x3: Real, x4: Real, x5: Real)(
+        updateFnc: Boolean): (Real, Real, Real, Real, Real) = ???
+    @ignore
+    def iterate(x1: Real, x2: Real, x3: Real, x4: Real, x5: Real, x6: Real)(
+        updateFnc: Boolean): (Real, Real, Real, Real, Real, Real) = ???
+    
+    /*def iterate(x1: Real, x2: Real, x3: Real, x4: Real, x5: Real, x6: Real, x7: Real)(
+        updateFnc: Boolean): (Real, Real, Real, Real, Real, Real, Real) = ???
+    def iterate(x1: Real, x2: Real, x3: Real, x4: Real, x5: Real, x6: Real, x7: Real, x8: Real)(
+        updateFnc: Boolean): (Real, Real, Real, Real, Real, Real, Real, Real) = ???
+    def iterate(x1: Real, x2: Real, x3: Real, x4: Real, x5: Real, x6: Real, x7: Real, x8: Real, x9: Real)(
+        updateFnc: Boolean): (Real, Real, Real, Real, Real, Real, Real, Real, Real) = ???
+    def iterate(x1: Real, x2: Real, x3: Real, x4: Real, x5: Real, x6: Real, x7: Real, x8: Real, x9: Real, x10: Real)(
+        updateFnc: Boolean): (Real, Real, Real, Real, Real, Real, Real, Real, Real, Real) = ???
+    def iterate(x1: Real, x2: Real, x3: Real, x4: Real, x5: Real, x6: Real, x7: Real, x8: Real, x9: Real, x10: Real, x11: Real)(
+        updateFnc: Boolean): (Real, Real, Real, Real, Real, Real, Real, Real, Real, Real, Real) = ???
+    */
+    @proxy
+    def loopCounter(i: Int): Boolean = ???
+}
+
+@ignore
+case class Real private[real](v: Double) extends ScalaNumber with ScalaNumericConversions with Ordered[Real] {
     import Real._
 
     def unary_-(): Real = ???
@@ -64,4 +101,4 @@ import scala.math.{ScalaNumericConversions, ScalaNumber}
 
     def <==(rhs: Real): Boolean = ???
     def <--(rhs: Real): Boolean = ???
-  }
+}

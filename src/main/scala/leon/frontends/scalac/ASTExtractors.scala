@@ -24,6 +24,7 @@ trait ASTExtractors {
   protected lazy val tuple3Sym          = classFromName("scala.Tuple3")
   protected lazy val tuple4Sym          = classFromName("scala.Tuple4")
   protected lazy val tuple5Sym          = classFromName("scala.Tuple5")
+  protected lazy val tuple6Sym          = classFromName("scala.Tuple6")
   protected lazy val mapSym             = classFromName("scala.collection.immutable.Map")
   protected lazy val setSym             = classFromName("scala.collection.immutable.Set")
   protected lazy val optionClassSym     = classFromName("scala.Option")
@@ -36,6 +37,7 @@ trait ASTExtractors {
   def isTuple3(sym : Symbol) : Boolean = sym == tuple3Sym
   def isTuple4(sym : Symbol) : Boolean = sym == tuple4Sym
   def isTuple5(sym : Symbol) : Boolean = sym == tuple5Sym
+  def isTuple6(sym : Symbol) : Boolean = sym == tuple6Sym
   def isReal(sym : Symbol) : Boolean = sym == realSym
 
 
@@ -371,6 +373,13 @@ trait ASTExtractors {
             case TypeRef(_, sym, List(t1, t2, t3, t4, t5)) => Some((Seq(t1, t2, t3, t4, t5), Seq(e1, e2, e3, e4, e5)))
             case _ => None
           }
+        case Apply(
+          Select(New(tupleType), _),
+          List(e1, e2, e3, e4, e5, e6)
+        ) if tupleType.symbol == tuple6Sym => tupleType.tpe match {
+            case TypeRef(_, sym, List(t1, t2, t3, t4, t5, t6)) => Some((Seq(t1, t2, t3, t4, t5, t6), Seq(e1, e2, e3, e4, e5, e6)))
+            case _ => None
+          }
         // Match e1 -> e2
         case Apply(TypeApply(Select(Apply(TypeApply(ExSelected("scala", "Predef", "any2ArrowAssoc"), List(tpeFrom)), List(from)), ExNamed("$minus$greater")), List(tpeTo)), List(to)) =>
 
@@ -704,10 +713,18 @@ trait ASTExtractors {
       }
     }
 
-    object ExIterate {
+    object ExLoopCounter {
       def unapply(tree: Apply): Option[Tree] = tree match {
-        case Apply(select, List(rhs)) if (select.toString == "leon.real.RealOps.iterate") =>
+        case Apply(select, List(rhs)) if (select.toString == "leon.real.RealOps.loopCounter") =>
           Some(rhs)
+        case _ => None
+      }
+    }
+
+    object ExIterate {
+      def unapply(tree: Apply): Option[(Seq[Tree], Tree)] = tree match {
+        case Apply(Apply(select, args), List(rhs)) if (select.toString == "leon.real.RealOps.iterate") =>
+          Some(args, rhs)
         case _ => None
       }
     }

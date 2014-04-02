@@ -20,7 +20,7 @@ import purescala.TypeTreeOps._
 import xlang.Trees.{Block => LeonBlock, _}
 import xlang.TreeOps._
 import real.Trees.{UMinusR, PlusR, MinusR, TimesR, DivisionR, SqrtR, RealLiteral, RelError, Noise, InitialNoise, 
-  Actual, Assertion, WithIn, UpdateFunction, Iteration}
+  Actual, Assertion, WithIn, UpdateFunction, Iteration, LoopCounter}
 import real.TreeOps.letsToEquals
 
 import utils.{DefinedPosition, Position => LeonPosition, OffsetPosition => LeonOffsetPosition, RangePosition => LeonRangePosition}
@@ -397,6 +397,17 @@ trait CodeExtraction extends ASTExtractors {
       fd.setPos(sym.pos)
 
       fd.addAnnotation(annotationsOf(sym).toSeq : _*)
+
+      // extract real annotation which has a parameter
+      for(a <- sym.annotations) {
+        val name = a.atp.safeToString
+        if (name.startsWith("leon.real.annotations.") && name.split("\\.")(3) == "loopbound") {
+          a.args(0) match {
+            case Literal(Constant(i: Int)) =>
+              fd.loopBound = Some(i)
+          }
+        }
+      }
 
       defsToDefs += sym -> fd
 
@@ -1081,27 +1092,40 @@ trait CodeExtraction extends ASTExtractors {
               outOfSubsetError(tr, "invalid use of ><")    
           }
 
-        case ExIterate(es) =>
-          val block = extractTree(es)
+        case ExLoopCounter(v) =>
+          val varr = extractTree(v)
+          varr match {
+            case Variable(id) => LoopCounter(id)
+            case _ =>
+              outOfSubsetError(tr, "loopCounter only applicable to a variable!")
+          }
+          
 
+        case ExIterate(args, es) =>
+          val block = extractTree(es)
           val (updateFncs: Seq[UpdateFunction], body) = letsToEquals(block) match {
-            case And(args) =>
-              args.partition(a => a.isInstanceOf[UpdateFunction])
+            case And(as) =>
+              as.partition(a => a.isInstanceOf[UpdateFunction])
             case u: UpdateFunction =>
               (Seq(u), Seq.empty)
             case _ =>
               outOfSubsetError(tr, "iteration is missing the update function")
           }
           
-          val ids = updateFncs.map { up =>
+          val idsGiven = args.map(a => extractTree(a) match {
+            case Variable(id) => id
+            case _ => outOfSubsetError(tr, "iterate takes only variables as parameters")
+            })
+          val idsUpdated = updateFncs.map { up =>
               up.lhs match {
                 case Variable(id) => id
-                case _ => 
-                  outOfSubsetError(tr, "Lhs of update has to be a variable!")
-              }
-            }
-          
-          Iteration(ids, And(body), updateFncs)
+                case _ => outOfSubsetError(tr, "Lhs of update has to be a variable!")
+            }}
+          if(idsGiven.toSet != idsUpdated.toSet) {
+            outOfSubsetError(tr, "Variables being updated do not match those that should be updated.")
+          } else {
+            Iteration(idsGiven, And(body), updateFncs)    
+          }
           
         case ExUpdateFunction(lhs, rhs) =>
           val lt = extractTree(lhs)
@@ -1376,6 +1400,9 @@ trait CodeExtraction extends ASTExtractors {
 
       case TypeRef(_, sym, List(t1,t2,t3,t4,t5)) if isTuple5(sym) =>
         TupleType(Seq(extractType(t1),extractType(t2),extractType(t3),extractType(t4),extractType(t5)))
+
+      case TypeRef(_, sym, List(t1,t2,t3,t4,t5,t6)) if isTuple6(sym) =>
+        TupleType(Seq(extractType(t1),extractType(t2),extractType(t3),extractType(t4),extractType(t5),extractType(t6)))
 
       case TypeRef(_, sym, btt :: Nil) if isArrayClassSym(sym) =>
         ArrayType(extractType(btt))

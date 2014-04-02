@@ -5,6 +5,8 @@ package leon
 import purescala.Trees._
 import purescala.Common._
 
+import real.Trees.{RealLiteral, Noise}
+
 import ceres.common.{DirectedRounding}
 import java.math.{BigInteger}
 import real.Rational.{double2Fraction,zero}
@@ -14,7 +16,8 @@ package object real {
   val True = BooleanLiteral(true)
   val False = BooleanLiteral(false)
 
-  val DummySpec = Spec(FreshIdentifier("dummyResult"),RationalInterval(Rational.zero, Rational.zero), Rational.zero)
+  val DummySpec = Spec(FreshIdentifier("dummyResult"),
+    RationalInterval(Rational.zero, Rational.zero), Some(Rational.zero))
 
   val useMassageArithmetic = true
 
@@ -34,11 +37,29 @@ package object real {
 
   /**
     Represents a specification of a variable.
-    @param id identifier this spec belongs to
+    @param id real/ideal identifier this spec belongs to
     @param bounds real-valued (ideal) bounds
     @param absError maximum absolute error
   */
-  case class Spec(id: Identifier, bounds: RationalInterval, absError: Rational)
+  //case class Spec(id: Identifier, bounds: RationalInterval, absError: Rational)
+
+  case class Spec(id: Identifier, bounds: RationalInterval, absError: Option[Rational]) {
+    def toRealExpr: Expr = {
+      And(LessEquals(RealLiteral(bounds.xlo), Variable(id)),
+            LessEquals(Variable(id), RealLiteral(bounds.xhi)))
+    }
+
+    def toExpr: Expr = absError match {
+      case Some(absError) =>
+        And(And(LessEquals(RealLiteral(bounds.xlo), Variable(id)),
+            LessEquals(Variable(id), RealLiteral(bounds.xhi))),
+            Noise(Variable(id), RealLiteral(absError)))
+      case None =>
+        println("---> SPEC without error")
+        And(LessEquals(RealLiteral(bounds.xlo), Variable(id)),
+          LessEquals(Variable(id), RealLiteral(bounds.xhi)))  
+    }
+  }
 
 
   def formatOption[T](res: Option[T]): String = res match {
@@ -130,5 +151,13 @@ package object real {
     val SAT = Value("SAT")
     val UNSAT = Value("UNSAT")
     val Unknown = Value("Unknown")
+  }
+
+  object Valid extends Enumeration {
+    type Valid = Value
+    val VALID = Value("VALID")
+    val INVALID = Value("INVALID")
+    val UNKNOWN = Value("Unknown")
+    val NothingToShow = Value("n/a")
   }
 }

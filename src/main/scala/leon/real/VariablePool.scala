@@ -13,7 +13,8 @@ import purescala.TreeOps._
 import real.Trees._
 import Rational.{max, abs}
 
-case class Record(ideal: Expr, actual: Expr, lo: Option[Rational], up: Option[Rational], absUncert: Option[Rational], relUncert: Option[Rational]) {
+case class Record(ideal: Expr, actual: Expr, lo: Option[Rational], up: Option[Rational],
+  absUncert: Option[Rational], relUncert: Option[Rational]) {
   def newLo(n: Rational): Record = Record(ideal, actual, Some(n), up, absUncert, relUncert)
   def newUp(n: Rational): Record = Record(ideal, actual, lo, Some(n), absUncert, relUncert)
   def newAbsUncert(n: Rational): Record = Record(ideal, actual, lo, up, Some(n), relUncert)
@@ -44,7 +45,7 @@ object EmptyRecord extends Record(False, False, None, None, None, None)
   and such things.
   @param map indexed by ideal variable
 */
-class VariablePool(inputs: Map[Expr, Record], val resIds: Seq[Identifier]) {
+class VariablePool(val inputs: Map[Expr, Record], val resIds: Seq[Identifier], val loopCounter: Option[Identifier]) {
   import VariablePool._
   private var allVars = inputs
 
@@ -101,19 +102,24 @@ class VariablePool(inputs: Map[Expr, Record], val resIds: Seq[Identifier]) {
 
   def hasValidInput(varDecl: Seq[ValDef], reporter: Reporter): Boolean = {
     val params: Seq[Expr] = varDecl.map(vd => Variable(vd.id))
-    if (inputs.size == params.size && inputs.forall(v => params.contains(v._1) && v._2.isBoundedValid)) {
-      true
+    if (loopCounter.isEmpty) {
+      (inputs.size == params.size && inputs.forall(v => params.contains(v._1) && v._2.isBoundedValid))  
     } else {
-      reporter.warning("skipping, invalid input")
-      false 
+      (inputs.size == params.size - 1 && inputs.forall(v => params.contains(v._1) && v._2.isBoundedValid))
     }
+    
   }
 
   def inputsWithoutNoise: Seq[Expr] = {
     inputs.filter(x => x._2.uncertainty.isEmpty).keySet.toSeq
   }
 
-  override def toString: String = allVars.toString
+  def isLoopCounter(x: Expr): Boolean = (loopCounter, x) match {
+    case (Some(l), Variable(id)) => l == id 
+    case _ => false
+  }
+
+  override def toString: String = allVars.toString 
 }
 
 
@@ -124,9 +130,8 @@ object VariablePool {
   }
 
   def apply(expr: Expr, returnType: TypeTree): VariablePool = {
-    val collector = new VariableCollector
-    collector.transform(expr)
-
+    val (records, loopC) = collectVariables(expr)
+    
     val resIds = returnType match {
       case TupleType(baseTypes) =>
         baseTypes.zipWithIndex.map( {
@@ -137,72 +142,71 @@ object VariablePool {
         Seq(FreshIdentifier("result", true).setType(returnType))
     }
 
-    new VariablePool(collector.recordMap, resIds)
+    new VariablePool(records, resIds, loopC)
   }
 
-  private class VariableCollector extends TransformerWithPC {
-    type C = Seq[Expr]
-    val initC = Nil
+  def collectVariables(expr: Expr): (Map[Expr, Record], Option[Identifier]) = {
     var recordMap = Map[Expr, Record]()
-
-    def register(e: Expr, path: C): C = path :+ e
+    var loopCounter: Option[Identifier] = None
 
     // (Sound) Overapproximation in the case of strict inequalities
-    override def rec(e: Expr, path: C): Expr = e match {
+    preTraversal {  
       case LessEquals(RealLiteral(lwrBnd), x @ Variable(_)) => // a <= x
-        recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newLo(lwrBnd)); e
+        recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newLo(lwrBnd))
 
       case LessEquals(x @ Variable(_), RealLiteral(uprBnd)) => // x <= b
-        recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newUp(uprBnd)); e
+        recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newUp(uprBnd))
 
       case LessThan(RealLiteral(lwrBnd), x @ Variable(_)) => // a < x
-        recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newLo(lwrBnd)); e
+        recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newLo(lwrBnd))
 
       case LessThan(x @ Variable(_), RealLiteral(uprBnd)) => // x < b
-        recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newUp(uprBnd)); e
+        recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newUp(uprBnd))
 
       case GreaterEquals(RealLiteral(uprBnd), x @ Variable(_)) => // b >= x
-        recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newUp(uprBnd)); e
+        recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newUp(uprBnd))
 
       case GreaterEquals(x @ Variable(_), RealLiteral(lwrBnd)) => // x >= a
-        recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newLo(lwrBnd)); e
+        recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newLo(lwrBnd))
 
       case GreaterThan(RealLiteral(uprBnd), x @ Variable(_)) => // b > x
-        recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newUp(uprBnd)); e
+        recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newUp(uprBnd))
 
       case GreaterThan(x @ Variable(_), RealLiteral(lwrBnd)) => // x > a
-        recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newLo(lwrBnd)); e
+        recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newLo(lwrBnd))
 
       case Equals(x @ Variable(_), RealLiteral(value)) => // x == value
         recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newLo(value))
         recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newUp(value))
-        e
 
       case Equals(RealLiteral(value), x @ Variable(_)) => // x == value
         recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newLo(value))
         recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newUp(value))
-        e
-
+        
       case Noise(x @ Variable(_), RealLiteral(value)) =>
-        recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newAbsUncert(value)); e
+        recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newAbsUncert(value))
 
       case Noise(_, _) =>
-        throw UnsupportedRealFragmentException(e.toString); e
+        throw UnsupportedRealFragmentException(expr.toString)
 
       case RelError(x @ Variable(id), RealLiteral(value)) =>
-        recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newRelUncert(value)); e
+        recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newRelUncert(value))
 
       case WithIn(x @ Variable(_), lwrBnd, upBnd) =>
-        recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newLo(lwrBnd).newUp(upBnd)); e
+        recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newLo(lwrBnd).newUp(upBnd))
 
       case WithIn(e, lwrBnd, upBnd) =>
-        throw UnsupportedRealFragmentException(e.toString); e
+        throw UnsupportedRealFragmentException(expr.toString)
 
-      case _ =>
-        super.rec(e, path)
-
-    }
-
+      case LoopCounter(id) =>
+        println("loopCounter found")
+        if (loopCounter.isEmpty) loopCounter = Some(id)
+        else {
+          throw UnsupportedRealFragmentException("two loop counters are not allowed")
+        }
+      case _ => ;
+    }(expr)
+    (recordMap, loopCounter)
   }
 
 }

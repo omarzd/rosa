@@ -17,8 +17,8 @@ import Rational._
 import VariableShop._
 
 
-class Approximator(reporter: Reporter, solver: RangeSolver, precision: Precision, precondition: Expr, inputs: VariablePool,
-  checkPathError: Boolean = false) {
+class Approximator(reporter: Reporter, solver: RangeSolver, precision: Precision, precondition: Expr,
+  inputs: VariablePool, checkPathError: Boolean = false, exactInputs: Boolean = false) {
 
   type XRealTuple = Seq[XReal] 
 
@@ -40,53 +40,55 @@ class Approximator(reporter: Reporter, solver: RangeSolver, precision: Precision
   val config = XConfig(solver, initialCondition, solverMaxIterMedium, solverPrecisionMedium)
   if (verbose) println("initial config: " + config)
 
-  var variables: Map[Expr, XReal] = precision match {
-    case Float32 | Float64 | DoubleDouble | QuadDouble => variables2xfloats(inputs, config, machineEps)._1
-    case FPPrecision(bits) => variables2xfixed(inputs, config, bits)._1
+  // This is the only state, and we should not get into trouble with using one instance
+  // multiple times, since the variables will get overwritten.
+  // But just to make sure, we can re-initialize this each time...
+  // Just make sure the 'exactInputs' is the same for all calls!
+  var variables: Map[Expr, XReal] = Map.empty
+
+  def init = {
+    variables = precision match {
+      case Float32 | Float64 | DoubleDouble | QuadDouble =>
+        if (exactInputs) variables2xfloatsExact(inputs, config, machineEps)
+        else variables2xfloats(inputs, config, machineEps)._1
+      
+      case FPPrecision(bits) => 
+        if (exactInputs) reporter.warning("no exact inputs for fixedpoint")
+        variables2xfixed(inputs, config, bits)._1
+    }
   }
   if (verbose) println("initial variables: " + variables)
 
-  /* 'generateFullConstraint' will ignore the returned approximation and generate a constraint
-     over all (intermediate) variables. This mode should be used for checking pre-conditions.
-    @return (computed constraint, spec of the result, if applicable)
+
+  /* Expects the expression to be open, i.e. to return a value
+   * (as opposed to last expr being x == ...) 
+   *  Will work also for tupled results
    */
-  def transformWithSpec(e: Expr, fullConstraint: Boolean): (Expr, Seq[Spec]) = {
-    def constraintFromXFloats(results: Map[Expr, XReal]): Expr = {
-      And(results.foldLeft(Seq[Expr]())(
-        (seq, kv) => seq ++ Seq(LessEquals(RealLiteral(kv._2.interval.xlo), kv._1),
-                                LessEquals(kv._1, RealLiteral(kv._2.interval.xhi)),
-                                Noise(inputs.getIdeal(kv._1), RealLiteral(kv._2.maxError)))))
-    }
-    e match {
-      case BooleanLiteral(_) => (e, Seq())  // if no body
-      case _ =>
-        val approximation = approx(e, Seq())
-
-        if (approximation.length == inputs.fResultVars.length) {
-          if (fullConstraint) reporter.warning("result from approximation, but want to generate full constraint")
-          val zipped = inputs.fResultVars.zip(approximation)
-
-          val specs = zipped.map({
-            case (fresVar: Variable, resXFloat: XReal) =>
-              Spec(fresVar.id, RationalInterval(resXFloat.realInterval.xlo, resXFloat.realInterval.xhi), resXFloat.maxError)
-            })
-
-          (constraintFromXFloats(zipped.toMap), specs)
-        } else {
-          if (approximation.length > 0 && !fullConstraint) {
-            reporter.warning("Number of resVars and computed approximation does not match!")
-            reporter.warning("# approximations: " + approximation.length + ", # resVars: " + inputs.fResultVars.length)
-            (True, Seq())
-          } else if (fullConstraint) {
-            (constraintFromXFloats(variables), Seq())
-          } else {
-            reporter.warning("default case reached in transformWithSpec")
-            (True, Seq())
-          }
-        }
-    }
+  def getXRealForResult(e: Expr): Seq[XReal] = {
+    init
+    approx(e, Seq())
   }
 
+  def getXRealForAllVars(e: Expr): Map[Expr, XReal] = {
+    init
+    val app = approx(e, Seq())
+    //sanity check
+    assert(app.length == 0, "computing xreals for equations but open expression found")
+    // TODO: remove input vars?
+    variables
+  }
+
+  // used for loops
+  def computeError(e: Expr): Rational = e match {
+    case BooleanLiteral(_) => Rational.zero
+    case _ =>
+      init
+      val approximation = approx(e, Seq())
+      assert(approximation.length == 1, "computing error on tuple-typed expression!")
+      approximation(0).maxError
+  }
+
+  // TODO: I don't think this function is needed
   private def register(path: Seq[Expr], e: Expr) = e match {
     // We allow only these conditions in if-then-else
     case LessThan(_,_) | LessEquals(_,_) | GreaterThan(_,_) | GreaterEquals(_,_) =>
@@ -304,18 +306,21 @@ class Approximator(reporter: Reporter, solver: RangeSolver, precision: Precision
         mergeXRealWithExtraError(thenBranch, elseBranch, And(path), pathError)
 
       case FncValueF(specs, specExpr) =>
+        // TODO: we should filter out any non-real parts from the spec expression here
+        //println("\nfncValueF: " + specs)
+        //println("specExpr: " + specExpr)
         specs.map (spec => {
-          val (resId, interval, error, constraints) = (spec.id, spec.bounds, spec.absError, True) // constraints not (yet) used
+          val (resId, interval, error, constraints) = (spec.id, spec.bounds, spec.absError.get, True) // constraints not (yet) used
           val fresh = getNewXFloatVar
-
+          //println("fresh: " + fresh)
           precision match {
             case FPPrecision(bts) => xFixedWithUncertain(fresh, interval,
               config.addCondition(replace(Map(Variable(resId) -> fresh),
-                leonToZ3.getZ3Condition(removeErrors(specExpr)))),
+                leonToZ3.getZ3Condition(And(removeErrors(specExpr), spec.toRealExpr)))),
               error, false, bts)._1
           case _ => xFloatWithUncertain(fresh, interval,
             config.addCondition(replace(Map(Variable(resId) -> fresh),
-              leonToZ3.getZ3Condition(removeErrors(specExpr)))),
+              leonToZ3.getZ3Condition(And(removeErrors(specExpr), spec.toRealExpr)))),
             error, false, machineEps)._1
           }
         })
@@ -350,6 +355,7 @@ class Approximator(reporter: Reporter, solver: RangeSolver, precision: Precision
     }
 
     seq.map( x => {
+
       if (overflowPossible(x.interval)) {
         reporter.warning("Possible overflow detected at: " + x)
       }

@@ -218,6 +218,9 @@ object Trees {
   }
   case class PowerR(lhs: Expr, rhs: Expr) extends Expr with FixedType with BinaryExtractable with PrettyPrintable with RealArithmetic {
     val fixedType = RealType
+    /*rhs match {
+      case IntLiteral(i) => assert (i > 1)
+    }*/
     def extract: Option[(Expr, Expr, (Expr, Expr)=>Expr)] = {
       Some((lhs, rhs, (t1, t2) => PowerR(t1, t2)))
     }
@@ -376,7 +379,7 @@ object Trees {
       Some((specExpr, (e) => FncValueF(spec, e)))
     }
     def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
-      printer.append("fncVal(" + spec.toString + ")(")
+      printer.append("fncValF(" + spec.toString + ")(")
       printer.pp(specExpr, Some(this))
       printer.append(")")
     }
@@ -560,4 +563,12 @@ object Trees {
       printer.append("}")
     }
   }
+
+  case class LoopCounter(id: Identifier) extends Expr with Terminal with FixedType with PrettyPrintable {
+    val fixedType = BooleanType
+
+    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
+      printer.append("loopCounter(" + id + ")")
+    }
+  } 
 }

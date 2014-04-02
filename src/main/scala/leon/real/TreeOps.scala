@@ -16,8 +16,219 @@ import real.RationalAffineUtils._
 import VCKind._
 import VariableShop._
 import real.{FixedPointFormat => FPFormat}
+import Rational._
 
 object TreeOps {
+
+  /*
+    Performs some pre-processing of the constraint in order to increase solving success.
+    - equality propagation
+    - removing of redundant bounds constraints (included in another)
+  */
+  def simplifyConstraint(e: Expr, removeBounds: Boolean = true,
+    equalityPropagation: Boolean = true): Expr = {
+    // for bounds, first collect all bounds, then re-generate constraints
+    val (boundsConstraint, remainder) = if (removeBounds) {
+      val boundsCollector = new TightBoundsCollector
+      val rem = boundsCollector.transform(e)
+      (And(boundsCollector.getConstraints), rem)
+    } else {
+      (True, e)
+    }
+
+
+    if (equalityPropagation) {
+      // for equality propagation, replace variables by their definition
+      val equalsPropagator = new EqualsPropagator
+      val equalities = equalsPropagator.transform(remainder)
+      val equalities2 = propagateEquals(remainder)
+      assert(equalities == equalities2, s"equalities: $equalities \n equalities2: $equalities2")
+      And(boundsConstraint, equalities)
+    } else {
+      And(boundsConstraint, remainder)
+    }
+
+    // Remove redundant constraints
+
+
+  }
+
+  def propagateEquals(body: Expr): Expr = {
+    var valMap: Map[Expr, Expr] = Map.empty
+    preMap { expr => expr match {
+        case Equals(v @ Variable(id), rhs) =>
+          valMap = valMap + (v -> replace(valMap,rhs))
+          Some(Equals(v, replace(valMap, rhs)))
+        case _ => None
+      }
+    }(body)
+  }
+
+  private class EqualsPropagator extends TransformerWithPC {
+    type C = Map[Expr, Expr]
+    val initC = Map[Expr, Expr]()
+
+    def register(e: Expr, path: Map[Expr, Expr]): Map[Expr, Expr] = e match {
+      case Equals(v @ Variable(id), expr) => path + (v -> replace(path, expr))
+      case _ => path
+    }
+
+    override def rec(e: Expr, path: Map[Expr, Expr]): Expr = e match {
+      case Equals(v, expr) =>
+        Equals(v, replace(path, expr))
+      case _ =>
+        super.rec(e, path)
+    }
+  }
+
+
+  def removeRedundantConstraints(body: Expr, post: Expr): Set[Expr] = {
+    def extractClauses(e: Expr): Set[Expr] = e match {
+      case And(args) => args.toSet
+      case _ => Set(e)
+    }
+    //println("Computing needed for " + post)
+    // we can try a fixed-point computation, starting with the constraint from the postcondition,
+    // and the set of constraints from the body, iteratively adding constraints which contain
+    // variables needed to prove the postcondition
+
+    var neededVars: Set[Identifier] = variablesOf(post)
+    var currentNeeded: Set[Expr] = Set.empty
+    var currentWaiting: Set[Expr] = extractClauses(body)
+
+    var continue = true
+    while( continue ) {
+      //println("\nNew round")
+      //println(s"neededVars: $neededVars")
+      //println(s"currentNeeded: $currentNeeded")
+      //println(s"currentWaiting: $currentWaiting")
+
+      val newNeeded = currentWaiting.filter(e => {
+        variablesOf(e).intersect(neededVars).size > 0
+        })
+      //println("newNeeded: " + newNeeded)
+      val newVars = variablesOf(And(newNeeded.toSeq)).diff(neededVars)
+      //println("newVars: " + newVars)
+
+      currentNeeded = currentNeeded ++ newNeeded
+      
+      if (newVars.size == 0) {
+        continue = false
+      } else {
+        continue = true
+        neededVars = neededVars ++ newVars
+      }
+    }
+    //println("\nfinal result: " + currentNeeded)
+    currentNeeded
+  } 
+
+  private class TightBoundsCollector extends TransformerWithPC {
+    type C = Seq[Expr]
+    val initC = Nil
+
+    case class Bound(loEq: Option[Rational], lo: Option[Rational], up: Option[Rational], upEq: Option[Rational], absUncert: Option[Rational], relUncert: Option[Rational]) {
+      // update to tightest bounds
+      def updateLoEqTight(n: Rational): Bound = {
+        if (loEq.nonEmpty) Bound(Some(max(n, loEq.get)), lo, up, upEq, absUncert, relUncert)
+        else Bound(Some(n), lo, up, upEq, absUncert, relUncert)
+      }
+      def updateLoTight(n: Rational): Bound = {
+        if (lo.nonEmpty) Bound(loEq, Some(max(n, lo.get)), up, upEq, absUncert, relUncert)
+        else Bound(loEq, Some(n), up, upEq, absUncert, relUncert)
+      }
+      def updateUpTight(n: Rational): Bound = {
+        if (up.nonEmpty) Bound(loEq, lo, Some(min(n, up.get)), upEq, absUncert, relUncert)
+        else Bound(loEq, lo, Some(n), upEq, absUncert, relUncert)
+      }
+      def updateUpEqTight(n: Rational): Bound = {
+        if (upEq.nonEmpty) Bound(loEq, lo, up, Some(min(n, upEq.get)), absUncert, relUncert)
+        else Bound(loEq, lo, up, Some(n), absUncert, relUncert)
+      }
+      def updateAbsUncertTight(n: Rational): Bound = {
+        if (absUncert.nonEmpty) Bound(loEq, lo, up, upEq, Some(min(n, absUncert.get)), relUncert)
+        else Bound(loEq, lo, up, upEq, Some(n), relUncert)
+      }
+      def updateRelUncertTight(n: Rational): Bound = {
+        if (relUncert.nonEmpty) Bound(loEq, lo, up, upEq, absUncert, Some(min(n, relUncert.get)))
+        else Bound(loEq, lo, up, upEq, absUncert, Some(n))
+      }
+    }
+    val emptyBound = Bound(None, None, None, None, None, None)
+
+    // indexed by variable
+    var boundMap = Map[Expr, Bound]()
+
+    def register(e: Expr, path: C): C = path :+ e
+
+    // (Sound) Overapproximation in the case of strict inequalities
+    // Removes the recorded constraints
+    override def rec(e: Expr, path: C): Expr = e match {
+      case LessEquals(RealLiteral(lwrBnd), x @ Variable(_)) => // a <= x
+        boundMap += (x -> boundMap.getOrElse(x, emptyBound).updateLoEqTight(lwrBnd)); True
+
+      case LessEquals(x @ Variable(_), RealLiteral(uprBnd)) => // x <= b
+        boundMap += (x -> boundMap.getOrElse(x, emptyBound).updateUpEqTight(uprBnd)); True
+
+      case LessThan(RealLiteral(lwrBnd), x @ Variable(_)) => // a < x
+        boundMap += (x -> boundMap.getOrElse(x, emptyBound).updateLoTight(lwrBnd)); True
+
+      case LessThan(x @ Variable(_), RealLiteral(uprBnd)) => // x < b
+        boundMap += (x -> boundMap.getOrElse(x, emptyBound).updateUpTight(uprBnd)); True
+
+      case GreaterEquals(RealLiteral(uprBnd), x @ Variable(_)) => // b >= x
+        boundMap += (x -> boundMap.getOrElse(x, emptyBound).updateUpEqTight(uprBnd)); True
+
+      case GreaterEquals(x @ Variable(_), RealLiteral(lwrBnd)) => // x >= a
+        boundMap += (x -> boundMap.getOrElse(x, emptyBound).updateLoEqTight(lwrBnd)); True
+
+      case GreaterThan(RealLiteral(uprBnd), x @ Variable(_)) => // b > x
+        boundMap += (x -> boundMap.getOrElse(x, emptyBound).updateUpTight(uprBnd)); True
+
+      case GreaterThan(x @ Variable(_), RealLiteral(lwrBnd)) => // x > a
+        boundMap += (x -> boundMap.getOrElse(x, emptyBound).updateLoTight(lwrBnd)); True
+
+      case Noise(x @ Variable(_), RealLiteral(value)) =>
+        boundMap += (x -> boundMap.getOrElse(x, emptyBound).updateAbsUncertTight(value)); True
+
+      case Noise(_, _) =>
+        throw UnsupportedRealFragmentException(e.toString); True
+
+      case RelError(x @ Variable(id), RealLiteral(value)) =>
+        boundMap += (x -> boundMap.getOrElse(x, emptyBound).updateRelUncertTight(value)); True
+
+      case WithIn(x @ Variable(_), lwrBnd, upBnd) =>
+        boundMap += (x -> boundMap.getOrElse(x, emptyBound).updateLoTight(lwrBnd).updateUpTight(upBnd)); True
+
+      case WithIn(e, lwrBnd, upBnd) =>
+        throw UnsupportedRealFragmentException(e.toString); True
+
+      case Or(_) | Not(_) =>
+        throw new Exception("OR and NOT are not allowed when computing bounds"); e
+
+      case i: IfExpr => i
+      case _ =>
+        super.rec(e, path)
+
+    }
+
+    def getConstraints: Seq[Expr] = {
+      boundMap.map({
+        case (v, Bound(loEq, lo, up, upEq, absUncert, relUncert)) =>
+          var cnstrs = Seq[Expr]()
+          if (loEq.nonEmpty) cnstrs :+= LessEquals(RealLiteral(loEq.get), v)
+          if (lo.nonEmpty) cnstrs :+= LessThan(RealLiteral(lo.get), v)
+
+          if (up.nonEmpty) cnstrs :+= LessThan(v, RealLiteral(up.get))
+          if (upEq.nonEmpty) cnstrs :+= LessEquals(v, RealLiteral(upEq.get))
+
+          if (absUncert.nonEmpty) cnstrs :+= Noise(v, RealLiteral(absUncert.get))
+          if (relUncert.nonEmpty) cnstrs :+= RelError(v, RealLiteral(relUncert.get))
+          (v -> And(cnstrs))
+        }).values.toSeq
+    }
+
+  }
 
   def letsToEquals(expr: Expr): Expr = expr match {
     case Equals(l, r) => Equals(l, letsToEquals(r))
@@ -31,6 +242,13 @@ object TreeOps {
       And(exprs.map(e => letsToEquals(e)) :+ letsToEquals(last))
 
     case _ => expr
+  }
+
+  def containsIteration(expr: Expr): Boolean = {
+    exists {
+      case _: Iteration => true
+      case _ => false
+    }(expr)
   }
 
   def containsIfExpr(expr: Expr): Boolean = {
@@ -76,7 +294,8 @@ object TreeOps {
       assert(specs.length == variables.length)
       And(variables.zip(specs).map({
         case (resVar, spec) =>
-          And(specToExpr(spec), Equals(resVar, Variable(spec.id)))
+          //And(specToExpr(spec), Equals(resVar, Variable(spec.id)))
+          And(specExpr, Equals(resVar, Variable(spec.id)))
         }))
     
     // TODO: this won't work with tuples
@@ -112,11 +331,12 @@ object TreeOps {
 
     case Not(t) => Not(addResultsF(t, variables))
 
-    case FncValue(specs, specExpr) =>
+    case FncValueF(specs, specExpr) =>
       assert(specs.length == variables.length)
       And(variables.zip(specs).map({
         case (resVar, spec) =>
-          And(specToExpr(spec), EqualsF(resVar, Variable(spec.id)))
+          //And(specToExpr(spec), EqualsF(resVar, Actual(Variable(spec.id))))
+          And(specExpr, EqualsF(resVar, Actual(Variable(spec.id))))
         }))
     
     // TODO: this won't work with tuples
@@ -173,63 +393,9 @@ object TreeOps {
 
 
   /* -----------------------
-           Evaluation
-   ------------------------- */
-  def inIntervals(expr: Expr, vars: VariablePool): RationalInterval = expr match {
-    case RealLiteral(r) => RationalInterval(r, r)
-    case v @ Variable(_) => vars.getInterval(v)
-    case UMinusR(t) => - inIntervals(t, vars)
-    case PlusR(l, r) => inIntervals(l, vars) + inIntervals(r, vars)
-    case MinusR(l, r) => inIntervals(l, vars) - inIntervals(r, vars)
-    case TimesR(l, r) => inIntervals(l, vars) * inIntervals(r, vars)
-    case DivisionR(l, r) => inIntervals(l, vars) / inIntervals(r, vars)
-    case SqrtR(t) =>
-      val tt = inIntervals(t, vars)
-      RationalInterval(sqrtDown(tt.xlo), sqrtUp(tt.xhi))
-  }
-
-
-
-
-  /* -----------------------
         Function calls
    ------------------------- */
-  class AssertionCollector(outerFunDef: FunDef, precondition: Expr, variables: VariablePool, precisions: List[Precision]) extends TransformerWithPC {
-    type C = Seq[Expr]
-    val initC = Nil
-
-    var vcs = Seq[VerificationCondition]()
-
-    def register(e: Expr, path: C) = path :+ e
-
-    override def rec(e: Expr, path: C) = e match {
-      case FunctionInvocation(funDef, args) if (funDef.precondition.isDefined) =>
-
-        val (simpleArgs, morePath) = args.map(a => a match {
-          case Variable(_) => (a, True)
-          case _ =>
-            val fresh = getFreshTmp
-            (fresh, Equals(fresh, a))
-        }).unzip
-
-        val pathToFncCall = And(path ++ morePath)
-        val arguments: Map[Expr, Expr] = funDef.params.map(decl => decl.toVariable).zip(simpleArgs).toMap
-        val toProve = replace(arguments, removeRoundoff(funDef.precondition.get))
-
-        val allFncCalls = functionCallsOf(pathToFncCall).map(invc => invc.tfd.id.toString)
-        vcs :+= new VerificationCondition(outerFunDef, Precondition, precondition, pathToFncCall, toProve, allFncCalls, variables, precisions)
-        e
-
-      case Assertion(toProve) =>
-        val pathToAssertion = And(path)
-        val allFncCalls = functionCallsOf(pathToAssertion).map(invc => invc.tfd.id.toString)
-        vcs :+= new VerificationCondition(outerFunDef, Assert, precondition, pathToAssertion, toProve, allFncCalls, variables, precisions)
-        e
-      case _ =>
-        super.rec(e, path)
-    }
-  }
-
+  
   def extractPostCondition(resId: Identifier, postExpr: Expr, resFresh: Seq[Identifier]): Expr = postExpr match {
     case MatchExpr(Variable(scrutinee),
       Seq(SimpleCase(TuplePattern(None, wildcards), caseExpr))) if (scrutinee == resId) =>
@@ -247,257 +413,7 @@ object TreeOps {
     case _ => // simple case (no tuples)
       replace(Map(Variable(resId) -> Variable(resFresh.head)), postExpr)
   }
-
-  /*
-    Replace the function call with its specification. For translation to Z3 FncValue needs to be translated
-    with a fresh variable. For approximation, translate the spec into an XFloat.
-  */
-  def inlinePostcondition(expr: Expr, precision: Precision, postMap: Map[FunDef, Seq[Spec]]): Expr = {
-    var tmpCounter = 0
-
-    def getFresh: Identifier = {
-      tmpCounter = tmpCounter + 1
-      FreshIdentifier("#tmp" + tmpCounter).setType(RealType)
-    }
-
-    preMap {
-      case FunctionInvocation(typedFunDef, args) =>
-        val funDef = typedFunDef.fd
-        val arguments: Map[Expr, Expr] = funDef.params.map(decl => decl.toVariable).zip(args).toMap
-        
-        funDef.postcondition.flatMap({
-          case (resId, postExpr) =>
-            val resFresh = resId.getType match {
-              case TupleType(bases) => Seq(getFresh, getFresh)
-              case _ => Seq(getFresh)
-            }
-            println(s"$resFresh")
-            val postcondition = extractPostCondition(resId, postExpr, resFresh)
-            println(s"$postcondition")
-
-            try {
-              val specs: Seq[Spec] = resFresh.map( r => {
-                extractSpecs(postcondition, r).get
-              })
-              val deltaMap: Map[Identifier, Rational] = specs.map( s => (s.id, s.absError)).toMap
-
-              val realSpecExpr = actualToRealSpec(postcondition, deltaMap)
-
-              Some(FncValue(specs, replace(arguments, realSpecExpr)))
-            } catch {
-              case e: Exception => None
-            }
-        }) match {
-          case Some(fncValue) => Some(fncValue)
-          case _ => postMap.getOrElse(funDef, Seq()) match {
-            case specs: Seq[Spec] if specs.nonEmpty =>
-              val specsExpr = And(specs.map(specToExpr(_)))
-              Some(FncValue(specs, replace(arguments, specsExpr)))
-            case _ =>
-              throw PostconditionInliningFailedException("missing postcondition for " + funDef.id.name);
-              null
-          }
-        }
-
-      case _ => None
-    }(expr)
-  }
-
-
-  def extractSpecs(e: Expr, id: Identifier): Option[Spec] = {
-    var lwrBoundReal: Option[Rational] = None
-    var upBoundReal: Option[Rational] = None
-    var lwrBoundActual: Option[Rational] = None
-    var upBoundActual: Option[Rational] = None
-    var error: Option[Rational] = None
-    var extras = List[Expr]()
-
-    preTraversal{
-      case LessEquals(RealLiteral(lwrBnd), Variable(id)) => lwrBoundReal = Some(lwrBnd)
-      case LessEquals(Variable(id), RealLiteral(uprBnd)) => upBoundReal = Some(uprBnd)
-      case LessThan(RealLiteral(lwrBnd), Variable(id)) => lwrBoundReal = Some(lwrBnd)
-      case LessThan(Variable(id), RealLiteral(uprBnd)) =>  upBoundReal = Some(uprBnd)
-      case GreaterEquals(RealLiteral(uprBnd), Variable(id)) =>  upBoundReal = Some(uprBnd)
-      case GreaterEquals(Variable(id), RealLiteral(lwrBnd)) => lwrBoundReal = Some(lwrBnd)
-      case GreaterThan(RealLiteral(uprBnd), Variable(id)) =>  upBoundReal = Some(uprBnd)
-      case GreaterThan(Variable(id), RealLiteral(lwrBnd)) => lwrBoundReal = Some(lwrBnd)
-
-      case LessEquals(RealLiteral(lwrBnd), Actual(Variable(id))) => lwrBoundActual = Some(lwrBnd)
-      case LessEquals(Actual(Variable(id)), RealLiteral(uprBnd)) => upBoundActual = Some(uprBnd)
-      case LessThan(RealLiteral(lwrBnd), Actual(Variable(id))) => lwrBoundActual = Some(lwrBnd)
-      case LessThan(Actual(Variable(id)), RealLiteral(uprBnd)) => upBoundActual = Some(uprBnd)
-      case GreaterEquals(RealLiteral(uprBnd), Actual(Variable(id))) => upBoundActual = Some(uprBnd)
-      case GreaterEquals(Actual(Variable(id)), RealLiteral(lwrBnd)) => lwrBoundActual = Some(lwrBnd)
-      case GreaterThan(RealLiteral(uprBnd), Actual(Variable(id))) => upBoundActual = Some(uprBnd)
-      case GreaterThan(Actual(Variable(id)), RealLiteral(lwrBnd)) => lwrBoundActual = Some(lwrBnd)
-
-      case Noise(Variable(id), RealLiteral(value)) => error = Some(value)
-
-      case Times(_, _) | Plus(_, _) | Division(_, _) | Minus(_, _) | UMinus(_) =>
-        throw new Exception("found integer arithmetic in ResultCollector")
-
-      case _ => ;
-    } (e)
-
-    error flatMap ( err => {
-        if ((lwrBoundReal.nonEmpty || lwrBoundActual.nonEmpty) && (upBoundReal.nonEmpty || upBoundActual.nonEmpty)) {
-          Some(Spec(id, RationalInterval(lwrBoundReal.getOrElse(lwrBoundActual.get - err),
-               upBoundReal.getOrElse(upBoundActual.get + err)), err))
-        } else {
-          None
-        }
-      })
-  }
-
-  def actualToRealSpec(e: Expr, deltas: Map[Identifier, Rational]): Expr = {
-    val ids = deltas.keys.toSeq
-
-    preMap {
-      case LessEquals(RealLiteral(lwrBnd), Actual(Variable(id))) if (ids.contains(id)) =>
-        Some(LessEquals(RealLiteral(lwrBnd - deltas(id)), Variable(id)))
-
-      case LessEquals(Actual(Variable(id)), RealLiteral(uprBnd)) if (ids.contains(id)) =>
-        Some(LessEquals(Variable(id), RealLiteral(uprBnd + deltas(id))))
-
-      case LessThan(RealLiteral(lwrBnd), Actual(Variable(id))) if (ids.contains(id)) =>
-        Some(LessThan(RealLiteral(lwrBnd - deltas(id)), Variable(id)))
-
-      case LessThan(Actual(Variable(id)), RealLiteral(uprBnd)) if (ids.contains(id)) =>
-        Some(LessThan(Variable(id), RealLiteral(uprBnd + deltas(id))))
-
-      case GreaterEquals(RealLiteral(uprBnd), Actual(Variable(id))) if (ids.contains(id)) =>
-        Some(GreaterEquals(RealLiteral(uprBnd + deltas(id)), Variable(id)))
-
-      case GreaterEquals(Actual(Variable(id)), RealLiteral(lwrBnd)) if (ids.contains(id)) =>
-        Some(GreaterEquals(Variable(id), RealLiteral(lwrBnd - deltas(id))))
-
-      case GreaterThan(RealLiteral(uprBnd), Actual(Variable(id))) if (ids.contains(id)) =>
-        Some(GreaterThan(RealLiteral(uprBnd + deltas(id)), Variable(id)))
-
-      case GreaterThan(Actual(Variable(id)), RealLiteral(lwrBnd)) if (ids.contains(id)) =>
-        Some(GreaterThan(Variable(id), RealLiteral(lwrBnd - deltas(id))))
-
-      case _ => None
-    }(e)
-  }
-
-  def inlineFunctions(e: Expr, fncs: Map[FunDef, Fnc]): Expr = {
-    preMap {
-      case FunctionInvocation(funDef, args) =>
-        val arguments: Map[Expr, Expr] = funDef.fd.params.map(decl => decl.toVariable).zip(args).toMap
-        val fncBody = fncs(funDef.fd).body
-
-        val newBody = replace(arguments, fncBody)
-        Some(FncBody(funDef.id.name, newBody, funDef.fd, args))
-
-      case _ =>  None
-    }(e)
-  }
-
-  /* -----------------------
-       Fixed-points
-   ------------------------- */
-
-  def toSSA(expr: Expr, fncs: Map[FunDef, Fnc]): Expr = {
-    val transformer = new SSATransformer(fncs)
-    transformer.transform(expr)
-  }
-
-  private class SSATransformer(fncs: Map[FunDef, Fnc]) extends TransformerWithPC {
-    type C = Seq[Expr]
-    val initC = Nil
-
-    // Note that this transforms real arithmetic to float arithmetic
-    private def arithToSSA(expr: Expr): (Seq[Expr], Expr) = expr match {
-      case PlusR(lhs, rhs) =>
-        val (lSeq, lVar) = arithToSSA(lhs)
-        val (rSeq, rVar) = arithToSSA(rhs)
-        val tmpVar = getFreshValidTmp
-        (lSeq ++ rSeq :+ Equals(tmpVar, PlusR(lVar, rVar)), tmpVar)
-
-      case MinusR(lhs, rhs) =>
-        val (lSeq, lVar) = arithToSSA(lhs)
-        val (rSeq, rVar) = arithToSSA(rhs)
-        val tmpVar = getFreshValidTmp
-        (lSeq ++ rSeq :+ Equals(tmpVar, MinusR(lVar, rVar)), tmpVar)
-
-      case TimesR(lhs, rhs) =>
-        val (lSeq, lVar) = arithToSSA(lhs)
-        val (rSeq, rVar) = arithToSSA(rhs)
-        val tmpVar = getFreshValidTmp
-        (lSeq ++ rSeq :+ Equals(tmpVar, TimesR(lVar, rVar)), tmpVar)
-
-      case DivisionR(lhs, rhs) =>
-        val (lSeq, lVar) = arithToSSA(lhs)
-        val (rSeq, rVar) = arithToSSA(rhs)
-        val tmpVar = getFreshValidTmp
-        (lSeq ++ rSeq :+ Equals(tmpVar, DivisionR(lVar, rVar)), tmpVar)
-
-      case UMinusR(t) =>
-        val (seq, v) = arithToSSA(t)
-        val tmpVar = getFreshValidTmp
-        (seq :+ Equals(tmpVar, UMinusR(v)), tmpVar)
-
-      case RealLiteral(_) | Variable(_) => (Seq[Expr](), expr)
-
-      case FunctionInvocation(funDef, args) =>
-        val argsToSSA: Seq[(Seq[Expr], Expr)] = args.map( arithToSSA(_) )
-
-        val (ssa, newArgs) = argsToSSA.unzip
-
-        val arguments: Map[Expr, Expr] = funDef.fd.params.map(decl => decl.toVariable).zip(newArgs).toMap
-        val fncBody = fncs(funDef.fd).body
-
-        val newBody = replace(arguments, fncBody)
-        
-        val tmpVar = getFreshValidTmp
-        (ssa.flatten :+ Equals(tmpVar, FncBody(funDef.id.name, newBody, funDef.fd, newArgs)), tmpVar)
-
-    }
-
-    def register(e: Expr, path: C) = path :+ e
-
-    override def rec(e: Expr, path: C) = e match {
-      case Equals(v, arithExpr: RealArithmetic) =>
-        val (seq, tmpVar) = arithToSSA(arithExpr)
-        And(And(seq), EqualsF(v, tmpVar))
-
-      case Equals(v, fnc: FunctionInvocation) =>
-        val (seq, tmpVar) = arithToSSA(fnc)
-        And(And(seq), EqualsF(v, tmpVar))
-      
-      case IfExpr(GreaterEquals(l, r), t, e) =>
-        val (seqLhs, tmpVarLhs) = arithToSSA(l)
-        val (seqRhs, tmpVarRhs) = arithToSSA(r)
-        And(And(seqLhs ++ seqRhs), IfExpr(GreaterEquals(tmpVarLhs, tmpVarRhs), rec(t, path), rec(e, path)))
-
-      case IfExpr(LessEquals(l, r), t, e) =>
-        val (seqLhs, tmpVarLhs) = arithToSSA(l)
-        val (seqRhs, tmpVarRhs) = arithToSSA(r)
-        And(And(seqLhs ++ seqRhs), IfExpr(LessEquals(tmpVarLhs, tmpVarRhs), rec(t, path), rec(e, path)))
-
-      case IfExpr(GreaterThan(l, r), t, e) =>
-        val (seqLhs, tmpVarLhs) = arithToSSA(l)
-        val (seqRhs, tmpVarRhs) = arithToSSA(r)
-        And(And(seqLhs ++ seqRhs), IfExpr(GreaterThan(tmpVarLhs, tmpVarRhs), rec(t, path), rec(e, path)))
-
-      case IfExpr(LessThan(l, r), t, e) =>
-        val (seqLhs, tmpVarLhs) = arithToSSA(l)
-        val (seqRhs, tmpVarRhs) = arithToSSA(r)
-        And(And(seqLhs ++ seqRhs), IfExpr(LessThan(tmpVarLhs, tmpVarRhs), rec(t, path), rec(e, path)))
-
-      case arithExpr: RealArithmetic =>
-        val (seq, tmpVar) = arithToSSA(arithExpr)
-        And(And(seq), tmpVar)
-
-      case fnc: FunctionInvocation =>
-        val (seq, tmpVar) = arithToSSA(fnc)
-        And(And(seq), tmpVar)
-
-      case _ =>
-        super.rec(e, path)
-    }
-  }
+  
 
   /**
     Removes all error terms.
@@ -525,7 +441,59 @@ object TreeOps {
   def removeErrorsAndActual(e: Expr): Expr = {
     preMap {
       case Noise(_,_) | Roundoff(_) | RelError(_,_) => Some(True)
-      case Actual(e) => Some(e)
+      case LessThan(Actual(e), _ ) => Some(True)
+      case LessThan(_, Actual(e)) => Some(True)
+
+      case LessEquals(Actual(e), _ ) => Some(True)
+      case LessEquals(_, Actual(e)) => Some(True)
+      
+      case GreaterThan(Actual(e), _ ) => Some(True)
+      case GreaterThan(_, Actual(e)) => Some(True)
+      
+      case GreaterEquals(Actual(e), _ ) => Some(True)
+      case GreaterEquals(_, Actual(e)) => Some(True)
+      
+      case _ => None
+    }(e)
+  }
+
+  private def belongsToActual(e: Expr): Boolean = {
+    var contains = false
+    preTraversal {
+      case Actual(_) | Noise(_,_) | RelError(_,_) => contains = true
+      case UMinusF(_) | PlusF(_,_) | MinusF(_,_) | TimesF(_,_) | DivisionF(_,_) | SqrtF(_) =>
+        contains = true
+      case EqualsF(_,_) => contains = true
+      case _ => ;
+    }(e)
+    contains
+  }
+
+  def filterOutIdeal(expr: Expr): Expr = expr match {
+    case And(args) =>
+      And(args.map(a => filterOutIdeal(a)))
+
+    case LessThan(l, r) if (!belongsToActual(l) && !belongsToActual(r)) => True
+    case LessEquals(l, r) if (!belongsToActual(l) && !belongsToActual(r)) => True
+    case GreaterThan(l, r) if (!belongsToActual(l) && !belongsToActual(r)) => True
+    case GreaterEquals(l, r) if (!belongsToActual(l) && !belongsToActual(r)) => True
+    case _ => expr
+  }
+
+  def filterOutActualInFncVal(e: Expr): Expr = {
+    def filterOutActual(expr: Expr): Expr = expr match {
+      case And(args) =>
+        And(args.map(a => filterOutActual(a)))
+
+      case LessThan(l, r) if (belongsToActual(l) || belongsToActual(r)) => True
+      case LessEquals(l, r) if (belongsToActual(l) || belongsToActual(r)) => True
+      case GreaterThan(l, r) if (belongsToActual(l) || belongsToActual(r)) => True
+      case GreaterEquals(l, r) if (belongsToActual(l) || belongsToActual(r)) => True
+      case _ => expr
+    }
+
+    preMap {
+      case FncValue(s, sexpr) => Some(FncValue(s, filterOutActual(sexpr)))
       case _ => None
     }(e)
   }
@@ -557,7 +525,8 @@ object TreeOps {
       // leave conditions on if-then-else in reals, as they will be passed as conditions to Z3
       case LessEquals(_,_) | LessThan(_,_) | GreaterEquals(_,_) | GreaterThan(_,_) => e
 
-      case FncValue(s, id) => FncValueF(s, id)
+      case FncValue(s, sexpr) => FncValueF(s, filterOutIdeal(sexpr))
+
       case FncBody(n, b, f, a) => FncBodyF(n, rec(b, path), f, a)
       case FunctionInvocation(fundef, args) =>
         FncInvocationF(fundef, args.map(a => rec(a, path)))
@@ -569,16 +538,6 @@ object TreeOps {
         super.rec(e, path)
     }
   }
-
-  def specToExpr(s: Spec): Expr = {
-    And(And(LessEquals(RealLiteral(s.bounds.xlo), Variable(s.id)),
-            LessEquals(Variable(s.id), RealLiteral(s.bounds.xhi))),
-            Noise(Variable(s.id), RealLiteral(s.absError)))
-  }
-
-  def specToRealExpr(spec: Spec): Expr =
-    And(LessEquals(RealLiteral(spec.bounds.xlo), Variable(spec.id)),
-            LessEquals(Variable(spec.id), RealLiteral(spec.bounds.xhi)))
 
   /* --------------------
         Arithmetic ops
@@ -593,8 +552,10 @@ object TreeOps {
     val t3 = collectProducts(t2)
     //println("t3: " + t3)
     val t4 = transformPowers(t3)
-    //println("t4: " + t4)
-    simplifyArithmetic(t4)
+    //println("\nt4: " + t4)
+    val res = simplifyArithmetic(t4)
+    //println("res: " + res)
+    res
   }
 
 
