@@ -17,7 +17,7 @@ case class RealOptions(
   loopUnrolling: Boolean        = true,         // whether to (also) unroll loops up to max given by loopBound annotation
   simplifyCnstr: Boolean        = false,        // simplify constraint before passing to Z3
   massageArithmetic: Boolean    = true,        // whether to massage arithmetic before passing to Z3
-  removeRedundant: Boolean      = false,        // remove redundant constraints before passing to Z3
+  removeRedundant: Boolean      = true,        // remove redundant constraints before passing to Z3
   lipschitz: Boolean            = false         // compute Lipschitz constants
 
 ) {

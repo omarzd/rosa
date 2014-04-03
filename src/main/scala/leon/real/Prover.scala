@@ -24,13 +24,15 @@ import Rational._
 class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[FunDef, Fnc]) {
   implicit val debugSection = utils.DebugSectionRealProver
   val reporter = ctx.reporter
-  val solver = new RangeSolver(options.z3Timeout)
+  val rangeSolver = new RangeSolver(options.z3Timeout)
+  val solver = new NonIncrementalRangeSolver(options.z3Timeout)
+  //val solver = new RangeSolver(options.z3Timeout)
 
   // Returns the precision with which we can satisfy all constraints, or the last one tried,
   // as well as an indication whether verification was successfull.
   def check(vcs: Seq[VerificationCondition]): (Precision, Boolean) = {
     reporter.debug("VCs: " + vcs)
-    val approximations = vcs.map(vc => (vc, Approximations(options, fncs, reporter, solver, vc))).toMap
+    val approximations = vcs.map(vc => (vc, Approximations(options, fncs, reporter, rangeSolver, vc))).toMap
 
     val precisions = options.precision
 
