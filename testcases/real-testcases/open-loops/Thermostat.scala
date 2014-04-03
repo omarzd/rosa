@@ -17,19 +17,23 @@ object Thermostat {
   */
   def control(currentState: Real, in: Real): Real = {
     require(0.0 <= currentState && currentState <= 1.0 && 
-            15.0 <= in && in <= 35.0)
+            15.0 <= in && in <= 35.0 &&
+            ((in >= 26 && currentState < 0.5) ||
+             (in <= 19 && currentState > 0.5)) )
 
     // this is the simples controller possible
     if (in < 20.0) {
-      1.0
+      val x: Real = 1.0
+      x
     } else if (in > 25) {
-      0.0
+      val x: Real = 0.0
+      x
     } else {
       currentState
     }
   } ensuring (res => 0.0 <= res && res <= 1.0 &&
-      15 <= x - 0.1*x + 0.1 * (15 + res * 20) &&
-      x - 0.1*x + 0.1 * (15 + res * 20) <= 35
+      15 <= currentState - 0.1*currentState + 0.1 * (15 + res * 20) &&
+      currentState - 0.1*currentState + 0.1 * (15 + res * 20) <= 35
     /*
       when heater is off, res = 0.0: x' = -x + 15  , i.e. x -> 15
       when heater is on, res = 1.0: x' = -x + 35   , i.e. x -> 35

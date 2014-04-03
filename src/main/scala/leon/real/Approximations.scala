@@ -168,11 +168,11 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
   */
   def getApproximationAndSpec_ResultOnly(path: Path, precision: Precision): (Expr, Seq[Spec]) = path.bodyFinite match {
     case body =>
-      //solver.clearCounts
+      solver.clearCounts
       val approximator = new Approximator(reporter, solver, precision, And(vc.pre, path.condition),
                                                 vc.variables, options.pathError)
       val approx = approximator.getXRealForResult(body)
-      //println(solver.getCounts)
+      reporter.info("solver counts: " + solver.getCounts)
       val zipped = vc.variables.resultVars.zip(approx)
 
       val specs = zipped.map({
@@ -194,11 +194,11 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
   def getApproximationAndSpec_AllVars(path: Path, precision: Precision): Expr = path.bodyFinite match {
     case True => True // noop
     case body =>
-      //solver.clearCounts 
+      solver.clearCounts 
       val approximator = new Approximator(reporter, solver, precision, And(vc.pre, path.condition),
                                                   vc.variables, options.pathError)
       val approxs: Map[Expr, XReal] = approximator.getXRealForAllVars(body)
-      //println(solver.getCounts)
+      reporter.info("solver counts: " + solver.getCounts)
       
       val constraint = And(approxs.foldLeft(Seq[Expr]())(
           (seq, kv) => seq ++ Seq(LessEquals(RealLiteral(kv._2.interval.xlo), kv._1),

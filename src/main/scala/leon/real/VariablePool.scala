@@ -101,6 +101,7 @@ class VariablePool(val inputs: Map[Expr, Record], val resIds: Seq[Identifier], v
   }
 
   def hasValidInput(varDecl: Seq[ValDef], reporter: Reporter): Boolean = {
+    //println("params: " + varDecl(0) + "   " + varDecl(1))
     val params: Seq[Expr] = varDecl.map(vd => Variable(vd.id))
     if (loopCounter.isEmpty) {
       (inputs.size == params.size && inputs.forall(v => params.contains(v._1) && v._2.isBoundedValid))  
