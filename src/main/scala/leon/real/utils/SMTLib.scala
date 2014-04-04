@@ -19,7 +19,9 @@ object SMTLib {
     // declare all variables
     val allIDs = variablesOf(e)
     allIDs.foreach {
-      case id if (id.getType == RealType) => lines :+= "(declare-fun %s () Real)".format(id.uniqueName)
+      case id if (id.getType == RealType) =>
+        val name = id.uniqueName.replace('#', '_')
+        lines :+= "(declare-fun %s () Real)".format(name)
     }
 
     e match {
@@ -48,8 +50,10 @@ object SMTLib {
     case DivisionR(l, r) => "(/ %s %s)".format(toPrefix(l), toPrefix(r))
     case UMinusR(l) => "(- %s)".format(toPrefix(l))
     // TODO: this should be made a proper real
-    case RealLiteral(r) => "(%s)".format(r.toString)
-    case Variable(id) => id.uniqueName
+    case RealLiteral(r) =>
+      val decimal = "%.40f".format(r.toDouble)
+      decimal.replaceAll("0*$", "")
+    case Variable(id) => id.uniqueName.replace('#', '_')
     case PowerR(l, r) => "(^ %s %s)".format(toPrefix(l), toPrefix(r))
     case IntLiteral(i) => i.toString
 

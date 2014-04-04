@@ -22,6 +22,7 @@ last.log
 # generated file
 generated/*.scala
 vcs/*.txt
+smt/*.smt2
 
 # Latex aux files
 *.aux

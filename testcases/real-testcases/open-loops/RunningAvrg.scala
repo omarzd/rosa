@@ -3,6 +3,16 @@ import Real._
 
 object RunningAvrg {
 
+
+  def loopInvariant(m: Real, x: Real, c: Real): Real = {
+    require(-1200 <= m && currMean <= 1200 && -1200 <= m && currMean <= 1200 &&
+        1 <= c <= 10)
+
+
+  } ensuring ( res => 
+    )
+
+
   @modelInput                                 // this roundoff thing is probably not going to compile
   def nextValue: Real = { ??? } ensuring (res => -1200 <= next && next <= 1200 && roundoff(res))
 
@@ -11,12 +21,12 @@ object RunningAvrg {
     in the computation. We may still be able to prove something,
     since this computation has to hold for any counter.
   */
-  def mean(currMean: Real, counter: Real): Real = {
+  def mean(currMean: Real, counter: Int): Real = {
     require(-1200 <= currMean && currMean <= 1200 && loopCounter(counter))
 
     if (counter < 100) {
       val nextVal = nextValue
-      val newMean = ((counter - 1) * currMean + nextValue) / counter
+      val newMean = ((counter.toReal - 1) * currMean + nextValue) / counter.toReal
       mean(newMean, counter + 1)
     } else {
       currMean
