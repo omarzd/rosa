@@ -11,7 +11,7 @@ import purescala.TreeOps.replace
 import purescala.TreeOps.functionCallsOf
 import purescala.TransformerWithPC
 
-import real.Trees.{Roundoff, Iteration, UpdateFunction, Assertion, LoopCounter}
+import real.Trees.{Roundoff, Iteration, UpdateFunction, Assertion, LoopCounter, IntegerValue}
 import real.TreeOps._
 import real.VariableShop._
 import purescala.TreeOps._
@@ -32,10 +32,25 @@ object Analyser {
     // completeness of specs checks
     val (complete, incomplete) = sortedFncs.partition(f => {
       reporter.debug(f.id.name + ": precond.: " + f.precondition)
-      f.body.isDefined && f.precondition.nonEmpty})
+      f.body.isDefined && f.precondition.nonEmpty && !containsDisjunctionAndSuch(f.precondition.get)
+      })
 
     
-    incomplete.foreach(f => reporter.warning(f.id.name + ": body or precondition empty, skipping"))
+    incomplete.foreach(f =>
+      if (f.annotations.contains("model")) {
+        f.postcondition match {
+          case Some((resId, postExpr)) =>
+            assert(f.returnType == RealType)
+            val resFresh = FreshIdentifier("result", true).setType(RealType)
+            val postcondition = extractPostCondition(resId, postExpr, Seq(resFresh) )
+            fncs += ((f -> Fnc(True, f.body.get, postcondition)))
+          case _ => 
+            reporter.warning(f.id.name + ": marked as model but no postcondition found.")
+        }
+      } else {
+        reporter.warning(f.id.name + ": body or precondition empty, skipping")
+      })
+
     val (validFncs, invalidInputs) = complete.map(
       funDef => {
         val variables = VariablePool(funDef.precondition.get, funDef.returnType)
@@ -45,7 +60,7 @@ object Analyser {
     invalidInputs.foreach(x => reporter.warning(x._1.id.name + ": inputs incomplete, skipping!"))
 
     for ((funDef, variables) <- validFncs) {
-      val preGiven = removeLoopCounter( funDef.precondition.get )
+      val preGiven = removeLoopCounterAndIntegerValue( funDef.precondition.get )
       debug ("precondition is acceptable")
       val allFncCalls = functionCallsOf(funDef.body.get).map(invc => invc.tfd.id.toString)
 
@@ -228,15 +243,16 @@ object Analyser {
 
   }
 
-  private def removeLoopCounter(e: Expr): Expr = {
+  private def removeLoopCounterAndIntegerValue(e: Expr): Expr = {
     preMap {
       case LoopCounter(_) => Some(True)
+      case IntegerValue(_) => Some(True)
       case _ => None
     }(e)
   }
 
   class AssertionCollector(outerFunDef: FunDef, precondition: Expr, variables: VariablePool, precisions: List[Precision]) extends TransformerWithPC {
-    def inlineBody(body: Expr): Map[Expr, Expr] = {
+    /*def inlineBody(body: Expr): Map[Expr, Expr] = {
       var valMap: Map[Expr, Expr] = Map.empty
       preTraversal {
         expr => expr match {
@@ -247,7 +263,7 @@ object Analyser {
         }
       }(body)
       valMap
-    }
+    }*/
 
     type C = Seq[Expr]
     val initC = Nil
@@ -271,23 +287,28 @@ object Analyser {
         
         val arguments: Map[Expr, Expr] = funDef.params.map(decl => decl.toVariable).zip(simpleArgs).toMap
         
-        val toProve = replace(arguments, removeLoopCounter( removeRoundoff(funDef.precondition.get)) )
+        val toProve = replace(arguments, removeLoopCounterAndIntegerValue( removeRoundoff(funDef.precondition.get)) )
         
 
         val allFncCalls = functionCallsOf(pathToFncCall).map(invc => invc.tfd.id.toString)
         if (outerFunDef.id == funDef.id) {
           recursive = true
-          //println(s"pathToFncCall: $pathToFncCall")
+          /*println(s"pathToFncCall: $pathToFncCall")
           //println(s"arguments: $arguments")
           val valMap = inlineBody(pathToFncCall)
+          println("valMap: " + valMap)
+          println("arguments: " + arguments)
           val updateFncs = arguments.filter(x => !variables.isLoopCounter(x._1) ).map {
             case (k, v) => UpdateFunction(k, valMap(v))
-          }
+          }*/
           //println(updateFncs)
           //(LoopInvariant, updateFncs)
           val vc = new VerificationCondition(outerFunDef, LoopInvariant, precondition, pathToFncCall, toProve,
             allFncCalls, variables, precisions)
-          vc.updateFunctions = updateFncs.toSeq
+          //vc.updateFunctions = updateFncs.toSeq
+          vc.updateFunctions = arguments.filter(x => !variables.isLoopCounter(x._1) &&
+            !variables.isInteger(x._1))
+
           vcs :+= vc
         } else {
           //(Precondition, Seq[UpdateFunction]())

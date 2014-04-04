@@ -19,8 +19,7 @@ import purescala.TreeOps._
 import purescala.TypeTreeOps._
 import xlang.Trees.{Block => LeonBlock, _}
 import xlang.TreeOps._
-import real.Trees.{UMinusR, PlusR, MinusR, TimesR, DivisionR, SqrtR, RealLiteral, RelError, Noise, InitialNoise, 
-  Actual, Assertion, WithIn, UpdateFunction, Iteration, LoopCounter}
+import real.Trees._
 import real.TreeOps.letsToEquals
 
 import utils.{DefinedPosition, Position => LeonPosition, OffsetPosition => LeonOffsetPosition, RangePosition => LeonRangePosition}
@@ -40,6 +39,8 @@ trait CodeExtraction extends ASTExtractors {
       val name = a.atp.safeToString
       if (name startsWith "leon.annotation.") {
         Some(name.split("\\.", 3)(2))
+      } else if (name startsWith "leon.real.annotations.") {
+        Some(name.split("\\.")(3))
       } else {
         None
       }
@@ -1097,9 +1098,16 @@ trait CodeExtraction extends ASTExtractors {
           varr match {
             case Variable(id) => LoopCounter(id)
             case _ =>
-              outOfSubsetError(tr, "loopCounter only applicable to a variable!")
+              outOfSubsetError(tr, "loopCounter() only applicable to a variable!")
           }
-          
+        
+        case ExInteger(v) =>
+          val varr = extractTree(v)
+          varr match {
+            case Variable(id) => IntegerValue(id)
+            case _ =>
+              outOfSubsetError(tr, "integer() only applicable to a variable!")
+          }
 
         case ExIterate(args, es) =>
           val block = extractTree(es)

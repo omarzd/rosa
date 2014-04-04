@@ -4,6 +4,8 @@ import annotations._
 
 object HarmonicOscillator {
 
+  // TODO: to make this inductive, include some energy loss term
+
   /**
     Potential energy: E = 0.5 ( m v^2 + k x^2)
     here: m = 1, k = 2.3, E_initial = 115 (for v=0, x=10)

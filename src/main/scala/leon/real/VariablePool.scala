@@ -45,7 +45,8 @@ object EmptyRecord extends Record(False, False, None, None, None, None)
   and such things.
   @param map indexed by ideal variable
 */
-class VariablePool(val inputs: Map[Expr, Record], val resIds: Seq[Identifier], val loopCounter: Option[Identifier]) {
+class VariablePool(val inputs: Map[Expr, Record], val resIds: Seq[Identifier],
+  val loopCounter: Option[Identifier], val integers: Seq[Identifier]) {
   import VariablePool._
   private var allVars = inputs
 
@@ -91,6 +92,13 @@ class VariablePool(val inputs: Map[Expr, Record], val resIds: Seq[Identifier], v
     }
   }
 
+  def addVariableWithRange(id: Identifier, specExpr: Expr) = {
+    val (records, loopC, int) = collectVariables(specExpr)
+    val record = records(Variable(id))
+    //println("record to add: " + record)
+    allVars += (Variable(id) -> record) 
+  }
+
   def getValidRecords: Iterable[Record] = allVars.values.filter(r => r.isBoundedValid)
 
   def actualVariables: Set[Expr] = allVars.values.map(rec => rec.actual).toSet
@@ -120,6 +128,11 @@ class VariablePool(val inputs: Map[Expr, Record], val resIds: Seq[Identifier], v
     case _ => false
   }
 
+  def isInteger(x: Expr): Boolean = x match {
+    case Variable(id) => integers.contains(id)
+    case _ => false
+  }
+
   override def toString: String = allVars.toString 
 }
 
@@ -131,7 +144,7 @@ object VariablePool {
   }
 
   def apply(expr: Expr, returnType: TypeTree): VariablePool = {
-    val (records, loopC) = collectVariables(expr)
+    val (records, loopC, int) = collectVariables(expr)
     
     val resIds = returnType match {
       case TupleType(baseTypes) =>
@@ -143,14 +156,16 @@ object VariablePool {
         Seq(FreshIdentifier("result", true).setType(returnType))
     }
 
-    new VariablePool(records, resIds, loopC)
+    new VariablePool(records, resIds, loopC, int)
   }
 
-  def collectVariables(expr: Expr): (Map[Expr, Record], Option[Identifier]) = {
+  def collectVariables(expr: Expr): (Map[Expr, Record], Option[Identifier], Seq[Identifier]) = {
     var recordMap = Map[Expr, Record]()
     var loopCounter: Option[Identifier] = None
+    var integer: Seq[Identifier] = Seq.empty
 
     // (Sound) Overapproximation in the case of strict inequalities
+    // TODO: Not sound in case of disjunctions and such
     preTraversal {  
       case LessEquals(RealLiteral(lwrBnd), x @ Variable(_)) => // a <= x
         recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newLo(lwrBnd))
@@ -200,14 +215,16 @@ object VariablePool {
         throw UnsupportedRealFragmentException(expr.toString)
 
       case LoopCounter(id) =>
-        println("loopCounter found")
         if (loopCounter.isEmpty) loopCounter = Some(id)
         else {
           throw UnsupportedRealFragmentException("two loop counters are not allowed")
         }
-      case _ => ;
+
+      case IntegerValue(id) => integer = integer :+ id
+
+      case _ =>;
     }(expr)
-    (recordMap, loopCounter)
+    (recordMap, loopCounter, integer)
   }
 
 }

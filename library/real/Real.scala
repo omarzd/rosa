@@ -10,6 +10,7 @@ import scala.annotation.StaticAnnotation
 @leon.annotation.ignore
 object annotations {
   class loopbound(max: Int) extends StaticAnnotation
+  class model extends StaticAnnotation
 }
 
 object RealOps {
@@ -54,6 +55,13 @@ object RealOps {
     */
     @proxy
     def loopCounter(i: Int): Boolean = ???
+
+    // dummy value when we need to return something
+    @proxy
+    def realValue: Real = ???
+
+    @proxy
+    def integer(i: Real): Boolean = ???
 }
 
 @ignore

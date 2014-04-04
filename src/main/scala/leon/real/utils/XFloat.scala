@@ -154,18 +154,6 @@ object XFloat {
     (new XFloat(v, range, newError, config, machineEps), index)
   }
 
-  private def roundoff(range: RationalInterval, machineEps: Rational): Rational = {
-    val maxAbs = max(abs(range.xlo), abs(range.xhi))
-    // Without scaling this can return fractions with very large numbers
-    // TODO: try scaling the result
-    val simplifiedMax = Rational.scaleToIntsUp(maxAbs)
-    machineEps * simplifiedMax
-  }
-
-  private def roundoff(r: Rational, machineEps: Rational): Rational = {
-    machineEps * abs(r)
-  }
-
   var verbose = false
 }
 

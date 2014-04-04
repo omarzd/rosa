@@ -163,7 +163,7 @@ class LeonToZ3Transformer(variables: VariablePool, precision: Precision) extends
       else we need to modify the whole function to be returning tuples, or we return one, maybe that works too
       */
       // TODO: what happens with tuples?
-      case FncValue(specs, specExpr) =>
+      case FncValue(specs, specExpr, _) =>
         val fresh = getNewXFloatVar
         // tuples: fresh will have to be a tuple?
         addExtra(rec(replace(Map(Variable(specs(0).id) -> fresh), specExpr), path))

@@ -56,10 +56,10 @@ class Approximator(reporter: Reporter, solver: RangeSolver, precision: Precision
         if (exactInputs) reporter.warning("no exact inputs for fixedpoint")
         variables2xfixed(inputs, config, bits)._1
     }
+    //println("inputs: " + inputs)
+    if (verbose) println("initial variables: " + variables)
   }
-  if (verbose) println("initial variables: " + variables)
-
-
+  
   /* Expects the expression to be open, i.e. to return a value
    * (as opposed to last expr being x == ...) 
    *  Will work also for tupled results

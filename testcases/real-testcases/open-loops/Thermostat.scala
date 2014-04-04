@@ -18,6 +18,7 @@ object Thermostat {
   def control(currentState: Real, in: Real): Real = {
     require(0.0 <= currentState && currentState <= 1.0 && 
             15.0 <= in && in <= 35.0 &&
+            // TODO: preconditions like this don't work
             ((in >= 26 && currentState < 0.5) ||
              (in <= 19 && currentState > 0.5)) )
 
