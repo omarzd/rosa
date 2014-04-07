@@ -258,14 +258,6 @@ object TreeOps {
     }(expr)
   }
 
-  def containsDisjunctionAndSuch(expr: Expr): Boolean = {
-    exists{
-      case _: Or => true
-      case _: Not => true
-      case _ => false
-    }(expr)
-  }
-
   /* ----------------------
          Analysis phase
    ------------------------ */

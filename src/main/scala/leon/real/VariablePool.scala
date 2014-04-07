@@ -165,8 +165,7 @@ object VariablePool {
     var integer: Seq[Identifier] = Seq.empty
 
     // (Sound) Overapproximation in the case of strict inequalities
-    // TODO: Not sound in case of disjunctions and such
-    preTraversal {  
+    def addBound(e: Expr) = e match {  
       case LessEquals(RealLiteral(lwrBnd), x @ Variable(_)) => // a <= x
         recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newLo(lwrBnd))
 
@@ -223,7 +222,14 @@ object VariablePool {
       case IntegerValue(id) => integer = integer :+ id
 
       case _ =>;
-    }(expr)
+    }
+
+    // Only extract bounds from simple clauses, not, e.g. from disjunctions
+    expr match {
+      case And(args) => args.foreach(a => {println("checking " + a); addBound(a)})
+      case x => addBound(x)
+    }
+
     (recordMap, loopCounter, integer)
   }
 

@@ -32,7 +32,7 @@ object Analyser {
     // completeness of specs checks
     val (complete, incomplete) = sortedFncs.partition(f => {
       reporter.debug(f.id.name + ": precond.: " + f.precondition)
-      f.body.isDefined && f.precondition.nonEmpty && !containsDisjunctionAndSuch(f.precondition.get)
+      f.body.isDefined && f.precondition.nonEmpty
       })
 
     
