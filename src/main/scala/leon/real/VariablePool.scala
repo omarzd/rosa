@@ -226,7 +226,7 @@ object VariablePool {
 
     // Only extract bounds from simple clauses, not, e.g. from disjunctions
     expr match {
-      case And(args) => args.foreach(a => {println("checking " + a); addBound(a)})
+      case And(args) => args.foreach(a => addBound(a))
       case x => addBound(x)
     }
 
