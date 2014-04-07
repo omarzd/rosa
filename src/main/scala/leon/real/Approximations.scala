@@ -307,7 +307,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
                   val ids: Seq[Identifier] = vc.updateFunctions.keys.map(
                     u => u.asInstanceOf[Variable].id).toSeq
                   val (upFncs, modelConstraints) = getUpdateFunctions(path.bodyReal, vc.updateFunctions)
-
+                  //println("modelConstraints: " + modelConstraints)
                   val errs = getLoopError(And(preReal, And(modelConstraints.toSeq)), upFncs,
                     ids, precision)
                 }

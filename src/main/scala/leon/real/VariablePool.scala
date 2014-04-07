@@ -101,6 +101,16 @@ class VariablePool(val inputs: Map[Expr, Record], val resIds: Seq[Identifier],
 
   def getValidRecords: Iterable[Record] = allVars.values.filter(r => r.isBoundedValid)
 
+  def getValidInputRecords: Iterable[Record] = {
+    val inputIds = inputs.keys.toSeq
+    allVars.filter(x => inputIds.contains(x._1) && x._2.isBoundedValid).values
+  }
+
+  def getValidTmpRecords: Iterable[Record] = {
+    val inputIds = inputs.keys.toSeq
+    allVars.filter(x => !inputIds.contains(x._1) && x._2.isBoundedValid).values
+  }
+
   def actualVariables: Set[Expr] = allVars.values.map(rec => rec.actual).toSet
 
   def getInterval(v: Expr): RationalInterval = {
