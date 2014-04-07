@@ -25,11 +25,11 @@ object XFloat {
     @param config solver, precondition, which precision to choose
     @param withRoundoff whether the initial XFloat should also get an roundoff error, additionally to the noise
    */
-  def variables2xfloats(vars: VariablePool, config: XConfig, machineEps: Rational, withRoundoff: Boolean = false): (Map[Expr, XFloat], Map[Int, Expr]) = {
+  def variables2xfloats(vars: Iterable[Record], config: XConfig, machineEps: Rational, withRoundoff: Boolean = false): (Map[Expr, XFloat], Map[Int, Expr]) = {
     var variableMap: Map[Expr, XFloat] = Map.empty
     var indexMap: Map[Int, Expr] = Map.empty
 
-    for(rec <- vars.getValidRecords) {
+    for(rec <- vars) {
       rec match {
         case r @ Record(v @ Variable(_), a @ Variable(_), Some(lo), Some(up), _, _) if (!r.uncertainty.isEmpty) =>
           val (xfloat, index) = XFloat.xFloatWithUncertain(v, RationalInterval(lo, up), config, r.uncertainty.get, withRoundoff, machineEps)
@@ -44,39 +44,14 @@ object XFloat {
         case _ =>
           throw new Exception("bug!")
       }
-
-        /*(rec.absNoise, rec.relNoise) match { // was already checked that only one is possible
-          case (Some(n), None) =>
-            // index is the index of the main uncertainty, not the roundoff
-            val (xfloat, index) = XFloat.xFloatWithUncertain(k,
-                    RationalInterval(rec.lo.get, rec.up.get),
-                    config, n, withRoundoff)
-            variableMap = variableMap + (k -> xfloat)
-            indexMap = indexMap + (index -> k)
-
-          case (None, Some(factor)) =>
-            val maxError = factor * max(abs(rec.lo.get), abs(rec.up.get))
-            // index is the index of the main uncertainty, not the roundoff
-            val (xfloat, index) = XFloat.xFloatWithUncertain(k,
-                    RationalInterval(rec.lo.get, rec.up.get),
-                    config, maxError, withRoundoff)
-            variableMap = variableMap + (k -> xfloat)
-            indexMap = indexMap + (index -> k)
-
-          case (None, None) => // default roundoff
-            val (xfloat, index) = XFloat.xFloatWithRoundoff(k,
-                    RationalInterval(rec.lo.get, rec.up.get), config)
-            variableMap = variableMap + (k -> xfloat)
-            indexMap = indexMap + (index -> k)
-        }*/
     }
     (variableMap, indexMap)
   }
 
-  def variables2xfloatsExact(vars: VariablePool, config: XConfig, machineEps: Rational): Map[Expr, XFloat] = {
+  def variables2xfloatsExact(vars: Iterable[Record], config: XConfig, machineEps: Rational): Map[Expr, XFloat] = {
     var variableMap: Map[Expr, XFloat] = Map.empty
     
-    for(rec <- vars.getValidRecords) {
+    for(rec <- vars) {
       rec match {
         case Record(v @ Variable(_), a @ Variable(_), Some(lo), Some(up), _, _) =>
           val xfloat = XFloat.xFloatExact(v, RationalInterval(lo, up), config, machineEps)
@@ -152,18 +127,6 @@ object XFloat {
     val rndoff = roundoff(range, machineEps)
     val (newError, index) = addNoiseWithIndex(new XRationalForm(Rational.zero), rndoff)
     (new XFloat(v, range, newError, config, machineEps), index)
-  }
-
-  private def roundoff(range: RationalInterval, machineEps: Rational): Rational = {
-    val maxAbs = max(abs(range.xlo), abs(range.xhi))
-    // Without scaling this can return fractions with very large numbers
-    // TODO: try scaling the result
-    val simplifiedMax = Rational.scaleToIntsUp(maxAbs)
-    machineEps * simplifiedMax
-  }
-
-  private def roundoff(r: Rational, machineEps: Rational): Rational = {
-    machineEps * abs(r)
   }
 
   var verbose = false

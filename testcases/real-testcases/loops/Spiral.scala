@@ -9,7 +9,6 @@ object Spiral {
     require(loopCounter(k) && x*x + y*y < 100 &&
       -10 <= x && x <= 10 && -10 <= y && y <= 10)
     
-    // k should be an integer
     if (k < 5) {
       val x1 = (9.9*x - y)/10
       val y1 = (9.9*y + x)/10

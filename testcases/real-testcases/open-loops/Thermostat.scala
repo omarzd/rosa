@@ -18,10 +18,9 @@ object Thermostat {
   def control(currentState: Real, in: Real): Real = {
     require(0.0 <= currentState && currentState <= 1.0 && 
             15.0 <= in && in <= 35.0 &&
-            ((in >= 26 && currentState < 0.5) ||
-             (in <= 19 && currentState > 0.5)) )
+            ((in >= 26 && currentState < 0.5) || (in <= 19 && currentState > 0.5)) )
 
-    // this is the simples controller possible
+    // this is the simplest controller possible
     if (in < 20.0) {
       val x: Real = 1.0
       x
@@ -31,9 +30,11 @@ object Thermostat {
     } else {
       currentState
     }
+    // TODO: the postcondition will have to be checked with the error
+    // taken into account
   } ensuring (res => 0.0 <= res && res <= 1.0 &&
-      15 <= currentState - 0.1*currentState + 0.1 * (15 + res * 20) &&
-      currentState - 0.1*currentState + 0.1 * (15 + res * 20) <= 35
+      15 <= in - 0.1*in + 0.1 * (15 + res * 20) &&
+      in - 0.1*in + 0.1 * (15 + res * 20) <= 35)
     /*
       when heater is off, res = 0.0: x' = -x + 15  , i.e. x -> 15
       when heater is on, res = 1.0: x' = -x + 35   , i.e. x -> 35
@@ -42,7 +43,7 @@ object Thermostat {
       val nextTemp = x - 0.1*x + 0.1 * (15 + res * 20)
       nextTemp \in (20, 25)
     */
-    )
+    
 
   // We could also model the fact that the temperature can only change by so much,
   // by passing in the last known temp. and maybe the timespan

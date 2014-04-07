@@ -32,17 +32,14 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
   if (vc.kind == VCKind.LoopPost) kinds = kinds.filter(_.arithmApprox == NoApprox)
   else if (!options.z3Only) kinds = kinds.filter(_.arithmApprox != NoApprox)
 
-  //println("after z3Only: " + kinds)
-
   if (!containsIfs || options.pathError) kinds = kinds.filter(_.pathHandling == Merging)
-  //println("after ifs: " + kinds)
-
+  
   if (!containsFncs) kinds = kinds.filter(_.fncHandling == Uninterpreted)
   else kinds = kinds.filter(_.fncHandling != Uninterpreted)
-  //println("after fnc: " + kinds)
-
+  
   if (vc.kind == VCKind.LoopPost) kinds = kinds.filter(ak => ak.fncHandling == Postcondition && ak.pathHandling == Pathwise)
-  //println("kinds: " + kinds)
+  
+
 
   private def getSigmaLipschitzMatrix(preReal: Expr, updateFncs: Seq[UpdateFunction],
     ids: Seq[Identifier], precision: Precision): (Seq[Rational], RMatrix) = {
@@ -74,8 +71,8 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
     assert(updateFncs.length == ids.length)  // for a loop
 
     val (sigmas, mK) = getSigmaLipschitzMatrix(preReal, updateFncs, ids, precision)    
-    reporter.debug("sigmas: " + sigmas)
-    reporter.debug("K: " + mK)
+    reporter.info("sigmas: " + sigmas)
+    reporter.info("K: " + mK)
 
     vc.funDef.loopBound match {
       case Some(n) =>
@@ -303,12 +300,16 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
               constraints :+= Constraint(And(precondition, path.condition), path.bodyReal, bodyApprox,
                 postcondition)
 
-              //println("update fncs:" + vc.updateFunctions)
               if (options.lipschitz) {
-                val ids = vc.updateFunctions.map(u => u.lhs.asInstanceOf[Variable].id)
                 reporter.debug("Computing loop error...")
                 if (vc.kind == VCKind.LoopInvariant) {
-                  val errs = getLoopError(preReal, vc.updateFunctions, ids, precision)
+                  // construct the update functions
+                  val ids: Seq[Identifier] = vc.updateFunctions.keys.map(
+                    u => u.asInstanceOf[Variable].id).toSeq
+                  val (upFncs, modelConstraints) = getUpdateFunctions(path.bodyReal, vc.updateFunctions)
+                  //println("modelConstraints: " + modelConstraints)
+                  val errs = getLoopError(And(preReal, And(modelConstraints.toSeq)), upFncs,
+                    ids, precision)
                 }
               }
             } else {
@@ -366,24 +367,29 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
 
 
   private def validLoopCondition(e: Expr) = e match {
-    case LessEquals(l, r) =>
-      println(l.getType + "  " + r.getType)
-      (l.getType == Int32Type && r.getType == Int32Type)
-    case LessThan(l, r) => 
-    println(l.getType + "  " + r.getType)
-    (l.getType == Int32Type && r.getType == Int32Type)
-    case GreaterEquals(l, r) =>
-      println(l.getType + "  " + r.getType)
-       (l.getType == Int32Type && r.getType == Int32Type)
-    case GreaterThan(l, r) => 
-      println(l.getType + "  " + r.getType)
-      (l.getType == Int32Type && r.getType == Int32Type)
+    case LessEquals(l, r) if(l.getType == Int32Type && r.getType == Int32Type) => true
+    case LessThan(l, r) if(l.getType == Int32Type && r.getType == Int32Type) => true 
+    case GreaterEquals(l, r) if(l.getType == Int32Type && r.getType == Int32Type) => true
+    case GreaterThan(l, r) if(l.getType == Int32Type && r.getType == Int32Type) => true 
+
+    case LessEquals(Variable(id), RealLiteral(_)) if (vc.variables.integers.contains(id)) => true
+    case LessEquals(RealLiteral(_), Variable(id)) if (vc.variables.integers.contains(id)) => true
+
+    case LessThan(Variable(id), RealLiteral(_)) if (vc.variables.integers.contains(id)) => true
+    case LessThan(RealLiteral(_), Variable(id)) if (vc.variables.integers.contains(id)) => true
+
+    case GreaterEquals(Variable(id), RealLiteral(_)) if (vc.variables.integers.contains(id)) => true
+    case GreaterEquals(RealLiteral(_), Variable(id)) if (vc.variables.integers.contains(id)) => true
+
+    case GreaterThan(Variable(id), RealLiteral(_)) if (vc.variables.integers.contains(id)) => true
+    case GreaterThan(RealLiteral(_), Variable(id)) if (vc.variables.integers.contains(id)) => true
+
     case _ =>
       println("other")
       false
   }
 
-  private def inlineBody(body: Expr, updateFncs: Seq[UpdateFunction]): Seq[UpdateFunction] = {
+  private def getValMapForInlining(body: Expr): Map[Expr, Expr] = {
     var valMap: Map[Expr, Expr] = Map.empty
     preTraversal { expr => expr match {
         case Equals(v @ Variable(id), rhs) =>
@@ -391,15 +397,23 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
         case _ => ;
       }
     }(body)
+    valMap
+  }
+
+  private def inlineBody(body: Expr, updateFncs: Seq[UpdateFunction]): Seq[UpdateFunction] = {
+    var valMap: Map[Expr, Expr] = getValMapForInlining(body)
     updateFncs.map( uf => UpdateFunction(uf.lhs, replace(valMap, uf.rhs)))
   }
 
+  // Also needs to inline the FncVal's and keep track of the additional condition
   private def inlineBody(body: Expr): Expr = {
     var valMap: Map[Expr, Expr] = Map.empty
     val lastInstruction = preMap { expr => expr match {
+
         case Equals(v @ Variable(id), rhs) =>
           valMap = valMap + (v -> replace(valMap,rhs))
           Some(True)
+
         case x => Some(x)  //last instruction
       }
     }(body)
@@ -408,6 +422,28 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
     val res = replace(valMap, lastInstruction)
     //println("res: " + res)
     res
+  }
+
+  private def getUpdateFunctions(body: Expr, args: Map[Expr, Expr]): (Seq[UpdateFunction], Set[Expr]) = {
+    var modelConstraints = Set[Expr]()
+    val body2 = preMap {
+      case FncValue(specs, specExpr, true) =>
+        assert(specs.length == 1)
+        modelConstraints += specExpr
+
+        // TODO: not ideal to do it here, hidden away. And it's a side-effect
+        vc.variables.addVariableWithRange(specs(0).id, specExpr)
+
+        Some(Variable(specs(0).id))
+      case _ => None
+    }(body)
+
+    var valMap: Map[Expr, Expr] = getValMapForInlining(body2)
+
+    val updateFncs = args.map {
+      case (k, v) => UpdateFunction(k, valMap(v))
+    }
+    (updateFncs.toSeq, modelConstraints)
   }  
 
   private def maxAbs(nums: Seq[Rational]): Rational = nums match {
@@ -433,71 +469,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
 
 object Approximations {
 
-  def extractSpecs(e: Expr, id: Identifier): Option[Spec] = {
-    var lwrBoundReal: Option[Rational] = None
-    var upBoundReal: Option[Rational] = None
-    var lwrBoundActual: Option[Rational] = None
-    var upBoundActual: Option[Rational] = None
-    var error: Option[Rational] = None
-    var extras = List[Expr]()
 
-    preTraversal{
-      case LessEquals(RealLiteral(lwrBnd), Variable(id)) => lwrBoundReal = Some(lwrBnd)
-      case LessEquals(Variable(id), RealLiteral(uprBnd)) => upBoundReal = Some(uprBnd)
-      case LessThan(RealLiteral(lwrBnd), Variable(id)) => lwrBoundReal = Some(lwrBnd)
-      case LessThan(Variable(id), RealLiteral(uprBnd)) =>  upBoundReal = Some(uprBnd)
-      case GreaterEquals(RealLiteral(uprBnd), Variable(id)) =>  upBoundReal = Some(uprBnd)
-      case GreaterEquals(Variable(id), RealLiteral(lwrBnd)) => lwrBoundReal = Some(lwrBnd)
-      case GreaterThan(RealLiteral(uprBnd), Variable(id)) =>  upBoundReal = Some(uprBnd)
-      case GreaterThan(Variable(id), RealLiteral(lwrBnd)) => lwrBoundReal = Some(lwrBnd)
-
-      case LessEquals(RealLiteral(lwrBnd), Actual(Variable(id))) => lwrBoundActual = Some(lwrBnd)
-      case LessEquals(Actual(Variable(id)), RealLiteral(uprBnd)) => upBoundActual = Some(uprBnd)
-      case LessThan(RealLiteral(lwrBnd), Actual(Variable(id))) => lwrBoundActual = Some(lwrBnd)
-      case LessThan(Actual(Variable(id)), RealLiteral(uprBnd)) => upBoundActual = Some(uprBnd)
-      case GreaterEquals(RealLiteral(uprBnd), Actual(Variable(id))) => upBoundActual = Some(uprBnd)
-      case GreaterEquals(Actual(Variable(id)), RealLiteral(lwrBnd)) => lwrBoundActual = Some(lwrBnd)
-      case GreaterThan(RealLiteral(uprBnd), Actual(Variable(id))) => upBoundActual = Some(uprBnd)
-      case GreaterThan(Actual(Variable(id)), RealLiteral(lwrBnd)) => lwrBoundActual = Some(lwrBnd)
-
-      case Noise(Variable(id), RealLiteral(value)) => error = Some(value)
-
-      case Times(_, _) | Plus(_, _) | Division(_, _) | Minus(_, _) | UMinus(_) =>
-        println("found integer")
-        throw new Exception("found integer arithmetic in ResultCollector")
-
-      case _ => ;
-    } (e)
-
-
-    // TODO: for loops the error won't be given, we need to extract this anyway somehow
-    
-    error match {
-      case Some(err) =>
-        if ((lwrBoundReal.nonEmpty || lwrBoundActual.nonEmpty) && (upBoundReal.nonEmpty || upBoundActual.nonEmpty)) {
-          Some(Spec(id, RationalInterval(lwrBoundReal.getOrElse(lwrBoundActual.get - err),
-             upBoundReal.getOrElse(upBoundActual.get + err)), error))
-        } else {
-          None
-        }
-        // if we don't have the error, we cannot convert the actual range into a real one
-      case None => 
-        if (lwrBoundReal.nonEmpty && upBoundReal.nonEmpty) {
-          Some(Spec(id, RationalInterval(lwrBoundReal.get, upBoundReal.get), None))
-        } else {
-          None
-        }
-    }
-    /*
-    //error flatMap ( err => {
-    if ((lwrBoundReal.nonEmpty || lwrBoundActual.nonEmpty) && (upBoundReal.nonEmpty || upBoundActual.nonEmpty)) {
-       Some(Spec(id, RationalInterval(lwrBoundReal.getOrElse(lwrBoundActual.get - err),
-             upBoundReal.getOrElse(upBoundActual.get + err)), error))
-    } else {
-      None
-    }
-    })*/
-  }
 
 
   def inlineFunctions(e: Expr, fncs: Map[FunDef, Fnc]): Expr = {
@@ -518,6 +490,74 @@ object Approximations {
     with a fresh variable. For approximation, translate the spec into an XFloat.
   */
   def inlinePostcondition(expr: Expr, precision: Precision, postcondMap: Map[FunDef, Seq[Spec]]): Expr = {
+    def extractSpecs(e: Expr, id: Identifier): Option[Spec] = {
+      var lwrBoundReal: Option[Rational] = None
+      var upBoundReal: Option[Rational] = None
+      var lwrBoundActual: Option[Rational] = None
+      var upBoundActual: Option[Rational] = None
+      var error: Option[Rational] = None
+      var extras = List[Expr]()
+
+      preTraversal{
+        case LessEquals(RealLiteral(lwrBnd), Variable(i)) if (i == id) =>
+          lwrBoundReal = Some(lwrBnd)
+        case LessEquals(Variable(i), RealLiteral(uprBnd)) if (i == id) => upBoundReal = Some(uprBnd)
+        case LessThan(RealLiteral(lwrBnd), Variable(i)) if (i == id) => lwrBoundReal = Some(lwrBnd)
+        case LessThan(Variable(i), RealLiteral(uprBnd)) if (i == id) =>  upBoundReal = Some(uprBnd)
+        case GreaterEquals(RealLiteral(uprBnd), Variable(i)) if (i == id) =>  upBoundReal = Some(uprBnd)
+        case GreaterEquals(Variable(i), RealLiteral(lwrBnd)) if (i == id) => lwrBoundReal = Some(lwrBnd)
+        case GreaterThan(RealLiteral(uprBnd), Variable(i)) if (i == id) =>  upBoundReal = Some(uprBnd)
+        case GreaterThan(Variable(i), RealLiteral(lwrBnd)) if (i == id) => lwrBoundReal = Some(lwrBnd)
+
+        case LessEquals(RealLiteral(lwrBnd), Actual(Variable(i))) if (i == id) => lwrBoundActual = Some(lwrBnd)
+        case LessEquals(Actual(Variable(i)), RealLiteral(uprBnd)) if (i == id) => upBoundActual = Some(uprBnd)
+        case LessThan(RealLiteral(lwrBnd), Actual(Variable(i))) if (i == id) => lwrBoundActual = Some(lwrBnd)
+        case LessThan(Actual(Variable(i)), RealLiteral(uprBnd)) if (i == id) => upBoundActual = Some(uprBnd)
+        case GreaterEquals(RealLiteral(uprBnd), Actual(Variable(i))) if (i == id) => upBoundActual = Some(uprBnd)
+        case GreaterEquals(Actual(Variable(i)), RealLiteral(lwrBnd)) if (i == id) => lwrBoundActual = Some(lwrBnd)
+        case GreaterThan(RealLiteral(uprBnd), Actual(Variable(i))) if (i == id) => upBoundActual = Some(uprBnd)
+        case GreaterThan(Actual(Variable(i)), RealLiteral(lwrBnd)) if (i == id) => lwrBoundActual = Some(lwrBnd)
+
+        case Noise(Variable(i), RealLiteral(value)) if (i == id) => error = Some(value)
+
+        case Times(_, _) | Plus(_, _) | Division(_, _) | Minus(_, _) | UMinus(_) =>
+          throw new Exception("found integer arithmetic in ResultCollector")
+
+        case _ => ;
+      } (e)
+
+
+      // TODO: for loops the error won't be given, we need to extract this anyway somehow
+      
+      error match {
+        case Some(err) =>
+          if ((lwrBoundReal.nonEmpty || lwrBoundActual.nonEmpty) && (upBoundReal.nonEmpty || upBoundActual.nonEmpty)) {
+            Some(Spec(id, RationalInterval(lwrBoundReal.getOrElse(lwrBoundActual.get - err),
+               upBoundReal.getOrElse(upBoundActual.get + err)), error))
+          } else {
+            None
+          }
+          // if we don't have the error, we cannot convert the actual range into a real one
+        case None => 
+          if (lwrBoundReal.nonEmpty && upBoundReal.nonEmpty) {
+            // we do assume, however, that there is a roundoff error attached
+            val rndoff = roundoff(max(lwrBoundReal.get, upBoundReal.get), getUnitRoundoff(precision))
+            Some(Spec(id, RationalInterval(lwrBoundReal.get, upBoundReal.get), Some(rndoff)))
+          } else {
+            None
+          }
+      }
+      /*
+      //error flatMap ( err => {
+      if ((lwrBoundReal.nonEmpty || lwrBoundActual.nonEmpty) && (upBoundReal.nonEmpty || upBoundActual.nonEmpty)) {
+         Some(Spec(id, RationalInterval(lwrBoundReal.getOrElse(lwrBoundActual.get - err),
+               upBoundReal.getOrElse(upBoundActual.get + err)), error))
+      } else {
+        None
+      }
+      })*/
+    }
+
     def actualToRealSpec(e: Expr, deltas: Map[Identifier, Rational]): Expr = {
       val ids = deltas.keys.toSeq
 
@@ -570,6 +610,7 @@ object Approximations {
               case _ => Seq(getFresh)
             }
             //println(s"$resFresh")
+            // TODO: why are we doing this again? It shoud already be in the fncMap for inlining
             val postcondition = extractPostCondition(resId, postExpr, resFresh)
             //println(s"extracted: $postcondition")
 
@@ -583,7 +624,8 @@ object Approximations {
               val realSpecExpr = actualToRealSpec(postcondition, deltaMap)
               //println("realSpecExpr: " + realSpecExpr)
 
-              Some(FncValue(specs, realSpecExpr))
+              //println("inlining : " + funDef.id + "   " + funDef.annotations.contains("model"))
+              Some(FncValue(specs, realSpecExpr, funDef.annotations.contains("model")))
             } catch {
               case e: Exception =>
                 //Some(FncValue(Seq.empty, replace(arguments, postcondition)))
@@ -594,7 +636,7 @@ object Approximations {
           case _ => postcondMap.getOrElse(funDef, Seq()) match {
             case specs: Seq[Spec] if specs.nonEmpty =>
               val specsExpr = And(specs.map(_.toExpr))
-              Some(FncValue(specs, replace(arguments, specsExpr)))
+              Some(FncValue(specs, replace(arguments, specsExpr), funDef.annotations.contains("model")))
             case _ =>
               throw PostconditionInliningFailedException("missing postcondition for " + funDef.id.name);
               null

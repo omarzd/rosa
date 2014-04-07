@@ -290,7 +290,7 @@ object TreeOps {
 
     case Not(t) => Not(addResults(t, variables))
 
-    case FncValue(specs, specExpr) =>
+    case FncValue(specs, specExpr, _) =>
       assert(specs.length == variables.length)
       And(variables.zip(specs).map({
         case (resVar, spec) =>
@@ -493,7 +493,7 @@ object TreeOps {
     }
 
     preMap {
-      case FncValue(s, sexpr) => Some(FncValue(s, filterOutActual(sexpr)))
+      case FncValue(s, sexpr, m) => Some(FncValue(s, filterOutActual(sexpr), m))
       case _ => None
     }(e)
   }
@@ -525,7 +525,7 @@ object TreeOps {
       // leave conditions on if-then-else in reals, as they will be passed as conditions to Z3
       case LessEquals(_,_) | LessThan(_,_) | GreaterEquals(_,_) | GreaterThan(_,_) => e
 
-      case FncValue(s, sexpr) => FncValueF(s, filterOutIdeal(sexpr))
+      case FncValue(s, sexpr, _) => FncValueF(s, filterOutIdeal(sexpr))
 
       case FncBody(n, b, f, a) => FncBodyF(n, rec(b, path), f, a)
       case FunctionInvocation(fundef, args) =>

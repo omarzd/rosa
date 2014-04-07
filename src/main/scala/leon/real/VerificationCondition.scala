@@ -26,7 +26,8 @@ class VerificationCondition(val funDef: FunDef, val kind: VCKind.Value, val pre:
 
   // whether this VC comes from a recursive function
   //var recursive = false
-  var updateFunctions = Seq[UpdateFunction]()
+  //var updateFunctions = Seq[UpdateFunction]()
+  var updateFunctions: Map[Expr, Expr] = Map.empty
 
   // (lowerBnd, upperBnd) absError
   var spec: Map[Precision, Seq[Spec]] = precisions.map(p => (p, Seq())).toMap

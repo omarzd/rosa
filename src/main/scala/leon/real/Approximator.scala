@@ -49,17 +49,24 @@ class Approximator(reporter: Reporter, solver: RangeSolver, precision: Precision
   def init = {
     variables = precision match {
       case Float32 | Float64 | DoubleDouble | QuadDouble =>
-        if (exactInputs) variables2xfloatsExact(inputs, config, machineEps)
-        else variables2xfloats(inputs, config, machineEps)._1
+        if (exactInputs) {
+          // Only the method inputs are exact
+          val inputVars: Map[Expr, XReal] = variables2xfloatsExact(inputs.getValidInputRecords, config, machineEps)
+          val tmpVars: Map[Expr, XReal] = variables2xfloats(inputs.getValidTmpRecords, config, machineEps)._1
+          inputVars ++ tmpVars
+        }
+        else {
+          variables2xfloats(inputs.getValidRecords, config, machineEps)._1
+        }
       
       case FPPrecision(bits) => 
         if (exactInputs) reporter.warning("no exact inputs for fixedpoint")
         variables2xfixed(inputs, config, bits)._1
     }
+    //println("inputs: " + inputs)
+    if (verbose) println("initial variables: " + variables)
   }
-  if (verbose) println("initial variables: " + variables)
-
-
+  
   /* Expects the expression to be open, i.e. to return a value
    * (as opposed to last expr being x == ...) 
    *  Will work also for tupled results

@@ -134,6 +134,19 @@ package object real {
     case QuadDouble => Rational(new BigInt(new BigInteger("1")), new BigInt(new BigInteger("2")).pow(211))
   }
 
+  def roundoff(r: Rational, machineEps: Rational): Rational = {
+    machineEps * Rational.abs(r)
+  }
+
+  def roundoff(range: RationalInterval, machineEps: Rational): Rational = {
+    import Rational._
+    val maxAbs = max(abs(range.xlo), abs(range.xhi))
+    // Without scaling this can return fractions with very large numbers
+    // TODO: try scaling the result
+    val simplifiedMax = Rational.scaleToIntsUp(maxAbs)
+    machineEps * simplifiedMax
+  }
+
   val solverPrecisionHigh = Rational.rationalFromReal(1e-16)
   val solverPrecisionMedium = Rational.rationalFromReal(1e-10)
   val solverPrecisionLow = Rational.rationalFromReal(1e-5)
