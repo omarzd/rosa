@@ -4,10 +4,11 @@ import annotations._
 
 object Spiral {
 
-  @loopbound(5)
+  @loopbound(10)
   def spiralTailRealOnly(x: Real, y: Real, k: Int): (Real, Real) = {
     require(loopCounter(k) && x*x + y*y < 100 &&
-      -10 <= x && x <= 10 && -10 <= y && y <= 10)
+      -10 <= x && x <= 10 && -10 <= y && y <= 10 &&
+       -10 <= ~x && ~x <= 10 && -10 <= ~y && ~y <= 10)
     
     if (k < 5) {
       val x1 = (9.9*x - y)/10
@@ -18,10 +19,10 @@ object Spiral {
     }
 
   } ensuring (_ match {
-    case (a, b) => -10 <= a && a <= 10 && -10 <= b && b <= 10
+    case (a, b) => -10 <= ~a && ~a <= 10 && -10 <= ~b && ~b <= 10
   })
 
-  @loopbound(5)
+  @loopbound(10)
   def spiralReal(x: Real, y: Real): (Real, Real) = {
     require(x*x + y*y < 100 && -10 <= x && x <= 10 && -10 <= y && y <= 10)
 
