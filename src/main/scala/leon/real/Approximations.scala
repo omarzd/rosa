@@ -128,11 +128,12 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
     // check whether we can apply this
     // no ifs and no tuples (for now)
     if (containsIfExpr(path.bodyReal) || containsFunctionCalls(path.bodyReal) || vc.variables.resIds.length > 1) {
+      reporter.debug("Cannot apply Lipschitz error computation...")
       None
     } else {
       val ids = vc.variables.inputs.keys.map(k => k.asInstanceOf[Variable].id).toSeq
       val updateFnc = UpdateFunction(vc.variables.resultVars(0), path.bodyReal)
-      val (sigmas, lipschitzConsts) = getSigmaLipschitzMatrix(preReal, Seq(updateFnc), ids, precision)
+      val (sigmas: Seq[Rational], lipschitzConsts: RMatrix) = getSigmaLipschitzMatrix(preReal, Seq(updateFnc), ids, precision)
       assert(sigmas.length == 1 && lipschitzConsts.data.length == 1)
 
       reporter.debug("K: " + lipschitzConsts)
@@ -143,20 +144,31 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
       val initErrors = getInitialErrors(vc.variables, precision)
       reporter.debug("initial errors: " + initErrors)
 
+      val p2NormError = {
+        val rowSum = ids.zip(lipschitzConsts.data(0)).foldLeft(zero){
+          case (sum, (id, k)) => sum + (k*initErrors(id))*(k*initErrors(id)) 
+        }
+        sqrtUp(rowSum) + sigma
+      }
+
       val infinityError = {
         val k = maxAbs(lipschitzConsts.data(0))
         k * maxAbs(initErrors.values.toSeq) + sigma
       }
-      reporter.info("error, infinity norm: " + infinityError)
-      
-      val componentError = {
+
+      val p1NormError = {
         val rowSum = ids.zip(lipschitzConsts.data(0)).foldLeft(zero){
           case (sum, (id, k)) => sum + k*initErrors(id) 
         }
         rowSum + sigma
       }
-      reporter.info("error, componentwise: " + componentError)
-      Some(min(infinityError, componentError))
+
+      reporter.info("lipschitz errors")
+      reporter.info("p1 norm:  " + p1NormError)
+      reporter.info("p2 norm:  " + p2NormError)
+      reporter.info("infinity: " + infinityError)      
+
+      Some(min(infinityError, min(p1NormError,p2NormError) ))
     }   
   }
 

@@ -12,10 +12,7 @@ import Deviation._
 
 object RationalAffineUtils {
 
-  // Until we get this sorted in Rational
-  def sqrtUp(x: Rational): Rational = Rational(DirectedRounding.sqrtUp(Rational.scaleToIntsUp(x).doubleValue))
-  def sqrtDown(x: Rational): Rational = Rational(DirectedRounding.sqrtDown(Rational.scaleToIntsDown(x).doubleValue))
-
+  
   def computeZeta(dmin: Rational, dmax: Rational): Rational = {
     dmin / Rational(2L, 1L) +  dmax / Rational(2L, 1L)
   }

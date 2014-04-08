@@ -3,7 +3,7 @@
 package leon
 package real
 
-
+import ceres.common.{DirectedRounding}
 import scala.math.{ScalaNumericConversions, ScalaNumber}
 import java.math.{BigInteger}
 
@@ -28,7 +28,9 @@ object Rational {
   val zero = Rational(zeroBigInt, oneBigInt)
   val one = Rational(oneBigInt, oneBigInt)
 
-
+  def sqrtUp(x: Rational): Rational = Rational(DirectedRounding.sqrtUp(Rational.scaleToIntsUp(x).doubleValue))
+  def sqrtDown(x: Rational): Rational = Rational(DirectedRounding.sqrtDown(Rational.scaleToIntsDown(x).doubleValue))
+  
   /*
     Constructors for rationals.
   */
