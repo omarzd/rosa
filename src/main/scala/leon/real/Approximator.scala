@@ -299,10 +299,10 @@ class Approximator(reporter: Reporter, solver: RangeSolver, precision: Precision
 
         val pathError = if (checkPathError) { // When the actual computation goes a different way than the real one
           val pathError1 = computePathError(currentPathCondition, branchCond, thenn, elze)
-          reporter.debug("computed error 1: " + pathError1)
+          reporter.info("computed error 1: " + pathError1)
 
           val pathError2 = computePathError(currentPathCondition, branchCond, elze, thenn)
-          reporter.debug("computed error 2: " + pathError1)
+          reporter.info("computed error 2: " + pathError1)
 
           pathError1.zip(pathError2).map({
             case (p1, p2) => max(p1, p2)
