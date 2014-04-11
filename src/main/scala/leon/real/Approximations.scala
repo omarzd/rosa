@@ -65,6 +65,54 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
     (sigmas, lipschitzConsts)
   }
 
+  private def getHessian(jacobian: EMatrix, ids: Seq[Identifier]): Seq[EMatrix] = {
+    jacobian.data.map(row => {
+      val elems = row.map( p => 
+        ids.map(id =>  d(p, id) )
+        )
+
+      EMatrix.fromSeqs(elems)
+      })
+  }
+
+  private def getSigmaJacobianHessian(preReal: Expr, updateFncs: Seq[UpdateFunction],
+    ids: Seq[Identifier], precision: Precision): (Seq[Rational], EMatrix, RMatrix, Seq[RMatrix]) = {
+
+    val transformer = new Approximator(reporter, solver, precision, preReal, vc.variables, false, true)
+    
+    def boundRanges(m: EMatrix): RMatrix = {
+      m.map(e => {
+        val rangeDerivative = solver.getRange(preReal, e, vc.variables,
+                  solverMaxIterMedium, solverPrecisionMedium) 
+        maxAbs(Seq(rangeDerivative.xlo, rangeDerivative.xhi))
+      })
+    }
+
+    // have to inline, since we don't know (yet) how to do derivative with vals
+    // however for the error computation, we keep the original form with vals,
+    // since it seems to get better results
+    val jacobian = EMatrix.fromSeqs(updateFncs.map(uf => ids.map(id => d(inlineBody(uf.rhs), id))))
+    //println("jacobian: " + jacobian)
+
+    val hessians = getHessian(jacobian, ids)
+    //println(hessians.mkString("\n"))
+    
+    
+
+    //println("############# idealToActual: " + idealToActual(updateFncs(0).rhs, vc.variables))
+    val sigmas = updateFncs.map(uf => transformer.computeError(idealToActual(uf.rhs, vc.variables)))
+    println("sigmas: " + sigmas)
+    
+    val lipschitzConsts = boundRanges(jacobian)
+
+    val hessianConsts = hessians.map( hessian => boundRanges(hessian))
+
+    println("lipschitzConsts: " + lipschitzConsts)
+    (sigmas, jacobian, lipschitzConsts, hessianConsts)
+  }
+
+
+
   def getLoopError(preReal: Expr, updateFncs: Seq[UpdateFunction], ids: Seq[Identifier],
     precision: Precision): Seq[Rational] = {
 
@@ -125,30 +173,69 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
 
   
   def getStraightLineError(preReal: Expr, path: Path, precision: Precision): Option[Rational] = {
+    def p2Norm(s: Seq[Rational]): Rational = {
+      val rowSum = s.foldLeft(zero){
+          case (sum, elem) => sum + elem*elem
+        }
+      sqrtUpNoScaling(rowSum)
+    }
+
     // check whether we can apply this
     // no ifs and no tuples (for now)
     if (containsIfExpr(path.bodyReal) || containsFunctionCalls(path.bodyReal) || vc.variables.resIds.length > 1) {
       reporter.debug("Cannot apply Lipschitz error computation...")
       None
     } else {
+      // the order here determines the order of indices for the rest,
+      // even though it may not be the order given in the code
       val ids = vc.variables.inputs.keys.map(k => k.asInstanceOf[Variable].id).toSeq
       val updateFnc = UpdateFunction(vc.variables.resultVars(0), path.bodyReal)
-      val (sigmas: Seq[Rational], lipschitzConsts: RMatrix) = getSigmaLipschitzMatrix(preReal, Seq(updateFnc), ids, precision)
+
+      //val (sigmas, lipschitzConsts) = getSigmaLipschitzMatrix(preReal, Seq(updateFnc), ids, precision)
+
+      // TODO: removing errors here is not sound, we need total ranges, including errors
+      val initErrors = getInitialErrors(vc.variables, precision)
+      reporter.debug("initial errors: " + initErrors)
+      println("initial errors: " + initErrors)
+
+      val (sigmas: Seq[Rational], jacobian, lipschitzConsts: RMatrix, hessianConsts) = getSigmaJacobianHessian(
+        preReal, Seq(updateFnc), ids, precision)
       assert(sigmas.length == 1 && lipschitzConsts.data.length == 1)
+
+      println("jacobian: " + jacobian + "   * (sigma: "+sigmas(0)+")")
+      
+      //val hessian = hessianConsts(0)
+      println("hessian: " + hessianConsts)
+      
+      
+      val h: Seq[Seq[Rational]] = hessianConsts.map(hc => hc.data.zipWithIndex.flatMap({
+        case (row, i) =>
+          row.zipWithIndex.map ({
+            case (elem, j) =>
+              println("computing: " + elem + " lambda " + i + ", " + j)
+              elem * initErrors(ids(i)) * initErrors(ids(j))
+            })
+        }))
+
+      assert(h.length == 1)
+      val taylorRemainder = Rational(1, 2) * p2Norm(h(0)) 
+
+      println("taylorRemainder: " + taylorRemainder)
+
+
+
 
       reporter.debug("K: " + lipschitzConsts)
       val sigma = sigmas(0)
       reporter.debug("sigma: " + sigma)
       
-      // TODO: removing errors here is not sound, we need total ranges, including errors
-      val initErrors = getInitialErrors(vc.variables, precision)
-      reporter.debug("initial errors: " + initErrors)
+      
 
       val p2NormError = {
         val rowSum = ids.zip(lipschitzConsts.data(0)).foldLeft(zero){
           case (sum, (id, k)) => sum + (k*initErrors(id))*(k*initErrors(id)) 
         }
-        sqrtUp(rowSum) + sigma
+        sqrtUpNoScaling(rowSum) + sigma
       }
 
       val infinityError = {
