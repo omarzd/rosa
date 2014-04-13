@@ -15,7 +15,7 @@ import purescala.TreeOps._
 import real.Trees._
 import Sat._
 import real.TreeOps._
-import real.RationalAffineUtils._
+import real.Rational.{sqrtDown, sqrtUp}
 
 // We don't want this to depend on anything Leon internal such as context
 class RangeSolver(timeout: Long) {
