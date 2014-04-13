@@ -18,13 +18,13 @@ import Rational.max
 
 
 // Manages the approximation
-class AAAproximator(reporter: Reporter, solver: RangeSolver, precision: Precision) {
+class AAAproximator(reporter: Reporter, solver: RangeSolver, precision: Precision, checkPathError: Boolean = false) {
 
   implicit val debugSection = utils.DebugSectionAffine
   val compactingThreshold = 500
 
   //var variables: Map[Expr, XReal] = Map.empty
-  
+
   var leonToZ3: LeonToZ3Transformer = null
   var initialCondition: Expr = True
   var config: XConfig = null
@@ -53,16 +53,16 @@ class AAAproximator(reporter: Reporter, solver: RangeSolver, precision: Precisio
       else {
         variables2xfloats(in.getValidRecords, config, machineEps)._1
       }
-    
-    case FPPrecision(bits) => 
+
+    case FPPrecision(bits) =>
       if (exactInputs) reporter.warning("no exact inputs for fixedpoint")
       variables2xfixed(in, config, bits)._1
   }
 
-  
+
 
   /* Expects the expression to be open, i.e. to return a value
-   * (as opposed to last expr being x == ...) 
+   * (as opposed to last expr being x == ...)
    *  Will work also for tupled results
    */
   def approximate(e: Expr, precondition: Expr, inputs: VariablePool,
@@ -76,7 +76,7 @@ class AAAproximator(reporter: Reporter, solver: RangeSolver, precision: Precisio
     exactInputs: Boolean = false): Map[Expr, XReal] = {
     init(inputs, precondition)
     val vars = getInitialVariables(inputs, exactInputs)
-    
+
     val (newVars, path, res) = process(e, vars, True)
     //sanity check
     assert(res.length == 0, "computing xreals for equations but open expression found")
@@ -97,7 +97,7 @@ class AAAproximator(reporter: Reporter, solver: RangeSolver, precision: Precisio
   }
 
   // @return (path condition, result)
-  private def process(expr: Expr, vars: Map[Expr, XReal], path: Expr):
+  def process(expr: Expr, vars: Map[Expr, XReal], path: Expr):
     (Map[Expr, XReal], Expr, Seq[XReal]) = expr match {
     case And(es) =>
       var currentPath: Expr = path
@@ -154,8 +154,15 @@ class AAAproximator(reporter: Reporter, solver: RangeSolver, precision: Precisio
           None
         }
 
+      val pathError: Option[Seq[Rational]] = if (checkPathError) {
+        //val pathError = new PathError(reporter)
+        //Some(pathError.computePathError)
+        None
+      } else {
+        None
+      }
       // TODO: compute the path error...
-      
+
       (vars, path, mergeXReal(thenBranch, elseBranch, path))
 
     case FncBodyF(_, body, _, _) =>
@@ -236,7 +243,7 @@ class AAAproximator(reporter: Reporter, solver: RangeSolver, precision: Precisio
       /*   Terminals */
       case fl: FloatLiteral => getXRealWithCondition(fl, path)
       case v: Variable => getXRealWithCondition(v, path)
-      
+
       // only the case when we have a single value and not a tuple...
       case FncValueF(specs, specExpr) =>
         // TODO: we should filter out any non-real parts from the spec expression here
@@ -275,7 +282,7 @@ class AAAproximator(reporter: Reporter, solver: RangeSolver, precision: Precisio
       tmp
     }
 
-  }//end approxArithm 
+  }//end approxArithm
 
   private def isFeasible(pre: Expr): Boolean = {
     import Sat._
