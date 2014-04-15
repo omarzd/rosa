@@ -40,6 +40,7 @@ object TreeOps {
     if (equalityPropagation) {
       // for equality propagation, replace variables by their definition
       val equalsPropagator = new EqualsPropagator
+      //TODO: ??? why's this still double?
       val equalities = equalsPropagator.transform(remainder)
       val equalities2 = propagateEquals(remainder)
       assert(equalities == equalities2, s"equalities: $equalities \n equalities2: $equalities2")

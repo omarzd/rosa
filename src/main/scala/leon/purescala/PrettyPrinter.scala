@@ -351,6 +351,7 @@ class PrettyPrinter(opts: PrinterOptions, val sb: StringBuffer = new StringBuffe
       case Float32Type => sb.append("Float")
       case FloatDDType => sb.append("DoubleDouble")
       case FloatQDType => sb.append("QuadDouble")
+      case RealType => sb.append("RealType")
       case ArrayType(bt) =>
         sb.append("Array[")
         pp(bt, p)

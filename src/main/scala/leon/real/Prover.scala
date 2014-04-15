@@ -136,7 +136,11 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
 
       val end = System.currentTimeMillis
       vc.time = Some(end - start)
-      reporter.info("generated spec: " + spec + " in " + (vc.time.get / 1000.0))
+      reporter.info("generated spec: ")
+      spec.foreach { sp =>
+        reporter.info(sp + "(" + sp.getActualRange + ")")
+      }
+      reporter.info("in " + (vc.time.get / 1000.0))
     }
 
     vcs.forall( vc => vc.kind == VCKind.SpecGen || vc.value(precision) != UNKNOWN )
