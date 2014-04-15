@@ -32,7 +32,8 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
   if (vc.kind == VCKind.LoopPost) kinds = kinds.filter(_.arithmApprox == NoApprox)
   else if (!options.z3Only) kinds = kinds.filter(_.arithmApprox != NoApprox)
 
-  if (!containsIfs || options.pathError) kinds = kinds.filter(_.pathHandling == Merging)
+  if (!containsIfs) kinds = kinds.filter(_.pathHandling == Merging)
+  else if(options.pathError) kinds = kinds.filter(_.pathHandling == Pathwise)
   
   if (!containsFncs) kinds = kinds.filter(_.fncHandling == Uninterpreted)
   else kinds = kinds.filter(_.fncHandling != Uninterpreted)
@@ -361,6 +362,11 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
               }
             }
           }
+          // do not filter paths according to feasibility here
+          val lipschitzPathError = getLipschitzPathError(paths.toSeq, precision) 
+
+
+
           val approx = Approximation(kind, constraints, spec)
           vc.approximations += (precision -> (vc.approximations(precision) :+ approx))
           approx.specsPerPath = specsPerPath
@@ -385,6 +391,19 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
           }
       }
     }
+  }
+
+  def getLipschitzPathError(paths: Seq[Path], precision: Precision): Rational = {
+    val carthesianProduct: Seq[(Path, Path)] = paths.flatMap( p1 =>
+      paths.filter(p2 => p2 != p1).map(p2 => (p1, p2))
+    )
+
+    val lipschitz = new LipschitzPathError(reporter, solver, precision, vc.variables)
+    carthesianProduct.foreach {
+      case (p1, p2) => lipschitz.computePathError(removeErrors(vc.pre), p1, p2)
+    }
+
+    zero
   }
 
   private def removeLoopCounterUpdate(e: Expr): Expr = {

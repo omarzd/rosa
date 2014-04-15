@@ -108,7 +108,7 @@ class AAApproximator(reporter: Reporter, solver: RangeSolver, precision: Precisi
   }
 
   // used for loops
-  def computeErrorPreInitialized(e: Expr, precond: Expr, inputs: VariablePool,
+  def computeErrorPreinitialized(e: Expr, precond: Expr, inputs: VariablePool,
     variables: Map[Expr, XReal]): Rational = e match {
     case BooleanLiteral(_) => Rational.zero
     case _ =>
@@ -187,6 +187,10 @@ class AAApproximator(reporter: Reporter, solver: RangeSolver, precision: Precisi
       val pathError: Seq[Rational] = if (checkPathError) {
         val pathError = new PathError(reporter, solver, precision, machineEps, inputVariables, precondition, vars) 
         pathError.computePathErrors(currentPathCondition, cond, thenn, elze)
+
+        //val pathError = new LipschitzPathError(reporter, solver, precision, inputVariables)
+        //pathError.computePathErrors(precondition: Expr, branchCond: Expr, thenn, elze, vars)
+
       } else {
         Seq()
       }
@@ -234,8 +238,6 @@ class AAApproximator(reporter: Reporter, solver: RangeSolver, precision: Precisi
       //println("going through end case: " + x.getClass)
       val res = approxArithm(x, vars, path)
       (vars, path, Seq(res))
-
-
   }
 
 

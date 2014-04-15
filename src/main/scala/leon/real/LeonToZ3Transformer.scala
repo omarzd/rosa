@@ -157,6 +157,9 @@ class LeonToZ3Transformer(variables: VariablePool, precision: Precision) extends
       case WithIn(x, lwrBnd, upBnd) =>
         And(LessThan(RealLiteral(lwrBnd), x), LessThan(x, RealLiteral(upBnd)))
 
+      case WithInEq(x, lwrBnd, upBnd) =>
+        And(LessEquals(RealLiteral(lwrBnd), x), LessEquals(x, RealLiteral(upBnd)))
+
       /* 
       Apparently this is not true:
       if we allow only tuples as the last return value, this is not needed

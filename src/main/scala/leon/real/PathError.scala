@@ -47,8 +47,8 @@ class PathError(reporter: Reporter, solver: RangeSolver, precision: Precision, m
       val lActual = idealToActual(l, inputs)
       val rActual = idealToActual(r, inputs)
 
-      val errLeft = approximator.computeErrorPreInitialized(lActual, precondition, inputs, variables)  //approx(lActual, path).head.maxError
-      val errRight = approximator.computeErrorPreInitialized(rActual, precondition, inputs, variables) //approx(rActual, path).head.maxError
+      val errLeft = approximator.computeErrorPreinitialized(lActual, precondition, inputs, variables)  //approx(lActual, path).head.maxError
+      val errRight = approximator.computeErrorPreinitialized(rActual, precondition, inputs, variables) //approx(rActual, path).head.maxError
       RealLiteral(errLeft + errRight)
     }
 
