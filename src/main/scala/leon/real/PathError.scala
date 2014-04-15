@@ -15,10 +15,10 @@ import Rational.{max, abs}
 
 // Computes the path error
 class PathError(reporter: Reporter, solver: RangeSolver, precision: Precision, machineEps: Rational,
-  verbose: Boolean = false, inputs: VariablePool, vars: Map[Expr, XReal]) {
+  inputs: VariablePool, precondition: Expr, vars: Map[Expr, XReal], verbose: Boolean = false) {
 
   implicit val debugSection = utils.DebugSectionAffine
-  val approximator = new AAAproximator(reporter, solver, precision, checkPathError = true)
+  val approximator = new AAApproximator(reporter, solver, precision, checkPathError = true)
 
   var variables = vars
   val leonToZ3 = new LeonToZ3Transformer(inputs, precision)
@@ -26,6 +26,8 @@ class PathError(reporter: Reporter, solver: RangeSolver, precision: Precision, m
   type XRealTuple = Seq[XReal]
 
   def computePathErrors(currentPathCondition: Expr, branchCond: Expr, thenn: Expr, elze: Expr): Seq[Rational] = {
+//    approximator.init(inputs, precondition)
+
     val pathError1 = computePathError(currentPathCondition, branchCond, thenn, elze)
     reporter.info("computed error 1: " + pathError1)
 
@@ -45,8 +47,8 @@ class PathError(reporter: Reporter, solver: RangeSolver, precision: Precision, m
       val lActual = idealToActual(l, inputs)
       val rActual = idealToActual(r, inputs)
 
-      val errLeft = approximator.process(lActual, variables, path)._3.head.maxError  //approx(lActual, path).head.maxError
-      val errRight = approximator.process(rActual, variables, path)._3.head.maxError //approx(rActual, path).head.maxError
+      val errLeft = approximator.computeErrorPreInitialized(lActual, precondition, inputs, variables)  //approx(lActual, path).head.maxError
+      val errRight = approximator.computeErrorPreInitialized(rActual, precondition, inputs, variables) //approx(rActual, path).head.maxError
       RealLiteral(errLeft + errRight)
     }
 
@@ -99,7 +101,7 @@ class PathError(reporter: Reporter, solver: RangeSolver, precision: Precision, m
     def addConditionToXReal(xfs: XRealTuple, condition: Expr): XRealTuple =
       xfs.map(x => addCondToXReal(x, condition))
 
-    if (verbose) println("--------\n computing path error for condition: " + branchCondition)
+    if (verbose) println("--------\n\n computing path error for condition: " + branchCondition)
     if (verbose) println("real path: "+ f1)
     if (verbose) println("actual path: "+f2)
 
@@ -109,9 +111,6 @@ class PathError(reporter: Reporter, solver: RangeSolver, precision: Precision, m
     val floatCondition = And(flCond, negate(branchCondition))
     val realCondition = And(reCond, branchCondition)
     if (verbose) println("floatCondition: %s\nrealCondition: %s".format(floatCondition, realCondition))
-
-    //println("----> feasible? " + isFeasible(Seq(initialCondition, floatCondition)))
-    //println(isFeasible(Seq(initialCondition, realCondition)))
 
     if (isFeasible(And(currentPathCondition, floatCondition)) && isFeasible(And(currentPathCondition, realCondition))) {
 
@@ -128,10 +127,14 @@ class PathError(reporter: Reporter, solver: RangeSolver, precision: Precision, m
       // don't add the branchCondition to the path, since it's in terms of real variables and will cause an invalid result
       // the branchCondition is already added to the config of the variables, and for constants it doesn't matter
       //println("realPath: " + replace(freshMapReal, f1))
-      val realResult = approximator.process(replace(freshMapReal, f1), variables, currentPathCondition)._3  //approx(replace(freshMapReal, f1), path)
-      //println("real result config: " + realResult.config.getCondition)
-      //println("real result: " + realResult)
-      //println("solverPrecision: " + realResult.config.solverPrecision)
+
+      // replace also in variables. This call should probably go through a new approximator...
+
+      val realResult = approximator.approximatePreinitialized(
+        replace(freshMapReal, f1),
+        replace(freshMapReal, realCondition),
+        inputs.copyAndReplaceActuals(freshMapReal),
+        variables)
       if (verbose) println("realResult: " + removeErrors(realResult))
 
 
@@ -143,11 +146,15 @@ class PathError(reporter: Reporter, solver: RangeSolver, precision: Precision, m
 
       variables = variables ++ inputs2
       solver.clearCounts
-      val floatResult = approximator.process(replace(freshMapFloat, f2), variables, currentPathCondition)._3 //approx(replace(freshMapFloat, f2), path)
-      //println("floatResult: " + floatResult)
 
+      val floatResult = approximator.approximatePreinitialized(
+        replace(freshMapFloat, f2),
+        replace(freshMapFloat, floatCondition),
+        inputs.copyAndReplaceActuals(freshMapFloat),
+        variables)
+      if (verbose) println("floatResult: " + floatResult)
 
-      //return: max |[f1]real − ([f2]float + errfloat)|
+      
       val correlation = variables.filter { x => x._1 match {
             case Variable(id) => variablesOfPaths.contains(id)
             case _ => false
@@ -158,29 +165,25 @@ class PathError(reporter: Reporter, solver: RangeSolver, precision: Precision, m
           LessEquals(RealLiteral(-xf.maxError), freshErrorVar),
           LessEquals(freshErrorVar, RealLiteral(xf.maxError))))
         }
-      if (verbose) println("correlation: " + correlation)
-
+      if (verbose) println("\ncorrelation: " + correlation)
+      
       val realResultWithCorrelation = addConditionToXReal(removeErrors(realResult), And(correlation.toSeq))
-        //new XFloat(realResult.tree, realResult.approxInterval, new XRationalForm(Rational.zero),
-        //realResult.config.addCondition(And(correlation.toSeq)))
       if (verbose) println("realResultWithCorrelation: " + realResultWithCorrelation)
-      //println("\n realRangeWithCorrelation.config" + realResultWithCorrelation.config.getCondition)
-
-      //println("floatResult.config: " + floatResult.config.getCondition)
+      
       solver.clearCounts
-      //XFloat.verbose = true
-      //val diffXFloat = (floatResult - realResultWithCorrelation)
       val diffXFloat: XRealTuple = floatResult.zip(realResultWithCorrelation).map({
-        case (fl, re) => fl - re
+        case (fl, re) =>
+          // ridiculous hack... but fl and re may have "inherited" mutually inconsistent condition,
+          // whose variables do not exist any more in the expressions
+          // We should be doing this cleaning somewhere else
+          fl.cleanConfig - re.cleanConfig
         })
       val diff: Seq[RationalInterval] = diffXFloat.map(_.interval)
       if (verbose) println("diff: " + diff)
-      //println("diff config: " + diffXFloat.config.getCondition)
       if (verbose) reporter.info("STATS for diff: " + solver.getCounts)
-      //XFloat.verbose = false
-      // restore state from before
+      // restore state from before (probably not necessary any more)
       variables = variables -- inputs1.keys -- inputs2.keys
-      //XFloat.verbose = false
+      
       val maxError: Seq[Rational] = diff.map(d => max(abs(d.xlo), abs(d.xhi)))
       if (verbose) println("maxError: " + maxError)
       maxError
@@ -222,6 +225,8 @@ class PathError(reporter: Reporter, solver: RangeSolver, precision: Precision, m
               xf.config.addCondition(cond).freshenUp(buddyFreshMap).updatePrecision(solverMaxIterHigh, solverPrecisionHigh)))
 
           case _ =>
+            //println("new tree: " + replace(buddyFreshMap, xf.tree))
+            //println("xconfig: " + xf.config.addCondition(cond).freshenUp(buddyFreshMap).getCondition)
             (fresh, new XFloat(replace(buddyFreshMap, xf.tree), xf.approxInterval, new XRationalForm(Rational.zero),
               xf.config.addCondition(cond).freshenUp(buddyFreshMap).updatePrecision(solverMaxIterHigh, solverPrecisionHigh), machineEps))
         }

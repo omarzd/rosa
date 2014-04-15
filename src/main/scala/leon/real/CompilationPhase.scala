@@ -67,7 +67,8 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
       case _ =>
     }
 
-    
+    // TODO: these are not sorted correctly, e.g. for InitialExample
+    // the main functions are treated first, so that the computed postcondition cannot be used...
     val fncsToAnalyse  =
       if(fncNamesToAnalyse.isEmpty) program.definedFunctions.filter(f =>
         !f.annotations.contains("proxy"))

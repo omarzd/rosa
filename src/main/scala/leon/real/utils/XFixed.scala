@@ -92,6 +92,10 @@ object XFixed {
 class XFixed(val format: FixedPointFormat, val tr: Expr, val appInt: RationalInterval, val err: XRationalForm,
   val cnfg: XConfig) extends XReal(tr, appInt, err, cnfg) {
 
+  override def cleanConfig: XReal = {
+    new XFixed(format, tree, approxInterval, error, getCleanConfig)
+  }
+
   //Assumes signed format.
   override def unary_-(): XReal = {
     if (!format.signed)

@@ -42,6 +42,17 @@ class XReal(val tree: Expr, val approxInterval: RationalInterval, val error: XRa
   def /(y: XReal): XReal = new XReal(this.divide(y))
   def squareRoot: XReal = new XReal(this.takeSqrtRoot)
 
+  // Removes any constraints that do not concern the variables in the tree expression
+  def cleanConfig: XReal = {
+    new XReal(tree, approxInterval, error, getCleanConfig)
+  }
+
+  def getCleanConfig: XConfig = {
+    val preCleaned = TreeOps.removeRedundantConstraints(config.precondition, tree)
+    val addCleaned = TreeOps.removeRedundantConstraints(And(config.additionalConstraints.toSeq), tree)
+    XConfig(config.solver, And(preCleaned.toSeq), config.solverMaxIter, config.solverPrecision, addCleaned)
+  }
+
   /*
     Propagation
    */

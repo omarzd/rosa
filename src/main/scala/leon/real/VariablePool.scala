@@ -143,6 +143,14 @@ class VariablePool(val inputs: Map[Expr, Record], val resIds: Seq[Identifier],
     case _ => false
   }
 
+  def copyAndReplaceActuals(newActuals: Map[Expr, Expr]): VariablePool = {
+    val newInputs = inputs.map({
+      case (ideal, Record(i, a, lo, up, absUncert, relUncert)) =>
+        (ideal, Record(i, newActuals(a), lo, up, absUncert, relUncert))
+      })
+    new VariablePool(newInputs, resIds, loopCounter, integers)
+  }
+
   override def toString: String = allVars.toString 
 }
 

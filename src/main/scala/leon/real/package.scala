@@ -59,6 +59,15 @@ package object real {
         And(LessEquals(RealLiteral(bounds.xlo), Variable(id)),
           LessEquals(Variable(id), RealLiteral(bounds.xhi)))  
     }
+
+    def getActualRange: RationalInterval = {
+      RationalInterval(bounds.xlo - absError.get, bounds.xhi + absError.get)
+    }
+
+    override def toString: String = absError match {
+      case Some(err) => id + " \u2208 " + bounds + " \u00B1 " + err
+      case None => id + " \u2208 " + bounds + " \u00B1 -"
+    }
   }
 
 

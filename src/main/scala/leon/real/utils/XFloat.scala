@@ -150,6 +150,10 @@ class XFloat(val tr: Expr, val appInt: RationalInterval, val err: XRationalForm,
     "%s +/- %s +/- [%s]".format(error.x0, varErrors.toString, sumQueue(otherErrors))
   }*/
 
+  override def cleanConfig: XReal = {
+    new XFloat(tree, approxInterval, error, getCleanConfig, machineEps)
+  }
+
   override def unary_-(): XReal = {
     var (newTree, newRealRange, newError, newConfig) = super.negate
     new XFloat(newTree, newRealRange, newError, newConfig, machineEps)

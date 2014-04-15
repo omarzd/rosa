@@ -50,10 +50,12 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
     val jacobian = EMatrix.fromSeqs(updateFncs.map(uf => ids.map(id => d(inlineBody(uf.rhs), id))))
     //println("jacobian: " + jacobian)
     
-    val transformer = new Approximator(reporter, solver, precision, preReal, vc.variables, false, true)
+    val transformer = new AAApproximator(reporter, solver, precision, checkPathError = false)//preReal, vc.variables, false, true)
 
     //println("############# idealToActual: " + idealToActual(updateFncs(0).rhs, vc.variables))
-    val sigmas = updateFncs.map(uf => transformer.computeError(idealToActual(uf.rhs, vc.variables)))
+    val sigmas = updateFncs.map(uf => transformer.computeError(idealToActual(uf.rhs, vc.variables), preReal, vc.variables,
+    exactInputs = true))
+      //idealToActual(uf.rhs, vc.variables)))
     //println("sigmas: " + sigmas)
     
     val lipschitzConsts = jacobian.map(e => {
@@ -178,9 +180,19 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
   def getApproximationAndSpec_ResultOnly(path: Path, precision: Precision): (Expr, Seq[Spec]) = path.bodyFinite match {
     case body =>
       solver.clearCounts
-      val approximator = new Approximator(reporter, solver, precision, And(vc.pre, path.condition),
-                                                vc.variables, options.pathError)
-      val approx = approximator.getXRealForResult(body)
+      //var start = System.currentTimeMillis
+      //val approximator = new Approximator(reporter, solver, precision, And(vc.pre, path.condition),
+      //                                          vc.variables, options.pathError)
+      //val approx = approximator.getXRealForResult(body)
+      //println("current: " + approx)
+      //println((System.currentTimeMillis - start) + "ms")
+
+      //start = System.currentTimeMillis
+      val approximatorNew = new AAApproximator(reporter, solver, precision, options.pathError)
+      val approx = approximatorNew.approximate(body, And(vc.pre, path.condition), vc.variables, exactInputs = false)
+      //println("new:     " + approxNew)
+      //println((System.currentTimeMillis - start) + "ms")
+
       reporter.info("solver counts: " + solver.getCounts)
       val zipped = vc.variables.resultVars.zip(approx)
 
@@ -203,10 +215,20 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
   def getApproximationAndSpec_AllVars(path: Path, precision: Precision): Expr = path.bodyFinite match {
     case True => True // noop
     case body =>
-      solver.clearCounts 
-      val approximator = new Approximator(reporter, solver, precision, And(vc.pre, path.condition),
-                                                  vc.variables, options.pathError)
-      val approxs: Map[Expr, XReal] = approximator.getXRealForAllVars(body)
+      solver.clearCounts
+      //var start = System.currentTimeMillis
+      //val approximator = new Approximator(reporter, solver, precision, And(vc.pre, path.condition),
+      //                                            vc.variables, options.pathError)
+      //val approxs: Map[Expr, XReal] = approximator.getXRealForAllVars(body)
+      //println("current: " + approxs)
+      //println((System.currentTimeMillis - start) + "ms")
+
+      //start = System.currentTimeMillis
+      val approximatorNew = new AAApproximator(reporter, solver, precision, options.pathError)
+      val approxs = approximatorNew.approximateEquations(body, And(vc.pre, path.condition), vc.variables, exactInputs = false)
+      //println("new:     " + approxNew)
+      //println((System.currentTimeMillis - start) + "ms")
+
       reporter.info("solver counts: " + solver.getCounts)
       
       val constraint = And(approxs.foldLeft(Seq[Expr]())(
