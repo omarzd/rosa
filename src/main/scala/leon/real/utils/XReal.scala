@@ -5,6 +5,7 @@ package real
 
 import purescala.Trees._
 import real.Trees._
+import real.TreeOps.{getClauses}
 import Rational._
 import VariableShop._
 import RationalAffineUtils._
@@ -48,9 +49,16 @@ class XReal(val tree: Expr, val approxInterval: RationalInterval, val error: XRa
   }
 
   def getCleanConfig: XConfig = {
-    val preCleaned = TreeOps.removeRedundantConstraints(config.precondition, tree)
-    val addCleaned = TreeOps.removeRedundantConstraints(And(config.additionalConstraints.toSeq), tree)
-    XConfig(config.solver, And(preCleaned.toSeq), config.solverMaxIter, config.solverPrecision, addCleaned)
+    val clausesNeeded = TreeOps.removeRedundantConstraints(
+      And(config.precondition, And(config.additionalConstraints.toSeq)), tree)
+    
+    val preClauses = getClauses(config.precondition)
+    val preNeeded = clausesNeeded.filter(cl => preClauses.contains(cl))
+    
+    val additionalNeeded = clausesNeeded -- preNeeded
+    
+    XConfig(config.solver, And(preNeeded.toSeq), config.solverMaxIter, config.solverPrecision,
+     additionalNeeded)
   }
 
   /*
