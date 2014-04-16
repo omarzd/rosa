@@ -151,6 +151,22 @@ class VariablePool(val inputs: Map[Expr, Record], val resIds: Seq[Identifier],
     new VariablePool(newInputs, resIds, loopCounter, integers)
   }
 
+  def getInitialErrors(precision: Precision): Map[Identifier, Rational] = precision match {
+    case FPPrecision(_) => 
+      throw new Exception("getInitialErrors doesn't work yet for fixed-points")
+    case _ =>
+      var map = Map[Identifier, Rational]()
+      val machineEps = getUnitRoundoff(precision)
+      inputs.map({
+        case (Variable(id), Record(_,_, Some(lo),Some(up), Some(absError), _)) =>
+          map += (id -> absError)
+        case (Variable(id), Record(_,_, Some(lo),Some(up), _, _)) =>
+          map += (id -> machineEps * max(abs(lo), abs(up)))
+      })
+      map
+  }
+
+
   override def toString: String = allVars.toString 
 }
 

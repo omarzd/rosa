@@ -221,6 +221,12 @@ class LeonToZ3Transformer(variables: VariablePool, precision: Precision) extends
       And(And(extraConstraints), z3Expr)
     }
 
+    def getZ3ExprWithCondition(e: Expr): (Expr, Expr) = {
+      extraConstraints = Seq[Expr]()
+      val z3Expr = this.transform(e)
+      (z3Expr, And(extraConstraints))
+    }    
+
     def getZ3Expr(e: Expr): Expr = {
       extraConstraints = Seq[Expr]()
       initEps

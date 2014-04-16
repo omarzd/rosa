@@ -107,13 +107,26 @@ class AAApproximator(reporter: Reporter, solver: RangeSolver, precision: Precisi
       res(0).maxError
   }
 
-  // used for loops
   def computeErrorPreinitialized(e: Expr, precond: Expr, inputs: VariablePool,
     variables: Map[Expr, XReal]): Rational = e match {
     case BooleanLiteral(_) => Rational.zero
     case _ =>
       init(inputs, precond)
       val vars = variables
+      val res = process(e, vars, True)._3
+      assert(res.length == 1, "computing error on tuple-typed expression!")
+      res(0).maxError
+  }
+
+  def computeErrorWithIntervals(e: Expr, precond: Expr, inputs: VariablePool,
+    variables: Map[Expr, RationalInterval]): Rational = e match {
+    case BooleanLiteral(_) => Rational.zero
+    case _ =>
+      init(inputs, precond)
+      val vars: Map[Expr, XReal] = variables.map({
+        case (v @ Variable(_), r @ RationalInterval(lo, hi)) =>
+          (inputs.buddy(v), XFloat.xFloatExact(v, r, config, machineEps))
+        })
       val res = process(e, vars, True)._3
       assert(res.length == 1, "computing error on tuple-typed expression!")
       res(0).maxError

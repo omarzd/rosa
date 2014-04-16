@@ -79,7 +79,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
 
     vc.funDef.loopBound match {
       case Some(n) =>
-        val initErrorsMap = getInitialErrors(vc.variables, precision)
+        val initErrorsMap = vc.variables.getInitialErrors(precision)
         val initErrors = ids.map(id => initErrorsMap(id))
 
         reporter.debug("ids: " + ids)
@@ -144,7 +144,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
       reporter.debug("sigma: " + sigma)
       
       // TODO: removing errors here is not sound, we need total ranges, including errors
-      val initErrors = getInitialErrors(vc.variables, precision)
+      val initErrors = vc.variables.getInitialErrors(precision)
       reporter.debug("initial errors: " + initErrors)
 
       val p2NormError = {
@@ -302,7 +302,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
 
       body match {
         case Iteration(ids, body, updateFncs) =>
-          val inlinedUpdateFns = inlineBody(body, updateFncs.asInstanceOf[Seq[UpdateFunction]])
+          val inlinedUpdateFns = inlineBodyForUpdateFncs(body, updateFncs.asInstanceOf[Seq[UpdateFunction]])
           reporter.debug("inlined fncs: " + inlinedUpdateFns)
 
           if (options.lipschitz) {
@@ -453,28 +453,9 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
     valMap
   }
 
-  private def inlineBody(body: Expr, updateFncs: Seq[UpdateFunction]): Seq[UpdateFunction] = {
+  private def inlineBodyForUpdateFncs(body: Expr, updateFncs: Seq[UpdateFunction]): Seq[UpdateFunction] = {
     var valMap: Map[Expr, Expr] = getValMapForInlining(body)
     updateFncs.map( uf => UpdateFunction(uf.lhs, replace(valMap, uf.rhs)))
-  }
-
-  // Also needs to inline the FncVal's and keep track of the additional condition
-  private def inlineBody(body: Expr): Expr = {
-    var valMap: Map[Expr, Expr] = Map.empty
-    val lastInstruction = preMap { expr => expr match {
-
-        case Equals(v @ Variable(id), rhs) =>
-          valMap = valMap + (v -> replace(valMap,rhs))
-          Some(True)
-
-        case x => Some(x)  //last instruction
-      }
-    }(body)
-    //println("valMap: " + valMap)
-    //println("last instruction: " + lastInstruction)
-    val res = replace(valMap, lastInstruction)
-    //println("res: " + res)
-    res
   }
 
   private def getUpdateFunctions(body: Expr, args: Map[Expr, Expr]): (Seq[UpdateFunction], Set[Expr]) = {
@@ -497,26 +478,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
       case (k, v) => UpdateFunction(k, valMap(v))
     }
     (updateFncs.toSeq, modelConstraints)
-  }  
-
-  private def maxAbs(nums: Seq[Rational]): Rational = nums match {
-    case Seq(n) => abs(n)
-    case _ => max(abs(nums.head), maxAbs(nums.tail))
   }
-
-
-  def getInitialErrors(variables: VariablePool, precision: Precision): Map[Identifier, Rational] = {
-    var map = Map[Identifier, Rational]()
-    val machineEps = getUnitRoundoff(precision)
-    variables.inputs.map({
-      case (Variable(id), Record(_,_, Some(lo),Some(up), Some(absError), _)) =>
-        map += (id -> absError)
-      case (Variable(id), Record(_,_, Some(lo),Some(up), _, _)) =>
-        map += (id -> machineEps * max(abs(lo), abs(up)))
-    })
-    map
-  }
-
     
 }
 
