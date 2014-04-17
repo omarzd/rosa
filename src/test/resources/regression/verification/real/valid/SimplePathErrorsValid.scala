@@ -1,8 +1,8 @@
+/* Copyright 2009-2014 EPFL, Lausanne */
 import leon.real._
 import RealOps._
-import annotations._
 
-object PathError {
+object SimplePathErrorsValid {
 
   def smartRoot(a: Real, b: Real, c: Real): Real = {
     require(3 <= a && a <= 3 && 3.5 <= b && b <= 3.5 && -2 < c && c < 2 &&
@@ -32,11 +32,5 @@ object PathError {
     if (x < 1e-5) 1 + 0.5 * x
     else sqrt(1 + x)
   } ensuring( res => res +/- 1e-10) //valid
-
-  def squareRoot3Invalid(x: Real): Real = {
-    require(0 < x && x < 10 && x +/- 1e-10 )
-    if (x < 1e-4) 1 + 0.5 * x
-    else sqrt(1 + x)
-  } ensuring( res => res +/- 1e-10) //invalid
 
 }

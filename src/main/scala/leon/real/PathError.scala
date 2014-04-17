@@ -176,6 +176,7 @@ class PathError(reporter: Reporter, solver: RangeSolver, precision: Precision, m
           // ridiculous hack... but fl and re may have "inherited" mutually inconsistent condition,
           // whose variables do not exist any more in the expressions
           // We should be doing this cleaning somewhere else
+
           fl.cleanConfig - re.cleanConfig
         })
       val diff: Seq[RationalInterval] = diffXFloat.map(_.interval)
