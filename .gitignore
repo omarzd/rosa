@@ -29,3 +29,14 @@ smt/*.smt2
 *.fdb_latexmk
 *.synctex.gz
 *.log
+*.bbl
+*.blg
+
+#Others
+doc/paper/main.pdf
+doc/paper/main.toc
+doc/rosa.sublime-project
+doc/rosa.sublime-workspace
+doc/work-in-progress.pdf
+scalastyle-batch_2.10.jar
+lib/
