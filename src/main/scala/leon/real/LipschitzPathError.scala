@@ -7,16 +7,23 @@ import purescala.Trees._
 import purescala.Common.Identifier
 import purescala.TreeOps.{preMap, replace}
 
-import real.TreeOps.{idealToActual,inlineBody}
-import real.Trees.{PlusR, WithInEq, MinusR}
+import real.TreeOps.{idealToActual,inlineBody, getClauses}
+import real.Trees.{PlusR, WithInEq, MinusR, RealLiteral}
 import Rational._
 
 
-class LipschitzPathError(reporter: Reporter, solver: RangeSolver, precision: Precision, variables: VariablePool) {
+class LipschitzPathError(reporter: Reporter, solver: RangeSolver, precision: Precision,
+  variables: VariablePool) {
 
   val approximator = new AAApproximator(reporter, solver, precision, checkPathError = true)
   val leonToZ3 = new LeonToZ3Transformer(variables, precision)
 
+  val machineEps = precision match {
+    case FPPrecision(bts) =>
+      throw new Exception("Path error doesn't work yet with fixedpoints")
+      zero
+    case _ => getUnitRoundoff(precision)
+  }
   /*
     @param rPath path taken by real values
     @param fPath alternative path, possibly taken by floats
@@ -25,34 +32,44 @@ class LipschitzPathError(reporter: Reporter, solver: RangeSolver, precision: Pre
     println("\n\n*****\nreal path: " + rPath.bodyReal + " -- " + rPath.condition)
     println("fl path:   " + fPath.bodyReal + " -- " + fPath.condition)
     println("initial vars: " + variables)
+
+    val preAdditionalConstraints = {
+      And(getClauses(precondition).filter(cl => !isRangeConstraint(cl)).toSeq)
+    }
+    println("preAdditionalConstraints: " + preAdditionalConstraints)
     
     // interval for floats going the other way f2
     tightenInputs(precondition, rPath.condition, fPath.condition) match {
       case None => println("float infeasible")
         Seq()
 
-      case Some((cnstr, floatIntervals)) =>
-        // Since the real values have to be "close"
+      case Some((rangeCnstr1, floatIntervals, otherConstraints1)) =>
         tightenInputs(precondition, fPath.condition, rPath.condition) match {
           case None => println("real infeasible")
             Seq()
 
-          case Some((cnstr, rInts)) =>
+          case Some((rangeCnstr2, rInts, otherConstraints2)) =>
             val criticalIntervals: Map[Expr, RationalInterval] = floatIntervals.map ({
               case (v @ Variable(_), r) => (v, r union rInts(v))
             })
 
-            println("all:    " + criticalIntervals)
-            println("floats: " + floatIntervals)
+            println("critical intervals:    " + criticalIntervals)
+            println("float intervals: " + floatIntervals)
+            println("add cnstrs f1: " + otherConstraints1)
+            println("add cnstrs f2: " + otherConstraints2)
 
             
-            val lipschitzError = getLipschitzError(rPath.bodyReal, criticalIntervals)
+            val lipschitzError = getLipschitzError(rPath.bodyReal, criticalIntervals,
+              And(otherConstraints1, preAdditionalConstraints))
             println("lipschitz error: " + lipschitzError)
 
-            val diffError = computeDifference(rPath.bodyReal, fPath.bodyReal, floatIntervals)
+            println("computing the real difference")
+            val diffError = computeDifference(rPath.bodyReal, fPath.bodyReal, floatIntervals,
+              And(And(otherConstraints1, otherConstraints2), preAdditionalConstraints))
             println("diff error: " + diffError)
             
-            val roundoffError = computeRoundoffError(fPath.bodyFinite, floatIntervals)
+            val roundoffError = computeRoundoffError(fPath.bodyFinite, floatIntervals,
+              And(otherConstraints2, preAdditionalConstraints))
             println("roundoff error: " + roundoffError)
 
             val totalError = lipschitzError + diffError + roundoffError
@@ -68,14 +85,16 @@ class LipschitzPathError(reporter: Reporter, solver: RangeSolver, precision: Pre
     }).toSeq)
   }
 
-  def computeRoundoffError(f: Expr, inputs: Map[Expr, RationalInterval]): Rational = {
-    val roundoffPre = intervalsToConstraint(inputs)
+  def computeRoundoffError(f: Expr, inputs: Map[Expr, RationalInterval],
+    addConstraints: Expr): Rational = {
+    val roundoffPre = And(intervalsToConstraint(inputs), addConstraints)
     approximator.computeErrorWithIntervals(f, roundoffPre, variables, inputs)
   }
 
-  def computeDifference(f1: Expr, f2: Expr, inputs: Map[Expr, RationalInterval]): Rational = {
+  def computeDifference(f1: Expr, f2: Expr, inputs: Map[Expr, RationalInterval],
+    addConstraints: Expr): Rational = {
     val diff = MinusR(inlineBody(f1), inlineBody(f2))
-    val z3Constraint = leonToZ3.getZ3Condition(intervalsToConstraint(inputs))
+    val z3Constraint = leonToZ3.getZ3Condition(And(intervalsToConstraint(inputs), addConstraints))
 
     val rangeDiff = solver.getRange(z3Constraint, diff, inputs, leonToZ3,
       solverMaxIterHigh, solverPrecisionHigh)
@@ -83,14 +102,15 @@ class LipschitzPathError(reporter: Reporter, solver: RangeSolver, precision: Pre
   }
 
 
-  def getLipschitzError(f: Expr, ranges: Map[Expr, RationalInterval]): Rational = {
+  def getLipschitzError(f: Expr, ranges: Map[Expr, RationalInterval], addConstraints: Expr): Rational = {
     
     val ids = variables.inputs.keys.map(v => v.asInstanceOf[Variable].id).toSeq
     val derivs = ids.map( id => Calculus.d(inlineBody(f),id) )
 
-    val z3Constraint = leonToZ3.getZ3Condition(intervalsToConstraint(ranges))
+    val z3Constraint = leonToZ3.getZ3Condition(And(intervalsToConstraint(ranges), addConstraints))
 
     val lipschitzConstants = derivs.map(der => {
+      println("computing range of derivative: " + der)
       val derMax = solver.getRange(z3Constraint, der, ranges, leonToZ3,
         solverMaxIterMedium, solverPrecisionMedium) 
       max(abs(derMax.xlo), abs(derMax.xhi))
@@ -102,16 +122,35 @@ class LipschitzPathError(reporter: Reporter, solver: RangeSolver, precision: Pre
     maxAbs(lipschitzConstants) * maxAbs(initErrors)
   }
 
-  def tightenInputs(precondition: Expr, c1: Expr, c2: Expr): Option[(Expr, Map[Expr, RationalInterval])] = {
+  def isRangeConstraint(e: Expr): Boolean = e match {
+    case GreaterThan(RealLiteral(_),_) | GreaterEquals(RealLiteral(_),_) |
+      LessThan(RealLiteral(_),_) | LessEquals(RealLiteral(_),_) => true
+
+    case GreaterThan(_, RealLiteral(_)) | GreaterEquals(_, RealLiteral(_)) |
+      LessThan(_, RealLiteral(_)) | LessEquals(_, RealLiteral(_)) => true
+
+    case _ => false
+  }
+
+  /*
+   we currently only accept clauses of the form x < y where x, y can be constants or arithmetic expressions 
+   @param precondition functions precondition
+   @param c1 condition of real-valued path
+   @param c2 condition of finite path
+   @return (range constraint, tightened ranges, other constraints)
+           returns None if the finite path is infeasible, given the constraints
+  */
+  def tightenInputs(precondition: Expr, c1: Expr, c2: Expr): Option[(Expr, Map[Expr, RationalInterval], Expr)] = {
     def isSimpleComparison(e: Expr): Boolean = e match {
       case GreaterThan(_,_) | GreaterEquals(_,_) | LessThan(_,_) | LessEquals(_,_) => true
       case _ => false
     }
-
+    
+    // this can be done potentially more accurately, by taking the error of (rhs - lhs)
     def totalUncert(l: Expr, r: Expr): Rational = {
       val lhsUncert = approximator.computeError(idealToActual(l, variables), precondition, variables, false)
       val rhsUncert = approximator.computeError(idealToActual(r, variables), precondition, variables, false)
-      abs(rhsUncert - lhsUncert)
+      rhsUncert + lhsUncert
     }
 
     def addErrors(e: Expr): Expr = e match {
@@ -140,39 +179,49 @@ class LipschitzPathError(reporter: Reporter, solver: RangeSolver, precision: Pre
         And(LessEquals(l, PlusR(r, freshVar)), WithInEq(freshVar, -totalErr, totalErr))
     }
 
-    val clauses = c1 match {
-      case And(args) => args
-      case x => Seq(x)
-    }
+    val clauses = getClauses(c1).toSeq
 
-    // TODO: handle the other constraints
+    if (clauses.forall(cl => isSimpleComparison(cl))) {
+      val (rangeClauses, otherClauses) = clauses.partition(cl => isRangeConstraint(cl))
+      println("all clauses: " + clauses)
+      println("rangeClauses: " + rangeClauses)
+      println("otherClauses: " + otherClauses)
 
-    if (clauses.forall(c => isSimpleComparison(c))) {
-      val c1WithErrors = clauses.map(c => addErrors(c))
-      
-      val constraintX2 = And(And(c1WithErrors), c2) 
-      val z3Constraint = leonToZ3.getZ3Condition(constraintX2)
+      val otherConstraints = And(otherClauses.map(c => addErrors(c)))
+      val rangeConstraint = And(rangeClauses.map(c => addErrors(c)))
+      val z3Constraint = leonToZ3.getZ3Condition(And(And(rangeConstraint, c2),
+        otherConstraints))
 
-      //computeInterval
       // This would go even more accurate, if we did this altogether, 
       // essentially performing constraint propagation
-
       if (solver.isFeasible(z3Constraint, reporter)) {
 
-        val cMap: Map[Expr, RationalInterval] = variables.inputs.map({
-          case (v @ Variable(_), Record(i, a, Some(lo), Some(hi), Some(err), None)) =>
-            val interval = solver.tightenRange(v, z3Constraint,
-              RationalInterval(lo - err, hi + err), solverMaxIterHigh, solverPrecisionHigh)
+        val initialRanges =  variables.inputs.map({
+          case (v, Record(i, a, Some(lo), Some(hi), Some(err), None)) =>
+            (v, RationalInterval(lo - err, hi + err))
+            // implicit roundoff
+          case (v, Record(i, a, Some(lo), Some(hi), None, None)) =>
+            val err = roundoff(RationalInterval(lo, hi), machineEps)
+            (v, RationalInterval(lo - err, hi + err))
+        })
+        println("initialRanges: " + initialRanges)
+        val z3InitialRanges = leonToZ3.getZ3Condition(intervalsToConstraint(initialRanges))
+
+        val cMap: Map[Expr, RationalInterval] = initialRanges.map({
+          case (v, r) =>
+            val interval = solver.tightenRange(v, And(z3Constraint, z3InitialRanges), r,
+              solverMaxIterHigh, solverPrecisionHigh)
             (v, interval)
         })
 
-        Some(constraintX2, cMap)
+        Some(rangeConstraint, cMap, otherConstraints)
       } else {
+        println("apparently infeasible: " + z3Constraint) 
         None
       }
     } else {
       throw new Exception("Cannot handle this branch condition for path error computation: " + c1)
-      None
+      null
     }
   }
 

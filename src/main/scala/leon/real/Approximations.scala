@@ -327,6 +327,10 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
           var specsPerPath = Seq[SpecTuple]()
           var spec: SpecTuple = Seq() // seq since we can have tuples
 
+          // do not filter paths according to feasibility here
+          val lipschitzPathError = getLipschitzPathError(paths.toSeq, precision) 
+
+
           for ( path <- paths if (isFeasible(And(precondition, path.condition))) ) {
             reporter.debug("Computing approximation for path ...")
             //solver.clearCounts          
@@ -363,9 +367,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
               }
             }
           }
-          // do not filter paths according to feasibility here
-          val lipschitzPathError = getLipschitzPathError(paths.toSeq, precision) 
-
+          
 
 
           val approx = Approximation(kind, constraints, spec)

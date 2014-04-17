@@ -331,12 +331,15 @@ class RangeSolver(timeout: Long) {
           }
           x
       }
-      
+      print("."); flush
       val (z3Expr, addCnstr) = leonToZ3.getZ3ExprWithCondition(e)
       additionalConstraints = And(additionalConstraints, addCnstr)
       tightenRange(z3Expr, additionalConstraints, tmp, maxIter, prec)
     }
-    inIntervalsWithZ3(expr)
+    print("Getting range")
+    val res = inIntervalsWithZ3(expr)
+    print("\n")
+    res
   }
 
   def getRange(precond: Expr, expr: Expr, variables: VariablePool, maxIter: Int, prec: Rational) = {
