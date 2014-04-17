@@ -26,6 +26,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
 
   val containsIfs = containsIfExpr(vc.body)
   val containsFncs = vc.allFncCalls.nonEmpty
+  val checkPathError = !vc.funDef.annotations.contains("robust")
   
   var kinds = allApprox
 
@@ -33,7 +34,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
   else if (!options.z3Only) kinds = kinds.filter(_.arithmApprox != NoApprox)
 
   if (!containsIfs) kinds = kinds.filter(_.pathHandling == Merging)
-  else if(options.pathError) kinds = kinds.filter(_.pathHandling == Pathwise)
+  else if(checkPathError) kinds = kinds.filter(_.pathHandling == Pathwise)
   
   if (!containsFncs) kinds = kinds.filter(_.fncHandling == Uninterpreted)
   else kinds = kinds.filter(_.fncHandling != Uninterpreted)
@@ -189,7 +190,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
       //println((System.currentTimeMillis - start) + "ms")
 
       //start = System.currentTimeMillis
-      val approximatorNew = new AAApproximator(reporter, solver, precision, options.pathError)
+      val approximatorNew = new AAApproximator(reporter, solver, precision, checkPathError)
       val approx = approximatorNew.approximate(body, And(vc.pre, path.condition), vc.variables, exactInputs = false)
       //println("new:     " + approxNew)
       //println((System.currentTimeMillis - start) + "ms")
@@ -225,7 +226,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
       //println((System.currentTimeMillis - start) + "ms")
 
       //start = System.currentTimeMillis
-      val approximatorNew = new AAApproximator(reporter, solver, precision, options.pathError)
+      val approximatorNew = new AAApproximator(reporter, solver, precision, checkPathError)
       val approxs = approximatorNew.approximateEquations(body, And(vc.pre, path.condition), vc.variables, exactInputs = false)
       //println("new:     " + approxNew)
       //println((System.currentTimeMillis - start) + "ms")

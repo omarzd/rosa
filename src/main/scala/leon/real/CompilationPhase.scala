@@ -30,10 +30,9 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
     LeonValueOptionDef("z3Timeout", "--z3Timeout=1000", "Timeout for Z3 in milliseconds."),
     LeonValueOptionDef("precision", "--precision=single", "Which precision to assume of the underlying"+
       "floating-point arithmetic: single, double, doubledouble, quaddouble or all (sorted from smallest)."),
-    LeonFlagOptionDef("pathError", "--pathError", "Check also the path error (default is to not check)"),
     LeonFlagOptionDef("specGen", "--specGen", "Generate specs also for functions without postconditions"),
-    LeonFlagOptionDef("simplify", "--noSimplify", "Simplify constraint before passing to Z3."),
-    LeonFlagOptionDef("remRedundant", "--remRedundant", "Remove redundant constraints before passing to Z3"),
+    //LeonFlagOptionDef("simplify", "--noSimplify", "Simplify constraint before passing to Z3."),
+    //LeonFlagOptionDef("remRedundant", "--remRedundant", "Remove redundant constraints before passing to Z3"),
     LeonFlagOptionDef("noMassageArith", "--noMassageArith", "Massage arithmetic before passing to Z3"),
     LeonFlagOptionDef("lipschitz", "--lipschitz", "compute lipschitz constants")
   )
@@ -49,7 +48,6 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
       case LeonValueOption("functions", ListValue(fs)) => fncNamesToAnalyse = Set() ++ fs
       case LeonFlagOption("simulation", v) => options = options.copy(simulation = v)
       case LeonFlagOption("z3Only", v) => options = options.copy(z3Only = v)
-      case LeonFlagOption("pathError", v) => options = options.copy(pathError = v)
       case LeonFlagOption("specGen", v) => options = options.copy(specGen = v)
       //case LeonFlagOption("simplify", v) => options = options.copy(simplifyCnstr = v)
       //case LeonFlagOption("remRedundant", v) => options = options.copy(removeRedundant = v)

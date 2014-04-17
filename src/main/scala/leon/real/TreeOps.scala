@@ -97,12 +97,12 @@ object TreeOps {
     }
   }
 
+  def getClauses(e: Expr): Set[Expr] = e match {
+    case And(args) => args.toSet
+    case _ => Set(e)
+  }
 
   def removeRedundantConstraints(body: Expr, post: Expr): Set[Expr] = {
-    def extractClauses(e: Expr): Set[Expr] = e match {
-      case And(args) => args.toSet
-      case _ => Set(e)
-    }
     //println("Computing needed for " + post)
     // we can try a fixed-point computation, starting with the constraint from the postcondition,
     // and the set of constraints from the body, iteratively adding constraints which contain
@@ -110,7 +110,7 @@ object TreeOps {
 
     var neededVars: Set[Identifier] = variablesOf(post)
     var currentNeeded: Set[Expr] = Set.empty
-    var currentWaiting: Set[Expr] = extractClauses(body)
+    var currentWaiting: Set[Expr] = getClauses(body)
 
     var continue = true
     while( continue ) {
