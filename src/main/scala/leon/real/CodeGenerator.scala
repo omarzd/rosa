@@ -32,10 +32,9 @@ object CodeGenerator {
     reporter: Reporter): (Expr, Int) = {
     
     val ssaBody = idealToActual(toSSA(vc.body, fncs), vc.variables)
-    val transformer = new Approximator(reporter, solver, FPPrecision(bitlength), vc.pre, vc.variables,
-      checkPathError = false)
-    val approxVariables = transformer.getXRealForAllVars(ssaBody)
-     
+    val transformer = new AAApproximator(reporter, solver, FPPrecision(bitlength), checkPathError = false)
+    val approxVariables = transformer.approximateEquations(ssaBody, vc.pre, vc.variables, exactInputs = false)
+         
     val formats = approxVariables.map {
       case (v, r) => (v, FPFormat.getFormat(r.interval.xlo, r.interval.xhi, bitlength))
     }

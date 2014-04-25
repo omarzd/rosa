@@ -11,6 +11,7 @@ import scala.annotation.StaticAnnotation
 object annotations {
   class loopbound(max: Int) extends StaticAnnotation
   class model extends StaticAnnotation
+  class robust extends StaticAnnotation
 }
 
 object RealOps {

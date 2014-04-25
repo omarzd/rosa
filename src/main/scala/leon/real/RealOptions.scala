@@ -13,7 +13,6 @@ case class RealOptions(
   solverMaxIter: Int            = solverMaxIterMedium,
   solverPrecision: Rational     = solverPrecisionMedium,
   specGen: Boolean              = false,        // generate specs for functions without postconditions?
-  pathError: Boolean            = false,        // checking path error, experimental feature :-)
   loopUnrolling: Boolean        = true,         // whether to (also) unroll loops up to max given by loopBound annotation
   simplifyCnstr: Boolean        = false,        // simplify constraint before passing to Z3
   massageArithmetic: Boolean    = true,        // whether to massage arithmetic before passing to Z3
@@ -24,7 +23,7 @@ case class RealOptions(
   override def toString: String = 
     "simulation: %b, z3Timeout: %d, precision: %s, z3Only: %b, solverMaxIter: %d, solverPrecision: %s,".format(
       simulation, z3Timeout, precision.toString, z3Only, solverMaxIter, solverPrecision.toString) +
-    " specGen: %b, pathError: %b, loopUnrolling: %b, simplifyCnstr: %b, massageArithmetic: %b, ".format(
-       specGen, pathError, loopUnrolling, simplifyCnstr, massageArithmetic) +
+    " specGen: %b, loopUnrolling: %b, simplifyCnstr: %b, massageArithmetic: %b, ".format(
+       specGen, loopUnrolling, simplifyCnstr, massageArithmetic) +
     "removeRedundant: %s, lipschitz: %s".format(removeRedundant, lipschitz)
 }

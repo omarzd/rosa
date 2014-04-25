@@ -26,13 +26,14 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
 
   val containsIfs = containsIfExpr(vc.body)
   val containsFncs = vc.allFncCalls.nonEmpty
+  val checkPathError = !vc.funDef.annotations.contains("robust")
   
   var kinds = allApprox
 
   if (vc.kind == VCKind.LoopPost) kinds = kinds.filter(_.arithmApprox == NoApprox)
   else if (!options.z3Only) kinds = kinds.filter(_.arithmApprox != NoApprox)
 
-  if (!containsIfs || options.pathError) kinds = kinds.filter(_.pathHandling == Merging)
+  if (!containsIfs || checkPathError) kinds = kinds.filter(_.pathHandling == Merging)
   
   if (!containsFncs) kinds = kinds.filter(_.fncHandling == Uninterpreted)
   else kinds = kinds.filter(_.fncHandling != Uninterpreted)
@@ -50,10 +51,12 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
     val jacobian = EMatrix.fromSeqs(updateFncs.map(uf => ids.map(id => d(inlineBody(uf.rhs), id))))
     //println("jacobian: " + jacobian)
     
-    val transformer = new Approximator(reporter, solver, precision, preReal, vc.variables, false, true)
+    val transformer = new AAApproximator(reporter, solver, precision, checkPathError = false)//preReal, vc.variables, false, true)
 
     //println("############# idealToActual: " + idealToActual(updateFncs(0).rhs, vc.variables))
-    val sigmas = updateFncs.map(uf => transformer.computeError(idealToActual(uf.rhs, vc.variables)))
+    val sigmas = updateFncs.map(uf => transformer.computeError(idealToActual(uf.rhs, vc.variables),
+      preReal, vc.variables, exactInputs = true))
+      //idealToActual(uf.rhs, vc.variables)))
     //println("sigmas: " + sigmas)
     
     val lipschitzConsts = jacobian.map(e => {
@@ -78,7 +81,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
   private def getSigmaJacobianHessian(preReal: Expr, updateFncs: Seq[UpdateFunction],
     ids: Seq[Identifier], precision: Precision): (Seq[Rational], EMatrix, RMatrix, Seq[RMatrix]) = {
 
-    val transformer = new Approximator(reporter, solver, precision, preReal, vc.variables, false, true)
+    val transformer = new AAApproximator(reporter, solver, precision, checkPathError = false)
     
     def boundRanges(m: EMatrix): RMatrix = {
       m.map(e => {
@@ -100,7 +103,8 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
     
 
     //println("############# idealToActual: " + idealToActual(updateFncs(0).rhs, vc.variables))
-    val sigmas = updateFncs.map(uf => transformer.computeError(idealToActual(uf.rhs, vc.variables)))
+    val sigmas = updateFncs.map(uf => transformer.computeError(idealToActual(uf.rhs, vc.variables),
+      preReal, vc.variables, exactInputs = true))
     println("sigmas: " + sigmas)
     
     val lipschitzConsts = boundRanges(jacobian)
@@ -172,7 +176,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
   }
 
   
-  def getStraightLineError(preReal: Expr, path: Path, precision: Precision): Option[Rational] = {
+  def getTaylorError(preReal: Expr, path: Path, precision: Precision): Unit = {
     def p2Norm(s: Seq[Rational]): Rational = {
       val rowSum = s.foldLeft(zero){
           case (sum, elem) => sum + elem*elem
@@ -229,35 +233,9 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
       val sigma = sigmas(0)
       reporter.debug("sigma: " + sigma)
       
-      
-
-      val p2NormError = {
-        val rowSum = ids.zip(lipschitzConsts.data(0)).foldLeft(zero){
-          case (sum, (id, k)) => sum + (k*initErrors(id))*(k*initErrors(id)) 
-        }
-        sqrtUpNoScaling(rowSum) + sigma
-      }
-
-      val infinityError = {
-        val k = maxAbs(lipschitzConsts.data(0))
-        k * maxAbs(initErrors.values.toSeq) + sigma
-      }
-
-      val p1NormError = {
-        val rowSum = ids.zip(lipschitzConsts.data(0)).foldLeft(zero){
-          case (sum, (id, k)) => sum + k*initErrors(id) 
-        }
-        rowSum + sigma
-      }
-
-      reporter.info("lipschitz errors")
-      reporter.info("p1 norm:  " + p1NormError)
-      reporter.info("p2 norm:  " + p2NormError)
-      reporter.info("infinity: " + infinityError)      
-
-      Some(min(infinityError, min(p1NormError,p2NormError) ))
     }   
   }
+
 
   /*
     Get approximation for results of an expression.
@@ -265,9 +243,19 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
   def getApproximationAndSpec_ResultOnly(path: Path, precision: Precision): (Expr, Seq[Spec]) = path.bodyFinite match {
     case body =>
       solver.clearCounts
-      val approximator = new Approximator(reporter, solver, precision, And(vc.pre, path.condition),
-                                                vc.variables, options.pathError)
-      val approx = approximator.getXRealForResult(body)
+      //var start = System.currentTimeMillis
+      //val approximator = new Approximator(reporter, solver, precision, And(vc.pre, path.condition),
+      //                                          vc.variables, options.pathError)
+      //val approx = approximator.getXRealForResult(body)
+      //println("current: " + approx)
+      //println((System.currentTimeMillis - start) + "ms")
+
+      //start = System.currentTimeMillis
+      val approximatorNew = new AAApproximator(reporter, solver, precision, checkPathError, options.lipschitz)
+      val approx = approximatorNew.approximate(body, And(vc.pre, path.condition), vc.variables, exactInputs = false)
+      //println("new:     " + approxNew)
+      //println((System.currentTimeMillis - start) + "ms")
+
       reporter.info("solver counts: " + solver.getCounts)
       val zipped = vc.variables.resultVars.zip(approx)
 
@@ -290,10 +278,20 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
   def getApproximationAndSpec_AllVars(path: Path, precision: Precision): Expr = path.bodyFinite match {
     case True => True // noop
     case body =>
-      solver.clearCounts 
-      val approximator = new Approximator(reporter, solver, precision, And(vc.pre, path.condition),
-                                                  vc.variables, options.pathError)
-      val approxs: Map[Expr, XReal] = approximator.getXRealForAllVars(body)
+      solver.clearCounts
+      //var start = System.currentTimeMillis
+      //val approximator = new Approximator(reporter, solver, precision, And(vc.pre, path.condition),
+      //                                            vc.variables, options.pathError)
+      //val approxs: Map[Expr, XReal] = approximator.getXRealForAllVars(body)
+      //println("current: " + approxs)
+      //println((System.currentTimeMillis - start) + "ms")
+
+      //start = System.currentTimeMillis
+      val approximatorNew = new AAApproximator(reporter, solver, precision, checkPathError, options.lipschitz)
+      val approxs = approximatorNew.approximateEquations(body, And(vc.pre, path.condition), vc.variables, exactInputs = false)
+      //println("new:     " + approxNew)
+      //println((System.currentTimeMillis - start) + "ms")
+
       reporter.info("solver counts: " + solver.getCounts)
       
       val constraint = And(approxs.foldLeft(Seq[Expr]())(
@@ -415,15 +413,13 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
               
               val (bodyApprox, nextSpecs) = getApproximationAndSpec_ResultOnly(path, precision)
               reporter.debug("body approx: " + bodyApprox)
+
+              getTaylorError(preReal, path, precision)
               
               spec = mergeSpecs(spec, nextSpecs) //TODO do at the end?
               specsPerPath :+= nextSpecs
               constraints :+= Constraint(And(precondition, path.condition), path.bodyReal, bodyApprox, postcondition)
               
-              if (options.lipschitz) {
-                reporter.debug("Computing lipschitz error...")
-                val lipschitzError = getStraightLineError(preReal, path, precision)
-              }
             }
           }
           val approx = Approximation(kind, constraints, spec)

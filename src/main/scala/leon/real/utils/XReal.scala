@@ -5,6 +5,7 @@ package real
 
 import purescala.Trees._
 import real.Trees._
+import real.TreeOps.{getClauses}
 import Rational._
 import VariableShop._
 import RationalAffineUtils._
@@ -41,6 +42,24 @@ class XReal(val tree: Expr, val approxInterval: RationalInterval, val error: XRa
   def *(y: XReal): XReal = new XReal(this.multiply(y))
   def /(y: XReal): XReal = new XReal(this.divide(y))
   def squareRoot: XReal = new XReal(this.takeSqrtRoot)
+
+  // Removes any constraints that do not concern the variables in the tree expression
+  def cleanConfig: XReal = {
+    new XReal(tree, approxInterval, error, getCleanConfig)
+  }
+
+  def getCleanConfig: XConfig = {
+    val clausesNeeded = TreeOps.removeRedundantConstraints(
+      And(config.precondition, And(config.additionalConstraints.toSeq)), tree)
+    
+    val preClauses = getClauses(config.precondition)
+    val preNeeded = clausesNeeded.filter(cl => preClauses.contains(cl))
+    
+    val additionalNeeded = clausesNeeded -- preNeeded
+    
+    XConfig(config.solver, And(preNeeded.toSeq), config.solverMaxIter, config.solverPrecision,
+     additionalNeeded)
+  }
 
   /*
     Propagation
