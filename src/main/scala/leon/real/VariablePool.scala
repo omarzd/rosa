@@ -151,6 +151,7 @@ class VariablePool(val inputs: Map[Expr, Record], val resIds: Seq[Identifier],
     new VariablePool(newInputs, resIds, loopCounter, integers)
   }
 
+  // TODO: check if this is used at all any more
   def getInitialErrors(precision: Precision): Map[Identifier, Rational] = precision match {
     case FPPrecision(_) => 
       throw new Exception("getInitialErrors doesn't work yet for fixed-points")
