@@ -294,8 +294,42 @@ class RangeSolver(timeout: Long) {
     res
   }
 
-  
-
+  /*
+    Computes the range given input intervals, while tightening at each intermediate step with Z3.
+    @param precond constraints on inputs, including the range constraints
+    @param expr expression to be evaluated
+    @param vars input intervals
+    @param maxIter maximum iterations to perform during binary search
+    @param prec precision threshold for binary search
+  */
+  def getRange(precond: Expr, expr: Expr, vars: Map[Expr, RationalInterval], maxIter: Int,
+    prec: Rational) = {
+    
+    def inIntervalsWithZ3(expr: Expr): RationalInterval = {
+      val tmp = expr match {
+        case RealLiteral(r) => RationalInterval(r, r)
+        case v @ Variable(_) => vars(v)
+        case UMinusR(t) => - inIntervalsWithZ3(t)
+        case PlusR(l, r) => inIntervalsWithZ3(l) + inIntervalsWithZ3(r)
+        case MinusR(l, r) => inIntervalsWithZ3(l) - inIntervalsWithZ3(r)
+        case TimesR(l, r) => inIntervalsWithZ3(l) * inIntervalsWithZ3(r)
+        case DivisionR(l, r) => inIntervalsWithZ3(l) / inIntervalsWithZ3(r)
+        case SqrtR(t) =>
+          val tt = inIntervalsWithZ3(t)
+          RationalInterval(sqrtDown(tt.xlo), sqrtUp(tt.xhi))
+        case PowerR(lhs, IntLiteral(p)) =>
+          assert(p > 1, "p is " + p + " in " + expr)
+          val lhsInIntervals = inIntervalsWithZ3(lhs)
+          var x = lhsInIntervals
+          for (i <- 1 until p ){
+            x = x * lhsInIntervals
+          }
+          x
+      }
+      tightenRange(expr, precond, tmp, maxIter, prec)
+    }
+    inIntervalsWithZ3(expr)
+  }
 
   def getRange(precond: Expr, expr: Expr, variables: VariablePool, maxIter: Int, prec: Rational) = {
     def inIntervalsWithZ3(expr: Expr, vars: VariablePool): RationalInterval = {

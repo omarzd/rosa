@@ -3,13 +3,12 @@
 package leon
 package real
 
-import purescala.Trees.{Expr, BooleanLiteral, GreaterEquals, GreaterThan, LessEquals, LessThan, Variable,
-  And, Tuple}
+import purescala.Trees._
 import purescala.TypeTrees.{RealType}
-import purescala.TreeOps.{negate, replace, formulaSize}
+import purescala.TreeOps._
+import purescala.Common._
 
-import real.Trees.{UMinusF, PlusF, MinusF, TimesF, DivisionF, SqrtF, FncBodyF, FncValueF, FloatLiteral,
-  EqualsF, FloatIfExpr, RealLiteral}
+import real.Trees._
 import real.TreeOps.{removeErrors}
 import XFloat.{variables2xfloats, variables2xfloatsExact, xFloatWithUncertain}
 import XFixed.{variables2xfixed, xFixedWithUncertain}
@@ -18,10 +17,12 @@ import Rational.max
 
 
 // Manages the approximation
-class AAApproximator(reporter: Reporter, solver: RangeSolver, precision: Precision, checkPathError: Boolean = false) {
+class AAApproximator(reporter: Reporter, solver: RangeSolver, precision: Precision, checkPathError: Boolean = false,
+  useLipschitz: Boolean = false) {
 
   implicit val debugSection = utils.DebugSectionAffine
   val compactingThreshold = 500
+
 
   //var variables: Map[Expr, XReal] = Map.empty
 
@@ -153,7 +154,7 @@ class AAApproximator(reporter: Reporter, solver: RangeSolver, precision: Precisi
 
     // TODO: val (x1, x2) = fnc Call doesn't work atm
     case EqualsF(lhs, rhs) if (lhs.getType == RealType) =>
-      val res = approxArithm(rhs, vars, path)
+      val res = evalArithmetic(rhs, vars, path)
       (vars + (lhs -> res), path, Seq())
 
     case EqualsF(lhs, rhs) =>
@@ -231,11 +232,39 @@ class AAApproximator(reporter: Reporter, solver: RangeSolver, precision: Precisi
       (vars, And(path, expr), Seq())
 
     case x if (x.getType == RealType) =>
-      //println("going through end case: " + x.getClass)
-      val res = approxArithm(x, vars, path)
+      val res = evalArithmetic(x, vars, path)
       (vars, path, Seq(res))
+      
 
+  }
 
+  private def evalArithmetic(e: Expr, vars: Map[Expr, XReal], path: Expr): XReal = {
+    if (useLipschitz) {
+      val lip = new Lipschitz(reporter, solver)
+      //println("rhs: " + x)
+
+      val currentVarsInExpr: Set[Identifier] = variablesOf(e)
+      //println("currentVarsInExpr: " + currentVarsInExpr)
+
+      val propagatedError = lip.getPropagatedError(removeErrors(precondition),
+        Seq(actualToIdealArithmetic(e)),
+        vars.filter({case (Variable(id), _) => currentVarsInExpr.contains(id)}),
+        currentVarsInExpr.toSeq)
+      //println("propagatedError: " + propagatedError)
+
+      //println("vars before: " + vars)
+      val varsWithoutErrors = vars.map({case (a, b) => (a, rmErrors(b))})
+      //println("varsWithoutErrors: " + varsWithoutErrors)
+      val res = approxArithm(e, varsWithoutErrors, path)
+
+      val newError = res.maxError + propagatedError.get(0)
+      //println("new error: " + newError)
+      val resNew = replaceError(res, newError)
+      println("resNew: " + resNew)
+      resNew
+    } else {  
+      approxArithm(e, vars, path)
+    }
   }
 
 
@@ -412,4 +441,34 @@ class AAApproximator(reporter: Reporter, solver: RangeSolver, precision: Precisi
     }
     newXReal
   }
+
+  private def actualToIdealArithmetic(expr: Expr): Expr = {
+    preMap {
+      case UMinusF(t) => Some(UMinusR(t))
+      case PlusF(lhs, rhs) => Some(PlusR(lhs, rhs))
+      case MinusF(lhs, rhs) => Some(MinusR(lhs, rhs))
+      case TimesF(lhs, rhs) => Some(TimesR(lhs, rhs))
+      case DivisionF(lhs, rhs) => Some(DivisionR(lhs, rhs))
+      case SqrtF(t) => Some(SqrtR(t))
+      case FloatLiteral(r,_) => Some(RealLiteral(r))
+      case _ =>
+        None
+    }(expr)
+  }
+
+  // TODO: already exists in PathError
+  private def rmErrors(xf: XReal): XReal = xf match {
+    case xff: XFloat =>
+      new XFloat(xff.tree, xff.approxInterval, new XRationalForm(Rational.zero), xff.config, xff.machineEps)
+    case xfp: XFixed =>
+      new XFixed(xfp.format, xfp.tree, xfp.approxInterval, new XRationalForm(Rational.zero), xfp.config)
+  }
+
+  private def replaceError(xf: XReal, newError: Rational): XReal = xf match {
+    case xff: XFloat =>
+      new XFloat(xff.tree, xff.approxInterval, new XRationalForm(newError), xff.config, xff.machineEps)
+    case xfp: XFixed =>
+      new XFixed(xfp.format, xfp.tree, xfp.approxInterval, new XRationalForm(newError), xfp.config)
+  }
+
 }

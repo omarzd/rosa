@@ -126,55 +126,6 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
     
   }
 
-  
-  def getStraightLineError(preReal: Expr, path: Path, precision: Precision): Option[Rational] = {
-    // check whether we can apply this
-    // no ifs and no tuples (for now)
-    if (containsIfExpr(path.bodyReal) || containsFunctionCalls(path.bodyReal) || vc.variables.resIds.length > 1) {
-      reporter.debug("Cannot apply Lipschitz error computation...")
-      None
-    } else {
-      val ids = vc.variables.inputs.keys.map(k => k.asInstanceOf[Variable].id).toSeq
-      val updateFnc = UpdateFunction(vc.variables.resultVars(0), path.bodyReal)
-      val (sigmas: Seq[Rational], lipschitzConsts: RMatrix) = getSigmaLipschitzMatrix(preReal, Seq(updateFnc), ids, precision)
-      assert(sigmas.length == 1 && lipschitzConsts.data.length == 1)
-
-      reporter.debug("K: " + lipschitzConsts)
-      val sigma = sigmas(0)
-      reporter.debug("sigma: " + sigma)
-      
-      // TODO: removing errors here is not sound, we need total ranges, including errors
-      val initErrors = getInitialErrors(vc.variables, precision)
-      reporter.debug("initial errors: " + initErrors)
-
-      val p2NormError = {
-        val rowSum = ids.zip(lipschitzConsts.data(0)).foldLeft(zero){
-          case (sum, (id, k)) => sum + (k*initErrors(id))*(k*initErrors(id)) 
-        }
-        sqrtUp(rowSum) + sigma
-      }
-
-      val infinityError = {
-        val k = maxAbs(lipschitzConsts.data(0))
-        k * maxAbs(initErrors.values.toSeq) + sigma
-      }
-
-      val p1NormError = {
-        val rowSum = ids.zip(lipschitzConsts.data(0)).foldLeft(zero){
-          case (sum, (id, k)) => sum + k*initErrors(id) 
-        }
-        rowSum + sigma
-      }
-
-      reporter.info("lipschitz errors")
-      reporter.info("p1 norm:  " + p1NormError)
-      reporter.info("p2 norm:  " + p2NormError)
-      reporter.info("infinity: " + infinityError)      
-
-      Some(min(infinityError, min(p1NormError,p2NormError) ))
-    }   
-  }
-
   /*
     Get approximation for results of an expression.
   */
@@ -189,7 +140,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
       //println((System.currentTimeMillis - start) + "ms")
 
       //start = System.currentTimeMillis
-      val approximatorNew = new AAApproximator(reporter, solver, precision, checkPathError)
+      val approximatorNew = new AAApproximator(reporter, solver, precision, checkPathError, options.lipschitz)
       val approx = approximatorNew.approximate(body, And(vc.pre, path.condition), vc.variables, exactInputs = false)
       //println("new:     " + approxNew)
       //println((System.currentTimeMillis - start) + "ms")
@@ -225,7 +176,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
       //println((System.currentTimeMillis - start) + "ms")
 
       //start = System.currentTimeMillis
-      val approximatorNew = new AAApproximator(reporter, solver, precision, checkPathError)
+      val approximatorNew = new AAApproximator(reporter, solver, precision, checkPathError, options.lipschitz)
       val approxs = approximatorNew.approximateEquations(body, And(vc.pre, path.condition), vc.variables, exactInputs = false)
       //println("new:     " + approxNew)
       //println((System.currentTimeMillis - start) + "ms")
@@ -356,10 +307,6 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
               specsPerPath :+= nextSpecs
               constraints :+= Constraint(And(precondition, path.condition), path.bodyReal, bodyApprox, postcondition)
               
-              if (options.lipschitz) {
-                reporter.debug("Computing lipschitz error...")
-                val lipschitzError = getStraightLineError(preReal, path, precision)
-              }
             }
           }
           val approx = Approximation(kind, constraints, spec)
