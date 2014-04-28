@@ -309,7 +309,7 @@ class RangeSolver(timeout: Long) {
   // TODO: deduplicate
   
   def getRange(precond: Expr, expr: Expr, vars: Map[Expr, RationalInterval],
-    leonToZ3: LeonToZ3Transformer, maxIter: Int, prec: Rational) = {
+    leonToZ3: LeonToZ3Transformer, maxIter: Int, prec: Rational): RationalInterval = {
 
     var additionalConstraints = precond
 

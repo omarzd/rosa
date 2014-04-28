@@ -63,15 +63,16 @@ class LipschitzPathError(reporter: Reporter, solver: RangeSolver, precision: Pre
             reporter.debug("add cnstrs f1: " + otherConstraints1)
             reporter.debug("add cnstrs f2: " + otherConstraints2)
 
-            
-            val lipschitzError = getLipschitzError(rPath.bodyReal, criticalIntervals,
-              And(otherConstraints1, preAdditionalConstraints))
-            reporter.info("lipschitz error: " + lipschitzError)
-
             reporter.debug("computing the real difference")
             val diffError = computeDifference(rPath.bodyReal, fPath.bodyReal, floatIntervals,
               And(And(otherConstraints1, otherConstraints2), preAdditionalConstraints))
             reporter.info("diff error: " + diffError)
+            
+
+            val lipschitzError = getLipschitzError(rPath.bodyReal, criticalIntervals,
+              And(otherConstraints1, preAdditionalConstraints))
+            reporter.info("lipschitz error: " + lipschitzError)
+
             
             val roundoffError = computeRoundoffError(fPath.bodyFinite, floatIntervals,
               And(otherConstraints2, preAdditionalConstraints))
@@ -99,11 +100,51 @@ class LipschitzPathError(reporter: Reporter, solver: RangeSolver, precision: Pre
   def computeDifference(f1: Expr, f2: Expr, inputs: Map[Expr, RationalInterval],
     addConstraints: Expr): Rational = {
     println("computing difference: ")
-    val diff = MinusR(inlineBody(f1), inlineBody(f2))
-    println(diff)
-    val z3Constraint = leonToZ3.getZ3Condition(And(intervalsToConstraint(inputs), addConstraints))
+    println("f1: " + f1)
+    println("f2: " + f2)
 
+    val z3Constraint = leonToZ3.getZ3Condition(And(intervalsToConstraint(inputs), addConstraints))
     println("constraint: " + z3Constraint)
+    
+
+    // TODO Common subexpression elimination
+
+    /*val (diff, tempVars) = (f1, f2) match {
+      case (And(args1), And(args2)) =>
+
+        val m1: Map[Expr, RationalInterval] = args1.foldLeft(Map[Expr, RationalInterval]())({
+          case (currentMap, Equals(lhs, rhs)) =>
+            currentMap +
+            (lhs -> solver.getRange(z3Constraint, rhs, inputs, leonToZ3, solverMaxIterHigh, solverPrecisionHigh))
+          case (currentMap, _) => currentMap
+          })
+
+        println("m1: " + m1)
+
+        val m2: Map[Expr, RationalInterval] = args2.foldLeft(Map[Expr, RationalInterval]())({
+          case (currentMap, Equals(lhs, rhs)) =>
+            currentMap +
+            (lhs -> solver.getRange(z3Constraint, rhs, inputs, leonToZ3, solverMaxIterHigh, solverPrecisionHigh))
+          case (currentMap, _) => currentMap
+          })
+
+        println("m2: " + m2)
+
+
+        (MinusR(args1.last, args2.last), m1 ++ m2)
+      case _ => (null, null)
+    }
+    println("tempVars: " + tempVars)
+    println("diff: " + diff)
+
+    val tempVarsConstraint = leonToZ3.getZ3Condition(intervalsToConstraint(tempVars))
+    println("tempVarsConstraint: " + tempVarsConstraint)
+
+
+    */
+
+    val diff = MinusR(inlineBody(f1), inlineBody(f2))
+    
     val rangeDiff = solver.getRange(z3Constraint, diff, inputs, leonToZ3,
       solverMaxIterHigh, solverPrecisionHigh)
     max(abs(rangeDiff.xlo), abs(rangeDiff.xhi))
