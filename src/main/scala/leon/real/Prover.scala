@@ -202,6 +202,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
                 if (options.massageArithmetic) {
                   realOnlyConstraint = massageArithmetic(realOnlyConstraint)
                 }
+                // TODO: this seems to have a bug in Fluctuat/simpleInterpolator
                 solver.checkSat(transformer.getZ3Expr(realOnlyConstraint)) match {
                   case (SAT, model) =>
                     // TODO: pretty-print the models
