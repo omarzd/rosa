@@ -17,7 +17,7 @@ import Rational.max
 
 
 // Manages the approximation
-class AAApproximator(reporter: Reporter, solver: RangeSolver, precision: Precision, checkPathError: Boolean = false,
+class AAApproximator(reporter: Reporter, solver: RangeSolver, precision: Precision, checkPathError: Boolean = true,
   useLipschitz: Boolean = false) {
 
   implicit val debugSection = utils.DebugSectionAffine

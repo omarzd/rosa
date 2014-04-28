@@ -34,7 +34,8 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
   else if (!options.z3Only) kinds = kinds.filter(_.arithmApprox != NoApprox)
 
   if (!containsIfs) kinds = kinds.filter(_.pathHandling == Merging)
-  else if(checkPathError) kinds = kinds.filter(_.pathHandling == Pathwise)
+  else if(options.lipschitzPathError) kinds = kinds.filter(_.pathHandling == Pathwise)
+  else if(checkPathError) kinds = kinds.filter(_.pathHandling == Merging)
   
   if (!containsFncs) kinds = kinds.filter(_.fncHandling == Uninterpreted)
   else kinds = kinds.filter(_.fncHandling != Uninterpreted)
@@ -131,7 +132,8 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
   /*
     Get approximation for results of an expression.
   */
-  def getApproximationAndSpec_ResultOnly(path: Path, precision: Precision): (Expr, Seq[Spec]) = path.bodyFinite match {
+  def getApproximationAndSpec_ResultOnly(path: Path, precision: Precision, pathError: Rational):
+    (Expr, Seq[Spec]) = path.bodyFinite match {
     case body =>
       solver.clearCounts
       //var start = System.currentTimeMillis
@@ -158,7 +160,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
       val constraint = And(zipped.foldLeft(Seq[Expr]())(
         (seq, kv) => seq ++ Seq(LessEquals(RealLiteral(kv._2.interval.xlo), vc.variables.buddy(kv._1)),
                                 LessEquals(vc.variables.buddy(kv._1), RealLiteral(kv._2.interval.xhi)),
-                                Noise(kv._1, RealLiteral(kv._2.maxError)))))
+                                Noise(kv._1, RealLiteral( max(pathError, kv._2.maxError) )))))
       (constraint, specs)
     }
 
@@ -280,7 +282,11 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
           var spec: SpecTuple = Seq() // seq since we can have tuples
 
           // do not filter paths according to feasibility here
-          val lipschitzPathError = getLipschitzPathError(paths.toSeq, precision) 
+          // TODO: path error with tuples
+          val lipschitzPathError: Rational =
+            if (options.lipschitzPathError) getLipschitzPathError(paths.toSeq, precision)
+            else zero
+          println("lipschitzPathError: " + lipschitzPathError)
 
 
           for ( path <- paths if (isFeasible(And(precondition, path.condition))) ) {
@@ -306,16 +312,17 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
               }
             } else {
               
-              val (bodyApprox, nextSpecs) = getApproximationAndSpec_ResultOnly(path, precision)
+              val (bodyApprox, nextSpecs) = getApproximationAndSpec_ResultOnly(path, precision, lipschitzPathError)
               reporter.debug("body approx: " + bodyApprox)
-              
+              //println("specs: " + nextSpecs)
               spec = mergeSpecs(spec, nextSpecs) //TODO do at the end?
+              //println("merged: " + spec)
               specsPerPath :+= nextSpecs
               constraints :+= Constraint(And(precondition, path.condition), path.bodyReal, bodyApprox, postcondition)
               
             }
           }
-          
+          spec = spec.map(s => s.addPathError(lipschitzPathError))
 
 
           val approx = Approximation(kind, constraints, spec)
@@ -350,11 +357,13 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
     )
 
     val lipschitz = new LipschitzPathError(reporter, solver, precision, vc.variables)
-    carthesianProduct.foreach {
-      case (p1, p2) => lipschitz.computePathError(removeErrors(vc.pre), p1, p2)
-    }
-
-    zero
+    carthesianProduct.foldLeft(zero) {
+      case (maxSoFar, (p1, p2)) =>
+        lipschitz.computePathError(removeErrors(vc.pre), p1, p2) match {
+          case Some(pError) => max( maxSoFar, pError )
+          case None => maxSoFar
+        }
+    }    
   }
 
   private def removeLoopCounterUpdate(e: Expr): Expr = {

@@ -253,7 +253,7 @@ class RangeSolver(timeout: Long) {
     val res: (Sat, Z3Model) = solver.check match {
       case Some(true) =>
         if (verbose) println("--> cond: SAT")
-        val model = solver.getModel
+        //val model = solver.getModel
         //println("model: " + modelToMap(model, variables))
         (SAT, solver.getModel)
       case Some(false) =>
@@ -334,14 +334,15 @@ class RangeSolver(timeout: Long) {
           }
           x
       }
-      print("."); flush
+      //print(".");// flush
       val (z3Expr, addCnstr) = leonToZ3.getZ3ExprWithCondition(e)
       additionalConstraints = And(additionalConstraints, addCnstr)
       tightenRange(z3Expr, additionalConstraints, tmp, maxIter, prec)
     }
-    print("Getting range")
+    //print("Getting range for: " + expr)
+    //println("with precondition: " + precond)
     val res = inIntervalsWithZ3(expr)
-    print("\n")
+    //print("\n")
     res
   }
 
