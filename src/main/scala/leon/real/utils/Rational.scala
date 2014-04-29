@@ -249,6 +249,11 @@ object Rational {
     else y
   }
 
+  def maxAbs(nums: Seq[Rational]): Rational = nums match {
+    case Seq(n) => abs(n)
+    case _ => max(abs(nums.head), maxAbs(nums.tail))
+  }
+
   private def formatFraction(n: BigInt, d: BigInt): (BigInt, BigInt) = {
     val g = gcd(n.abs, d.abs)
     (n / g, d / g)

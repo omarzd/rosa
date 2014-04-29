@@ -27,7 +27,7 @@ object Fluctuat {
       (e - 5) * 1.1 + r2
     else
       r3
-  }
+  } ensuring (res => -2.25e-5 <= res && res <= 33.25 && res +/- 2.4e-5)
 
   /*
     "Result is in the real number semantics within [1,1.4531]
@@ -45,7 +45,7 @@ object Fluctuat {
       sqrt2 * (1.0 + (i/2 - 1) * (0.5 - 0.125 * ( i/2 - 1)))
     else
       1 + (i - 1) * (0.5 + (i-1) * (-0.125 + (i - 1) * 0.0625))
-  }
+  } ensuring (res => 1 <= res && res <= 1.4531 && res +/- 0.03941)
 
 }
 

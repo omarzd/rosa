@@ -20,6 +20,21 @@ import Rational._
 
 object TreeOps {
 
+  def inlineBody(body: Expr): Expr = {
+    var valMap: Map[Expr, Expr] = Map.empty
+    val lastInstruction = preMap { expr => expr match {
+
+        case Equals(v @ Variable(id), rhs) =>
+          valMap = valMap + (v -> replace(valMap,rhs))
+          Some(True)
+
+        case x => Some(x)  //last instruction
+      }
+    }(body)
+    val res = replace(valMap, lastInstruction)
+    res
+  }
+
   /*
     Performs some pre-processing of the constraint in order to increase solving success.
     - equality propagation
