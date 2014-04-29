@@ -18,6 +18,7 @@ case object DebugSectionReals        extends DebugSection("reals",        1 << 8
 case object DebugSectionApprox       extends DebugSection("approx",       1 << 9)
 case object DebugSectionRealProver   extends DebugSection("rprover",      1 << 10)
 case object DebugSectionAffine       extends DebugSection("affine",       1 << 11)
+case object DebugSectionLipschitz    extends DebugSection("lipschitz",    1 << 12)
 
 object DebugSections {
   val all = Set[DebugSection](
