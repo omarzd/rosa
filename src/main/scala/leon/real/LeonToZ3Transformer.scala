@@ -157,6 +157,9 @@ class LeonToZ3Transformer(variables: VariablePool, precision: Precision) extends
       case WithIn(x, lwrBnd, upBnd) =>
         And(LessThan(RealLiteral(lwrBnd), x), LessThan(x, RealLiteral(upBnd)))
 
+      case WithInEq(x, lwrBnd, upBnd) =>
+        And(LessEquals(RealLiteral(lwrBnd), x), LessEquals(x, RealLiteral(upBnd)))
+
       /* 
       Apparently this is not true:
       if we allow only tuples as the last return value, this is not needed
@@ -217,6 +220,12 @@ class LeonToZ3Transformer(variables: VariablePool, precision: Precision) extends
       val z3Expr = this.transform(e)
       And(And(extraConstraints), z3Expr)
     }
+
+    def getZ3ExprWithCondition(e: Expr): (Expr, Expr) = {
+      extraConstraints = Seq[Expr]()
+      val z3Expr = this.transform(e)
+      (z3Expr, And(extraConstraints))
+    }    
 
     def getZ3Expr(e: Expr): Expr = {
       extraConstraints = Seq[Expr]()

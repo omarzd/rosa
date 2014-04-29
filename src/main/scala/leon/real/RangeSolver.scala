@@ -253,7 +253,7 @@ class RangeSolver(timeout: Long) {
     val res: (Sat, Z3Model) = solver.check match {
       case Some(true) =>
         if (verbose) println("--> cond: SAT")
-        val model = solver.getModel
+        //val model = solver.getModel
         //println("model: " + modelToMap(model, variables))
         (SAT, solver.getModel)
       case Some(false) =>
@@ -293,6 +293,59 @@ class RangeSolver(timeout: Long) {
     solver.pop()
     res
   }
+
+
+  def isFeasible(pre: Expr, reporter: Reporter): Boolean = {
+    import Sat._
+    checkSat(pre) match {
+      case (SAT, model) => true
+      case (UNSAT, model) => false
+      case _ =>
+        reporter.warning("Sanity check failed! ")// + sanityCondition)
+        false
+    }
+  }
+
+  // TODO: deduplicate
+  
+  def getRange(precond: Expr, expr: Expr, vars: Map[Expr, RationalInterval],
+    leonToZ3: LeonToZ3Transformer, maxIter: Int, prec: Rational): RationalInterval = {
+
+    var additionalConstraints = precond
+
+    def inIntervalsWithZ3(e: Expr): RationalInterval = {
+      val tmp = e match {
+        case RealLiteral(r) => RationalInterval(r, r)
+        case v @ Variable(_) => vars(v)
+        case UMinusR(t) => - inIntervalsWithZ3(t)
+        case PlusR(l, r) => inIntervalsWithZ3(l) + inIntervalsWithZ3(r)
+        case MinusR(l, r) => inIntervalsWithZ3(l) - inIntervalsWithZ3(r)
+        case TimesR(l, r) => inIntervalsWithZ3(l) * inIntervalsWithZ3(r)
+        case DivisionR(l, r) => inIntervalsWithZ3(l) / inIntervalsWithZ3(r)
+        case SqrtR(t) =>
+          val tt = inIntervalsWithZ3(t)
+          RationalInterval(sqrtDown(tt.xlo), sqrtUp(tt.xhi))
+        case PowerR(lhs, IntLiteral(p)) =>
+          assert(p > 1, "p is " + p + " in " + e)
+          val lhsInIntervals = inIntervalsWithZ3(lhs)
+          var x = lhsInIntervals
+          for (i <- 1 until p ){
+            x = x * lhsInIntervals
+          }
+          x
+      }
+      //print(".");// flush
+      val (z3Expr, addCnstr) = leonToZ3.getZ3ExprWithCondition(e)
+      additionalConstraints = And(additionalConstraints, addCnstr)
+      tightenRange(z3Expr, additionalConstraints, tmp, maxIter, prec)
+    }
+    //print("Getting range for: " + expr)
+    //println("with precondition: " + precond)
+    val res = inIntervalsWithZ3(expr)
+    //print("\n")
+    res
+  }
+
 
   /*
     Computes the range given input intervals, while tightening at each intermediate step with Z3.

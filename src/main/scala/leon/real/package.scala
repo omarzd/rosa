@@ -68,6 +68,13 @@ package object real {
       case Some(err) => id + " \u2208 " + bounds + " \u00B1 " + err
       case None => id + " \u2208 " + bounds + " \u00B1 -"
     }
+
+    def addPathError(r: Rational): Spec = absError match {
+      case Some(currentError) =>
+        Spec(id, bounds, Some(Rational.max(currentError, r)))
+      case None =>
+        Spec(id, bounds, Some(r))
+    }
   }
 
 

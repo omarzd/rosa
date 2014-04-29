@@ -88,9 +88,26 @@ object Trees {
 
   /* Bounds of the expression varr. */
   case class WithIn(varr: Expr, lwrBnd: Rational, upBnd: Rational) extends Expr with FixedType with UnaryExtractable with PrettyPrintable {
+    assert(lwrBnd <= upBnd)
     val fixedType = BooleanType
     def extract: Option[(Expr, (Expr)=>Expr)] = {
       Some((varr, (e) => WithIn(e, lwrBnd, upBnd)))
+    }
+    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
+      printer.pp(varr, Some(this))
+      printer.append(" \u2208 (")
+      printer.append(lwrBnd.toString)
+      printer.append(",")
+      printer.append(upBnd.toString)
+      printer.append(")")
+    }
+  }
+
+  case class WithInEq(varr: Expr, lwrBnd: Rational, upBnd: Rational) extends Expr with FixedType with UnaryExtractable with PrettyPrintable {
+    assert(lwrBnd <= upBnd)
+    val fixedType = BooleanType
+    def extract: Option[(Expr, (Expr)=>Expr)] = {
+      Some((varr, (e) => WithInEq(e, lwrBnd, upBnd)))
     }
     def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
       printer.pp(varr, Some(this))

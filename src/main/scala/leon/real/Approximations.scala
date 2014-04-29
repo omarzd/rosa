@@ -33,7 +33,9 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
   if (vc.kind == VCKind.LoopPost) kinds = kinds.filter(_.arithmApprox == NoApprox)
   else if (!options.z3Only) kinds = kinds.filter(_.arithmApprox != NoApprox)
 
-  if (!containsIfs || checkPathError) kinds = kinds.filter(_.pathHandling == Merging)
+  if (!containsIfs) kinds = kinds.filter(_.pathHandling == Merging)
+  else if(options.lipschitzPathError) kinds = kinds.filter(_.pathHandling == Pathwise)
+  else if(checkPathError) kinds = kinds.filter(_.pathHandling == Merging)
   
   if (!containsFncs) kinds = kinds.filter(_.fncHandling == Uninterpreted)
   else kinds = kinds.filter(_.fncHandling != Uninterpreted)
@@ -128,7 +130,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
 
     vc.funDef.loopBound match {
       case Some(n) =>
-        val initErrorsMap = getInitialErrors(vc.variables, precision)
+        val initErrorsMap = vc.variables.getInitialErrors(precision)
         val initErrors = ids.map(id => initErrorsMap(id))
 
         reporter.debug("ids: " + ids)
@@ -236,11 +238,11 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
     }   
   }
 
-
   /*
     Get approximation for results of an expression.
   */
-  def getApproximationAndSpec_ResultOnly(path: Path, precision: Precision): (Expr, Seq[Spec]) = path.bodyFinite match {
+  def getApproximationAndSpec_ResultOnly(path: Path, precision: Precision, pathError: Rational):
+    (Expr, Seq[Spec]) = path.bodyFinite match {
     case body =>
       solver.clearCounts
       //var start = System.currentTimeMillis
@@ -267,7 +269,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
       val constraint = And(zipped.foldLeft(Seq[Expr]())(
         (seq, kv) => seq ++ Seq(LessEquals(RealLiteral(kv._2.interval.xlo), vc.variables.buddy(kv._1)),
                                 LessEquals(vc.variables.buddy(kv._1), RealLiteral(kv._2.interval.xhi)),
-                                Noise(kv._1, RealLiteral(kv._2.maxError)))))
+                                Noise(kv._1, RealLiteral( max(pathError, kv._2.maxError) )))))
       (constraint, specs)
     }
 
@@ -364,7 +366,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
 
       body match {
         case Iteration(ids, body, updateFncs) =>
-          val inlinedUpdateFns = inlineBody(body, updateFncs.asInstanceOf[Seq[UpdateFunction]])
+          val inlinedUpdateFns = inlineBodyForUpdateFncs(body, updateFncs.asInstanceOf[Seq[UpdateFunction]])
           reporter.debug("inlined fncs: " + inlinedUpdateFns)
 
           if (options.lipschitz) {
@@ -387,6 +389,17 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
           var constraints = Seq[Constraint]()
           var specsPerPath = Seq[SpecTuple]()
           var spec: SpecTuple = Seq() // seq since we can have tuples
+
+          // do not filter paths according to feasibility here
+          // TODO: path error with tuples
+          val lipschitzPathError: Rational =
+            if (options.lipschitzPathError) {
+              val res = getLipschitzPathError(paths.toSeq, precision)
+              reporter.info("lipschitzPathError: " + res)
+              res
+            }    
+            else zero
+          
 
           for ( path <- paths if (isFeasible(And(precondition, path.condition))) ) {
             reporter.debug("Computing approximation for path ...")
@@ -411,17 +424,22 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
               }
             } else {
               
-              val (bodyApprox, nextSpecs) = getApproximationAndSpec_ResultOnly(path, precision)
+              val (bodyApprox, nextSpecs) = getApproximationAndSpec_ResultOnly(path, precision, lipschitzPathError)
               reporter.debug("body approx: " + bodyApprox)
 
               getTaylorError(preReal, path, precision)
               
+              //println("specs: " + nextSpecs)
               spec = mergeSpecs(spec, nextSpecs) //TODO do at the end?
+              //println("merged: " + spec)
               specsPerPath :+= nextSpecs
               constraints :+= Constraint(And(precondition, path.condition), path.bodyReal, bodyApprox, postcondition)
               
             }
           }
+          spec = spec.map(s => s.addPathError(lipschitzPathError))
+
+
           val approx = Approximation(kind, constraints, spec)
           vc.approximations += (precision -> (vc.approximations(precision) :+ approx))
           approx.specsPerPath = specsPerPath
@@ -446,6 +464,21 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
           }
       }
     }
+  }
+
+  def getLipschitzPathError(paths: Seq[Path], precision: Precision): Rational = {
+    val carthesianProduct: Seq[(Path, Path)] = paths.flatMap( p1 =>
+      paths.filter(p2 => p2 != p1).map(p2 => (p1, p2))
+    )
+
+    val lipschitz = new LipschitzPathError(reporter, solver, precision, vc.variables)
+    carthesianProduct.foldLeft(zero) {
+      case (maxSoFar, (p1, p2)) =>
+        lipschitz.computePathError(removeErrors(vc.pre), p1, p2) match {
+          case Some(pError) => max( maxSoFar, pError )
+          case None => maxSoFar
+        }
+    }    
   }
 
   private def removeLoopCounterUpdate(e: Expr): Expr = {
@@ -495,28 +528,9 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
     valMap
   }
 
-  private def inlineBody(body: Expr, updateFncs: Seq[UpdateFunction]): Seq[UpdateFunction] = {
+  private def inlineBodyForUpdateFncs(body: Expr, updateFncs: Seq[UpdateFunction]): Seq[UpdateFunction] = {
     var valMap: Map[Expr, Expr] = getValMapForInlining(body)
     updateFncs.map( uf => UpdateFunction(uf.lhs, replace(valMap, uf.rhs)))
-  }
-
-  // Also needs to inline the FncVal's and keep track of the additional condition
-  private def inlineBody(body: Expr): Expr = {
-    var valMap: Map[Expr, Expr] = Map.empty
-    val lastInstruction = preMap { expr => expr match {
-
-        case Equals(v @ Variable(id), rhs) =>
-          valMap = valMap + (v -> replace(valMap,rhs))
-          Some(True)
-
-        case x => Some(x)  //last instruction
-      }
-    }(body)
-    //println("valMap: " + valMap)
-    //println("last instruction: " + lastInstruction)
-    val res = replace(valMap, lastInstruction)
-    //println("res: " + res)
-    res
   }
 
   private def getUpdateFunctions(body: Expr, args: Map[Expr, Expr]): (Seq[UpdateFunction], Set[Expr]) = {
@@ -539,26 +553,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
       case (k, v) => UpdateFunction(k, valMap(v))
     }
     (updateFncs.toSeq, modelConstraints)
-  }  
-
-  private def maxAbs(nums: Seq[Rational]): Rational = nums match {
-    case Seq(n) => abs(n)
-    case _ => max(abs(nums.head), maxAbs(nums.tail))
   }
-
-
-  def getInitialErrors(variables: VariablePool, precision: Precision): Map[Identifier, Rational] = {
-    var map = Map[Identifier, Rational]()
-    val machineEps = getUnitRoundoff(precision)
-    variables.inputs.map({
-      case (Variable(id), Record(_,_, Some(lo),Some(up), Some(absError), _)) =>
-        map += (id -> absError)
-      case (Variable(id), Record(_,_, Some(lo),Some(up), _, _)) =>
-        map += (id -> machineEps * max(abs(lo), abs(up)))
-    })
-    map
-  }
-
     
 }
 
