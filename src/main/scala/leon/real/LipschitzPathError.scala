@@ -33,7 +33,7 @@ class LipschitzPathError(reporter: Reporter, solver: RangeSolver, precision: Pre
   */
   // TODO: does not work for tuples
   def computePathError(precondition: Expr, rPath: Path, fPath: Path): Option[Rational] = {
-    println("precondition: " + precondition)
+    reporter.debug("precondition: " + precondition)
     reporter.debug("\n\n*****\nreal path: " + rPath.bodyReal + " -- " + rPath.condition)
     reporter.debug("fl path:   " + fPath.bodyReal + " -- " + fPath.condition)
     reporter.debug("initial vars: " + variables)
@@ -99,12 +99,12 @@ class LipschitzPathError(reporter: Reporter, solver: RangeSolver, precision: Pre
 
   def computeDifference(f1: Expr, f2: Expr, inputs: Map[Expr, RationalInterval],
     addConstraints: Expr): Rational = {
-    println("computing difference: ")
-    println("f1: " + f1)
-    println("f2: " + f2)
+    //println("computing difference: ")
+    //println("f1: " + f1)
+    //println("f2: " + f2)
 
     val z3Constraint = leonToZ3.getZ3Condition(And(intervalsToConstraint(inputs), addConstraints))
-    println("constraint: " + z3Constraint)
+    //println("constraint: " + z3Constraint)
     
 
     // TODO Common subexpression elimination

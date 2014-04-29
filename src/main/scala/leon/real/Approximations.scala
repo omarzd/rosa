@@ -284,10 +284,13 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
           // do not filter paths according to feasibility here
           // TODO: path error with tuples
           val lipschitzPathError: Rational =
-            if (options.lipschitzPathError) getLipschitzPathError(paths.toSeq, precision)
+            if (options.lipschitzPathError) {
+              val res = getLipschitzPathError(paths.toSeq, precision)
+              reporter.info("lipschitzPathError: " + res)
+              res
+            }    
             else zero
-          println("lipschitzPathError: " + lipschitzPathError)
-
+          
 
           for ( path <- paths if (isFeasible(And(precondition, path.condition))) ) {
             reporter.debug("Computing approximation for path ...")

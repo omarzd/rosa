@@ -189,7 +189,8 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
             reporter.info(s"Constraint with $index is valid.")
             validCount += 1
           case (SAT, model) =>
-            /*if (app.kind.allowsRealModel) {
+            // TODO: this needs to be re-checked, seems to have a bug with pathError/Fluctuat/simpleInterpolator
+            if (app.kind.allowsRealModel) {
               // Idea: check if we get a counterexample for the real part only, that is then a possible counterexample, (depends on the approximation)
               
               val realOnlyPost = removeErrorsAndActual(cnstr.postcondition)
@@ -198,23 +199,23 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
                 reporter.info("Nothing to prove for real-only part.")
               } else {
                 var realOnlyConstraint = And(removeErrorsAndActual(And(cnstr.precondition, realCnstr)), negate(realOnlyPost))
-                println("realOnlyConstraint: " + realOnlyConstraint)         
+                //println("realOnlyConstraint: " + realOnlyConstraint)         
                 if (options.massageArithmetic) {
                   realOnlyConstraint = massageArithmetic(realOnlyConstraint)
                 }
-                println("after massage: " + realOnlyConstraint)
-                /*solver.checkSat(transformer.getZ3Expr(realOnlyConstraint)) match {
+                //println("after massage: " + realOnlyConstraint)
+                solver.checkSat(transformer.getZ3Expr(realOnlyConstraint)) match {
                   case (SAT, model) =>
                     // TODO: pretty-print the models
                     reporter.info(s"Constraint with $index, counterexample: " + model)
                     invalidCount += 1
                   case (UNSAT, _) =>
                   case _ =>
-                }*/
+                }
               }
             } else {
               reporter.info(s"Constraint with $index is unknown.")
-            }*/
+            }
             reporter.info(s"Constraint with $index is unknown.")
 
           case _ =>;
