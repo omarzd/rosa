@@ -16,6 +16,42 @@ import Rational._
 class Lipschitz(reporter: Reporter, solver: RangeSolver) {
   implicit val debugSection = utils.DebugSectionLipschitz
 
+  /*def getSigmaJacobianHessian(preReal: Expr, updateFncs: Seq[UpdateFunction],
+    ids: Seq[Identifier], precision: Precision): (Seq[Rational], EMatrix, RMatrix, Seq[RMatrix]) = {
+
+    val transformer = new Approximator(reporter, solver, precision, preReal, vc.variables, false, true)
+    
+    def boundRanges(m: EMatrix): RMatrix = {
+      m.map(e => {
+        val rangeDerivative = solver.getRange(preReal, e, vc.variables,
+                  solverMaxIterMedium, solverPrecisionMedium) 
+        maxAbs(Seq(rangeDerivative.xlo, rangeDerivative.xhi))
+      })
+    }
+
+    // have to inline, since we don't know (yet) how to do derivative with vals
+    // however for the error computation, we keep the original form with vals,
+    // since it seems to get better results
+    val jacobian = EMatrix.fromSeqs(updateFncs.map(uf => ids.map(id => d(inlineBody(uf.rhs), id))))
+    //println("jacobian: " + jacobian)
+
+    val hessians = getHessian(jacobian, ids)
+    //println(hessians.mkString("\n"))
+    
+    
+
+    //println("############# idealToActual: " + idealToActual(updateFncs(0).rhs, vc.variables))
+    val sigmas = updateFncs.map(uf => transformer.computeError(idealToActual(uf.rhs, vc.variables)))
+    println("sigmas: " + sigmas)
+    
+    val lipschitzConsts = boundRanges(jacobian)
+
+    val hessianConsts = hessians.map( hessian => boundRanges(hessian))
+
+    println("lipschitzConsts: " + lipschitzConsts)
+    (sigmas, jacobian, lipschitzConsts, hessianConsts)
+  }*/
+
   private def getLipschitzMatrix(preReal: Expr, fncs: Seq[Expr], ids: Seq[Identifier],
    vars: Map[Expr, RationalInterval]): RMatrix = {
   

@@ -33,7 +33,10 @@ object Rational {
     Rational(DirectedRounding.sqrtUp(Rational.scaleToIntsUp(x).doubleValue))
   }
   def sqrtDown(x: Rational): Rational = Rational(DirectedRounding.sqrtDown(Rational.scaleToIntsDown(x).doubleValue))
-  
+
+  def sqrtUpNoScaling(x: Rational): Rational = Rational(DirectedRounding.sqrtUp(x.doubleValue))
+  def sqrtDownNoScaling(x: Rational): Rational = Rational(DirectedRounding.sqrtDown(x.doubleValue))
+
   /*
     Constructors for rationals.
   */
