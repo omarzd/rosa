@@ -119,7 +119,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
 
 
 
-  def getLoopError(preReal: Expr, updateFncs: Seq[UpdateFunction], ids: Seq[Identifier],
+  /*def getLoopError(preReal: Expr, updateFncs: Seq[UpdateFunction], ids: Seq[Identifier],
     precision: Precision): Seq[Rational] = {
 
     assert(updateFncs.length == ids.length)  // for a loop
@@ -175,7 +175,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
       case _ => Seq.empty
     }
     
-  }
+  }*/
 
   
   def getTaylorError(preReal: Expr, path: Path, precision: Precision): Unit = {
@@ -281,16 +281,10 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
     case True => True // noop
     case body =>
       solver.clearCounts
-      //var start = System.currentTimeMillis
-      //val approximator = new Approximator(reporter, solver, precision, And(vc.pre, path.condition),
-      //                                            vc.variables, options.pathError)
-      //val approxs: Map[Expr, XReal] = approximator.getXRealForAllVars(body)
-      //println("current: " + approxs)
-      //println((System.currentTimeMillis - start) + "ms")
-
       //start = System.currentTimeMillis
       val approximatorNew = new AAApproximator(reporter, solver, precision, checkPathError, options.lipschitz)
-      val approxs = approximatorNew.approximateEquations(body, And(vc.pre, path.condition), vc.variables, exactInputs = false)
+      val approxs: Map[Expr, XReal] = approximatorNew.approximateEquations(body,
+        And(vc.pre, path.condition), vc.variables, exactInputs = false)
       //println("new:     " + approxNew)
       //println((System.currentTimeMillis - start) + "ms")
 
@@ -300,6 +294,45 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
           (seq, kv) => seq ++ Seq(LessEquals(RealLiteral(kv._2.interval.xlo), kv._1),
                                   LessEquals(kv._1, RealLiteral(kv._2.interval.xhi)),
                                   Noise(vc.variables.getIdeal(kv._1), RealLiteral(kv._2.maxError)))))
+
+      constraint
+  }
+
+  def getApproximationAndSpec_LoopInv(path: Path, precision: Precision,
+    leonToZ3: LeonToZ3Transformer, preReal: Expr): Expr = path.bodyFinite match {
+    case True => True // noop
+    case body =>
+      solver.clearCounts
+      
+      val (ids, updateFncs) = vc.updateFunctions.unzip
+
+      //start = System.currentTimeMillis
+      val approximatorNew = new AAApproximator(reporter, solver, precision, checkPathError, options.lipschitz)
+      val (approxs, sigmas)  = approximatorNew.approximateEquationsAndUpdateFncs(body,
+        And(vc.pre, path.condition), vc.variables, exactInputs = false,
+        updateFncs.map(fnc => idealToActual(fnc, vc.variables)))
+      //println("new:     " + approxNew)
+      //println((System.currentTimeMillis - start) + "ms")
+
+      reporter.info("solver counts: " + solver.getCounts)
+      
+      val constraint = And(approxs.foldLeft(Seq[Expr]())(
+          (seq, kv) => seq ++ Seq(LessEquals(RealLiteral(kv._2.interval.xlo), kv._1),
+                                  LessEquals(kv._1, RealLiteral(kv._2.interval.xhi)),
+                                  Noise(vc.variables.getIdeal(kv._1), RealLiteral(kv._2.maxError)))))
+
+      
+      reporter.debug("Computing loop error...")          
+      val lipschitz = new Lipschitz(reporter, solver, leonToZ3)
+      val idealApproxs = approxs.map({
+        case (v @ Variable(id), xr) => (vc.variables.getIdeal(v), xr)
+        })
+
+      val errs = lipschitz.getLoopError(preReal, path.bodyReal, ids, updateFncs, idealApproxs, sigmas,
+        precision, vc.funDef.loopBound)
+                
+
+
       constraint
   }
 
@@ -362,7 +395,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
 
     if (vc.isLoop) {
       reporter.debug("vc is a loop")
-      var constraints = Seq[Constraint]()
+      /*var constraints = Seq[Constraint]()
 
       body match {
         case Iteration(ids, body, updateFncs) =>
@@ -376,6 +409,9 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
       }
 
       Approximation(kind, constraints, emptySpecTuple)
+      */
+      // TODO: remove or fix
+      null
     } else {
       kind.arithmApprox match {
         case NoApprox =>
@@ -404,24 +440,18 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
           for ( path <- paths if (isFeasible(And(precondition, path.condition))) ) {
             reporter.debug("Computing approximation for path ...")
             //solver.clearCounts          
-            if (vc.kind == VCKind.Precondition || vc.kind == VCKind.LoopInvariant) {
+            if (vc.kind == VCKind.Precondition) {
               val bodyApprox = getApproximationAndSpec_AllVars(path, precision)
               reporter.debug("body approx: " + bodyApprox)    
               constraints :+= Constraint(And(precondition, path.condition), path.bodyReal, bodyApprox,
                 postcondition)
 
-              if (options.lipschitz) {
-                reporter.debug("Computing loop error...")
-                if (vc.kind == VCKind.LoopInvariant) {
-                  // construct the update functions
-                  val ids: Seq[Identifier] = vc.updateFunctions.keys.map(
-                    u => u.asInstanceOf[Variable].id).toSeq
-                  val (upFncs, modelConstraints) = getUpdateFunctions(path.bodyReal, vc.updateFunctions)
-                  //println("modelConstraints: " + modelConstraints)
-                  val errs = getLoopError(And(preReal, And(modelConstraints.toSeq)), upFncs,
-                    ids, precision)
-                }
-              }
+            } else if(vc.kind == VCKind.LoopInvariant) {
+              val bodyApprox = getApproximationAndSpec_LoopInv(path, precision, leonToZ3, preReal)
+              reporter.debug("body approx: " + bodyApprox)    
+              constraints :+= Constraint(And(precondition, path.condition), path.bodyReal, bodyApprox,
+                postcondition)
+
             } else {
               
               val (bodyApprox, nextSpecs) = getApproximationAndSpec_ResultOnly(path, precision, lipschitzPathError)
@@ -533,7 +563,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
     updateFncs.map( uf => UpdateFunction(uf.lhs, replace(valMap, uf.rhs)))
   }
 
-  private def getUpdateFunctions(body: Expr, args: Map[Expr, Expr]): (Seq[UpdateFunction], Set[Expr]) = {
+  /*private def getUpdateFunctions(body: Expr, args: Map[Expr, Expr]): (Seq[UpdateFunction], Set[Expr]) = {
     var modelConstraints = Set[Expr]()
     val body2 = preMap {
       case FncValue(specs, specExpr, true) =>
@@ -553,7 +583,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
       case (k, v) => UpdateFunction(k, valMap(v))
     }
     (updateFncs.toSeq, modelConstraints)
-  }
+  }*/
     
 }
 
@@ -737,6 +767,7 @@ object Approximations {
     }(expr)
   }
 
+  // TODO: now elsewhere
   /*
     @param n number of iterations
     @param lambda initial error

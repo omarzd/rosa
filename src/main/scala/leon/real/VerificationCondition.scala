@@ -27,7 +27,7 @@ class VerificationCondition(val funDef: FunDef, val kind: VCKind.Value, val pre:
   // whether this VC comes from a recursive function
   //var recursive = false
   //var updateFunctions = Seq[UpdateFunction]()
-  var updateFunctions: Map[Expr, Expr] = Map.empty
+  var updateFunctions: Seq[(Identifier, Expr)] = Seq.empty
 
   // (lowerBnd, upperBnd) absError
   var spec: Map[Precision, Seq[Spec]] = precisions.map(p => (p, Seq())).toMap
@@ -55,7 +55,10 @@ class VerificationCondition(val funDef: FunDef, val kind: VCKind.Value, val pre:
   var time : Option[Double] = None
   var counterExample : Option[Map[Identifier, Expr]] = None
 
-  def longString: String = "vc (%s,%s): (%s && %s) -> %s".format(fncId, kind, pre, body, post)
+  def longString: String = {
+    println("updateFunctions: " + updateFunctions)
+    "vc (%s,%s): (%s && %s) -> %s".format(fncId, kind, pre, body, post)
+  }
   def longStringWithBreaks: String = "vc (%s,%s)\n P: %s\n body: %s\nQ: %s".format(fncId, kind, pre, body, post)
   override def toString: String = "%s (%s)".format(fncId, kind)
 }

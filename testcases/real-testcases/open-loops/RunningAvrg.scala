@@ -11,7 +11,7 @@ object RunningAvrg {
     // TODO: add some extra error
   } ensuring (res => -1200 <= res && res <= 1200)
 
-  @loopbound(1000)
+  @loopbound(10)
   def varianceRec(n: Real, m: Real, s: Real): (Real, Real) = {
     require(-1200 <= m && m <= 1200 && 0 <= s && s <= 1440000 && 2 <= n && n <= 1000 &&
       integer(n) && -1200 <= ~m && ~m <= 1200 && 0 <= ~s && ~s <= 1440000)

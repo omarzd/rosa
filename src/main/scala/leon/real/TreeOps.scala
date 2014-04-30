@@ -274,6 +274,13 @@ object TreeOps {
     }(expr)
   }
 
+  def containsSqrt(expr: Expr): Boolean = {
+    exists{
+      case _: SqrtR => true
+      case _ => false
+    }(expr)
+  }
+
   /* ----------------------
          Analysis phase
    ------------------------ */

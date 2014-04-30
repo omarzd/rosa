@@ -96,6 +96,27 @@ class AAApproximator(reporter: Reporter, solver: RangeSolver, precision: Precisi
     newVars
   }
 
+  def approximateEquationsAndUpdateFncs(e: Expr, precond: Expr, inputs: VariablePool,
+    exactInputs: Boolean = false, updateFncs: Seq[Expr]): (Map[Expr, XReal], Seq[Rational]) = {
+    init(inputs, precond)
+    val vars = getInitialVariables(inputs, exactInputs)
+
+    val (newVars, path, res) = process(e, vars, True)
+    //sanity check
+    assert(res.length == 0, "computing xreals for equations but open expression found")
+
+    val sigmas = updateFncs.map(upfnc => {
+      println("trying to process: " + upfnc)
+      println("newVars: " + newVars)
+      val res = process(upfnc, newVars, path)._3
+      assert(res.length == 1)
+      res(0).maxError
+      })
+    println("sigmas: " + sigmas)
+    // TODO: remove input vars?
+    (newVars, sigmas)
+  }
+
   // used for loops
   def computeError(e: Expr, precond: Expr, inputs: VariablePool,
     exactInputs: Boolean = false): Rational = e match {
@@ -258,7 +279,7 @@ class AAApproximator(reporter: Reporter, solver: RangeSolver, precision: Precisi
   // TODO: removing errors here is not sound, we need total ranges, including errors
   private def evalArithmetic(e: Expr, vars: Map[Expr, XReal], path: Expr): XReal = {
     if (useLipschitz) {
-      val lip = new Lipschitz(reporter, solver)
+      val lip = new Lipschitz(reporter, solver, leonToZ3)
       //println("rhs: " + x)
 
       val currentVarsInExpr: Set[Identifier] = variablesOf(e)

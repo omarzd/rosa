@@ -311,7 +311,7 @@ class RangeSolver(timeout: Long) {
   def getRange(precond: Expr, expr: Expr, vars: Map[Expr, RationalInterval],
     leonToZ3: LeonToZ3Transformer, maxIter: Int, prec: Rational): RationalInterval = {
 
-    var additionalConstraints = precond
+    val leonToZ3Necessary = containsSqrt(expr)
 
     def inIntervalsWithZ3(e: Expr): RationalInterval = {
       val tmp = e match {
@@ -335,9 +335,16 @@ class RangeSolver(timeout: Long) {
           x
       }
       //print(".");// flush
-      val (z3Expr, addCnstr) = leonToZ3.getZ3ExprWithCondition(e)
-      additionalConstraints = And(additionalConstraints, addCnstr)
-      tightenRange(z3Expr, additionalConstraints, tmp, maxIter, prec)
+      
+      if (leonToZ3Necessary) {
+        // needed for sqrt, and doing quite the duplicate work, but this is clean
+        val (z3Expr, addCnstr) = leonToZ3.getZ3ExprWithCondition(e)
+        val additionalConstraints = And(precond, addCnstr)
+        tightenRange(z3Expr, additionalConstraints, tmp, maxIter, prec)
+      } else {
+        tightenRange(e, precond, tmp, maxIter, prec)
+      }
+
     }
     //print("Getting range for: " + expr)
     //println("with precondition: " + precond)
@@ -345,7 +352,6 @@ class RangeSolver(timeout: Long) {
     //print("\n")
     res
   }
-
 
   /*
     Computes the range given input intervals, while tightening at each intermediate step with Z3.
@@ -355,7 +361,7 @@ class RangeSolver(timeout: Long) {
     @param maxIter maximum iterations to perform during binary search
     @param prec precision threshold for binary search
   */
-  def getRange(precond: Expr, expr: Expr, vars: Map[Expr, RationalInterval], maxIter: Int,
+  /*def getRange(precond: Expr, expr: Expr, vars: Map[Expr, RationalInterval], maxIter: Int,
     prec: Rational) = {
     
     def inIntervalsWithZ3(expr: Expr): RationalInterval = {
@@ -382,7 +388,7 @@ class RangeSolver(timeout: Long) {
       tightenRange(expr, precond, tmp, maxIter, prec)
     }
     inIntervalsWithZ3(expr)
-  }
+  }*/
 
   def getRange(precond: Expr, expr: Expr, variables: VariablePool, maxIter: Int, prec: Rational) = {
     def inIntervalsWithZ3(expr: Expr, vars: VariablePool): RationalInterval = {

@@ -6,14 +6,14 @@ package real
 import Calculus._
 import purescala.Trees._
 import purescala.Common._
-import purescala.TreeOps.{containsFunctionCalls, replace, preMap}
+import purescala.TreeOps.{containsFunctionCalls, replace, preMap, preTraversal}
 
 import real.TreeOps.{containsIfExpr}
 import real.Trees._
 import Rational._
 
 
-class Lipschitz(reporter: Reporter, solver: RangeSolver) {
+class Lipschitz(reporter: Reporter, solver: RangeSolver, leonToZ3: LeonToZ3Transformer) {
   implicit val debugSection = utils.DebugSectionLipschitz
 
   /*def getSigmaJacobianHessian(preReal: Expr, updateFncs: Seq[UpdateFunction],
@@ -58,44 +58,22 @@ class Lipschitz(reporter: Reporter, solver: RangeSolver) {
     // have to inline, since we don't know (yet) how to do derivative with vals
     // however for the error computation, we keep the original form with vals,
     // since it seems to get better results
+    println("preReal: " + preReal)
+    println("ids: " + ids)
+
     val jacobian = EMatrix.fromSeqs(fncs.map(fnc => ids.map(id => d(inlineBody(fnc), id))))
-    //println("jacobian: " + jacobian)
+    println("jacobian: " + jacobian)
     
     val lipschitzConsts = jacobian.map(e => {
-      val rangeDerivative = solver.getRange(preReal, e, vars,
+      // The precondition and the vars need to take into account the ranges including x, \tl{x},
+      // i.e. the ranges WITH all errors!
+      val rangeDerivative = solver.getRange(preReal, e, vars, leonToZ3,
                   solverMaxIterMedium, solverPrecisionMedium) 
        maxAbs(Seq(rangeDerivative.xlo, rangeDerivative.xhi))
       })
     //println("lipschitzConsts: " + lipschitzConsts)
     lipschitzConsts
   }
-
- /* private def getSigmaLipschitzMatrix(preReal: Expr, fncs: Seq[Expr],
-    ids: Set[Identifier], precision: Precision): (Seq[Rational], RMatrix) = {
-    
-    // have to inline, since we don't know (yet) how to do derivative with vals
-    // however for the error computation, we keep the original form with vals,
-    // since it seems to get better results
-    val jacobian = EMatrix.fromSeqs(fncs.map(fnc => ids.map(id => d(inlineBody(fnc), id))))
-    //println("jacobian: " + jacobian)
-    
-    val transformer = new AAApproximator(reporter, solver, precision, checkPathError = false)//preReal, vc.variables, false, true)
-
-    //println("############# idealToActual: " + idealToActual(updateFncs(0).rhs, vc.variables))
-    val sigmas = fncs.map(fnc => transformer.computeError(idealToActual(fnc, vc.variables),
-      preReal, vc.variables, exactInputs = true))
-      //idealToActual(uf.rhs, vc.variables)))
-    //println("sigmas: " + sigmas)
-    
-    val lipschitzConsts = jacobian.map(e => {
-      val rangeDerivative = solver.getRange(preReal, e, vc.variables,
-                  solverMaxIterMedium, solverPrecisionMedium) 
-       maxAbs(Seq(rangeDerivative.xlo, rangeDerivative.xhi))
-      })
-    //println("lipschitzConsts: " + lipschitzConsts)
-    (sigmas, lipschitzConsts)
-  }
-  */
 
   def getPropagatedError(precondition: Expr, es: Seq[Expr], vars: Map[Expr, XReal],
     ids: Seq[Identifier]): Option[Seq[Rational]] = {
@@ -162,6 +140,126 @@ class Lipschitz(reporter: Reporter, solver: RangeSolver) {
       Some(infinityErrors)
     }
   }
+
+  private def getValMapForInlining(body: Expr): Map[Expr, Expr] = {
+    var valMap: Map[Expr, Expr] = Map.empty
+    preTraversal { expr => expr match {
+        case Equals(v @ Variable(id), rhs) =>
+          valMap = valMap + (v -> replace(valMap,rhs))
+        case _ => ;
+      }
+    }(body)
+    valMap
+  }
+
+  /*
+    @param n number of iterations
+    @param lambda initial error
+    @param sigma error of one loop iteration
+    @param K Lipschitz constant
+  */
+  def errorFromNIterations(n: Int, lambda: Rational, sigma: Rational, k: Rational): Rational = {
+    var kn = k
+    for (i <- 1 until n) { kn *= k }
+
+    kn * lambda + sigma * ((one - kn)/(one - k))
+  }
+
+  // assume that the updateFncs are ordered, same for ids
+  //@param sigmas roundoff error on computing the update functions
+  def getLoopError(preReal: Expr, body: Expr, ids: Seq[Identifier], updateFncs: Seq[Expr],
+    vars: Map[Expr, XReal], sigmas: Seq[Rational], precision: Precision, loopBound: Option[Int]): Seq[Rational] = {
+
+    println("body: " + body)
+    println("updateFncs: " + updateFncs)
+
+    // Inline model inputs
+    var additionalVars: Map[Expr, Record] = Map()
+    val (inlinedFncs, modelConstraints) = {
+      var modelCnstrs = Set[Expr]()
+      val body2 = preMap {
+        //TODO: check that this is a model?
+        case FncValue(specs, specExpr, true) =>
+          assert(specs.length == 1)
+          modelCnstrs += specExpr
+
+          val (records, loopC, int) = VariablePool.collectVariables(specExpr)
+          additionalVars = additionalVars + ((Variable(specs(0).id),
+            records(Variable(specs(0).id))))
+          
+          Some(Variable(specs(0).id))
+        case _ => None
+      }(body)
+
+      var valMap: Map[Expr, Expr] = getValMapForInlining(body2)
+
+      (updateFncs.map { upfnc => replace(valMap, upfnc) }, modelCnstrs)
+    }
+    println("inlinedFncs: " + inlinedFncs)
+    println("modelCnstrs: " + modelConstraints)
+    println(And(modelConstraints.toSeq))
+    
+    // TODO: fix the precondition
+    val mK = getLipschitzMatrix(And(preReal, And(modelConstraints.toSeq)), inlinedFncs, ids,
+      vars.map(x => (x._1, x._2.interval)) ++ additionalVars.map(x => (x._1, RationalInterval(x._2.lo.get, x._2.up.get))))    
+    reporter.info("sigmas: " + sigmas)
+    reporter.info("K: " + mK)
+
+    loopBound match {
+      case Some(n) =>
+        //val initErrorsMap = vc.variables.getInitialErrors(precision)
+        val initErrorsMap: Map[Identifier, Rational] = vars.map({
+          case (Variable(id), xreal) => (id, xreal.maxError)
+        })
+        reporter.debug("initial errors amp: " + initErrorsMap)
+
+        val initErrors = ids.map(id => initErrorsMap(id))
+
+        reporter.debug("ids: " + ids)
+        reporter.debug("initErrors sorted: " + initErrors)
+
+        val ks: Seq[Rational] = mK.rows.map(row => maxAbs(row))
+        reporter.debug("ks: " + ks)
+        val infinityNormErrors = sigmas.zip(ks).map( {
+          case (s, k) => errorFromNIterations(n, maxAbs(initErrors), s, k)  
+        })
+        reporter.info("loop errors, infinity norm: \n" + infinityNormErrors)
+
+        if (ids.length > 1) {
+          val mKn = mK.power(n)
+          reporter.debug("K^n: " + mKn)
+          val mI = RMatrix.identity(ids.length)
+          reporter.debug("I: " + mI)
+
+          reporter.debug("(I-K)^-1: " + (mI - mK).inverse)
+          val roundoffErrorMatrix = (((mI - mK).inverse) * (mI - mKn))
+          reporter.debug("roundoffErrorMatrix: " + roundoffErrorMatrix)
+          val roundoffErrors = roundoffErrorMatrix * sigmas
+          val initialErrors = mKn * initErrors
+
+          val componentwiseErrors = roundoffErrors.zip(initialErrors).map({
+            case (a, b) => a + b
+            })
+          reporter.info("loop errors, componentwise: \n" + componentwiseErrors)
+          val diff = infinityNormErrors.zip(componentwiseErrors).foldLeft(zero) {
+            case (sum, (i, c)) => sum + (i - c)
+          }
+          if (diff < zero) {
+            infinityNormErrors
+          } else {
+            componentwiseErrors
+          }
+        } else {
+          infinityNormErrors
+        }
+        
+
+      case _ => Seq.empty
+    }
+    
+  }
+
+  
 
   // Also needs to inline the FncVal's and keep track of the additional condition
   private def inlineBody(body: Expr): Expr = {

@@ -307,7 +307,9 @@ object Analyser {
             allFncCalls, variables, precisions)
           //vc.updateFunctions = updateFncs.toSeq
           vc.updateFunctions = arguments.filter(x => !variables.isLoopCounter(x._1) &&
-            !variables.isInteger(x._1))
+            !variables.isInteger(x._1)).map({
+              case (Variable(id), upfnc) => (id, upfnc)
+              }).toSeq
 
           vcs :+= vc
         } else {

@@ -35,6 +35,7 @@ object DebugSections {
     DebugSectionApprox,
     DebugSectionRealProver,
     DebugSectionAffine,
-    DebugSectionPathError
+    DebugSectionPathError,
+    DebugSectionLipschitz
   )
 }
