@@ -189,7 +189,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
     // check whether we can apply this
     // no ifs and no tuples (for now)
     if (containsIfExpr(path.bodyReal) || containsFunctionCalls(path.bodyReal) || vc.variables.resIds.length > 1) {
-      reporter.debug("Cannot apply Lipschitz error computation...")
+      reporter.debug("Cannot apply Taylor error computation...")
       None
     } else {
       // the order here determines the order of indices for the rest,
@@ -200,7 +200,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
       //val (sigmas, lipschitzConsts) = getSigmaLipschitzMatrix(preReal, Seq(updateFnc), ids, precision)
 
       // TODO: removing errors here is not sound, we need total ranges, including errors
-      val initErrors = getInitialErrors(vc.variables, precision)
+      val initErrors = vc.variables.getInitialErrors(precision)
       reporter.debug("initial errors: " + initErrors)
       println("initial errors: " + initErrors)
 
@@ -236,7 +236,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
       reporter.debug("sigma: " + sigma)
       
     }   
-  }
+  } // end getTaylorError
 
   /*
     Get approximation for results of an expression.
