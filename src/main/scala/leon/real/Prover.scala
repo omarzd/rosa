@@ -164,17 +164,22 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
       str = str + "%d:\nP: %s\n\nreal: %s\n\nfin: %s\n\nQ: %s\n\n".format(index, cnstr.precondition,
         realCnstr, finiteCnstr, transformer.getZ3Expr(cnstr.postcondition)) 
 
-      var sanityConstraint: Expr = And(cnstr.precondition, And(realCnstr, finiteCnstr))  
+      var sanityConstraint: Expr = And(cnstr.precondition, And(realCnstr, finiteCnstr))
+      reporter.debug("\nsanityConstraint before preprocessing:")
+      reporter.debug(sanityConstraint)
       if (options.removeRedundant) {
-        val args = removeRedundantConstraints(sanityConstraint, cnstr.postcondition)
+        val args = removeRedundantConstraints(sanityConstraint, transformer.getZ3Expr(cnstr.postcondition))
         sanityConstraint = And(args.toSeq)
       }
+      //reporter.debug("\nafter removeRedundant: " + sanityConstraint)
       if (options.simplifyCnstr) {
         sanityConstraint = simplifyConstraint( sanityConstraint )
       }
+      //reporter.debug("\nafter simplify: " + sanityConstraint)
       if (options.massageArithmetic) {
         sanityConstraint = massageArithmetic (sanityConstraint)
       }
+      //reporter.debug("\nafter massage arithm.: " + sanityConstraint)
 
       val toCheck = And(sanityConstraint, negate(cnstr.postcondition))
 

@@ -19,7 +19,8 @@ object Spiral {
     }
 
   } ensuring (_ match {
-    case (a, b) => -10 <= ~a && ~a <= 10 && -10 <= ~b && ~b <= 10
+    case (a, b) => -10 <= ~a && ~a <= 10 && -10 <= ~b && ~b <= 10 &&
+      -10 <= a && a <= 10 && -10 <= b && b <= 10
   })
 
   /*@loopbound(10)

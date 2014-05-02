@@ -20,6 +20,31 @@ import Rational._
 
 object TreeOps {
 
+  /*def deduplicateClauses(expr: Expr): Expr = expr match {
+    case And(args) => And(args.toSet.toSeq)
+    case _ => expr
+  }*/
+
+  def rangeConstraint(v: Expr, i: RationalInterval): Expr = {
+    And(LessEquals(RealLiteral(i.xlo), v), LessEquals(v, RealLiteral(i.xhi)))
+  }
+
+  def rangeConstraint(vars: Map[Expr, XReal]): Expr = {
+    val clauses: Seq[Expr] = vars.flatMap({
+      case (v, xreal) => Seq(LessEquals(RealLiteral(xreal.interval.xlo), v),
+                              LessEquals(v, RealLiteral(xreal.interval.xhi)))
+      }).toSeq
+    And(clauses)
+  }
+
+  def rangeConstraintFromIntervals(vars: Map[Expr, RationalInterval]): Expr = {
+    val clauses: Seq[Expr] = vars.flatMap({
+      case (v, i) => Seq(LessEquals(RealLiteral(i.xlo), v),
+                              LessEquals(v, RealLiteral(i.xhi)))
+      }).toSeq
+    And(clauses)
+  }
+
   def inlineBody(body: Expr): Expr = {
     var valMap: Map[Expr, Expr] = Map.empty
     val lastInstruction = preMap { expr => expr match {

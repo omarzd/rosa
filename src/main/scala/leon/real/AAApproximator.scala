@@ -9,7 +9,7 @@ import purescala.TreeOps._
 import purescala.Common._
 
 import real.Trees._
-import real.TreeOps.{removeErrors}
+import real.TreeOps.{removeErrors, rangeConstraint}
 import XFloat.{variables2xfloats, variables2xfloatsExact, xFloatWithUncertain}
 import XFixed.{variables2xfixed, xFixedWithUncertain}
 import VariableShop._
@@ -106,13 +106,13 @@ class AAApproximator(reporter: Reporter, solver: RangeSolver, precision: Precisi
     assert(res.length == 0, "computing xreals for equations but open expression found")
 
     val sigmas = updateFncs.map(upfnc => {
-      println("trying to process: " + upfnc)
-      println("newVars: " + newVars)
+      //println("trying to process: " + upfnc)
+      //println("newVars: " + newVars)
       val res = process(upfnc, newVars, path)._3
       assert(res.length == 1)
       res(0).maxError
       })
-    println("sigmas: " + sigmas)
+    //println("sigmas: " + sigmas)
     // TODO: remove input vars?
     (newVars, sigmas)
   }
@@ -463,11 +463,6 @@ class AAApproximator(reporter: Reporter, solver: RangeSolver, precision: Precisi
   private def denormal(interval: RationalInterval): Boolean = precision match {
     case FPPrecision(_) => false
     case _ => (interval.xlo != interval.xhi && maxNegNormal < interval.xlo && interval.xhi < minPosNormal)
-  }
-
-  private def rangeConstraint(v: Expr, i: RationalInterval): Expr = {
-    // TODO: check this (RealLiteral or FloatLiteral?)
-    And(LessEquals(RealLiteral(i.xlo), v), LessEquals(v, RealLiteral(i.xhi)))
   }
 
   private def compactXFloat(xreal: XReal, newTree: Expr): XReal = {

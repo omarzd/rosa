@@ -24,9 +24,6 @@ class VerificationCondition(val funDef: FunDef, val kind: VCKind.Value, val pre:
 
   val isLoop = kind == VCKind.LoopError
 
-  // whether this VC comes from a recursive function
-  //var recursive = false
-  //var updateFunctions = Seq[UpdateFunction]()
   var updateFunctions: Seq[(Identifier, Expr)] = Seq.empty
 
   // (lowerBnd, upperBnd) absError

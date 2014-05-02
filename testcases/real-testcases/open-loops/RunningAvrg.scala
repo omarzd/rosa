@@ -12,6 +12,29 @@ object RunningAvrg {
   } ensuring (res => -1200 <= res && res <= 1200)
 
   @loopbound(10)
+  def mean(n: Real, m: Real): Real = {
+    require(-1200 <= m && m <= 1200 && 2 <= n && n <= 1000 &&
+      integer(n) && -1200 <= ~m && ~m <= 1200 )
+
+    if (n <= 998) {
+
+      val x = nextItem
+
+      val m_new = ((n - 1) * m + x) / n
+
+      mean(n + 1, m_new) 
+    // case when n == 1? at least for m
+    } else {
+      m
+    }
+    
+  } ensuring (res => -1200.00 <= res && res <= 1200.00 &&
+      -1200 <= ~res && ~res <= 1200
+    )
+
+
+
+/*  @loopbound(10) @robust
   def varianceRec(n: Real, m: Real, s: Real): (Real, Real) = {
     require(-1200 <= m && m <= 1200 && 0 <= s && s <= 1440000 && 2 <= n && n <= 1000 &&
       integer(n) && -1200 <= ~m && ~m <= 1200 && 0 <= ~s && ~s <= 1440000)
@@ -34,7 +57,7 @@ object RunningAvrg {
     case (a, b) => -1200.00 <= a && a <= 1200.00 && 0 <= b && b <= 1440000.00 &&
       -1200 <= ~a && ~a <= 1200 && 0 <= ~b && ~b <= 1440000 
     })
-
+*/
 
   // using 1 <= n causes some time-outs 
   /*def loopInvariant(m: Real, x: Real, c: Real): Real = {

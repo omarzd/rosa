@@ -125,6 +125,10 @@ class VariablePool(val inputs: Map[Expr, Record], val resIds: Seq[Identifier],
     RationalInterval(rec.lo.get, rec.up.get)
   }
 
+  def getInitIntervals: Map[Expr, RationalInterval] = {
+    inputs.map(x => (x._1 -> RationalInterval(x._2.lo.get - x._2.absUncert.get, x._2.up.get + x._2.absUncert.get)))
+  }
+
   def hasValidInput(varDecl: Seq[ValDef], reporter: Reporter): Boolean = {
     //println("params: " + varDecl(0) + "   " + varDecl(1))
     val params: Seq[Expr] = varDecl.map(vd => Variable(vd.id))
