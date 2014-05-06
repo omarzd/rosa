@@ -92,6 +92,13 @@ class VariablePool(val inputs: Map[Expr, Record], val resIds: Seq[Identifier],
     }
   }
 
+  // TODO: move elsewhere
+  def getVariableRecord(id: Identifier, specExpr: Expr): Record = {
+    val (records, loopC, int) = collectVariables(specExpr)
+    records(Variable(id))
+  }
+
+
   def addVariableWithRange(id: Identifier, specExpr: Expr) = {
     val (records, loopC, int) = collectVariables(specExpr)
     val record = records(Variable(id))
@@ -116,6 +123,10 @@ class VariablePool(val inputs: Map[Expr, Record], val resIds: Seq[Identifier],
   def getInterval(v: Expr): RationalInterval = {
     val rec = allVars(v)
     RationalInterval(rec.lo.get, rec.up.get)
+  }
+
+  def getInitIntervals: Map[Expr, RationalInterval] = {
+    inputs.map(x => (x._1 -> RationalInterval(x._2.lo.get - x._2.absUncert.get, x._2.up.get + x._2.absUncert.get)))
   }
 
   def hasValidInput(varDecl: Seq[ValDef], reporter: Reporter): Boolean = {
@@ -150,6 +161,22 @@ class VariablePool(val inputs: Map[Expr, Record], val resIds: Seq[Identifier],
       })
     new VariablePool(newInputs, resIds, loopCounter, integers)
   }
+
+  def getInitialErrors(precision: Precision): Map[Identifier, Rational] = precision match {
+    case FPPrecision(_) => 
+      throw new Exception("getInitialErrors doesn't work yet for fixed-points")
+    case _ =>
+      var map = Map[Identifier, Rational]()
+      val machineEps = getUnitRoundoff(precision)
+      inputs.map({
+        case (Variable(id), Record(_,_, Some(lo),Some(up), Some(absError), _)) =>
+          map += (id -> absError)
+        case (Variable(id), Record(_,_, Some(lo),Some(up), _, _)) =>
+          map += (id -> machineEps * max(abs(lo), abs(up)))
+      })
+      map
+  }
+
 
   override def toString: String = allVars.toString 
 }

@@ -20,6 +20,46 @@ import Rational._
 
 object TreeOps {
 
+  /*def deduplicateClauses(expr: Expr): Expr = expr match {
+    case And(args) => And(args.toSet.toSeq)
+    case _ => expr
+  }*/
+
+  def rangeConstraint(v: Expr, i: RationalInterval): Expr = {
+    And(LessEquals(RealLiteral(i.xlo), v), LessEquals(v, RealLiteral(i.xhi)))
+  }
+
+  def rangeConstraint(vars: Map[Expr, XReal]): Expr = {
+    val clauses: Seq[Expr] = vars.flatMap({
+      case (v, xreal) => Seq(LessEquals(RealLiteral(xreal.interval.xlo), v),
+                              LessEquals(v, RealLiteral(xreal.interval.xhi)))
+      }).toSeq
+    And(clauses)
+  }
+
+  def rangeConstraintFromIntervals(vars: Map[Expr, RationalInterval]): Expr = {
+    val clauses: Seq[Expr] = vars.flatMap({
+      case (v, i) => Seq(LessEquals(RealLiteral(i.xlo), v),
+                              LessEquals(v, RealLiteral(i.xhi)))
+      }).toSeq
+    And(clauses)
+  }
+
+  def inlineBody(body: Expr): Expr = {
+    var valMap: Map[Expr, Expr] = Map.empty
+    val lastInstruction = preMap { expr => expr match {
+
+        case Equals(v @ Variable(id), rhs) =>
+          valMap = valMap + (v -> replace(valMap,rhs))
+          Some(True)
+
+        case x => Some(x)  //last instruction
+      }
+    }(body)
+    val res = replace(valMap, lastInstruction)
+    res
+  }
+
   /*
     Performs some pre-processing of the constraint in order to increase solving success.
     - equality propagation
@@ -255,6 +295,13 @@ object TreeOps {
   def containsIfExpr(expr: Expr): Boolean = {
     exists{
       case _: IfExpr => true
+      case _ => false
+    }(expr)
+  }
+
+  def containsSqrt(expr: Expr): Boolean = {
+    exists{
+      case _: SqrtR => true
       case _ => false
     }(expr)
   }

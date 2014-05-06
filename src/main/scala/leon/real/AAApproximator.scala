@@ -9,7 +9,7 @@ import purescala.TreeOps._
 import purescala.Common._
 
 import real.Trees._
-import real.TreeOps.{removeErrors}
+import real.TreeOps.{removeErrors, rangeConstraint}
 import XFloat.{variables2xfloats, variables2xfloatsExact, xFloatWithUncertain}
 import XFixed.{variables2xfixed, xFixedWithUncertain}
 import VariableShop._
@@ -17,7 +17,7 @@ import Rational.max
 
 
 // Manages the approximation
-class AAApproximator(reporter: Reporter, solver: RangeSolver, precision: Precision, checkPathError: Boolean = false,
+class AAApproximator(reporter: Reporter, solver: RangeSolver, precision: Precision, checkPathError: Boolean = true,
   useLipschitz: Boolean = false) {
 
   implicit val debugSection = utils.DebugSectionAffine
@@ -96,6 +96,27 @@ class AAApproximator(reporter: Reporter, solver: RangeSolver, precision: Precisi
     newVars
   }
 
+  def approximateEquationsAndUpdateFncs(e: Expr, precond: Expr, inputs: VariablePool,
+    exactInputs: Boolean = false, updateFncs: Seq[Expr]): (Map[Expr, XReal], Seq[Rational]) = {
+    init(inputs, precond)
+    val vars = getInitialVariables(inputs, exactInputs)
+
+    val (newVars, path, res) = process(e, vars, True)
+    //sanity check
+    assert(res.length == 0, "computing xreals for equations but open expression found")
+
+    val sigmas = updateFncs.map(upfnc => {
+      //println("trying to process: " + upfnc)
+      //println("newVars: " + newVars)
+      val res = process(upfnc, newVars, path)._3
+      assert(res.length == 1)
+      res(0).maxError
+      })
+    //println("sigmas: " + sigmas)
+    // TODO: remove input vars?
+    (newVars, sigmas)
+  }
+
   // used for loops
   def computeError(e: Expr, precond: Expr, inputs: VariablePool,
     exactInputs: Boolean = false): Rational = e match {
@@ -108,13 +129,26 @@ class AAApproximator(reporter: Reporter, solver: RangeSolver, precision: Precisi
       res(0).maxError
   }
 
-  // used for loops
-  def computeErrorPreInitialized(e: Expr, precond: Expr, inputs: VariablePool,
+  def computeErrorPreinitialized(e: Expr, precond: Expr, inputs: VariablePool,
     variables: Map[Expr, XReal]): Rational = e match {
     case BooleanLiteral(_) => Rational.zero
     case _ =>
       init(inputs, precond)
       val vars = variables
+      val res = process(e, vars, True)._3
+      assert(res.length == 1, "computing error on tuple-typed expression!")
+      res(0).maxError
+  }
+
+  def computeErrorWithIntervals(e: Expr, precond: Expr, inputs: VariablePool,
+    variables: Map[Expr, RationalInterval]): Rational = e match {
+    case BooleanLiteral(_) => Rational.zero
+    case _ =>
+      init(inputs, precond)
+      val vars: Map[Expr, XReal] = variables.map({
+        case (v @ Variable(_), r @ RationalInterval(lo, hi)) =>
+          (inputs.buddy(v), XFloat.xFloatExact(v, r, config, machineEps))
+        })
       val res = process(e, vars, True)._3
       assert(res.length == 1, "computing error on tuple-typed expression!")
       res(0).maxError
@@ -188,6 +222,10 @@ class AAApproximator(reporter: Reporter, solver: RangeSolver, precision: Precisi
       val pathError: Seq[Rational] = if (checkPathError) {
         val pathError = new PathError(reporter, solver, precision, machineEps, inputVariables, precondition, vars) 
         pathError.computePathErrors(currentPathCondition, cond, thenn, elze)
+
+        //val pathError = new LipschitzPathError(reporter, solver, precision, inputVariables)
+        //pathError.computePathErrors(precondition: Expr, branchCond: Expr, thenn, elze, vars)
+
       } else {
         Seq()
       }
@@ -234,13 +272,14 @@ class AAApproximator(reporter: Reporter, solver: RangeSolver, precision: Precisi
     case x if (x.getType == RealType) =>
       val res = evalArithmetic(x, vars, path)
       (vars, path, Seq(res))
-      
 
   }
 
+
+  // TODO: removing errors here is not sound, we need total ranges, including errors
   private def evalArithmetic(e: Expr, vars: Map[Expr, XReal], path: Expr): XReal = {
     if (useLipschitz) {
-      val lip = new Lipschitz(reporter, solver)
+      val lip = new Lipschitz(reporter, solver, leonToZ3)
       //println("rhs: " + x)
 
       val currentVarsInExpr: Set[Identifier] = variablesOf(e)
@@ -424,11 +463,6 @@ class AAApproximator(reporter: Reporter, solver: RangeSolver, precision: Precisi
   private def denormal(interval: RationalInterval): Boolean = precision match {
     case FPPrecision(_) => false
     case _ => (interval.xlo != interval.xhi && maxNegNormal < interval.xlo && interval.xhi < minPosNormal)
-  }
-
-  private def rangeConstraint(v: Expr, i: RationalInterval): Expr = {
-    // TODO: check this (RealLiteral or FloatLiteral?)
-    And(LessEquals(RealLiteral(i.xlo), v), LessEquals(v, RealLiteral(i.xhi)))
   }
 
   private def compactXFloat(xreal: XReal, newTree: Expr): XReal = {

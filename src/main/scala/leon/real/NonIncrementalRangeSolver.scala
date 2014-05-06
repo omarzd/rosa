@@ -248,12 +248,13 @@ class NonIncrementalRangeSolver(timeout: Long) {
     val solver = z3.mkSolver
     val variables = variablesOf(expr)
     val cnstr = toZ3Formula(expr)
+    //println("constraint: " + expr)
     //println("\nz3 constraint: " + cnstr)
     solver.assertCnstr(cnstr.get)
     val res: (Sat, Z3Model) = solver.check match {
       case Some(true) =>
         if (verbose) println("--> cond: SAT")
-        val model = solver.getModel
+        //val model = solver.getModel
         //println("model: " + modelToMap(model, variables))
         (SAT, solver.getModel)
       case Some(false) =>
