@@ -313,11 +313,58 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
         precision, vc.funDef.loopBound)
                 
 
+      if(vc.funDef.loopBound.nonEmpty && options.loopUnrolling) { //if (options.loopUnrolling) {
+        val valMap = getValMapForInlining(path.bodyReal)
+        val inlinedUp = vc.updateFunctions.map({
+          case (id, e) => UpdateFunction(Variable(id), replace(valMap, e))
+          })
+        println("inlined update functions: " + inlinedUp)
+        val initialVarMap: Map[Expr, Expr] = ids.map(i => (Variable(i), Variable(i))).toMap
+        val unrolledLoop = unroll(inlinedUp, vc.funDef.loopBound.get, initialVarMap, Seq(), 1)
+        println("unrolledLoop: " + unrolledLoop.mkString("\n"))
+        val unrolledResult = approximatorNew.approximate(idealToActual(And(unrolledLoop), vc.variables),
+          And(vc.pre, path.condition), vc.variables, exactInputs = false)
+        println("unrolledResult: ")
+        unrolledResult.foreach{ x =>
+          println("\n" + x.interval + ", " + x.maxError)
+        }
+      }
+
 
       constraint
   }
 
-  
+  private def unroll(updates: Seq[UpdateFunction], max: Int, varMap: Map[Expr, Expr],
+    unrolled: Seq[Expr], count: Int): Seq[Expr] = {
+    
+    if (count >= max) {
+      val newUpdates = updates.map({
+        case UpdateFunction(lhs, rhs) =>
+          replace(varMap, rhs)
+        })
+
+
+      if (updates.length > 1) { unrolled :+ Tuple(newUpdates) }
+      else { unrolled :+ newUpdates.head }
+    } else {
+      //println("loop " + count)
+      //println("varMap: " + varMap)
+      var newVarMap: Map[Expr, Expr] = Map.empty
+      val newUpdates = updates.map({
+        case UpdateFunction(lhs, rhs) =>
+          val newVal = Variable(FreshIdentifier(lhs.toString + count)).setType(RealType)
+          newVarMap += ((lhs -> newVal))
+          Equals(newVal, replace(varMap, rhs))
+        })
+      //println("newUpdates: " + newUpdates)
+      //println("newVarMap: " + newVarMap)
+      //val newLoop = body  
+
+      unroll(updates, max, newVarMap, unrolled ++ newUpdates, count + 1)
+    }
+
+
+  }
 
   private def getLipschitzPathError(paths: Seq[Path], precision: Precision): Rational = {
     val carthesianProduct: Seq[(Path, Path)] = paths.flatMap( p1 =>
@@ -370,21 +417,13 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
       false
   }
 
-  private def getValMapForInlining(body: Expr): Map[Expr, Expr] = {
-    var valMap: Map[Expr, Expr] = Map.empty
-    preTraversal { expr => expr match {
-        case Equals(v @ Variable(id), rhs) =>
-          valMap = valMap + (v -> replace(valMap,rhs))
-        case _ => ;
-      }
-    }(body)
-    valMap
-  }
+  
 
-  private def inlineBodyForUpdateFncs(body: Expr, updateFncs: Seq[UpdateFunction]): Seq[UpdateFunction] = {
+  // Needed for the iteration construct we had
+  /*private def inlineBodyForUpdateFncs(body: Expr, updateFncs: Seq[UpdateFunction]): Seq[UpdateFunction] = {
     var valMap: Map[Expr, Expr] = getValMapForInlining(body)
     updateFncs.map( uf => UpdateFunction(uf.lhs, replace(valMap, uf.rhs)))
-  }
+  }*/
 
  
   /*
@@ -441,7 +480,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], reporter
         case None => 
           if (lwrBoundReal.nonEmpty && upBoundReal.nonEmpty) {
             // we do assume, however, that there is a roundoff error attached
-            val rndoff = roundoff(max(lwrBoundReal.get, upBoundReal.get), getUnitRoundoff(precision))
+            val rndoff = roundoff(max(lwrBoundReal.get, upBoundReal.get), precision)
             Some(Spec(id, RationalInterval(lwrBoundReal.get, upBoundReal.get), Some(rndoff)))
           } else {
             reporter.warning("Insufficient information in postcondition for inlining: " + e)

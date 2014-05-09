@@ -154,6 +154,14 @@ package object real {
     machineEps * Rational.abs(r)
   }
 
+  def roundoff(r: Rational, precision: Precision): Rational = precision match {
+    case FPPrecision(bits) =>
+      FixedPointFormat.getFormat(r, bits).quantError
+    case _ => 
+      val machineEps = getUnitRoundoff(precision)
+      machineEps * Rational.abs(r)
+  }
+
   def roundoff(range: RationalInterval, machineEps: Rational): Rational = {
     import Rational._
     val maxAbs = max(abs(range.xlo), abs(range.xhi))

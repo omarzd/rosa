@@ -45,6 +45,8 @@ case class RMatrix (dim: Int, val data: Seq[Seq[Rational]]) extends Matrix[Ratio
   //assert(data.length == dim)
   assert(data.forall(d => d.length == dim))
 
+  def isIdentity: Boolean = data.forall(row => row.forall(elem => elem == one))
+
   // TODO: redundant
   def rows: Seq[Seq[Rational]] = data
 

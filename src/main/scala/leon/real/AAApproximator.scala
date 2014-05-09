@@ -88,10 +88,9 @@ class AAApproximator(reporter: Reporter, solver: RangeSolver, precision: Precisi
     exactInputs: Boolean = false): Map[Expr, XReal] = {
     init(inputs, precond)
     val vars = getInitialVariables(inputs, exactInputs)
-
     val (newVars, path, res) = process(e, vars, True)
-    //sanity check
-    assert(res.length == 0, "computing xreals for equations but open expression found")
+    //sanity check (does not hold for fixed-point code generation)
+    //assert(res.length == 0, "computing xreals for equations but open expression found")
     // TODO: remove input vars?
     newVars
   }
@@ -276,7 +275,7 @@ class AAApproximator(reporter: Reporter, solver: RangeSolver, precision: Precisi
   }
 
 
-  // TODO: removing errors here is not sound, we need total ranges, including errors
+  
   private def evalArithmetic(e: Expr, vars: Map[Expr, XReal], path: Expr): XReal = {
     if (useLipschitz) {
       val lip = new Lipschitz(reporter, solver, leonToZ3)
@@ -299,7 +298,7 @@ class AAApproximator(reporter: Reporter, solver: RangeSolver, precision: Precisi
       val newError = res.maxError + propagatedError.get(0)
       //println("new error: " + newError)
       val resNew = replaceError(res, newError)
-      println("resNew: " + resNew)
+      //println("resNew: " + resNew)
       resNew
     } else {  
       approxArithm(e, vars, path)

@@ -26,10 +26,10 @@ class Lipschitz(reporter: Reporter, solver: RangeSolver, leonToZ3: LeonToZ3Trans
       //TODO: can we add the additional constraints from the pre-condition?
       //val completePre = And(precondition, rangeConstraint(vars))
       val completePre = rangeConstraint(vars)
-      println("precondition: " + precondition)
-      println("completePre: " + completePre)
+      //println("precondition: " + precondition)
+      //println("completePre: " + completePre)
       
-      println("es: " + es)
+      //println("es: " + es)
       val lipschitzConsts: RMatrix = getLipschitzMatrix(completePre, es, ids,
         vars.map(x => (x._1, x._2.interval)))
       reporter.debug("K: " + lipschitzConsts)
@@ -51,24 +51,22 @@ class Lipschitz(reporter: Reporter, solver: RangeSolver, leonToZ3: LeonToZ3Trans
           sqrtUp(rowSum)
         })*/
       
+      /* Unfortunately, doesn't work
       val infinityErrors: Seq[Rational] =
         lipschitzConsts.data.map(dta => {
           ids.zip(dta).foldLeft(zero){
             case (sum, (id, k)) => sum + k*initErrors(id) 
           }
         })
-
-      val p1NormErrors: Seq[Rational] =
+      */
+      val lipschitzErrors: Seq[Rational] =
         lipschitzConsts.data.map(dta => {
           ids.zip(dta).foldLeft(zero){
             case (sum, (id, k)) => sum + k*initErrors(id) 
           }
         })
-      reporter.info("lipschitz errors")
-      reporter.info("p1 norm:  " + p1NormErrors)
-      //reporter.info("p2 norm:  " + p2NormErrors)
-      reporter.info("infinity: " + infinityErrors)  
-      Some(infinityErrors)
+      reporter.info("lipschitz errors: " + lipschitzErrors)
+      Some(lipschitzErrors)
     }
   }
 
@@ -130,14 +128,19 @@ class Lipschitz(reporter: Reporter, solver: RangeSolver, leonToZ3: LeonToZ3Trans
         reporter.debug("ids: " + ids)
         reporter.debug("initErrors sorted: " + initErrors)
 
+        /* Unfortunately, norms don't apply here
         val ks: Seq[Rational] = mK.rows.map(row => maxAbs(row))
         reporter.debug("ks: " + ks)
         val infinityNormErrors = sigmas.zip(ks).map( {
           case (s, k) => errorFromNIterations(n, maxAbs(initErrors), s, k)  
         })
-        reporter.info("loop errors, infinity norm: \n" + infinityNormErrors)
+        reporter.info("loop errors, infinity norm: " + infinityNormErrors)
+        */
+        //if (ids.length > 1) {
+        if (mK.isIdentity) {
+          throw new Exception("K == I and we don't handle this case...")
+        }
 
-        if (ids.length > 1) {
           val mKn = mK.power(n)
           reporter.debug("K^n: " + mKn)
           val mI = RMatrix.identity(ids.length)
@@ -152,18 +155,20 @@ class Lipschitz(reporter: Reporter, solver: RangeSolver, leonToZ3: LeonToZ3Trans
           val componentwiseErrors = roundoffErrors.zip(initialErrors).map({
             case (a, b) => a + b
             })
-          reporter.info("loop errors, componentwise: \n" + componentwiseErrors)
-          val diff = infinityNormErrors.zip(componentwiseErrors).foldLeft(zero) {
+          reporter.info("loop errors, componentwise: " + componentwiseErrors)
+          componentwiseErrors
+          // Determine which one is better, which one to return
+          /*val diff = infinityNormErrors.zip(componentwiseErrors).foldLeft(zero) {
             case (sum, (i, c)) => sum + (i - c)
           }
           if (diff < zero) {
             infinityNormErrors
           } else {
             componentwiseErrors
-          }
-        } else {
+          }*/
+        /*} else {
           infinityNormErrors
-        }
+        }*/
         
 
       case _ => Seq.empty
@@ -259,11 +264,14 @@ class Lipschitz(reporter: Reporter, solver: RangeSolver, leonToZ3: LeonToZ3Trans
   }
   
   private def boundRanges(pre: Expr, m: EMatrix, vars: Map[Expr, RationalInterval]): RMatrix = {
-    m.map(e => {
+    solver.clearCounts
+    val res = m.map(e => {
       val rangeDerivative = solver.getRange(pre, e, vars, leonToZ3,
                 solverMaxIterMedium, solverPrecisionMedium) 
       maxAbs(Seq(rangeDerivative.xlo, rangeDerivative.xhi))
     })
+    reporter.info("Bound ranges solver counts: " + solver.getCounts)
+    res
   }
 
   private def getHessian(jacobian: EMatrix, ids: Seq[Identifier]): Seq[EMatrix] = {
@@ -311,10 +319,15 @@ class Lipschitz(reporter: Reporter, solver: RangeSolver, leonToZ3: LeonToZ3Trans
     @param K Lipschitz constant
   */
   private def errorFromNIterations(n: Int, lambda: Rational, sigma: Rational, k: Rational): Rational = {
-    var kn = k
-    for (i <- 1 until n) { kn *= k }
+    if (k == one) {
+      Rational(n) * sigma + lambda
+    } else {
+      var kn = k
+      println("k: " + k)
+      for (i <- 1 until n) { kn *= k }
 
-    kn * lambda + sigma * ((one - kn)/(one - k))
+      kn * lambda + sigma * ((one - kn)/(one - k))
+    }
   }
 
   private def getValMapForInlining(body: Expr): Map[Expr, Expr] = {

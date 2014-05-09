@@ -45,6 +45,17 @@ object TreeOps {
     And(clauses)
   }
 
+  def getValMapForInlining(body: Expr): Map[Expr, Expr] = {
+    var valMap: Map[Expr, Expr] = Map.empty
+    preTraversal { expr => expr match {
+        case Equals(v @ Variable(id), rhs) =>
+          valMap = valMap + (v -> replace(valMap,rhs))
+        case _ => ;
+      }
+    }(body)
+    valMap
+  }
+
   def inlineBody(body: Expr): Expr = {
     var valMap: Map[Expr, Expr] = Map.empty
     val lastInstruction = preMap { expr => expr match {

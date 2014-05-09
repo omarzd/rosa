@@ -4,7 +4,7 @@ import annotations._
 
 object Spiral {
 
-  @loopbound(10)
+  @loopbound(50)
   def spiralTailRealOnly(x: Real, y: Real, k: Int): (Real, Real) = {
     require(loopCounter(k) && x*x + y*y < 100 &&
       -10 <= x && x <= 10 && -10 <= y && y <= 10 &&
@@ -22,6 +22,9 @@ object Spiral {
     case (a, b) => -10 <= ~a && ~a <= 10 && -10 <= ~b && ~b <= 10 &&
       -10 <= a && a <= 10 && -10 <= b && b <= 10
   })
+
+  
+
 
   /*@loopbound(10)
   def spiralReal(x: Real, y: Real): (Real, Real) = {

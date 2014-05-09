@@ -31,7 +31,7 @@ object CodeGenerator {
   def getFPCode(vc: VerificationCondition, solver: RangeSolver, bitlength: Int, fncs: Map[FunDef, Fnc],
     reporter: Reporter): (Expr, Int) = {
     
-    val ssaBody = idealToActual(toSSA(vc.body, fncs), vc.variables)
+    val ssaBody = addResultsF(idealToActual(toSSA(vc.body, fncs), vc.variables), vc.variables.fResultVars)
     val transformer = new AAApproximator(reporter, solver, FPPrecision(bitlength), checkPathError = false)
     val approxVariables = transformer.approximateEquations(ssaBody, vc.pre, vc.variables, exactInputs = false)
          
