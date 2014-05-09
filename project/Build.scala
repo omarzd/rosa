@@ -36,8 +36,13 @@ object Leon extends Build {
 
     val depsPaths = deps.map(_.data.absolutePath)
 
+    println(depsPaths)
     val scalaHomeDir = depsPaths.find(_.endsWith("lib/scala-library.jar")) match {
-      case None => throw new Exception("Couldn't guess SCALA_HOME.")
+      case None =>
+	depsPaths.find(_.endsWith("jars/scala-library-2.10.2.jar")) match {
+	      case None => throw new Exception("Couldn't guess SCALA_HOME.")
+	      case Some(p) => p.substring(0, p.length - 29)
+	    }
       case Some(p) => p.substring(0, p.length - 21)
     }
 
