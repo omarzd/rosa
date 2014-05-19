@@ -516,16 +516,24 @@ object TreeOps {
     }(e)
   }
 
-  private def belongsToActual(e: Expr): Boolean = {
+  def belongsToActual(e: Expr): Boolean = {
     var contains = false
     preTraversal {
-      case Actual(_) | Noise(_,_) | RelError(_,_) => contains = true
+      case Actual(_) | Noise(_,_) | RelError(_,_) | Roundoff(_) => contains = true
       case UMinusF(_) | PlusF(_,_) | MinusF(_,_) | TimesF(_,_) | DivisionF(_,_) | SqrtF(_) =>
         contains = true
       case EqualsF(_,_) => contains = true
       case _ => ;
     }(e)
     contains
+  }
+
+  def isRangeClause(e: Expr): Boolean = e match {
+    case LessThan(Variable(_), RealLiteral(_)) | LessThan(RealLiteral(_), Variable(_)) => true
+    case LessEquals(Variable(_), RealLiteral(_)) | LessEquals(RealLiteral(_), Variable(_)) => true
+    case GreaterThan(Variable(_), RealLiteral(_)) | GreaterThan(RealLiteral(_), Variable(_)) => true
+    case GreaterEquals(Variable(_), RealLiteral(_)) | GreaterEquals(RealLiteral(_), Variable(_)) => true
+    case _ => false
   }
 
   def filterOutIdeal(expr: Expr): Expr = expr match {

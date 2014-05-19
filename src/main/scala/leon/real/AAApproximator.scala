@@ -9,7 +9,7 @@ import purescala.TreeOps._
 import purescala.Common._
 
 import real.Trees._
-import real.TreeOps.{removeErrors, rangeConstraint}
+import real.TreeOps._
 import XFloat.{variables2xfloats, variables2xfloatsExact, xFloatWithUncertain}
 import XFixed.{variables2xfixed, xFixedWithUncertain}
 import VariableShop._
@@ -17,10 +17,10 @@ import Rational.max
 
 
 // Manages the approximation
-class AAApproximator(reporter: Reporter, solver: RangeSolver, precision: Precision, checkPathError: Boolean = true,
-  useLipschitz: Boolean = false) {
+class AAApproximator(val reporter: Reporter, val solver: RangeSolver, precision: Precision, checkPathError: Boolean = true,
+  useLipschitz: Boolean = false) extends Lipschitz {
 
-  implicit val debugSection = utils.DebugSectionAffine
+  implicit override val debugSection = utils.DebugSectionAffine
   val compactingThreshold = 500
 
 
@@ -278,16 +278,16 @@ class AAApproximator(reporter: Reporter, solver: RangeSolver, precision: Precisi
   
   private def evalArithmetic(e: Expr, vars: Map[Expr, XReal], path: Expr): XReal = {
     if (useLipschitz) {
-      val lip = new Lipschitz(reporter, solver, leonToZ3)
-      //println("rhs: " + x)
+      //val lip = new Lipschitz(reporter, solver, leonToZ3)
 
       val currentVarsInExpr: Set[Identifier] = variablesOf(e)
-      //println("currentVarsInExpr: " + currentVarsInExpr)
+      val varMap = vars.filter({case (Variable(id), _) => currentVarsInExpr.contains(id)}).map(
+        x => (inputVariables.getIdeal(x._1), x._2))
+      val ids = varMap.keys.map({ case Variable(id) => id}).toSeq
+      val additionalConstraints = getRealConstraintClauses(precondition)
 
-      val propagatedError = lip.getPropagatedError(removeErrors(precondition),
-        Seq(actualToIdealArithmetic(e)),
-        vars.filter({case (Variable(id), _) => currentVarsInExpr.contains(id)}),
-        currentVarsInExpr.toSeq)
+      val propagatedError = getPropagatedErrorLipschitz( Seq(actualToIdealArithmetic(e)),
+        varMap, ids, additionalConstraints)
       //println("propagatedError: " + propagatedError)
 
       //println("vars before: " + vars)
@@ -303,6 +303,10 @@ class AAApproximator(reporter: Reporter, solver: RangeSolver, precision: Precisi
     } else {  
       approxArithm(e, vars, path)
     }
+  }
+
+  private def getRealConstraintClauses(e: Expr): Expr = {
+    And(getClauses(e).filter(cl => !belongsToActual(cl) && ! isRangeClause(cl)).toSeq)
   }
 
 
@@ -484,8 +488,8 @@ class AAApproximator(reporter: Reporter, solver: RangeSolver, precision: Precisi
       case DivisionF(lhs, rhs) => Some(DivisionR(lhs, rhs))
       case SqrtF(t) => Some(SqrtR(t))
       case FloatLiteral(r,_) => Some(RealLiteral(r))
-      case _ =>
-        None
+      case v @ Variable(_) => Some(inputVariables.getIdeal(v))
+      //case fl: FloatLiteral =>  None
     }(expr)
   }
 

@@ -12,24 +12,22 @@ import real.TreeOps._
 import real.Trees._
 import Rational._
 
-// TODO: make this a trait?
-class Lipschitz(reporter: Reporter, solver: RangeSolver, leonToZ3: LeonToZ3Transformer) {
-  implicit val debugSection = utils.DebugSectionLipschitz
+trait Lipschitz {
+  val reporter: Reporter
+  val solver: RangeSolver
+  var leonToZ3: LeonToZ3Transformer
 
-  def getPropagatedError(precondition: Expr, es: Seq[Expr], vars: Map[Expr, XReal],
-    ids: Seq[Identifier]): Option[Seq[Rational]] = {
+  implicit val debugSection: utils.DebugSection
+
+  def getPropagatedErrorLipschitz(es: Seq[Expr], vars: Map[Expr, XReal], ids: Seq[Identifier],
+    additionalConstraints: Expr): Option[Seq[Rational]] = {
 
     if (es.exists(e => containsIfExpr(e) || containsFunctionCalls(e)) ){
       reporter.warning("If or fnc call found, cannot apply Lipschitz.")
       None
     } else {
-      //TODO: can we add the additional constraints from the pre-condition?
-      //val completePre = And(precondition, rangeConstraint(vars))
-      val completePre = rangeConstraint(vars)
-      //println("precondition: " + precondition)
-      //println("completePre: " + completePre)
+      val completePre = And(rangeConstraint(vars), additionalConstraints)
       
-      //println("es: " + es)
       val lipschitzConsts: RMatrix = getLipschitzMatrix(completePre, es, ids,
         vars.map(x => (x._1, x._2.interval)))
       reporter.debug("K: " + lipschitzConsts)
@@ -39,26 +37,6 @@ class Lipschitz(reporter: Reporter, solver: RangeSolver, leonToZ3: LeonToZ3Trans
         })
       reporter.debug("initial errors: " + initErrors)
 
-      // TODO: The sqrt is problematic, due to underflow
-      /*val p2NormErrors: Seq[Rational] =
-        lipschitzConsts.data.map(dta => {
-          val rowSum = ids.zip(dta).foldLeft(zero){
-            case (sum, (id, k)) => sum + (k*initErrors(id))*(k*initErrors(id)) 
-          }
-          println("rowSum: " + rowSum)
-          println("sqrt: " + math.sqrt(rowSum.toDouble))
-          println(sqrtUp(rowSum))
-          sqrtUp(rowSum)
-        })*/
-      
-      /* Unfortunately, doesn't work
-      val infinityErrors: Seq[Rational] =
-        lipschitzConsts.data.map(dta => {
-          ids.zip(dta).foldLeft(zero){
-            case (sum, (id, k)) => sum + k*initErrors(id) 
-          }
-        })
-      */
       val lipschitzErrors: Seq[Rational] =
         lipschitzConsts.data.map(dta => {
           ids.zip(dta).foldLeft(zero){
@@ -72,8 +50,8 @@ class Lipschitz(reporter: Reporter, solver: RangeSolver, leonToZ3: LeonToZ3Trans
 
   // assume that the updateFncs are ordered, same for ids
   //@param sigmas roundoff error on computing the update functions
-  def getLoopError(preReal: Expr, body: Expr, ids: Seq[Identifier], updateFncs: Seq[Expr],
-    vars: Map[Expr, XReal], sigmas: Seq[Rational], precision: Precision, loopBound: Option[Int]): Seq[Rational] = {
+  def getLoopErrorLipschitz(body: Expr, ids: Seq[Identifier], updateFncs: Seq[Expr], vars: Map[Expr, XReal],
+    additionalConstraints: Expr, sigmas: Seq[Rational], precision: Precision, loopBound: Option[Int]): Seq[Rational] = {
 
     reporter.debug("computing loop error")
     reporter.debug("body: " + body)
@@ -105,13 +83,10 @@ class Lipschitz(reporter: Reporter, solver: RangeSolver, leonToZ3: LeonToZ3Trans
     reporter.debug("modelCnstrs: " + modelConstraints)
     reporter.debug(And(modelConstraints.toSeq))
     
-    // TODO: fix the precondition
-    //println("preReal: " + preReal)
-    //println("inlinedFncs: " + inlinedFncs)
-
-    //println("pre: " + And(rangeConstraint(vars), And(modelConstraints.toSeq)) )
-    val mK = getLipschitzMatrix(And(rangeConstraint(vars), And(modelConstraints.toSeq)), inlinedFncs, ids,
-      vars.map(x => (x._1, x._2.interval)) ++ additionalVars.map(x => (x._1, RationalInterval(x._2.lo.get, x._2.up.get))))    
+    val precondition = And(And(rangeConstraint(vars), additionalConstraints), And(modelConstraints.toSeq))
+    
+    val mK = getLipschitzMatrix(precondition, inlinedFncs, ids, vars.map(x => (x._1, x._2.interval)) ++
+      additionalVars.map(x => (x._1, RationalInterval(x._2.lo.get, x._2.up.get))))    
     reporter.info("sigmas: " + sigmas)
     reporter.info("K: " + mK)
 
@@ -128,64 +103,38 @@ class Lipschitz(reporter: Reporter, solver: RangeSolver, leonToZ3: LeonToZ3Trans
         reporter.debug("ids: " + ids)
         reporter.debug("initErrors sorted: " + initErrors)
 
-        /* Unfortunately, norms don't apply here
-        val ks: Seq[Rational] = mK.rows.map(row => maxAbs(row))
-        reporter.debug("ks: " + ks)
-        val infinityNormErrors = sigmas.zip(ks).map( {
-          case (s, k) => errorFromNIterations(n, maxAbs(initErrors), s, k)  
-        })
-        reporter.info("loop errors, infinity norm: " + infinityNormErrors)
-        */
+        
         //if (ids.length > 1) {
         if (mK.isIdentity) {
           throw new Exception("K == I and we don't handle this case...")
         }
 
-          val mKn = mK.power(n)
-          reporter.debug("K^n: " + mKn)
-          val mI = RMatrix.identity(ids.length)
-          reporter.debug("I: " + mI)
+        val mKn = mK.power(n)
+        reporter.debug("K^n: " + mKn)
+        val mI = RMatrix.identity(ids.length)
+        reporter.debug("I: " + mI)
 
-          reporter.debug("(I-K)^-1: " + (mI - mK).inverse)
-          val roundoffErrorMatrix = (((mI - mK).inverse) * (mI - mKn))
-          reporter.debug("roundoffErrorMatrix: " + roundoffErrorMatrix)
-          val roundoffErrors = roundoffErrorMatrix * sigmas
-          val initialErrors = mKn * initErrors
+        reporter.debug("(I-K)^-1: " + (mI - mK).inverse)
+        val roundoffErrorMatrix = (((mI - mK).inverse) * (mI - mKn))
+        reporter.debug("roundoffErrorMatrix: " + roundoffErrorMatrix)
+        val roundoffErrors = roundoffErrorMatrix * sigmas
+        val initialErrors = mKn * initErrors
 
-          val componentwiseErrors = roundoffErrors.zip(initialErrors).map({
-            case (a, b) => a + b
-            })
-          reporter.info("loop errors, componentwise: " + componentwiseErrors)
-          componentwiseErrors
-          // Determine which one is better, which one to return
-          /*val diff = infinityNormErrors.zip(componentwiseErrors).foldLeft(zero) {
-            case (sum, (i, c)) => sum + (i - c)
-          }
-          if (diff < zero) {
-            infinityNormErrors
-          } else {
-            componentwiseErrors
-          }*/
-        /*} else {
-          infinityNormErrors
-        }*/
-        
-
+        val componentwiseErrors = roundoffErrors.zip(initialErrors).map({
+          case (a, b) => a + b
+          })
+        reporter.info("loop errors, componentwise: " + componentwiseErrors)
+        componentwiseErrors
+          
       case _ => Seq.empty
     }
     
   }
 
-  def getTaylorError(preReal: Expr, ids: Seq[Identifier], expr: Expr, precision: Precision,
-    sigmas: Seq[Rational], initErrors: Map[Identifier, Rational], vars: Map[Expr, RationalInterval]): Unit = {
-    // TODO: deduplicate, make sure we have no scaling everywhere
-    def p2Norm(s: Seq[Rational]): Rational = {
-      val rowSum = s.foldLeft(zero){
-          case (sum, elem) => sum + elem*elem
-        }
-      sqrtUpNoScaling(rowSum)
-    }
-
+  def getTaylorErrorLipschitz(expr: Expr, ids: Seq[Identifier], sigmas: Seq[Rational],
+    initErrors: Map[Identifier, Rational], vars: Map[Expr, RationalInterval],
+    additionalConstraints: Expr, precision: Precision): Unit = {
+    
     // check whether we can apply this
     // no ifs and no tuples (for now)
     if (containsIfExpr(expr) || containsFunctionCalls(expr)) {
@@ -195,8 +144,7 @@ class Lipschitz(reporter: Reporter, solver: RangeSolver, leonToZ3: LeonToZ3Trans
       reporter.debug("initial errors: " + initErrors)
       println("initial errors: " + initErrors)
 
-      // TODO: fix precondition
-      val pre = rangeConstraintFromIntervals(vars) 
+      val pre = And(rangeConstraintFromIntervals(vars), additionalConstraints)
       val (jacobian, lipschitzConsts, hessianConsts) = getSigmaJacobianHessian(
         pre, expr, ids, precision, vars)
       assert(sigmas.length == 1 && lipschitzConsts.data.length == 1)
@@ -215,7 +163,9 @@ class Lipschitz(reporter: Reporter, solver: RangeSolver, leonToZ3: LeonToZ3Trans
         }))
 
       assert(h.length == 1)
-      val taylorRemainder = Rational(1, 2) * p2Norm(h(0)) 
+      val taylorRemainder = Rational(1, 2) * h(0).foldLeft(zero){
+            case (sum, elem) => sum + elem
+          }
 
       println("taylorRemainder: " + taylorRemainder)
 
