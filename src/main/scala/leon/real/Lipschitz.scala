@@ -90,8 +90,17 @@ trait Lipschitz {
     reporter.info("sigmas: " + sigmas)
     reporter.info("K: " + mK)
 
-    loopBound match {
-      case Some(n) =>
+    val dim = sigmas.length
+
+    (dim, loopBound) match {
+      case (1, Some(n)) =>
+        println(vars)
+        println("ids: " + ids)
+        val initialError = vars(Variable(ids(0))).maxError
+        println("initialError: " + initialError)
+        Seq(errorFromNIterations(n, initialError, sigmas(0), mK(0, 0)))
+
+      case (_, Some(n)) =>
         //val initErrorsMap = vc.variables.getInitialErrors(precision)
         val initErrorsMap: Map[Identifier, Rational] = vars.map({
           case (Variable(id), xreal) => (id, xreal.maxError)

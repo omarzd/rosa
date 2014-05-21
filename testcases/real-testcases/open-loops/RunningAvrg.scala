@@ -20,7 +20,7 @@ object RunningAvrg {
 
       val x = nextItem
 
-      val m_new = ((n - 1) * m + x) / n
+      val m_new = ((n - 1.0) * m + x) / n
 
       mean(n + 1, m_new) 
     // case when n == 1? at least for m

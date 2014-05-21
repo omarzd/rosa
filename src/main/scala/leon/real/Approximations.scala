@@ -602,20 +602,6 @@ object Approximations {
 
   
 
-  // TODO: now elsewhere
-  /*
-    @param n number of iterations
-    @param lambda initial error
-    @param sigma error of one loop iteration
-    @param K Lipschitz constant
-  */
-  def errorFromNIterations(n: Int, lambda: Rational, sigma: Rational, k: Rational): Rational = {
-    var kn = k
-    for (i <- 1 until n) { kn *= k }
-
-    kn * lambda + sigma * ((one - kn)/(one - k))
-  }
-
   // to avoid confusion with nested sequences
   type SpecTuple = Seq[Spec]
   val emptySpecTuple: SpecTuple = Seq.empty

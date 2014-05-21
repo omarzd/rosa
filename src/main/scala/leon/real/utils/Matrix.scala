@@ -110,6 +110,7 @@ case class RMatrix (dim: Int, val data: Seq[Seq[Rational]]) extends Matrix[Ratio
   }
 
   def inverse: RMatrix = dim match {
+
     case 2 =>
       val a = this(0,0); val b = this(0,1)
       val c = this(1,0); val d = this(1,1)
