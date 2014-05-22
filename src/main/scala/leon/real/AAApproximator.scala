@@ -74,6 +74,7 @@ class AAApproximator(val reporter: Reporter, val solver: RangeSolver, precision:
     exactInputs: Boolean = false): Seq[XReal] = {
     init(inputs, precond)
     val vars = getInitialVariables(inputs, exactInputs)
+    println("initial variables: " + vars)
     process(e, vars, True)._3
   }
 
@@ -322,7 +323,7 @@ class AAApproximator(val reporter: Reporter, val solver: RangeSolver, precision:
         case FloatLiteral(r, exact) =>
           precision match {
             case FPPrecision(bits) => XFixed(r, config.addCondition(leonToZ3.getZ3Condition(cond)), bits)
-            case _ => XFloat(r, config.addCondition(leonToZ3.getZ3Condition(cond)), machineEps) // TODO: save machineEps somewhere?
+            case _ => XFloat(r, config.addCondition(leonToZ3.getZ3Condition(cond)), machineEps, exact) // TODO: save machineEps somewhere?
           }
       }
     }

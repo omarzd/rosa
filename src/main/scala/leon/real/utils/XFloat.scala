@@ -74,8 +74,9 @@ object XFloat {
   }
 
   // constant
-  def apply(r: Rational, config: XConfig, machineEps: Rational): XFloat = {
-    val newError = new XRationalForm(Rational.zero)
+  def apply(r: Rational, config: XConfig, machineEps: Rational, exact: Boolean): XFloat = {
+    val newError =  if (exact) new XRationalForm(Rational.zero)
+      else addNoise(new XRationalForm(Rational.zero), roundoff(r, machineEps))
     new XFloat(RealLiteral(r), RationalInterval(r,r), newError, config, machineEps)
   }
 
