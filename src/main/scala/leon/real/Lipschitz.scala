@@ -56,7 +56,7 @@ trait Lipschitz {
     reporter.debug("computing loop error")
     reporter.debug("body: " + body)
     reporter.debug("updateFncs: " + updateFncs)
-
+    
     // Inline model inputs
     var additionalVars: Map[Expr, Record] = Map()
     val (inlinedFncs, modelConstraints) = {
@@ -83,10 +83,16 @@ trait Lipschitz {
     reporter.debug("modelCnstrs: " + modelConstraints)
     reporter.debug(And(modelConstraints.toSeq))
     
-    val precondition = And(And(rangeConstraint(vars), additionalConstraints), And(modelConstraints.toSeq))
+    val cleanedAdditionalConstraints = 
+      And(getClauses(And(additionalConstraints, And(modelConstraints.toSeq))).filter(cl => 
+        !belongsToActual(cl) && !isRangeClause(cl)))
+
+    val allVars = vars.map(x => (x._1, x._2.interval)) ++ 
+      additionalVars.map(x => (x._1, RationalInterval(x._2.lo.get, x._2.up.get)))
     
-    val mK = getLipschitzMatrix(precondition, inlinedFncs, ids, vars.map(x => (x._1, x._2.interval)) ++
-      additionalVars.map(x => (x._1, RationalInterval(x._2.lo.get, x._2.up.get))))    
+    val precondition = And(rangeConstraintFromIntervals(allVars), cleanedAdditionalConstraints)
+    
+    val mK = getLipschitzMatrix(precondition, inlinedFncs, ids, allVars)    
     reporter.info("sigmas: " + sigmas)
     reporter.info("K: " + mK)
 
@@ -94,11 +100,10 @@ trait Lipschitz {
 
     (dim, loopBound) match {
       case (1, Some(n)) =>
-        println(vars)
-        println("ids: " + ids)
         val initialError = vars(Variable(ids(0))).maxError
-        println("initialError: " + initialError)
-        Seq(errorFromNIterations(n, initialError, sigmas(0), mK(0, 0)))
+        val finalError = errorFromNIterations(n, initialError, sigmas(0), mK(0, 0))
+        reporter.info("loop error, after "+loopBound+" iterations: " + finalError)
+        Seq(finalError)
 
       case (_, Some(n)) =>
         //val initErrorsMap = vc.variables.getInitialErrors(precision)
@@ -132,7 +137,7 @@ trait Lipschitz {
         val componentwiseErrors = roundoffErrors.zip(initialErrors).map({
           case (a, b) => a + b
           })
-        reporter.info("loop errors, componentwise: " + componentwiseErrors)
+        reporter.info("loop errors, after "+loopBound+" iterations: " + componentwiseErrors)
         componentwiseErrors
           
       case _ => Seq.empty
@@ -282,9 +287,9 @@ trait Lipschitz {
       Rational(n) * sigma + lambda
     } else {
       var kn = k
-      println("k: " + k)
+      println("computing power of k")
       for (i <- 1 until n) { kn *= k }
-
+      println("done")
       kn * lambda + sigma * ((one - kn)/(one - k))
     }
   }

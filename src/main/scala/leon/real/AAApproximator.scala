@@ -55,7 +55,13 @@ class AAApproximator(val reporter: Reporter, val solver: RangeSolver, precision:
         val tmpVars: Map[Expr, XReal] = variables2xfloats(in.getValidTmpRecords, config, machineEps)._1
         inputVars ++ tmpVars
       }
-      else {
+      else if (in.integers.nonEmpty) {
+        val (intRecords, rest) = in.getValidRecords.partition({
+          case Record(Variable(id), _, _, _, _, _) => in.integers.contains(id)
+          })
+        variables2xfloatsExact(intRecords, config, machineEps) ++
+          variables2xfloats(rest, config, machineEps)._1
+      } else {
         variables2xfloats(in.getValidRecords, config, machineEps)._1
       }
 

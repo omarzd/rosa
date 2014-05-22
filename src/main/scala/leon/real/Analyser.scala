@@ -6,7 +6,7 @@ package real
 import purescala.Common._
 import purescala.Definitions.{FunDef}
 import purescala.Trees._
-import purescala.TypeTrees.RealType
+import purescala.TypeTrees.{RealType, BooleanType}
 import purescala.TreeOps.replace
 import purescala.TreeOps.functionCallsOf
 import purescala.TransformerWithPC
@@ -252,18 +252,11 @@ object Analyser {
   }
 
   class AssertionCollector(outerFunDef: FunDef, precondition: Expr, variables: VariablePool, precisions: List[Precision]) extends TransformerWithPC {
-    /*def inlineBody(body: Expr): Map[Expr, Expr] = {
-      var valMap: Map[Expr, Expr] = Map.empty
-      preTraversal {
-        expr => expr match {
-          case Equals(v @ Variable(id), rhs) =>
-            valMap = valMap + (v -> replace(valMap,rhs))
-
-          case _ => ;
-        }
-      }(body)
-      valMap
-    }*/
+    def isConstraint(e: Expr): Boolean = e match {
+      case LessThan(_,_) | LessEquals(_,_) | GreaterThan(_,_) | GreaterEquals(_,_) => true
+      case Not(_) => true
+      case _ => false
+    }
 
     type C = Seq[Expr]
     val initC = Nil
@@ -303,8 +296,15 @@ object Analyser {
           }*/
           //println(updateFncs)
           //(LoopInvariant, updateFncs)
-          val vc = new VerificationCondition(outerFunDef, LoopInvariant, precondition, pathToFncCall, toProve,
-            allFncCalls, variables, precisions)
+          println("pathToFncCall: " + pathToFncCall)
+          println("precondition: " + precondition)
+
+          val (constrs, computation) = getClauses(pathToFncCall).partition(x => isConstraint(x))
+          println("constrs: " + constrs)
+          println("computation: " + computation)
+
+          val vc = new VerificationCondition(outerFunDef, LoopInvariant, And(precondition, And(constrs)),
+           And(computation), toProve, allFncCalls, variables, precisions)
           //vc.updateFunctions = updateFncs.toSeq
           vc.updateFunctions = arguments.filter(x => !variables.isLoopCounter(x._1) &&
             !variables.isInteger(x._1)).map({

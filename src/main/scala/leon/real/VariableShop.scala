@@ -81,4 +81,9 @@ object VariableShop {
     tmpCounter = tmpCounter + 1
     Variable(FreshIdentifier("_tmp" + tmpCounter)).setType(RealType)
   }
+
+  def getFreshTmpId: Identifier = {
+    tmpCounter = tmpCounter + 1
+    FreshIdentifier("#tmp" + tmpCounter).setType(RealType)
+  }
 }

@@ -37,6 +37,8 @@ object TreeOps {
     And(clauses)
   }
 
+
+
   def rangeConstraintFromIntervals(vars: Map[Expr, RationalInterval]): Expr = {
     val clauses: Seq[Expr] = vars.flatMap({
       case (v, i) => Seq(LessEquals(RealLiteral(i.xlo), v),
@@ -133,9 +135,14 @@ object TreeOps {
     }
   }
 
-  def getClauses(e: Expr): Set[Expr] = e match {
+  /*def getClausesSet(e: Expr): Set[Expr] = e match {
     case And(args) => args.toSet
     case _ => Set(e)
+  }*/
+
+  def getClauses(e: Expr): Seq[Expr] = e match {
+    case And(args) => args
+    case _ => Seq(e)
   }
 
   def removeRedundantConstraints(body: Expr, post: Expr): Set[Expr] = {
@@ -146,7 +153,7 @@ object TreeOps {
 
     var neededVars: Set[Identifier] = variablesOf(post)
     var currentNeeded: Set[Expr] = Set.empty
-    var currentWaiting: Set[Expr] = getClauses(body)
+    var currentWaiting: Set[Expr] = getClauses(body).toSet
 
     var continue = true
     while( continue ) {

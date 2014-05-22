@@ -13,6 +13,7 @@ import real.Trees.{Noise, Roundoff, Actual, UpdateFunction, Iteration, RealLiter
 import real.TreeOps._
 import Rational._
 import Calculus._
+import VariableShop._
 
 case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val reporter: Reporter, val solver: RangeSolver,
   vc: VerificationCondition) extends Lipschitz {
@@ -51,6 +52,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
     if (!containsFncs) kinds = kinds.filter(_.fncHandling == Uninterpreted)
     else kinds = kinds.filter(_.fncHandling != Uninterpreted)
   }
+
 
   // Note: only supports function calls in fnc bodies, not in pre and post
   def getApproximation(kind: ApproxKind, precision: Precision, postMap: Map[FunDef, Seq[Spec]]): Approximation = {
@@ -250,7 +252,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
         val vars = vc.variables.getInitIntervals
         //val lipschitz = new Lipschitz(reporter, solver, leonToZ3)
         getTaylorErrorLipschitz(path.bodyReal, ids, approx.map(a => a.maxError), initErrors, vars,
-         And(getClauses(preReal).filter(cl => !belongsToActual(cl) && !isRangeClause(cl)).toSeq), precision)
+         And(getClauses(preReal).filter(cl => !belongsToActual(cl) && !isRangeClause(cl))), precision)
       }
       (constraint, specs)
     }
@@ -310,8 +312,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
         })
 
       val errs = getLoopErrorLipschitz(path.bodyReal, ids, updateFncs, idealApproxs, 
-        And(getClauses(preReal).filter(cl => !belongsToActual(cl) && !isRangeClause(cl)).toSeq),
-        sigmas, precision, vc.funDef.loopBound)
+        preReal, sigmas, precision, vc.funDef.loopBound)
                 
 
       if(vc.funDef.loopBound.nonEmpty && options.loopUnrolling) { //if (options.loopUnrolling) {
@@ -524,13 +525,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
       }(e)
     }
 
-    var tmpCounter = 0
-
-    def getFresh: Identifier = {
-      tmpCounter = tmpCounter + 1
-      FreshIdentifier("#tmp" + tmpCounter).setType(RealType)
-    }
-
+    
     preMap {
       case FunctionInvocation(typedFunDef, args) =>
         val funDef = typedFunDef.fd
@@ -538,8 +533,8 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
         funDef.postcondition.flatMap({
           case (resId, postExpr) =>
             val resFresh = resId.getType match {
-              case TupleType(bases) => Seq(getFresh, getFresh)
-              case _ => Seq(getFresh)
+              case TupleType(bases) => Seq(getFreshTmpId, getFreshTmpId)
+              case _ => Seq(getFreshTmpId)
             }
             //println(s"$resFresh")
             // TODO: why are we doing this again? It shoud already be in the fncMap for inlining

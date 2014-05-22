@@ -39,7 +39,7 @@ class LipschitzPathError(reporter: Reporter, solver: RangeSolver, precision: Pre
     reporter.debug("initial vars: " + variables)
 
     val preAdditionalConstraints = {
-      And(getClauses(precondition).filter(cl => !isRangeConstraint(cl)).toSeq)
+      And(getClauses(precondition).filter(cl => !isRangeConstraint(cl)))
     }
     reporter.debug("preAdditionalConstraints: " + preAdditionalConstraints)
     
@@ -232,7 +232,7 @@ class LipschitzPathError(reporter: Reporter, solver: RangeSolver, precision: Pre
         And(LessEquals(l, PlusR(r, freshVar)), WithInEq(freshVar, -totalErr, totalErr))
     }
 
-    val clauses = getClauses(c1).toSeq
+    val clauses = getClauses(c1)
 
     if (clauses.forall(cl => isSimpleComparison(cl))) {
       val (rangeClauses, otherClauses) = clauses.partition(cl => isRangeConstraint(cl))

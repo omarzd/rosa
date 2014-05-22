@@ -182,6 +182,11 @@ class LeonToZ3Transformer(variables: VariablePool, precision: Precision) extends
         }
         fresh
 
+      case FncValueF(specs, specExpr) =>
+        val fresh = getNewXFloatVar
+        // tuples: fresh will have to be a tuple?
+        addExtra(rec(replace(Map(variables.buddy(Variable(specs(0).id)) -> fresh), specExpr), path))
+        fresh
 
       // normally this is approximated
       case FncBodyF(name, body, fundef, args) =>

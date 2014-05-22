@@ -82,6 +82,6 @@ case class RationalInterval(xlo: Rational, xhi: Rational) {
     temp
   }
 
-  override def toString = "[%.16g, %.16g]".format(xlo.toDouble, xhi.toDouble)
+  override def toString = "[%.18g, %.18g]".format(xlo.toDouble, xhi.toDouble)
 
 }
