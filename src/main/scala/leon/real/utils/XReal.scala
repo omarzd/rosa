@@ -154,6 +154,7 @@ class XReal(val tree: Expr, val approxInterval: RationalInterval, val error: XRa
     //println("\n tightening: " + tree)
     //println("with pre: " + condition)
     val massagedTree = TreeOps.massageArithmetic(tree)
+    //val massagedTree = tree
     //println("massaged: " + massagedTree)
     //println("initial approx: " + approx)
 

@@ -296,13 +296,9 @@ object Analyser {
           }*/
           //println(updateFncs)
           //(LoopInvariant, updateFncs)
-          println("pathToFncCall: " + pathToFncCall)
-          println("precondition: " + precondition)
-
+          
           val (constrs, computation) = getClauses(pathToFncCall).partition(x => isConstraint(x))
-          println("constrs: " + constrs)
-          println("computation: " + computation)
-
+          
           val vc = new VerificationCondition(outerFunDef, LoopInvariant, And(precondition, And(constrs)),
            And(computation), toProve, allFncCalls, variables, precisions)
           //vc.updateFunctions = updateFncs.toSeq
