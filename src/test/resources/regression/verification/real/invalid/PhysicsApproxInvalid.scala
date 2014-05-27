@@ -84,7 +84,7 @@ object PhysicsApproxInValid {
     require(T >= 300 && T <= 300 && a >= 0.401 && a <= 0.401 && b >= 42.7e-6 && b <= 42.7e-6 && N >= 1000 && N <= 1000 &&
     p >= 3.5e7 && p <= 3.5e7 && 0.1 <= V && V <= 0.5 && T +/- 0.01 && a +/- 1e-6 && b +/- 1e-10 && N +/- 5 && p +/- 1e-13 && V +/- 0.005)
 
-    val k = 1.3806503e-23
+    val k:Real = 1.3806503e-23
     (p + a * (N / V) * (N / V)) * (V - N * b) - k * N * T
 
   } ensuring(res => 4303231 < res && res <= 16739009.21 && res +/- 2114297.83596)
@@ -93,10 +93,10 @@ object PhysicsApproxInValid {
     require(T >= 300 && T <= 300 && a >= 0.401 && a <= 0.401 && b >= 42.7e-6 && b <= 42.7e-6 && N >= 1000 && N <= 1000 &&
     p >= 3.5e7 && p <= 3.5e7 && 0.1 <= V && V <= 0.5)
 
-    val k = 1.3806503e-23
+    val k:Real = 1.3806503e-23
     (p + a * (N / V) * (N / V)) * (V - N * b) - k * N * T
 
-  } ensuring(res => 4303229.99 < res && res < 16739009.2 && res +/- 4.63471061e-8)
+  } ensuring(res => 4303229.99 < res && res < 16739009.19 && res +/- 4.63471061e-8)
 
   def sine(x: Real): Real = {
     require(x > -1.57079632679 && x < 1.57079632679)

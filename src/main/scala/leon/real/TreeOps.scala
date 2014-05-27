@@ -813,7 +813,7 @@ object TreeOps {
     case EqualsF(vr, rhs) => Equals(vr, translateToFP(rhs, formats, bitlength, getConstant))
 
     case v @ Variable(id) => v
-    case FloatLiteral(r, exact) =>
+    case FloatLiteral(r) =>
       val bits = FPFormat.getFormat(r, bitlength).f
       getConstant(r, bits)
     case UMinusF( t ) => UMinus(translateToFP(t, formats, bitlength, getConstant))
@@ -830,7 +830,7 @@ object TreeOps {
       else if (my <= mz) (LeftShift(v1, (mz - my)), v2, mz)
       else (v1, LeftShift(v2, (my - mz)), my)
 
-    case (v @ Variable(_), FloatLiteral(r, exact)) =>
+    case (v @ Variable(_), FloatLiteral(r)) =>
       val my = formats(v).f
       val mz = FPFormat.getFormat(r, bitlength).f
 
@@ -839,7 +839,7 @@ object TreeOps {
       else if (my <= mz) (LeftShift(v, (mz - my)), const, mz)
       else (v, LeftShift(const, (my - mz)), my)
 
-    case (FloatLiteral(r, exact), v @ Variable(_)) =>
+    case (FloatLiteral(r), v @ Variable(_)) =>
       val mz = formats(v).f
       val my = FPFormat.getFormat(r, bitlength).f
       val const = getConstant(r, my)
@@ -847,7 +847,7 @@ object TreeOps {
       else if (my <= mz) (LeftShift(const, (mz - my)), v, mz)
       else (const, LeftShift(v, (my - mz)), my)
 
-    case (FloatLiteral(r1, exact1), FloatLiteral(r2, exact2)) =>
+    case (FloatLiteral(r1), FloatLiteral(r2)) =>
       val my = FPFormat.getFormat(r1, bitlength).f
       val mz = FPFormat.getFormat(r2, bitlength).f
       val i1 = getConstant(r1, my)
@@ -864,19 +864,19 @@ object TreeOps {
       val mz = formats(v2).f
       (Times(v1, v2), my + mz)
 
-    case (v @ Variable(_), FloatLiteral(r, exact)) =>
+    case (v @ Variable(_), FloatLiteral(r)) =>
       val my = formats(v).f
       val mz = FPFormat.getFormat(r, bitlength).f
       val i = getConstant(r, mz)
       (Times(v, i), my + mz)
 
-    case (FloatLiteral(r, exact), v @ Variable(_)) =>
+    case (FloatLiteral(r), v @ Variable(_)) =>
       val my = FPFormat.getFormat(r, bitlength).f
       val i = getConstant(r, my)
       val mz = formats(v).f
       (Times(i, v), my + mz)
 
-    case (FloatLiteral(r1, exact1), FloatLiteral(r2, exact2)) =>
+    case (FloatLiteral(r1), FloatLiteral(r2)) =>
       val my = FPFormat.getFormat(r1, bitlength).f
       val i1 = getConstant(r1, my)
       val mz = FPFormat.getFormat(r2, bitlength).f
@@ -892,21 +892,21 @@ object TreeOps {
       val shift = mx + mz - my
       Division(LeftShift(v1, shift), v2)
 
-    case (v @ Variable(_), FloatLiteral(r, exact)) =>
+    case (v @ Variable(_), FloatLiteral(r)) =>
       val my = formats(v).f
       val mz = FPFormat.getFormat(r, bitlength).f
       val i = getConstant(r, mz)
       val shift = mx + mz - my
       Division(LeftShift(v, shift), i)
 
-    case (FloatLiteral(r, exact), v @ Variable(_)) =>
+    case (FloatLiteral(r), v @ Variable(_)) =>
       val my = FPFormat.getFormat(r, bitlength).f
       val i = getConstant(r, my)
       val mz = formats(v).f
       val shift = mx + mz - my
       Division(LeftShift(i, shift), v)
 
-    case (FloatLiteral(r1, exact1), FloatLiteral(r2, exact2)) =>
+    case (FloatLiteral(r1), FloatLiteral(r2)) =>
       val my = FPFormat.getFormat(r1, bitlength).f
       val i1 = getConstant(r1, my)
       val mz = FPFormat.getFormat(r2, bitlength).f

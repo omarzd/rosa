@@ -14,6 +14,7 @@ import XFloat.{variables2xfloats, variables2xfloatsExact, xFloatWithUncertain}
 import XFixed.{variables2xfixed, xFixedWithUncertain}
 import VariableShop._
 import Rational.max
+import Precision._
 
 
 // Manages the approximation
@@ -80,7 +81,7 @@ class AAApproximator(val reporter: Reporter, val solver: RangeSolver, precision:
     exactInputs: Boolean = false): Seq[XReal] = {
     init(inputs, precond)
     val vars = getInitialVariables(inputs, exactInputs)
-    println("initial variables: " + vars)
+    //println("initial variables: " + vars)
     process(e, vars, True)._3
   }
 
@@ -285,6 +286,7 @@ class AAApproximator(val reporter: Reporter, val solver: RangeSolver, precision:
   
   private def evalArithmetic(e: Expr, vars: Map[Expr, XReal], path: Expr): XReal = {
     if (useLipschitz) {
+      println("----> using lipschitz")
       //val lip = new Lipschitz(reporter, solver, leonToZ3)
 
       val currentVarsInExpr: Set[Identifier] = variablesOf(e)
@@ -326,10 +328,10 @@ class AAApproximator(val reporter: Reporter, val solver: RangeSolver, precision:
             case xfx: XFixed => new XFixed(xfx.format, xfx.tree, xfx.approxInterval, xfx.error, xfx.config.addCondition(leonToZ3.getZ3Condition(cond)))
           }
 
-        case FloatLiteral(r, exact) =>
+        case FloatLiteral(r) =>
           precision match {
             case FPPrecision(bits) => XFixed(r, config.addCondition(leonToZ3.getZ3Condition(cond)), bits)
-            case _ => XFloat(r, config.addCondition(leonToZ3.getZ3Condition(cond)), machineEps, exact) // TODO: save machineEps somewhere?
+            case _ => XFloat(r, config.addCondition(leonToZ3.getZ3Condition(cond)), machineEps) // TODO: save machineEps somewhere?
           }
       }
     }
@@ -494,9 +496,9 @@ class AAApproximator(val reporter: Reporter, val solver: RangeSolver, precision:
       case TimesF(lhs, rhs) => Some(TimesR(lhs, rhs))
       case DivisionF(lhs, rhs) => Some(DivisionR(lhs, rhs))
       case SqrtF(t) => Some(SqrtR(t))
-      case FloatLiteral(r,_) => Some(RealLiteral(r))
+      case FloatLiteral(r) => Some(RealLiteral(r))
       case v @ Variable(_) => Some(inputVariables.getIdeal(v))
-      //case fl: FloatLiteral =>  None
+      
     }(expr)
   }
 

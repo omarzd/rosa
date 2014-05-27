@@ -90,13 +90,13 @@ object Rational {
       val nom = new BigInt(new BigInteger(splitExponent(0).replace(".", "")))
       val splitDecimal = splitExponent(0).split('.')
       val denPower = splitDecimal(1).length - splitExponent(1).toInt
-
+      
       if (denPower > 0) {
-        val den = new BigInt(new BigInteger(math.pow(baseTen, denPower).toLong.toString))
+        val den = new BigInt(new BigInteger("10").pow(denPower))
         (nom, den)
       } else {
         val den = new BigInt(new BigInteger("1"))
-        val newNom = nom * new BigInt(new BigInteger(math.pow(baseTen, -denPower).toLong.toString))
+        val newNom = nom * new BigInt(new BigInteger("10").pow(-denPower))
         (newNom, den)
       }
     }

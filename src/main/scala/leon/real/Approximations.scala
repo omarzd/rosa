@@ -14,6 +14,7 @@ import real.TreeOps._
 import Rational._
 import Calculus._
 import VariableShop._
+import Precision._
 
 case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val reporter: Reporter, val solver: RangeSolver,
   vc: VerificationCondition) extends Lipschitz {
@@ -149,7 +150,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
           val lipschitzPathError: Rational =
             if (options.lipschitzPathError) {
               val res = getLipschitzPathError(paths.toSeq, precision)
-              reporter.info("lipschitzPathError: " + res)
+              reporter.info("--> lipschitzPathError: " + res)
               res
             }    
             else zero

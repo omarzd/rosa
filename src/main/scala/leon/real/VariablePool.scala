@@ -9,6 +9,7 @@ import leon.purescala.Common._
 import leon.purescala.TypeTrees._
 import leon.purescala.Trees._
 import purescala.TreeOps._
+import Precision._
 
 import real.Trees._
 import Rational.{max, abs}

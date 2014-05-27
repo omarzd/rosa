@@ -13,6 +13,7 @@ import real.Trees._
 import VariableShop._
 import Rational._
 import TreeOps._
+import Precision._
 
 class LeonToZ3Transformer(variables: VariablePool, precision: Precision) extends TransformerWithPC {
     type C = Seq[Expr]
@@ -142,8 +143,9 @@ class LeonToZ3Transformer(variables: VariablePool, precision: Precision) extends
         extraConstraints ++= Seq(Equals(TimesR(n, n), xN), LessEquals(RealLiteral(zero), n))
         TimesR(n, mult)
 
-      case r @ FloatLiteral(v, exact) =>
-        if (exact) RealLiteral(v)
+      case r @ FloatLiteral(v) =>
+        assert(precision.getClass != FPPrecision)
+        if (isExactInFloats(v)) RealLiteral(v)
         else {
           val (mult, dlt) = getFreshRndoffMultiplier
           addExtra(constrainDelta(dlt))

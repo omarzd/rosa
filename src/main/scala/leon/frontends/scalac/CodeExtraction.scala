@@ -1011,9 +1011,12 @@ trait CodeExtraction extends ASTExtractors {
           }
 
         case ExFloat64Literal(v) => new RealLiteral(v)
+          
         case ExImplicitDouble2Real(dbl) => new RealLiteral(dbl)
+        
         case ExImplicitInt2Real(i) => new RealLiteral(i)
-        case ExImplicitDouble2RealVar(sym,tpt) => dctx.vars.get(sym) match {
+        case ExImplicitDouble2RealVar(sym,tpt) => 
+        dctx.vars.get(sym) match {
           case Some(fun) => fun()
           case None =>
             outOfSubsetError(tr, "Unidentified variable "+sym+" "+sym.id+".")

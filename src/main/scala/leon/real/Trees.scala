@@ -16,7 +16,7 @@ object Trees {
   case class RealLiteral(value: Rational) extends Expr with Terminal with FixedType with PrettyPrintable {
     var floatType = false // for code generation of single-precision floating-point constants
     val fixedType = RealType
-    def this(d: Double) = this(Rational(d))
+    def this(d: Double) = this(Rational.rationalFromReal(d))
     def this(i: Int) = this(Rational(i))
 
     def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
@@ -26,12 +26,11 @@ object Trees {
   }
 
   // literal in the floating-point computation
-  case class FloatLiteral(value: Rational, exact: Boolean) extends Expr with Terminal with FixedType with PrettyPrintable {
+  case class FloatLiteral(value: Rational) extends Expr with Terminal with FixedType with PrettyPrintable {
     val fixedType = RealType
 
-    def this(r: Rational) = this(r, isExact(r))
-    def this(d: Double) = this(Rational(d))
-    def this(i: Int) = this(Rational(i), true)
+    def this(d: Double) = this(Rational.rationalFromReal(d))
+    def this(i: Int) = this(Rational(i))
 
     def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
       printer.append(value.toString + "f")

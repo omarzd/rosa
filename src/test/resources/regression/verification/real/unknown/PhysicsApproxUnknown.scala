@@ -72,6 +72,7 @@ object PhysicsApproxUnknown {
     (r*x*x) / (1 + (x/K)*(x/K))
 
   } ensuring(res => 0.0396779 < res && res < 0.335494 && res +/- 2.9353123e-16)
+              // [0.0396779646892767640, 0.335493533074089630] ± 2.9353123670875065e-16
 
   def carbonGasStar(T: Real, a: Real, b: Real, N: Real, p: Real, V: Real): Real = {
     require(T >= 300 && T <= 300 && a >= 0.401 && a <= 0.401 && b >= 42.7e-6 && b <= 42.7e-6 && N >= 1000 && N <= 1000 &&
@@ -89,12 +90,14 @@ object PhysicsApproxUnknown {
     val k = 1.3806503e-23
     (p + a * (N / V) * (N / V)) * (V - N * b) - k * N * T
 
-  } ensuring(res => 4303229.99 < res && res <= 16739009.21 && res +/- 4.6347106e-8)
-
+  } ensuring(res => 4303229.99 < res && res <= 16739009.21 && res +/- 4.6347104e-8)
+  
   def sine(x: Real): Real = {
     require(x > -1.57079632679 && x < 1.57079632679)
     x - (x*x*x)/6.0 + (x*x*x*x*x)/120.0 - (x*x*x*x*x*x*x)/5040.0 
-  } ensuring(res => -0.9998435 < res && res < 0.9998435 && res +/- 9.5541e-16)
+  } ensuring(res => -0.9998435 < res && res < 0.9998435 && res +/- 9.554116e-16)//res +/- 9.5541e-16)
+
+  //[-0.999843499718823400, 0.999843499718823400] ± 9.554116700798416e-16
 
   def sqroot(x: Real): Real = {
     require(x >= 0.0 && x < 1.0)
@@ -105,5 +108,5 @@ object PhysicsApproxUnknown {
     require(-2.0 < x && x < 2.0)
     0.954929658551372 * x -  0.12900613773279798*(x*x*x)
   } ensuring(res => -1.00000001 < res && res < 1.0000001 && res +/- 1.1079985e-15)
-
+  
 }

@@ -5,11 +5,10 @@ package leon
 import purescala.Trees._
 import purescala.Common._
 
-import real.Trees.{RealLiteral, Noise}
 
 import ceres.common.{DirectedRounding}
-import java.math.{BigInteger}
-import real.Rational.{double2Fraction,zero}
+
+
 
 package object real {
 
@@ -35,49 +34,6 @@ package object real {
 
   case class Path(condition: Expr, bodyReal: Expr, bodyFinite: Expr)
 
-  /**
-    Represents a specification of a variable.
-    @param id real/ideal identifier this spec belongs to
-    @param bounds real-valued (ideal) bounds
-    @param absError maximum absolute error
-  */
-  //case class Spec(id: Identifier, bounds: RationalInterval, absError: Rational)
-
-  case class Spec(id: Identifier, bounds: RationalInterval, absError: Option[Rational]) {
-    def toRealExpr: Expr = {
-      And(LessEquals(RealLiteral(bounds.xlo), Variable(id)),
-            LessEquals(Variable(id), RealLiteral(bounds.xhi)))
-    }
-
-    def toExpr: Expr = absError match {
-      case Some(absError) =>
-        And(And(LessEquals(RealLiteral(bounds.xlo), Variable(id)),
-            LessEquals(Variable(id), RealLiteral(bounds.xhi))),
-            Noise(Variable(id), RealLiteral(absError)))
-      case None =>
-        println("---> SPEC without error")
-        And(LessEquals(RealLiteral(bounds.xlo), Variable(id)),
-          LessEquals(Variable(id), RealLiteral(bounds.xhi)))  
-    }
-
-    def getActualRange: RationalInterval = {
-      RationalInterval(bounds.xlo - absError.get, bounds.xhi + absError.get)
-    }
-
-    override def toString: String = absError match {
-      case Some(err) => id + " \u2208 " + bounds + " \u00B1 " + err
-      case None => id + " \u2208 " + bounds + " \u00B1 -"
-    }
-
-    def addPathError(r: Rational): Spec = absError match {
-      case Some(currentError) =>
-        Spec(id, bounds, Some(Rational.max(currentError, r)))
-      case None =>
-        Spec(id, bounds, Some(r))
-    }
-  }
-
-
   def formatOption[T](res: Option[T]): String = res match {
     case Some(xf) => xf.toString
     case None => " -- "
@@ -90,86 +46,9 @@ package object real {
     else "%.16f".format(f)
   }
 
-  sealed abstract class Precision {
-    def range: (Rational, Rational)
-    def minNormal: Rational
-  }
-  case object Float32 extends Precision {
-    val range: (Rational, Rational) = {
-      val rationalMaxValue = double2Fraction(Float.MaxValue)
-      (-Rational(rationalMaxValue._1, rationalMaxValue._2), Rational(rationalMaxValue._1, rationalMaxValue._2))
-    }
-    val minNormal: Rational = {
-      val rationalMinNormal = double2Fraction(java.lang.Float.MIN_NORMAL)
-      Rational(rationalMinNormal._1, rationalMinNormal._2)
-    }
-  }
-  case object Float64 extends Precision {
-    val range: (Rational, Rational) = {
-      val rationalMaxValue = double2Fraction(Double.MaxValue)
-      (-Rational(rationalMaxValue._1, rationalMaxValue._2), Rational(rationalMaxValue._1, rationalMaxValue._2))
-    }
-    val minNormal: Rational = {
-      val rationalMinNormal = double2Fraction(java.lang.Double.MIN_NORMAL)
-      Rational(rationalMinNormal._1, rationalMinNormal._2)
-    }
-  }
-
-  case object DoubleDouble extends Precision {
-    val range: (Rational, Rational) = {
-      val rationalMaxValue = double2Fraction(Double.MaxValue)
-      (-Rational(rationalMaxValue._1, rationalMaxValue._2), Rational(rationalMaxValue._1, rationalMaxValue._2))
-    }
-    val minNormal: Rational = {
-      val rationalMinNormal = double2Fraction(math.pow(2, -969))
-      Rational(rationalMinNormal._1, rationalMinNormal._2)
-    }
-    // 2.0041683600089728e-292;  // = 2^(-1022 + 53) = 2^(-969)
-  }
-  case object QuadDouble extends Precision {
-    val range: (Rational, Rational) = {
-      val rationalMaxValue = double2Fraction(Double.MaxValue)
-      (-Rational(rationalMaxValue._1, rationalMaxValue._2), Rational(rationalMaxValue._1, rationalMaxValue._2))
-    }
-    val minNormal: Rational = {
-      val rationalMinNormal = double2Fraction(math.pow(2, -863))
-      Rational(rationalMinNormal._1, rationalMinNormal._2)
-    }
-     //1.6259745436952323e-260; // = 2^(-1022 + 3*53) = 2^(-863)
-  }
-  case class FPPrecision(bitlength: Int) extends Precision {
-    val range: (Rational, Rational) = FixedPointFormat(true, bitlength, 0, false).range
-    val minNormal: Rational = zero // dummy
-  }
+  
   //import Precision._
 
-  def getUnitRoundoff(precision: Precision): Rational = (precision: @unchecked) match {
-    case Float32 => Rational(new BigInt(new BigInteger("1")), new BigInt(new BigInteger("2")).pow(23))
-    case Float64 => Rational(new BigInt(new BigInteger("1")), new BigInt(new BigInteger("2")).pow(53))
-    case DoubleDouble => Rational(new BigInt(new BigInteger("1")), new BigInt(new BigInteger("2")).pow(105))
-    case QuadDouble => Rational(new BigInt(new BigInteger("1")), new BigInt(new BigInteger("2")).pow(211))
-  }
-
-  def roundoff(r: Rational, machineEps: Rational): Rational = {
-    machineEps * Rational.abs(r)
-  }
-
-  def roundoff(r: Rational, precision: Precision): Rational = precision match {
-    case FPPrecision(bits) =>
-      FixedPointFormat.getFormat(r, bits).quantError
-    case _ => 
-      val machineEps = getUnitRoundoff(precision)
-      machineEps * Rational.abs(r)
-  }
-
-  def roundoff(range: RationalInterval, machineEps: Rational): Rational = {
-    import Rational._
-    val maxAbs = max(abs(range.xlo), abs(range.xhi))
-    // Without scaling this can return fractions with very large numbers
-    // TODO: try scaling the result
-    val simplifiedMax = Rational.scaleToIntsUp(maxAbs)
-    machineEps * simplifiedMax
-  }
 
   val solverPrecisionHigh = Rational.rationalFromReal(1e-16)
   val solverPrecisionMedium = Rational.rationalFromReal(1e-10)
@@ -179,9 +58,6 @@ package object real {
   val solverMaxIterMedium = 50
   val solverMaxIterLow = 20
 
-  // Tests whether this rational can be represented without roundoff errors
-  // Since we don't know which precision we may test, returns, for now, true only for integers
-  def isExact(r: Rational): Boolean = r.isWhole
 
   object Sat extends Enumeration {
     type Sat = Value

@@ -41,6 +41,8 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
     reporter = ctx.reporter
     reporter.info("Running Compilation phase")
 
+    //println(program)
+
     var fncNamesToAnalyse = Set[String]()
     var options = RealOptions()
     

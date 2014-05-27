@@ -10,6 +10,7 @@ import purescala.TreeOps.{preMap, replace}
 import real.TreeOps.{idealToActual,inlineBody, getClauses}
 import real.Trees.{PlusR, WithInEq, MinusR, RealLiteral}
 import Rational._
+import Precision._
 
 
 class LipschitzPathError(reporter: Reporter, solver: RangeSolver, precision: Precision,

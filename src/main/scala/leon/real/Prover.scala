@@ -204,7 +204,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
             // TODO: this needs to be re-checked, seems to have a bug with pathError/Fluctuat/simpleInterpolator
             if (app.kind.allowsRealModel) {
               // Idea: check if we get a counterexample for the real part only, that is then a possible counterexample, (depends on the approximation)
-              println("checking for counterexample")
+              //println("checking for counterexample")
               val realOnlyPost = removeErrorsAndActual(cnstr.postcondition)
 
               if (realOnlyPost == True) { // i.e. if the constraint is trivially true
