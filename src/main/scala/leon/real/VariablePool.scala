@@ -48,6 +48,7 @@ object EmptyRecord extends Record(False, False, None, None, None, None)
 */
 class VariablePool(val inputs: Map[Expr, Record], val resIds: Seq[Identifier],
   val loopCounter: Option[Identifier], val integers: Seq[Identifier]) {
+
   import VariablePool._
   private var allVars = inputs
 

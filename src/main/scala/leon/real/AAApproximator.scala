@@ -131,6 +131,7 @@ class AAApproximator(val reporter: Reporter, val solver: RangeSolver, precision:
     case _ =>
       init(inputs, precond)
       val vars = getInitialVariables(inputs, exactInputs)
+      println("vars: " + vars)
       val res = process(e, vars, True)._3
       assert(res.length == 1, "computing error on tuple-typed expression!")
       res(0).maxError

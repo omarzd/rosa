@@ -43,14 +43,23 @@ class LipschitzPathError(reporter: Reporter, solver: RangeSolver, precision: Pre
       And(getClauses(precondition).filter(cl => !isRangeConstraint(cl)))
     }
     reporter.debug("preAdditionalConstraints: " + preAdditionalConstraints)
+
+    // not sure if it's enough to compute these for the real path only
+    val varsReal: Map[Expr, XReal] = approximator.approximateEquations(rPath.bodyFinite,
+      precondition, variables, exactInputs = false)
+    reporter.debug("varsReal: " + varsReal)
+
+    val varsFloat = approximator.approximateEquations(fPath.bodyFinite, precondition,
+      variables, exactInputs = false)
+    reporter.debug("varsFloat: " + varsFloat)
     
     // interval for floats going the other way f2
-    tightenInputs(precondition, rPath.condition, fPath.condition) match {
+    tightenInputs(precondition, rPath.condition, fPath.condition, varsReal) match {
       case None => reporter.debug("float infeasible")
         None
 
       case Some((rangeCnstr1, floatIntervals, otherConstraints1)) =>
-        tightenInputs(precondition, fPath.condition, rPath.condition) match {
+        tightenInputs(precondition, fPath.condition, rPath.condition, varsFloat) match {
           case None => reporter.debug("real infeasible")
             None
 
@@ -194,7 +203,8 @@ class LipschitzPathError(reporter: Reporter, solver: RangeSolver, precision: Pre
    @return (range constraint, tightened ranges, other constraints)
            returns None if the finite path is infeasible, given the constraints
   */
-  def tightenInputs(precondition: Expr, c1: Expr, c2: Expr): Option[(Expr, Map[Expr, RationalInterval], Expr)] = {
+  def tightenInputs(precondition: Expr, c1: Expr, c2: Expr, vars: Map[Expr, XReal]):
+    Option[(Expr, Map[Expr, RationalInterval], Expr)] = {
     def isSimpleComparison(e: Expr): Boolean = e match {
       case GreaterThan(_,_) | GreaterEquals(_,_) | LessThan(_,_) | LessEquals(_,_) => true
       case _ => false
@@ -202,8 +212,11 @@ class LipschitzPathError(reporter: Reporter, solver: RangeSolver, precision: Pre
     
     // this can be done potentially more accurately, by taking the error of (rhs - lhs)
     def totalUncert(l: Expr, r: Expr): Rational = {
-      val lhsUncert = approximator.computeError(idealToActual(l, variables), precondition, variables, false)
-      val rhsUncert = approximator.computeError(idealToActual(r, variables), precondition, variables, false)
+      val lhsUncert = approximator.computeErrorPreinitialized(idealToActual(l, variables),
+        precondition, variables, vars)
+ 
+      val rhsUncert = approximator.computeErrorPreinitialized(idealToActual(r, variables),
+        precondition, variables, vars)
       rhsUncert + lhsUncert
     }
 
@@ -232,6 +245,8 @@ class LipschitzPathError(reporter: Reporter, solver: RangeSolver, precision: Pre
         val freshVar = VariableShop.getNewDelta        
         And(LessEquals(l, PlusR(r, freshVar)), WithInEq(freshVar, -totalErr, totalErr))
     }
+
+    reporter.debug("tightening inputs")
 
     val clauses = getClauses(c1)
 
