@@ -13,6 +13,7 @@ import real.Trees._
 import VariableShop._
 import Rational._
 import TreeOps._
+import Precision._
 
 class LeonToZ3Transformer(variables: VariablePool, precision: Precision) extends TransformerWithPC {
     type C = Seq[Expr]
@@ -142,8 +143,9 @@ class LeonToZ3Transformer(variables: VariablePool, precision: Precision) extends
         extraConstraints ++= Seq(Equals(TimesR(n, n), xN), LessEquals(RealLiteral(zero), n))
         TimesR(n, mult)
 
-      case r @ FloatLiteral(v, exact) =>
-        if (exact) RealLiteral(v)
+      case r @ FloatLiteral(v) =>
+        assert(precision.getClass != FPPrecision)
+        if (isExactInFloats(v)) RealLiteral(v)
         else {
           val (mult, dlt) = getFreshRndoffMultiplier
           addExtra(constrainDelta(dlt))
@@ -182,6 +184,11 @@ class LeonToZ3Transformer(variables: VariablePool, precision: Precision) extends
         }
         fresh
 
+      case FncValueF(specs, specExpr) =>
+        val fresh = getNewXFloatVar
+        // tuples: fresh will have to be a tuple?
+        addExtra(rec(replace(Map(variables.buddy(Variable(specs(0).id)) -> fresh), specExpr), path))
+        fresh
 
       // normally this is approximated
       case FncBodyF(name, body, fundef, args) =>

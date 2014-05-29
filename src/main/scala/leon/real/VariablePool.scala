@@ -9,6 +9,7 @@ import leon.purescala.Common._
 import leon.purescala.TypeTrees._
 import leon.purescala.Trees._
 import purescala.TreeOps._
+import Precision._
 
 import real.Trees._
 import Rational.{max, abs}
@@ -47,6 +48,7 @@ object EmptyRecord extends Record(False, False, None, None, None, None)
 */
 class VariablePool(val inputs: Map[Expr, Record], val resIds: Seq[Identifier],
   val loopCounter: Option[Identifier], val integers: Seq[Identifier]) {
+
   import VariablePool._
   private var allVars = inputs
 

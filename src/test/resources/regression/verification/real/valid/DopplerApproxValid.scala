@@ -15,7 +15,7 @@ object DopplerApproxValid {
     require(-100.0 <= u && u <= 100 && 20 <= v && v <= 20000 && -30 <= T && T <= 50)
     val t1 = 331.4 + 0.6 * T
     (- (t1) *v) / ((t1 + u)*(t1 + u))
-  } ensuring(res => -137.63858 < res && res < -0.03394 && res +/- 4.91906e-13)
+  } ensuring(res => -137.63858 < res && res < -0.03394 && res +/- 6.27867e-13)
 
   def doppler2Star(u: Real, v: Real, T: Real): Real = {
     require(-125.0 <= u && u <= 125.0 && 15.0 <= v && v <= 25000 && -40 <= T && T <= 60 &&
@@ -28,7 +28,7 @@ object DopplerApproxValid {
     require(-125.0 <= u && u <= 125.0 && 15.0 <= v && v <= 25000 && -40 <= T && T <= 60)
     val t1 = 331.4 + 0.6 * T
     (- (t1) *v) / ((t1 + u)*(t1 + u))
-  } ensuring(res => -230.990546 < res && res < -0.0227296 && res +/- 1.285034e-12)
+  } ensuring(res => -230.990546 < res && res < -0.0227296 && res +/- 1.63158e-12)
 
   def doppler3Star(u: Real, v: Real, T: Real): Real = {
     require(-30 <= u && u <= 120 && 320.0 <= v && v <= 20300 && -50 <= T && T <= 30 &&
@@ -41,5 +41,5 @@ object DopplerApproxValid {
     require(-30 <= u && u <= 120 && 320.0 <= v && v <= 20300 && -50 <= T && T <= 30)
     val t1 = 331.4 + 0.6 * T
     (- (t1) *v) / ((t1 + u)*(t1 + u))
-  } ensuring(res => -83.06530 < res && res < -0.507441 && res +/- 2.027446e-13)
+  } ensuring(res => -83.06530 < res && res < -0.507441 && res +/- 2.55553e-13)
 }

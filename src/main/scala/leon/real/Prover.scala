@@ -168,7 +168,14 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
       reporter.debug("\nsanityConstraint before preprocessing:")
       reporter.debug(sanityConstraint)
       if (options.removeRedundant) {
-        val args = removeRedundantConstraints(sanityConstraint, transformer.getZ3Expr(cnstr.postcondition))
+        //println("removing redundant")
+        var args = removeRedundantConstraints(sanityConstraint, transformer.getZ3Expr(cnstr.postcondition))
+        //println("\nbefore: " + args)
+
+        if (!belongsToActual(cnstr.postcondition))
+          args = args.filter(x => !belongsToActual(x))
+
+        //println("\n after: " + args)
         sanityConstraint = And(args.toSeq)
       }
       //reporter.debug("\nafter removeRedundant: " + sanityConstraint)
@@ -179,7 +186,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
       if (options.massageArithmetic) {
         sanityConstraint = massageArithmetic (sanityConstraint)
       }
-      //reporter.debug("\nafter massage arithm.: " + sanityConstraint)
+      //println("\nafter massage arithm.: " + sanityConstraint)
 
       val toCheck = And(sanityConstraint, negate(cnstr.postcondition))
 
@@ -197,7 +204,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
             // TODO: this needs to be re-checked, seems to have a bug with pathError/Fluctuat/simpleInterpolator
             if (app.kind.allowsRealModel) {
               // Idea: check if we get a counterexample for the real part only, that is then a possible counterexample, (depends on the approximation)
-              
+              //println("checking for counterexample")
               val realOnlyPost = removeErrorsAndActual(cnstr.postcondition)
 
               if (realOnlyPost == True) { // i.e. if the constraint is trivially true

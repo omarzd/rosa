@@ -29,11 +29,11 @@ class PathError(reporter: Reporter, solver: RangeSolver, precision: Precision, m
 //    approximator.init(inputs, precondition)
 
     val pathError1 = computePathError(currentPathCondition, branchCond, thenn, elze)
-    reporter.info("computed error 1: " + pathError1)
+    reporter.info("path error 1: " + pathError1)
 
     // TODO: shouldn't this be NOT (branchCond) ???
     val pathError2 = computePathError(currentPathCondition, branchCond, elze, thenn)
-    reporter.info("computed error 2: " + pathError1)
+    reporter.info("path error 2: " + pathError1)
 
     pathError1.zip(pathError2).map({
       case (p1, p2) => max(p1, p2)

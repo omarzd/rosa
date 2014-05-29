@@ -37,6 +37,8 @@ object TreeOps {
     And(clauses)
   }
 
+
+
   def rangeConstraintFromIntervals(vars: Map[Expr, RationalInterval]): Expr = {
     val clauses: Seq[Expr] = vars.flatMap({
       case (v, i) => Seq(LessEquals(RealLiteral(i.xlo), v),
@@ -133,9 +135,14 @@ object TreeOps {
     }
   }
 
-  def getClauses(e: Expr): Set[Expr] = e match {
+  /*def getClausesSet(e: Expr): Set[Expr] = e match {
     case And(args) => args.toSet
     case _ => Set(e)
+  }*/
+
+  def getClauses(e: Expr): Seq[Expr] = e match {
+    case And(args) => args
+    case _ => Seq(e)
   }
 
   def removeRedundantConstraints(body: Expr, post: Expr): Set[Expr] = {
@@ -146,7 +153,7 @@ object TreeOps {
 
     var neededVars: Set[Identifier] = variablesOf(post)
     var currentNeeded: Set[Expr] = Set.empty
-    var currentWaiting: Set[Expr] = getClauses(body)
+    var currentWaiting: Set[Expr] = getClauses(body).toSet
 
     var continue = true
     while( continue ) {
@@ -516,16 +523,24 @@ object TreeOps {
     }(e)
   }
 
-  private def belongsToActual(e: Expr): Boolean = {
+  def belongsToActual(e: Expr): Boolean = {
     var contains = false
     preTraversal {
-      case Actual(_) | Noise(_,_) | RelError(_,_) => contains = true
+      case Actual(_) | Noise(_,_) | RelError(_,_) | Roundoff(_) => contains = true
       case UMinusF(_) | PlusF(_,_) | MinusF(_,_) | TimesF(_,_) | DivisionF(_,_) | SqrtF(_) =>
         contains = true
       case EqualsF(_,_) => contains = true
       case _ => ;
     }(e)
     contains
+  }
+
+  def isRangeClause(e: Expr): Boolean = e match {
+    case LessThan(Variable(_), RealLiteral(_)) | LessThan(RealLiteral(_), Variable(_)) => true
+    case LessEquals(Variable(_), RealLiteral(_)) | LessEquals(RealLiteral(_), Variable(_)) => true
+    case GreaterThan(Variable(_), RealLiteral(_)) | GreaterThan(RealLiteral(_), Variable(_)) => true
+    case GreaterEquals(Variable(_), RealLiteral(_)) | GreaterEquals(RealLiteral(_), Variable(_)) => true
+    case _ => false
   }
 
   def filterOutIdeal(expr: Expr): Expr = expr match {
@@ -798,7 +813,7 @@ object TreeOps {
     case EqualsF(vr, rhs) => Equals(vr, translateToFP(rhs, formats, bitlength, getConstant))
 
     case v @ Variable(id) => v
-    case FloatLiteral(r, exact) =>
+    case FloatLiteral(r) =>
       val bits = FPFormat.getFormat(r, bitlength).f
       getConstant(r, bits)
     case UMinusF( t ) => UMinus(translateToFP(t, formats, bitlength, getConstant))
@@ -815,7 +830,7 @@ object TreeOps {
       else if (my <= mz) (LeftShift(v1, (mz - my)), v2, mz)
       else (v1, LeftShift(v2, (my - mz)), my)
 
-    case (v @ Variable(_), FloatLiteral(r, exact)) =>
+    case (v @ Variable(_), FloatLiteral(r)) =>
       val my = formats(v).f
       val mz = FPFormat.getFormat(r, bitlength).f
 
@@ -824,7 +839,7 @@ object TreeOps {
       else if (my <= mz) (LeftShift(v, (mz - my)), const, mz)
       else (v, LeftShift(const, (my - mz)), my)
 
-    case (FloatLiteral(r, exact), v @ Variable(_)) =>
+    case (FloatLiteral(r), v @ Variable(_)) =>
       val mz = formats(v).f
       val my = FPFormat.getFormat(r, bitlength).f
       val const = getConstant(r, my)
@@ -832,7 +847,7 @@ object TreeOps {
       else if (my <= mz) (LeftShift(const, (mz - my)), v, mz)
       else (const, LeftShift(v, (my - mz)), my)
 
-    case (FloatLiteral(r1, exact1), FloatLiteral(r2, exact2)) =>
+    case (FloatLiteral(r1), FloatLiteral(r2)) =>
       val my = FPFormat.getFormat(r1, bitlength).f
       val mz = FPFormat.getFormat(r2, bitlength).f
       val i1 = getConstant(r1, my)
@@ -849,19 +864,19 @@ object TreeOps {
       val mz = formats(v2).f
       (Times(v1, v2), my + mz)
 
-    case (v @ Variable(_), FloatLiteral(r, exact)) =>
+    case (v @ Variable(_), FloatLiteral(r)) =>
       val my = formats(v).f
       val mz = FPFormat.getFormat(r, bitlength).f
       val i = getConstant(r, mz)
       (Times(v, i), my + mz)
 
-    case (FloatLiteral(r, exact), v @ Variable(_)) =>
+    case (FloatLiteral(r), v @ Variable(_)) =>
       val my = FPFormat.getFormat(r, bitlength).f
       val i = getConstant(r, my)
       val mz = formats(v).f
       (Times(i, v), my + mz)
 
-    case (FloatLiteral(r1, exact1), FloatLiteral(r2, exact2)) =>
+    case (FloatLiteral(r1), FloatLiteral(r2)) =>
       val my = FPFormat.getFormat(r1, bitlength).f
       val i1 = getConstant(r1, my)
       val mz = FPFormat.getFormat(r2, bitlength).f
@@ -877,21 +892,21 @@ object TreeOps {
       val shift = mx + mz - my
       Division(LeftShift(v1, shift), v2)
 
-    case (v @ Variable(_), FloatLiteral(r, exact)) =>
+    case (v @ Variable(_), FloatLiteral(r)) =>
       val my = formats(v).f
       val mz = FPFormat.getFormat(r, bitlength).f
       val i = getConstant(r, mz)
       val shift = mx + mz - my
       Division(LeftShift(v, shift), i)
 
-    case (FloatLiteral(r, exact), v @ Variable(_)) =>
+    case (FloatLiteral(r), v @ Variable(_)) =>
       val my = FPFormat.getFormat(r, bitlength).f
       val i = getConstant(r, my)
       val mz = formats(v).f
       val shift = mx + mz - my
       Division(LeftShift(i, shift), v)
 
-    case (FloatLiteral(r1, exact1), FloatLiteral(r2, exact2)) =>
+    case (FloatLiteral(r1), FloatLiteral(r2)) =>
       val my = FPFormat.getFormat(r1, bitlength).f
       val i1 = getConstant(r1, my)
       val mz = FPFormat.getFormat(r2, bitlength).f

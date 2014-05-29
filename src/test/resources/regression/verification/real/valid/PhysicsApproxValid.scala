@@ -104,6 +104,6 @@ object PhysicsApproxValid {
   def sineOrder3(x: Real): Real = {
     require(-2.0 < x && x < 2.0)
     0.954929658551372 * x -  0.12900613773279798*(x*x*x)
-  } ensuring(res => -1.00000001 < res && res < 1.0000001 && res +/- 1.1079986e-15)
+  } ensuring(res => -1.00000001 < res && res < 1.0000001 && res +/- 1.4346161e-15)
 
 }

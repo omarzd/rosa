@@ -8,29 +8,24 @@ object RunningAvrg {
   @model
   def nextItem: Real = { 
     realValue
-    // TODO: add some extra error
-  } ensuring (res => -1200 <= res && res <= 1200)
+  } ensuring (res => -1200 <= res && res <= 1200)// && res +/- 1e-8)
 
   @loopbound(10)
   def mean(n: Real, m: Real): Real = {
-    require(-1200 <= m && m <= 1200 && 2 <= n && n <= 1000 &&
-      integer(n) && -1200 <= ~m && ~m <= 1200 )
+    require(-1200 <= m && m <= 1200 && 2 <= n && n <= 1000 && integer(n))
 
     if (n <= 998) {
 
       val x = nextItem
 
-      val m_new = ((n - 1) * m + x) / n
-
-      mean(n + 1, m_new) 
-    // case when n == 1? at least for m
+      val m_new = ((n - 1.0) * m + x) / n
+      mean(n + 1, m_new)
+      
     } else {
       m
     }
     
-  } ensuring (res => -1200.00 <= res && res <= 1200.00 &&
-      -1200 <= ~res && ~res <= 1200
-    )
+  } ensuring (res => -1200.00 <= res && res <= 1200.00)
 
 
 

@@ -11,6 +11,7 @@ import Rational._
 import XRationalForm._
 import RationalAffineUtils._
 import VariableShop._
+import Precision._
 
 import collection.mutable.Queue
 import java.math.{BigInteger, BigDecimal}
@@ -75,7 +76,11 @@ object XFloat {
 
   // constant
   def apply(r: Rational, config: XConfig, machineEps: Rational): XFloat = {
-    val newError = new XRationalForm(Rational.zero)
+    val newError =  if (Precision.isExactInFloats(r)) {
+      new XRationalForm(Rational.zero)
+    } else {
+      addNoise(new XRationalForm(Rational.zero), roundoff(r, machineEps))
+    }
     new XFloat(RealLiteral(r), RationalInterval(r,r), newError, config, machineEps)
   }
 

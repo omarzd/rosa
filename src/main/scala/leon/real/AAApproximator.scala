@@ -9,18 +9,19 @@ import purescala.TreeOps._
 import purescala.Common._
 
 import real.Trees._
-import real.TreeOps.{removeErrors, rangeConstraint}
+import real.TreeOps._
 import XFloat.{variables2xfloats, variables2xfloatsExact, xFloatWithUncertain}
 import XFixed.{variables2xfixed, xFixedWithUncertain}
 import VariableShop._
 import Rational.max
+import Precision._
 
 
 // Manages the approximation
-class AAApproximator(reporter: Reporter, solver: RangeSolver, precision: Precision, checkPathError: Boolean = true,
-  useLipschitz: Boolean = false) {
+class AAApproximator(val reporter: Reporter, val solver: RangeSolver, precision: Precision, checkPathError: Boolean = true,
+  useLipschitz: Boolean = false) extends Lipschitz {
 
-  implicit val debugSection = utils.DebugSectionAffine
+  implicit override val debugSection = utils.DebugSectionAffine
   val compactingThreshold = 500
 
 
@@ -55,7 +56,13 @@ class AAApproximator(reporter: Reporter, solver: RangeSolver, precision: Precisi
         val tmpVars: Map[Expr, XReal] = variables2xfloats(in.getValidTmpRecords, config, machineEps)._1
         inputVars ++ tmpVars
       }
-      else {
+      else if (in.integers.nonEmpty) {
+        val (intRecords, rest) = in.getValidRecords.partition({
+          case Record(Variable(id), _, _, _, _, _) => in.integers.contains(id)
+          })
+        variables2xfloatsExact(intRecords, config, machineEps) ++
+          variables2xfloats(rest, config, machineEps)._1
+      } else {
         variables2xfloats(in.getValidRecords, config, machineEps)._1
       }
 
@@ -74,6 +81,7 @@ class AAApproximator(reporter: Reporter, solver: RangeSolver, precision: Precisi
     exactInputs: Boolean = false): Seq[XReal] = {
     init(inputs, precond)
     val vars = getInitialVariables(inputs, exactInputs)
+    //println("initial variables: " + vars)
     process(e, vars, True)._3
   }
 
@@ -123,6 +131,7 @@ class AAApproximator(reporter: Reporter, solver: RangeSolver, precision: Precisi
     case _ =>
       init(inputs, precond)
       val vars = getInitialVariables(inputs, exactInputs)
+      println("vars: " + vars)
       val res = process(e, vars, True)._3
       assert(res.length == 1, "computing error on tuple-typed expression!")
       res(0).maxError
@@ -278,16 +287,17 @@ class AAApproximator(reporter: Reporter, solver: RangeSolver, precision: Precisi
   
   private def evalArithmetic(e: Expr, vars: Map[Expr, XReal], path: Expr): XReal = {
     if (useLipschitz) {
-      val lip = new Lipschitz(reporter, solver, leonToZ3)
-      //println("rhs: " + x)
+      println("----> using lipschitz")
+      //val lip = new Lipschitz(reporter, solver, leonToZ3)
 
       val currentVarsInExpr: Set[Identifier] = variablesOf(e)
-      //println("currentVarsInExpr: " + currentVarsInExpr)
+      val varMap = vars.filter({case (Variable(id), _) => currentVarsInExpr.contains(id)}).map(
+        x => (inputVariables.getIdeal(x._1), x._2))
+      val ids = varMap.keys.map({ case Variable(id) => id}).toSeq
+      val additionalConstraints = getRealConstraintClauses(precondition)
 
-      val propagatedError = lip.getPropagatedError(removeErrors(precondition),
-        Seq(actualToIdealArithmetic(e)),
-        vars.filter({case (Variable(id), _) => currentVarsInExpr.contains(id)}),
-        currentVarsInExpr.toSeq)
+      val propagatedError = getPropagatedErrorLipschitz( Seq(actualToIdealArithmetic(e)),
+        varMap, ids, additionalConstraints)
       //println("propagatedError: " + propagatedError)
 
       //println("vars before: " + vars)
@@ -305,6 +315,10 @@ class AAApproximator(reporter: Reporter, solver: RangeSolver, precision: Precisi
     }
   }
 
+  private def getRealConstraintClauses(e: Expr): Expr = {
+    And(getClauses(e).filter(cl => !belongsToActual(cl) && ! isRangeClause(cl)).toSeq)
+  }
+
 
   private def approxArithm(e: Expr, vars: Map[Expr, XReal], path: Expr): XReal = {
     def getXRealWithCondition(v: Expr, cond: Expr): XReal = {
@@ -315,7 +329,7 @@ class AAApproximator(reporter: Reporter, solver: RangeSolver, precision: Precisi
             case xfx: XFixed => new XFixed(xfx.format, xfx.tree, xfx.approxInterval, xfx.error, xfx.config.addCondition(leonToZ3.getZ3Condition(cond)))
           }
 
-        case FloatLiteral(r, exact) =>
+        case FloatLiteral(r) =>
           precision match {
             case FPPrecision(bits) => XFixed(r, config.addCondition(leonToZ3.getZ3Condition(cond)), bits)
             case _ => XFloat(r, config.addCondition(leonToZ3.getZ3Condition(cond)), machineEps) // TODO: save machineEps somewhere?
@@ -483,9 +497,9 @@ class AAApproximator(reporter: Reporter, solver: RangeSolver, precision: Precisi
       case TimesF(lhs, rhs) => Some(TimesR(lhs, rhs))
       case DivisionF(lhs, rhs) => Some(DivisionR(lhs, rhs))
       case SqrtF(t) => Some(SqrtR(t))
-      case FloatLiteral(r,_) => Some(RealLiteral(r))
-      case _ =>
-        None
+      case FloatLiteral(r) => Some(RealLiteral(r))
+      case v @ Variable(_) => Some(inputVariables.getIdeal(v))
+      
     }(expr)
   }
 
