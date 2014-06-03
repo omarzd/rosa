@@ -28,6 +28,8 @@ object Piecewise2D {
 
 
   def quadraticFit(x: Real, y: Real): Real = {
+    require(-4 <= x && x <= 4 && -4 <= y && y <= 4)
+
     if (x <= 0) {
       if (y <= 0) {
         -0.0495178 - 0.188656*x - 0.0502969*x*x - 0.188656*y + 0.0384002*x*y - 0.0502969*y*y
@@ -42,5 +44,5 @@ object Piecewise2D {
         -0.0495178 + 0.188656*x - 0.0502969*x*x + 0.188656*y + 0.0384002*x*y - 0.0502969*y*y
       }
     }
-  }
+  } ensuring ( res => res +/- 1e-9 )
 }

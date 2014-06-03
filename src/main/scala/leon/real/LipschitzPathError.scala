@@ -44,7 +44,6 @@ class LipschitzPathError(reporter: Reporter, solver: RangeSolver, precision: Pre
     }
     reporter.debug("preAdditionalConstraints: " + preAdditionalConstraints)
 
-    // not sure if it's enough to compute these for the real path only
     val varsReal: Map[Expr, XReal] = approximator.approximateEquations(rPath.bodyFinite,
       precondition, variables, exactInputs = false)
     reporter.debug("varsReal: " + varsReal)
