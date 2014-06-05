@@ -10,6 +10,8 @@ object Fluctuat {
   "The analysis finds that the interpolated res is within [-2.25e-5,33.25],
    with an error within [-3.55e-5,2.4e-5], that is of the order of magnitude
    of the input error despite unstable tests."
+
+   // in Fluctuat this is in single precision
   */
   def simpleInterpolator(e: Real): Real = {
     require(0.0 <= e && e <= 100.0 && e +/- 0.00001)
@@ -27,7 +29,7 @@ object Fluctuat {
       (e - 5) * 1.1 + r2
     else
       r3
-  } ensuring (res => -2.25e-5 <= res && res <= 33.26 && res +/- 2.4e-5)
+  } ensuring (res => -2.25e-5 <= res && res <= 33.26 && res +/- 3.5e-5)
 
   /*
     "Result is in the real number semantics within [1,1.4531]

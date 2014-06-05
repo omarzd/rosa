@@ -1,7 +1,9 @@
 import leon.real._
 import RealOps._
+import annotations._
 
 object Triangle {
+
 
   def triangleSimplified(a: Real): Real = {
     require(4.500005 <= a && a <= 6.5)
