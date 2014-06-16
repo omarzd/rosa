@@ -56,7 +56,7 @@ object PhysicsApproxUnknown {
 
     (r*x) / (1 + (x/K))
 
-  } ensuring(res => 0.3148936 < res && res < 1.1008265 && res +/- 6.81785e-16)
+  } ensuring(res => 0.3148936 < res && res < 1.1008265 && res +/- 5.5956e-16)
 
   /*def predatorPreyStar(r: Real, K: Real, x: Real): Real = {
     require(r >= 4.0 && r <= 4.0 && K >= 1.11 && K <= 1.11 && 0.1 <= x && x <= 0.3 &&
@@ -71,7 +71,7 @@ object PhysicsApproxUnknown {
 
     (r*x*x) / (1 + (x/K)*(x/K))
 
-  } ensuring(res => 0.0396779 < res && res < 0.335494 && res +/- 2.9353123e-16)
+  } ensuring(res => 0.0396779 < res && res < 0.335494 && res +/- 2.5388e-16)
               // [0.0396779646892767640, 0.335493533074089630] ± 2.9353123670875065e-16
 
   def carbonGasStar(T: Real, a: Real, b: Real, N: Real, p: Real, V: Real): Real = {
@@ -90,7 +90,7 @@ object PhysicsApproxUnknown {
     val k = 1.3806503e-23
     (p + a * (N / V) * (N / V)) * (V - N * b) - k * N * T
 
-  } ensuring(res => 4303229.99 < res && res <= 16739009.21 && res +/- 4.6347104e-8)
+  } ensuring(res => 4303229.99 < res && res <= 16739009.21 && res +/- 4.06718e-8)
   
   def sine(x: Real): Real = {
     require(x > -1.57079632679 && x < 1.57079632679)

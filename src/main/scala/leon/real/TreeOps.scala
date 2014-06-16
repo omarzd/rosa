@@ -92,12 +92,7 @@ object TreeOps {
 
     if (equalityPropagation) {
       // for equality propagation, replace variables by their definition
-      val equalsPropagator = new EqualsPropagator
-      //TODO: ??? why's this still double?
-      val equalities = equalsPropagator.transform(remainder)
-      val equalities2 = propagateEquals(remainder)
-      assert(equalities == equalities2, s"equalities: $equalities \n equalities2: $equalities2")
-      And(boundsConstraint, equalities)
+      And(boundsConstraint, propagateEquals(remainder))
     } else {
       And(boundsConstraint, remainder)
     }
@@ -116,23 +111,6 @@ object TreeOps {
         case _ => None
       }
     }(body)
-  }
-
-  private class EqualsPropagator extends TransformerWithPC {
-    type C = Map[Expr, Expr]
-    val initC = Map[Expr, Expr]()
-
-    def register(e: Expr, path: Map[Expr, Expr]): Map[Expr, Expr] = e match {
-      case Equals(v @ Variable(id), expr) => path + (v -> replace(path, expr))
-      case _ => path
-    }
-
-    override def rec(e: Expr, path: Map[Expr, Expr]): Expr = e match {
-      case Equals(v, expr) =>
-        Equals(v, replace(path, expr))
-      case _ =>
-        super.rec(e, path)
-    }
   }
 
   /*def getClausesSet(e: Expr): Set[Expr] = e match {
