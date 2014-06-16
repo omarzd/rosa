@@ -13,12 +13,12 @@ case class RealOptions(
   solverMaxIter: Int            = solverMaxIterMedium,
   solverPrecision: Rational     = solverPrecisionMedium,
   specGen: Boolean              = false,        // generate specs for functions without postconditions?
-  loopUnrolling: Boolean        = true,         // whether to (also) unroll loops up to max given by loopBound annotation
-  simplifyCnstr: Boolean        = true,        // simplify constraint before passing to Z3
+  loopUnrolling: Boolean        = false,         // whether to (also) unroll loops up to max given by loopBound annotation
+  simplifyCnstr: Boolean        = true,         // simplify constraint before passing to Z3
   massageArithmetic: Boolean    = true,         // whether to massage arithmetic before passing to Z3
   removeRedundant: Boolean      = true,         // remove redundant constraints before passing to Z3
   lipschitz: Boolean            = false,        // compute Lipschitz constants
-  lipschitzPathError: Boolean   = false          // compute path error with new lipschitz-based procedure
+  lipschitzPathError: Boolean   = false         // compute path error with new lipschitz-based procedure
 
 ) {
   override def toString: String = 
