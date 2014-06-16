@@ -261,10 +261,10 @@ class LipschitzPathError(reporter: Reporter, solver: RangeSolver, precision: Pre
         otherConstraints))
 
       val initialRanges =  variables.inputs.map({
-        case (v, Record(i, a, Some(lo), Some(hi), Some(err), None)) =>
+        case (v, Record(i, lo, hi, Some(err), _, _)) =>
           (v, RationalInterval(lo - err, hi + err))
           // implicit roundoff
-        case (v, Record(i, a, Some(lo), Some(hi), None, None)) =>
+        case (v, Record(i, lo, hi, None, _, _)) =>
           val err = roundoff(RationalInterval(lo, hi), machineEps)
           (v, RationalInterval(lo - err, hi + err))
       })

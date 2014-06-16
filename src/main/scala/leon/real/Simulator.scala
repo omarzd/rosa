@@ -382,13 +382,13 @@ class Simulator(ctx: LeonContext, options: RealOptions, prog: Program, reporter:
 
     for(rec <- vars.getValidRecords) {
       rec match {
-        case r @ Record(v @ Variable(_), a @ Variable(_), Some(lo), Some(up), _, _) if (!r.uncertainty.isEmpty) =>
+        case r @ Record(id, lo, up, Some(absError), _, _) =>
           val interval = RationalInterval(lo, up)
-          variableMap = variableMap + (v -> (interval, r.uncertainty.get))
+          variableMap = variableMap + (Variable(id) -> (interval, absError))
 
-        case Record(v @ Variable(_), a @ Variable(_), Some(lo), Some(up), None, None) =>
+        case Record(id, lo, up, None, _, None) =>
           val interval = RationalInterval(lo, up)
-          variableMap = variableMap + (v -> (interval, Rational.zero))
+          variableMap = variableMap + (Variable(id) -> (interval, Rational.zero))
       }
     }
     variableMap

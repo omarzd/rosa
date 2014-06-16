@@ -18,15 +18,16 @@ object XFixed {
 
     for(rec <- vars.getValidRecords) {
       rec match {
-        case r @ Record(v @ Variable(_), a @ Variable(_), Some(lo), Some(up), _, _) if (!r.uncertainty.isEmpty) =>
-          val (xfixed, index) = xFixedWithUncertain(v, RationalInterval(lo, up), config, r.uncertainty.get, withRoundoff, bits)
-          variableMap = variableMap + (a -> xfixed)
-          indexMap = indexMap + (index -> a)
+        case r @ Record(id, lo, up, Some(absError), aId, _) =>
+          val (xfixed, index) = xFixedWithUncertain(Variable(id), RationalInterval(lo, up), config, absError,
+            withRoundoff, bits)
+          variableMap = variableMap + (Variable(aId) -> xfixed)
+          indexMap = indexMap + (index -> Variable(aId))
 
-        case Record(v @ Variable(_), a @ Variable(_), Some(lo), Some(up), None, None) =>
-          val (xfixed, index) = xFixedWithRoundoff(v, RationalInterval(lo, up), config, bits)
-          variableMap = variableMap + (a -> xfixed)
-          indexMap = indexMap + (index -> a)
+        case Record(id, lo, up, None, aId, None) =>
+          val (xfixed, index) = xFixedWithRoundoff(Variable(id), RationalInterval(lo, up), config, bits)
+          variableMap = variableMap + (Variable(aId) -> xfixed)
+          indexMap = indexMap + (index -> Variable(aId))
 
         case _ =>
           throw new Exception("bug!")

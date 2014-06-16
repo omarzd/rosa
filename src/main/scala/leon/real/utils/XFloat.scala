@@ -32,15 +32,16 @@ object XFloat {
 
     for(rec <- vars) {
       rec match {
-        case r @ Record(v @ Variable(_), a @ Variable(_), Some(lo), Some(up), _, _) if (!r.uncertainty.isEmpty) =>
-          val (xfloat, index) = XFloat.xFloatWithUncertain(v, RationalInterval(lo, up), config, r.uncertainty.get, withRoundoff, machineEps)
-          variableMap = variableMap + (a -> xfloat)
-          indexMap = indexMap + (index -> a)
+        case r @ Record(id, lo, up, Some(absError), aId, _) =>
+          val (xfloat, index) = XFloat.xFloatWithUncertain(Variable(id), RationalInterval(lo, up), config,
+            absError, withRoundoff, machineEps)
+          variableMap = variableMap + (Variable(aId) -> xfloat)
+          indexMap = indexMap + (index -> Variable(aId))
 
-        case Record(v @ Variable(_), a @ Variable(_), Some(lo), Some(up), None, None) =>
-          val (xfloat, index) = XFloat.xFloatWithRoundoff(v, RationalInterval(lo, up), config, machineEps)
-          variableMap = variableMap + (a -> xfloat)
-          indexMap = indexMap + (index -> a)
+        case Record(id, lo, up, None, aId, None) =>
+          val (xfloat, index) = XFloat.xFloatWithRoundoff(Variable(id), RationalInterval(lo, up), config, machineEps)
+          variableMap = variableMap + (Variable(aId) -> xfloat)
+          indexMap = indexMap + (index -> Variable(aId))
 
         case _ =>
           throw new Exception("bug!")
@@ -54,9 +55,9 @@ object XFloat {
     
     for(rec <- vars) {
       rec match {
-        case Record(v @ Variable(_), a @ Variable(_), Some(lo), Some(up), _, _) =>
-          val xfloat = XFloat.xFloatExact(v, RationalInterval(lo, up), config, machineEps)
-          variableMap = variableMap + (a -> xfloat)
+        case Record(id, lo, up, _, aId, _) =>
+          val xfloat = XFloat.xFloatExact(Variable(id), RationalInterval(lo, up), config, machineEps)
+          variableMap = variableMap + (Variable(aId) -> xfloat)
 
         case _ =>
           throw new Exception("bug!")

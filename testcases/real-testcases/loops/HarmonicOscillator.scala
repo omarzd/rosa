@@ -12,16 +12,18 @@ object HarmonicOscillator {
   */
   @loopbound(10)
   def eulerRec(x: Real, v: Real, i: Int): (Real, Real) = {
-    require(loopCounter(i) && -10.0 <= x && x <= 10.0 && -10.0 <= v && v <= 10.0)// &&
+    require(loopCounter(i) && -10.0 <= x && x <= 10. && -10.0 <= v && v <= 10.0 &&
+      -11.2 <= ~x && ~x <= 11.2 && -12.5 <= ~v && ~v <= 12.5)// &&
       //0.5*(v*v + 2.3*x*x) <= 115)
     
     if (i < 100) {
-      eulerRec(x + 0.1 * v, v - 2.3 * 0.1 * x, i + 1)
+      eulerRec(x + 0.01 * v, v - 2.3 * 0.01 * x, i + 1)
     } else {
       (x, v)
     }
   } ensuring (_ match {
-    case (a, b) => -10 <= a && a <= 10 && -10 <= b && b <= 10   
+    // case (a, b) => -10 <= a && a <= 10 && -10 <= b && b <= 10  pointless, since not inductive
+    case (a, b) => a +/- 3e-14 && b +/- 3.4e-14
   })
 
   @loopbound(10)

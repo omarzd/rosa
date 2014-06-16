@@ -308,6 +308,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
       
       reporter.debug("Computing loop error...")          
       //val lipschitz = new Lipschitz(reporter, solver, leonToZ3)
+      // TODO: this is unsound
       val idealApproxs = approxs.map({
         case (v @ Variable(id), xr) => (vc.variables.getIdeal(v), xr)
         })

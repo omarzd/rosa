@@ -30,7 +30,7 @@ trait Lipschitz {
       
       val lipschitzConsts: RMatrix = getLipschitzMatrix(completePre, es, ids,
         vars.map(x => (x._1, x._2.interval)))
-      reporter.debug("K: " + lipschitzConsts)
+      reporter.info("K: " + lipschitzConsts)
 
       val initErrors: Map[Identifier, Rational] = vars.map({
         case (Variable(id), xreal) => (id, xreal.maxError)
@@ -53,7 +53,8 @@ trait Lipschitz {
   def getLoopErrorLipschitz(body: Expr, ids: Seq[Identifier], updateFncs: Seq[Expr], vars: Map[Expr, XReal],
     additionalConstraints: Expr, sigmas: Seq[Rational], precision: Precision, loopBound: Option[Int]): Seq[Rational] = {
 
-    reporter.debug("computing loop error")
+    reporter.info("computing loop error")
+    println("vars: " + vars)
     reporter.debug("body: " + body)
     reporter.debug("updateFncs: " + updateFncs)
     
@@ -88,7 +89,7 @@ trait Lipschitz {
         !belongsToActual(cl) && !isRangeClause(cl)))
 
     val allVars = vars.map(x => (x._1, x._2.interval)) ++ 
-      additionalVars.map(x => (x._1, RationalInterval(x._2.lo.get, x._2.up.get)))
+      additionalVars.map(x => (x._1, RationalInterval(x._2.lo, x._2.up)))
     
     val precondition = And(rangeConstraintFromIntervals(allVars), cleanedAdditionalConstraints)
     

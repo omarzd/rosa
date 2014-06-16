@@ -57,9 +57,9 @@ class AAApproximator(val reporter: Reporter, val solver: RangeSolver, precision:
         inputVars ++ tmpVars
       }
       else if (in.integers.nonEmpty) {
-        val (intRecords, rest) = in.getValidRecords.partition({
-          case Record(Variable(id), _, _, _, _, _) => in.integers.contains(id)
-          })
+        val (intRecords, rest) = in.getValidRecords.partition(
+          rec => in.integers.contains(rec.idealId)
+          )
         variables2xfloatsExact(intRecords, config, machineEps) ++
           variables2xfloats(rest, config, machineEps)._1
       } else {
@@ -197,6 +197,11 @@ class AAApproximator(val reporter: Reporter, val solver: RangeSolver, precision:
     // TODO: val (x1, x2) = fnc Call doesn't work atm
     case EqualsF(lhs, rhs) if (lhs.getType == RealType) =>
       val res = evalArithmetic(rhs, vars, path)
+
+      //println("lhs: " + lhs)
+      //val compactedRes = compactXFloat(res, inputVariables.getIdeal(lhs))
+      //println("compactedRes: " + compactedRes)
+
       (vars + (lhs -> res), path, Seq())
 
     case EqualsF(lhs, rhs) =>
@@ -303,11 +308,12 @@ class AAApproximator(val reporter: Reporter, val solver: RangeSolver, precision:
       //println("vars before: " + vars)
       val varsWithoutErrors = vars.map({case (a, b) => (a, rmErrors(b))})
       //println("varsWithoutErrors: " + varsWithoutErrors)
-      val res = approxArithm(e, varsWithoutErrors, path)
+      val roundoffError = approxArithm(e, varsWithoutErrors, path)
+      //println("roundoffError: " + roundoffError)
 
-      val newError = res.maxError + propagatedError.get(0)
+      val newError = roundoffError.maxError + propagatedError.get(0)
       //println("new error: " + newError)
-      val resNew = replaceError(res, newError)
+      val resNew = replaceError(roundoffError, newError)
       //println("resNew: " + resNew)
       resNew
     } else {  
