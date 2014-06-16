@@ -17,7 +17,9 @@ object Precision {
   // Does not check for out of range, assuming this has been done before
   // is representable if the denominator is a power of two
   def isExactInFloats(r: Rational): Boolean = {
-    if (r.d.isValidInt) {
+    if (r.isWhole) {
+      true
+    } else if (r.d.isValidInt) {
       val n = r.d.toInt
       (n > 0) && ((n & (n - 1)) == 0)
     } else {

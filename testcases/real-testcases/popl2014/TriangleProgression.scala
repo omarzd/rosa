@@ -3,13 +3,22 @@ import RealOps._
 
 object TriangleProgression {
 
+  def triangle(a: Real, b: Real, c: Real): Real = {
+    require(9.0 <= a && a <= 9.0 && 4.71 <= b && b <= 4.89 && 4.71 <= c && c <= 4.89)
+
+    val s = (a + b + c)/2.0
+    sqrt(s * (s - a) * (s - b) * (s - c))
+  }// ensuring(res => 6.25 <= res && res <= 8.62 && res +/- 6.9e-14)
+
   def triangle1(a: Real, b: Real, c: Real): Real = {
-    require(a >< (1.0, 9.0) && b >< (1.0, 9.0) && c >< (1.0, 9.0) &&
+    require(1.0 < a && a < 9.0 && 1.0 < b &&  b < 9.0 && 1.0 < c && c < 9.0 &&
       a + b > c + 0.1 && a + c > b + 0.1 && b + c > a + 0.1)
 
     val s = (a + b + c)/2.0
     sqrt(s * (s - a) * (s - b) * (s - c))
-  }
+  } ensuring(res => 0.29 <= res && res <= 35.1 && res +/- 2.7e-11  &&
+                    0.29 <= ~res && ~res <= 35.1)
+
 
   def triangle2(a: Real, b: Real, c: Real): Real = {
     require(a >< (1.0, 9.0) && b >< (1.0, 9.0) && c >< (1.0, 9.0) &&

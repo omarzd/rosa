@@ -91,9 +91,16 @@ object XFloat {
     @param config solver, precondition, which precision to choose
   **/
   def xFloatWithRoundoff(v: Variable, range: RationalInterval, config: XConfig, machineEps: Rational): (XFloat, Int) = {
-    val rndoff = roundoff(range, machineEps)
-    val (newError, index) = addNoiseWithIndex(new XRationalForm(Rational.zero), rndoff)
-    (new XFloat(v, range, newError, config, machineEps), index)
+    // For when the specs say 3 <= x && x <= 3
+    if (range.isPointRange && isExactInFloats(range.xlo)) {
+      (new XFloat(v, range, new XRationalForm(Rational.zero), config, machineEps), -1)
+    } else {
+      val rndoff = roundoff(range, machineEps)
+      val (newError, index) = addNoiseWithIndex(new XRationalForm(Rational.zero), rndoff)
+      (new XFloat(v, range, newError, config, machineEps), index)
+    }
+
+    
   }
 
   /**
@@ -143,7 +150,6 @@ class XFloat(val tr: Expr, val appInt: RationalInterval, val err: XRationalForm,
   val cnfg: XConfig, val machineEps: Rational) extends XReal(tr, appInt, err, cnfg) {
   import XFloat._
 
-
   /*def errorString(variables: Iterable[Int]): String = {
     val (varErrors, otherErrors): (Queue[Deviation], Queue[Deviation]) =
       error.noise.partition(
@@ -192,7 +198,6 @@ class XFloat(val tr: Expr, val appInt: RationalInterval, val err: XRationalForm,
     if (verbose) println("y.error: " + y.error.longString)
     var (newTree, newRealRange, newError, newConfig) = super.multiply(y)
     val rndoff = roundoff(newRealRange + newError.interval)
-
     newError = addNoise(newError, rndoff)
     new XFloat(newTree, newRealRange, newError, newConfig, machineEps)
   }

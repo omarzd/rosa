@@ -22,6 +22,8 @@ case class RationalInterval(xlo: Rational, xhi: Rational) {
   // TODO: not sound
   val toInterval: Interval = Interval(xlo.toDouble, xhi.toDouble)
 
+  def isPointRange: Boolean = xlo == xhi
+
   def unary_-(): RationalInterval = RationalInterval(-xhi, -xlo)
 
   def +(other: RationalInterval): RationalInterval = {
