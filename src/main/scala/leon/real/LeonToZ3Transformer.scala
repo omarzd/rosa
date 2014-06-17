@@ -253,7 +253,7 @@ class LeonToZ3Transformer(variables: VariablePool, precision: Precision) extends
         case _ =>
           ///val z3Expr = replace(Map(ResultVariable() -> res, FResVariable() -> fres), this.transform(e))
           val z3Expr = this.transform(e)
-          if (epsUsed) And(And(extraConstraints :+ Equals(machineEps, RealLiteral(getUnitRoundoff(precision)))), z3Expr)
+          if (epsUsed) And(And(extraConstraints :+ Equals(machineEps, RealLiteral(getMachineEpsilon(precision)))), z3Expr)
           else And(And(extraConstraints), z3Expr)
       }
     }

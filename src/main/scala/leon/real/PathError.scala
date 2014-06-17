@@ -14,8 +14,8 @@ import real.TreeOps.{idealToActual}
 import Rational.{max, abs}
 
 // Computes the path error
-class PathError(reporter: Reporter, solver: RangeSolver, precision: Precision, machineEps: Rational,
-  inputs: VariablePool, precondition: Expr, vars: Map[Expr, XReal], verbose: Boolean = false) {
+class PathError(reporter: Reporter, solver: RangeSolver, precision: Precision, inputs: VariablePool,
+  precondition: Expr, vars: Map[Expr, XReal], verbose: Boolean = false) {
 
   implicit val debugSection = utils.DebugSectionAffine
   val approximator = new AAApproximator(reporter, solver, precision, checkPathError = true)
@@ -86,7 +86,7 @@ class PathError(reporter: Reporter, solver: RangeSolver, precision: Precision, m
   def computePathError(currentPathCondition: Expr, branchCondition: Expr, f1: Expr, f2: Expr): Seq[Rational] = {
     def rmErrors(xf: XReal): XReal = xf match {
       case xff: XFloat =>
-        new XFloat(xff.tree, xff.approxInterval, new XRationalForm(Rational.zero), xff.config, xff.machineEps)
+        new XFloat(xff.tree, xff.approxInterval, new XRationalForm(Rational.zero), xff.config, xff.precision)
       case xfp: XFixed =>
         new XFixed(xfp.format, xfp.tree, xfp.approxInterval, new XRationalForm(Rational.zero), xfp.config)
     }
@@ -94,7 +94,7 @@ class PathError(reporter: Reporter, solver: RangeSolver, precision: Precision, m
 
     def addCondToXReal(xf: XReal, condition: Expr): XReal = xf match {
       case xff: XFloat =>
-        new XFloat(xff.tree, xff.approxInterval, xff.error, xff.config.addCondition(condition), xff.machineEps)
+        new XFloat(xff.tree, xff.approxInterval, xff.error, xff.config.addCondition(condition), xff.precision)
       case xfp: XFixed =>
         new XFixed(xfp.format, xfp.tree, xfp.approxInterval, xfp.error, xfp.config.addCondition(condition))
     }
@@ -229,7 +229,7 @@ class PathError(reporter: Reporter, solver: RangeSolver, precision: Precision, m
             //println("new tree: " + replace(buddyFreshMap, xf.tree))
             //println("xconfig: " + xf.config.addCondition(cond).freshenUp(buddyFreshMap).getCondition)
             (fresh, new XFloat(replace(buddyFreshMap, xf.tree), xf.approxInterval, new XRationalForm(Rational.zero),
-              xf.config.addCondition(cond).freshenUp(buddyFreshMap).updatePrecision(solverMaxIterHigh, solverPrecisionHigh), machineEps))
+              xf.config.addCondition(cond).freshenUp(buddyFreshMap).updatePrecision(solverMaxIterHigh, solverPrecisionHigh), precision))
         }
     }
     (freshMap, newInputs)

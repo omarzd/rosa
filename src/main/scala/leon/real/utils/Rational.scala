@@ -353,7 +353,12 @@ class Rational private(val n: BigInt, val d: BigInt) extends ScalaNumber with Sc
     val res = bigN.divide(bigD, mathContext)
     res.doubleValue
   }
-  override def floatValue(): Float = Predef.double2Double(doubleValue).floatValue
+  override def floatValue(): Float = {//Predef.double2Double(doubleValue).floatValue
+    val bigN = new java.math.BigDecimal(n.bigInteger, mathContext)
+    val bigD = new java.math.BigDecimal(d.bigInteger, mathContext)
+    val res = bigN.divide(bigD, mathContext)
+    res.floatValue
+  }
   override def intValue(): Int = Predef.double2Double(doubleValue).intValue
   override def isValidByte: Boolean = false
   override def isValidChar: Boolean = false

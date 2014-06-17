@@ -27,32 +27,72 @@ object Precision {
     }
   }
 
-  def getUnitRoundoff(precision: Precision): Rational = (precision: @unchecked) match {
-    case Float32 => Rational(new BigInt(new BigInteger("1")), new BigInt(new BigInteger("2")).pow(23))
-    case Float64 => Rational(new BigInt(new BigInteger("1")), new BigInt(new BigInteger("2")).pow(53))
+  /*def getUnitRoundoff(precision: Precision): Rational = (precision: @unchecked) match {
+    //case Float32 => Rational(new BigInt(new BigInteger("1")), new BigInt(new BigInteger("2")).pow(23))
+    //case Float64 => Rational(new BigInt(new BigInteger("1")), new BigInt(new BigInteger("2")).pow(53))
     case DoubleDouble => Rational(new BigInt(new BigInteger("1")), new BigInt(new BigInteger("2")).pow(105))
     case QuadDouble => Rational(new BigInt(new BigInteger("1")), new BigInt(new BigInteger("2")).pow(211))
+  }*/
+
+  val float32Eps = Rational(new BigInt(new BigInteger("1")), new BigInt(new BigInteger("2")).pow(23))
+  val float64Eps = Rational(new BigInt(new BigInteger("1")), new BigInt(new BigInteger("2")).pow(53))
+  val doubleDoubleEps = Rational(new BigInt(new BigInteger("1")), new BigInt(new BigInteger("2")).pow(105))
+  val quadDoubleEps = Rational(new BigInt(new BigInteger("1")), new BigInt(new BigInteger("2")).pow(211))
+
+
+  def getMachineEpsilon(precision: Precision): Rational = (precision: @unchecked) match {
+    case Float32 => float32Eps
+    case Float64 => float64Eps
+    case DoubleDouble => doubleDoubleEps
+    case QuadDouble => quadDoubleEps
   }
 
-  def roundoff(r: Rational, machineEps: Rational): Rational = {
+  /*def roundoff(r: Rational, machineEps: Rational): Rational = {
     machineEps * Rational.abs(r)
+  }*/
+
+  def roundoff(d: Double, precision: Precision): Rational = precision match {
+    case Float32 => Rational(math.ulp(math.abs(d).floatValue)/2)
+
+    case Float64 => Rational(math.ulp(math.abs(d).doubleValue)/2)
+
+    case DoubleDouble => doubleDoubleEps * Rational(math.abs(d))
+
+    case QuadDouble => quadDoubleEps * Rational(math.abs(d))
   }
 
   def roundoff(r: Rational, precision: Precision): Rational = precision match {
     case FPPrecision(bits) =>
       FixedPointFormat.getFormat(r, bits).quantError
-    case _ => 
-      val machineEps = getUnitRoundoff(precision)
-      machineEps * Rational.abs(r)
+
+    // more precise
+    case Float32 => Rational(math.ulp(Rational.abs(r).floatValue)/2)
+
+    case Float64 => Rational(math.ulp(Rational.abs(r).doubleValue)/2)
+
+    case DoubleDouble => doubleDoubleEps * Rational.abs(r)
+
+    case QuadDouble => quadDoubleEps * Rational.abs(r)
   }
 
-  def roundoff(range: RationalInterval, machineEps: Rational): Rational = {
+  def roundoff(range: RationalInterval, precision: Precision): Rational = {
     import Rational._
-    val maxAbs = max(abs(range.xlo), abs(range.xhi))
+    //val maxAbs = max(abs(xlo), abs(xhi))
     // Without scaling this can return fractions with very large numbers
     // TODO: try scaling the result
-    val simplifiedMax = Rational.scaleToIntsUp(maxAbs)
-    machineEps * simplifiedMax
+    //val simplifiedMax = Rational.scaleToIntsUp(maxAbs)
+    //machineEps * simplifiedMax
+    roundoff(max(abs(range.xlo), abs(range.xhi)), precision)
+  }
+
+  def roundoff(lo: Rational, hi: Rational, precision: Precision): Rational = {
+    import Rational._
+    //val maxAbs = max(abs(xlo), abs(xhi))
+    // Without scaling this can return fractions with very large numbers
+    // TODO: try scaling the result
+    //val simplifiedMax = Rational.scaleToIntsUp(maxAbs)
+    //machineEps * simplifiedMax
+    roundoff(max(abs(lo), abs(hi)), precision)
   }
 }
 
