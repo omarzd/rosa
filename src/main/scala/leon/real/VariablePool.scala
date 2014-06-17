@@ -69,13 +69,6 @@ class VariablePool(val inputs: Map[Expr, Record], val resIds: Seq[Identifier],
     }
   }
 
-  // TODO: move elsewhere
-  def getVariableRecord(id: Identifier, specExpr: Expr): Record = {
-    val (records, loopC, int) = collectVariables(specExpr)
-    records(Variable(id))
-  }
-
-
   def addVariableWithRange(id: Identifier, specExpr: Expr) = {
     val (records, loopC, int) = collectVariables(specExpr)
     val record = records(Variable(id))
@@ -158,36 +151,8 @@ class VariablePool(val inputs: Map[Expr, Record], val resIds: Seq[Identifier],
   }
 
 
-  override def toString: String = allVars.toString 
+  override def toString: String = allVars.mkString("\n")
 }
-
-/*case class Record(ideal: Expr, actual: Expr, lo: Option[Rational], up: Option[Rational],
-  absUncert: Option[Rational], relUncert: Option[Rational]) {
-  def newLo(n: Rational): Record = Record(ideal, actual, Some(n), up, absUncert, relUncert)
-  def newUp(n: Rational): Record = Record(ideal, actual, lo, Some(n), absUncert, relUncert)
-  def newAbsUncert(n: Rational): Record = Record(ideal, actual, lo, up, Some(n), relUncert)
-  def newRelUncert(n: Rational): Record = Record(ideal, actual, lo, up, absUncert, relUncert)
-
-  def isBoundedValid: Boolean = !lo.isEmpty && !up.isEmpty && lo.get <= up.get
-
-  def uncertainty: Option[Rational] =
-    if (!absUncert.isEmpty) {
-      absUncert
-    } else {
-      relUncert match {
-      case Some(factor) =>
-        val maxAbsoluteValue = factor * max(abs(lo.get), abs(up.get))
-        Some(maxAbsoluteValue)
-      case None => None
-    }
-  }
-
-  override def toString: String = "%s = %s (%s, %s) +/- %s".format(ideal, actual,
-    formatOption(lo), formatOption(up), formatOption(uncertainty))
-}
-
-object EmptyRecord extends Record(False, False, None, None, None, None)
-*/
 
 case class Record(idealId: Identifier, lo: Rational, up: Rational, absUncert: Option[Rational],
   actualId: Identifier, relUncert: Option[Rational] = None) {
@@ -199,7 +164,13 @@ case class Record(idealId: Identifier, lo: Rational, up: Rational, absUncert: Op
 
   val actualExpr: Expr = Variable(actualId).setType(RealType)
   
+  var loAct: Option[Rational] = None
+  var upAct: Option[Rational] = None
 
+  //def initialError(precision: Precision)
+
+  override def toString: String =
+    s"($idealId, $actualId)[$lo, $up] +/- $absUncert ~[$loAct, $upAct]"
 }
 
 class PartialRecord {
@@ -208,6 +179,8 @@ class PartialRecord {
   //var actual: Expr = null
   var lo: Rational = null
   var up: Rational = null
+  var loAct: Rational = null
+  var upAct: Rational = null
   var abs: Rational = null
   var rel: Rational = null
 
@@ -221,10 +194,10 @@ object VariablePool {
     case _ => new Exception("bug!"); null
   }
 
-  /*def emptyRecord(ideal: Expr): Record = ideal match {
-    case Variable(id) => Record(ideal, Variable(FreshIdentifier("#" + id.name)).setType(RealType), None, None, None, None)
-    case _ => new Exception("bug!"); EmptyRecord
-  }*/
+  def getVariableRecord(id: Identifier, specExpr: Expr): Record = {
+    val (records, loopC, int) = collectVariables(specExpr)
+    records(Variable(id))
+  }
 
   def apply(expr: Expr, returnType: TypeTree): VariablePool = {
     val (records, loopC, int) = collectVariables(expr)
@@ -261,7 +234,10 @@ object VariablePool {
 
 
     // (Sound) Overapproximation in the case of strict inequalities
-    def addBound(e: Expr) = e match {  
+    def addBound(e: Expr) = e match { 
+
+      // Ranges real
+
       case LessEquals(RealLiteral(lwrBnd), x @ Variable(_)) => // a <= x
         getRecord(x).lo = lwrBnd
 
@@ -293,6 +269,43 @@ object VariablePool {
       case Equals(RealLiteral(value), x @ Variable(_)) => // x == value
         getRecord(x).lo = value
         getRecord(x).up = value
+
+      // Ranges actual
+
+      case LessEquals(RealLiteral(lwrBnd), Actual(x @ Variable(_))) => // a <= x
+        getRecord(x).loAct = lwrBnd
+
+      case LessEquals(Actual(x @ Variable(_)), RealLiteral(uprBnd)) => // x <= b
+        getRecord(x).upAct = uprBnd
+
+      case LessThan(RealLiteral(lwrBnd), Actual(x @ Variable(_))) => // a < x
+        getRecord(x).loAct = lwrBnd
+
+      case LessThan(Actual(x @ Variable(_)), RealLiteral(uprBnd)) => // x < b
+        getRecord(x).upAct = uprBnd
+
+      case GreaterEquals(RealLiteral(uprBnd), Actual(x @ Variable(_))) => // b >= x
+        getRecord(x).upAct = uprBnd
+
+      case GreaterEquals(Actual(x @ Variable(_)), RealLiteral(lwrBnd)) => // x >= a
+        getRecord(x).loAct = lwrBnd
+
+      case GreaterThan(RealLiteral(uprBnd), Actual(x @ Variable(_))) => // b > x
+        getRecord(x).upAct = uprBnd
+
+      case GreaterThan(Actual(x @ Variable(_)), RealLiteral(lwrBnd)) => // x > a
+        getRecord(x).loAct = lwrBnd
+
+      case Equals(Actual(x @ Variable(_)), RealLiteral(value)) => // x == value
+        getRecord(x).loAct = value
+        getRecord(x).upAct = value
+
+      case Equals(RealLiteral(value), Actual(x @ Variable(_))) => // x == value
+        getRecord(x).loAct = value
+        getRecord(x).upAct = value
+
+
+      // Errors
         
       case Noise(x @ Variable(_), RealLiteral(value)) =>
         getRecord(x).abs = value
@@ -332,95 +345,25 @@ object VariablePool {
     val fullRecords: Map[Expr, Record] = recordMap.filter(rec =>
       rec._2.lo != null && rec._2.up != null && rec._2.lo <= rec._2.up).map({
         case (k, rec) =>
-          if (rec.abs != null)
-            (k -> new Record(rec.ideal, rec.lo, rec.up, Some(rec.abs)))
+          val newRecord = 
+            if (rec.abs != null)
+              new Record(rec.ideal, rec.lo, rec.up, Some(rec.abs))
 
-          else if (rec.rel != null) {
-            val tmp = new Record(rec.ideal, rec.lo, rec.up, Some(rec.rel * max(abs(rec.lo), abs(rec.up))),
+            else if (rec.rel != null) {
+              val tmp = new Record(rec.ideal, rec.lo, rec.up, Some(rec.rel * max(abs(rec.lo), abs(rec.up))),
                                   Some(rec.rel))
-            (k -> tmp)
-          } else {
-            (k -> new Record(rec.ideal, rec.lo, rec.up, None))
-          }
+              tmp
+            } else {
+              new Record(rec.ideal, rec.lo, rec.up, None)
+            }
+          if (rec.loAct != null) newRecord.loAct = Some(rec.loAct)
+          if (rec.upAct != null) newRecord.upAct = Some(rec.upAct)
+
+          (k -> newRecord)
       }) 
 
 
     (fullRecords, loopCounter, integer)
   }
-
-
-  /*def collectVariables(expr: Expr): (Map[Expr, Record], Option[Identifier], Seq[Identifier]) = {
-    var recordMap = Map[Expr, Record]()
-    var loopCounter: Option[Identifier] = None
-    var integer: Seq[Identifier] = Seq.empty
-
-    // (Sound) Overapproximation in the case of strict inequalities
-    def addBound(e: Expr) = e match {  
-      case LessEquals(RealLiteral(lwrBnd), x @ Variable(_)) => // a <= x
-        recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newLo(lwrBnd))
-
-      case LessEquals(x @ Variable(_), RealLiteral(uprBnd)) => // x <= b
-        recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newUp(uprBnd))
-
-      case LessThan(RealLiteral(lwrBnd), x @ Variable(_)) => // a < x
-        recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newLo(lwrBnd))
-
-      case LessThan(x @ Variable(_), RealLiteral(uprBnd)) => // x < b
-        recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newUp(uprBnd))
-
-      case GreaterEquals(RealLiteral(uprBnd), x @ Variable(_)) => // b >= x
-        recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newUp(uprBnd))
-
-      case GreaterEquals(x @ Variable(_), RealLiteral(lwrBnd)) => // x >= a
-        recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newLo(lwrBnd))
-
-      case GreaterThan(RealLiteral(uprBnd), x @ Variable(_)) => // b > x
-        recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newUp(uprBnd))
-
-      case GreaterThan(x @ Variable(_), RealLiteral(lwrBnd)) => // x > a
-        recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newLo(lwrBnd))
-
-      case Equals(x @ Variable(_), RealLiteral(value)) => // x == value
-        recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newLo(value))
-        recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newUp(value))
-
-      case Equals(RealLiteral(value), x @ Variable(_)) => // x == value
-        recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newLo(value))
-        recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newUp(value))
-        
-      case Noise(x @ Variable(_), RealLiteral(value)) =>
-        recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newAbsUncert(value))
-
-      case Noise(_, _) =>
-        throw UnsupportedRealFragmentException(expr.toString)
-
-      case RelError(x @ Variable(id), RealLiteral(value)) =>
-        recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newRelUncert(value))
-
-      case WithIn(x @ Variable(_), lwrBnd, upBnd) =>
-        recordMap += (x -> recordMap.getOrElse(x, emptyRecord(x)).newLo(lwrBnd).newUp(upBnd))
-
-      case WithIn(e, lwrBnd, upBnd) =>
-        throw UnsupportedRealFragmentException(expr.toString)
-
-      case LoopCounter(id) =>
-        if (loopCounter.isEmpty) loopCounter = Some(id)
-        else {
-          throw UnsupportedRealFragmentException("two loop counters are not allowed")
-        }
-
-      case IntegerValue(id) => integer = integer :+ id
-
-      case _ =>;
-    }
-
-    // Only extract bounds from simple clauses, not, e.g. from disjunctions
-    expr match {
-      case And(args) => args.foreach(a => addBound(a))
-      case x => addBound(x)
-    }
-
-    (recordMap, loopCounter, integer)
-  }*/
 
 }

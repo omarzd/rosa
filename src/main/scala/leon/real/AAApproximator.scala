@@ -10,7 +10,7 @@ import purescala.Common._
 
 import real.Trees._
 import real.TreeOps._
-import XFloat.{variables2xfloats, variables2xfloatsExact, xFloatWithUncertain}
+import XFloat.{variables2xfloats, variables2xfloatsExact, variables2xfloatsActualExact, xFloatWithUncertain}
 import XFixed.{variables2xfixed, xFixedWithUncertain}
 import VariableShop._
 import Rational.max
@@ -48,9 +48,14 @@ class AAApproximator(val reporter: Reporter, val solver: RangeSolver, precision:
     case _ => (getUnitRoundoff(precision), 0)
   }
 
-  private def getInitialVariables(in: VariablePool, exactInputs: Boolean): Map[Expr, XReal] = precision match {
+  private def getInitialVariables(in: VariablePool, exactInputs: Boolean,
+    actualRanges: Boolean = false): Map[Expr, XReal] = precision match {
+    
     case Float32 | Float64 | DoubleDouble | QuadDouble =>
-      if (exactInputs) {
+      if (actualRanges && exactInputs) {
+        variables2xfloatsActualExact(in.getValidInputRecords, config, machineEps)
+
+      } else if (exactInputs) {
         // Only the method inputs are exact
         val inputVars: Map[Expr, XReal] = variables2xfloatsExact(in.getValidInputRecords, config, machineEps)
         val tmpVars: Map[Expr, XReal] = variables2xfloats(in.getValidTmpRecords, config, machineEps)._1
@@ -103,10 +108,10 @@ class AAApproximator(val reporter: Reporter, val solver: RangeSolver, precision:
     newVars
   }
 
-  def approximateEquationsAndUpdateFncs(e: Expr, precond: Expr, inputs: VariablePool,
-    exactInputs: Boolean = false, updateFncs: Seq[Expr]): (Map[Expr, XReal], Seq[Rational]) = {
+  def approximateUpdateFncs(e: Expr, precond: Expr, inputs: VariablePool,
+    exactInputs: Boolean = true, actualRanges: Boolean = true, updateFncs: Seq[Expr]): (Map[Expr, XReal], Seq[Rational]) = {
     init(inputs, precond)
-    val vars = getInitialVariables(inputs, exactInputs)
+    val vars = getInitialVariables(inputs, exactInputs, actualRanges)
 
     val (newVars, path, res) = process(e, vars, True)
     //sanity check
@@ -292,7 +297,7 @@ class AAApproximator(val reporter: Reporter, val solver: RangeSolver, precision:
   
   private def evalArithmetic(e: Expr, vars: Map[Expr, XReal], path: Expr): XReal = {
     if (useLipschitz) {
-      println("----> using lipschitz")
+      //println("----> using lipschitz")
       //val lip = new Lipschitz(reporter, solver, leonToZ3)
 
       val currentVarsInExpr: Set[Identifier] = variablesOf(e)

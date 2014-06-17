@@ -48,13 +48,64 @@ trait Lipschitz {
     }
   }
 
-  // assume that the updateFncs are ordered, same for ids
   //@param sigmas roundoff error on computing the update functions
-  def getLoopErrorLipschitz(body: Expr, ids: Seq[Identifier], updateFncs: Seq[Expr], vars: Map[Expr, XReal],
-    additionalConstraints: Expr, sigmas: Seq[Rational], precision: Precision, loopBound: Option[Int]): Seq[Rational] = {
+  def computeErrorFromLoopBound(ids: Seq[Identifier], sigmas: Seq[Rational], loopBound: Int,
+    initErrorsMap: Map[Identifier, Rational], mK: RMatrix): Seq[Rational] = {
+
+    println("computing loop bound")
+    println("initial errors: " + initErrorsMap)
+    val dim = sigmas.length
+    dim match {
+      case 1 =>
+        val initialError = initErrorsMap(ids(0))
+        val finalError = errorFromNIterations(loopBound, initialError, sigmas(0), mK(0, 0))
+        reporter.info("loop error, after "+loopBound+" iterations: " + finalError)
+        Seq(finalError)
+
+      case _ =>
+        //val initErrorsMap = vc.variables.getInitialErrors(precision)
+        //val initErrorsMap: Map[Identifier, Rational] = vars.map({
+        //  case (Variable(id), xreal) => (id, xreal.maxError)
+        //})
+        reporter.debug("initial errors amp: " + initErrorsMap)
+
+        val initErrors = ids.map(id => initErrorsMap(id))
+
+        reporter.debug("ids: " + ids)
+        reporter.debug("initErrors sorted: " + initErrors)
+
+        
+        //if (ids.length > 1) {
+        if (mK.isIdentity) {
+          throw new Exception("K == I and we don't handle this case...")
+        }
+
+        val mKn = mK.power(loopBound)
+        reporter.debug("K^n: " + mKn)
+        val mI = RMatrix.identity(ids.length)
+        reporter.debug("I: " + mI)
+
+        reporter.debug("(I-K)^-1: " + (mI - mK).inverse)
+        val roundoffErrorMatrix = (((mI - mK).inverse) * (mI - mKn))
+        reporter.debug("roundoffErrorMatrix: " + roundoffErrorMatrix)
+        val roundoffErrors = roundoffErrorMatrix * sigmas
+        val initialErrors = mKn * initErrors
+
+        val componentwiseErrors = roundoffErrors.zip(initialErrors).map({
+          case (a, b) => a + b
+          })
+        reporter.info("loop errors, after "+loopBound+" iterations: " + componentwiseErrors)
+        componentwiseErrors
+          
+    }
+  }
+
+  // assume that the updateFncs are ordered, same for ids
+  def getLipschitzMatrix(body: Expr, ids: Seq[Identifier], updateFncs: Seq[Expr], vars: Map[Expr, RationalInterval],
+    additionalConstraints: Expr, precision: Precision): RMatrix = {
 
     reporter.info("computing loop error")
-    println("vars: " + vars)
+    //println("vars: " + vars)
     reporter.debug("body: " + body)
     reporter.debug("updateFncs: " + updateFncs)
     
@@ -88,62 +139,14 @@ trait Lipschitz {
       And(getClauses(And(additionalConstraints, And(modelConstraints.toSeq))).filter(cl => 
         !belongsToActual(cl) && !isRangeClause(cl)))
 
-    val allVars = vars.map(x => (x._1, x._2.interval)) ++ 
-      additionalVars.map(x => (x._1, RationalInterval(x._2.lo, x._2.up)))
+    val allVars = vars ++ additionalVars.map(x => (x._1, RationalInterval(x._2.lo, x._2.up)))
     
     val precondition = And(rangeConstraintFromIntervals(allVars), cleanedAdditionalConstraints)
     
     val mK = getLipschitzMatrix(precondition, inlinedFncs, ids, allVars)    
-    reporter.info("sigmas: " + sigmas)
+    //reporter.info("sigmas: " + sigmas)
     reporter.info("K: " + mK)
-
-    val dim = sigmas.length
-
-    (dim, loopBound) match {
-      case (1, Some(n)) =>
-        val initialError = vars(Variable(ids(0))).maxError
-        val finalError = errorFromNIterations(n, initialError, sigmas(0), mK(0, 0))
-        reporter.info("loop error, after "+loopBound+" iterations: " + finalError)
-        Seq(finalError)
-
-      case (_, Some(n)) =>
-        //val initErrorsMap = vc.variables.getInitialErrors(precision)
-        val initErrorsMap: Map[Identifier, Rational] = vars.map({
-          case (Variable(id), xreal) => (id, xreal.maxError)
-        })
-        reporter.debug("initial errors amp: " + initErrorsMap)
-
-        val initErrors = ids.map(id => initErrorsMap(id))
-
-        reporter.debug("ids: " + ids)
-        reporter.debug("initErrors sorted: " + initErrors)
-
-        
-        //if (ids.length > 1) {
-        if (mK.isIdentity) {
-          throw new Exception("K == I and we don't handle this case...")
-        }
-
-        val mKn = mK.power(n)
-        reporter.debug("K^n: " + mKn)
-        val mI = RMatrix.identity(ids.length)
-        reporter.debug("I: " + mI)
-
-        reporter.debug("(I-K)^-1: " + (mI - mK).inverse)
-        val roundoffErrorMatrix = (((mI - mK).inverse) * (mI - mKn))
-        reporter.debug("roundoffErrorMatrix: " + roundoffErrorMatrix)
-        val roundoffErrors = roundoffErrorMatrix * sigmas
-        val initialErrors = mKn * initErrors
-
-        val componentwiseErrors = roundoffErrors.zip(initialErrors).map({
-          case (a, b) => a + b
-          })
-        reporter.info("loop errors, after "+loopBound+" iterations: " + componentwiseErrors)
-        componentwiseErrors
-          
-      case _ => Seq.empty
-    }
-    
+    mK
   }
 
   def getTaylorErrorLipschitz(expr: Expr, ids: Seq[Identifier], sigmas: Seq[Rational],
@@ -193,7 +196,10 @@ trait Lipschitz {
   } // end getTaylorError
 
 
-
+  /*
+    In order for this computation to be sounds, the intervals need to include all
+    the values from the ideal and actual ranges
+  */
   private def getLipschitzMatrix(preReal: Expr, fncs: Seq[Expr], ids: Seq[Identifier],
    vars: Map[Expr, RationalInterval]): RMatrix = {
   

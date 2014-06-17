@@ -66,6 +66,22 @@ object XFloat {
     variableMap
   }
 
+  def variables2xfloatsActualExact(vars: Iterable[Record], config: XConfig, machineEps: Rational): Map[Expr, XFloat] = {
+    var variableMap: Map[Expr, XFloat] = Map.empty
+    println("actual xfloats")
+    for(rec <- vars) {
+      rec match {
+        case Record(id, lo, up, _, aId, _) =>
+          val xfloat = XFloat.xFloatExact(Variable(id), RationalInterval(rec.loAct.get, rec.upAct.get), config, machineEps)
+          variableMap = variableMap + (Variable(aId) -> xfloat)
+
+        case _ =>
+          throw new Exception("bug!")
+      }
+    }
+    variableMap
+  }
+
 
   // double constant (we include rdoff error)
   def apply(d: Double, config: XConfig, machineEps: Rational): XFloat = {

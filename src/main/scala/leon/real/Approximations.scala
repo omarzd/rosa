@@ -291,10 +291,11 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
       val (ids, updateFncs) = vc.updateFunctions.unzip
 
       //start = System.currentTimeMillis
+
+      // this is trying to show that this thing is inductive
       val approximatorNew = new AAApproximator(reporter, solver, precision, checkPathError, options.lipschitz)
-      val (approxs, sigmas)  = approximatorNew.approximateEquationsAndUpdateFncs(body,
-        And(vc.pre, path.condition), vc.variables, exactInputs = false,
-        updateFncs.map(fnc => idealToActual(fnc, vc.variables)))
+      val approxs = approximatorNew.approximateEquations(body,
+        And(vc.pre, path.condition), vc.variables, exactInputs = false)
       //println("new:     " + approxNew)
       //println((System.currentTimeMillis - start) + "ms")
 
@@ -306,15 +307,44 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
                                   Noise(vc.variables.getIdeal(kv._1), RealLiteral(kv._2.maxError)))))
 
       
-      reporter.debug("Computing loop error...")          
-      //val lipschitz = new Lipschitz(reporter, solver, leonToZ3)
-      // TODO: this is unsound
-      val idealApproxs = approxs.map({
-        case (v @ Variable(id), xr) => (vc.variables.getIdeal(v), xr)
+
+      // this is computing loop errors
+      reporter.info("Computing loop error...")          
+      println("variables: " + vc.variables)
+
+      val actualRanges: Map[Expr, RationalInterval] = vc.variables.inputs.map({
+        case (v @ Variable(_), rec @ Record(idealId, _, _, _, _, _)) =>
+          if (rec.loAct.isEmpty || rec.upAct.isEmpty) {
+            throw new Exception("Loop error computation needs actual ranges!")
+          } else {
+            (Variable(idealId), RationalInterval(rec.loAct.get, rec.upAct.get))
+          }
         })
 
-      val errs = getLoopErrorLipschitz(path.bodyReal, ids, updateFncs, idealApproxs, 
-        preReal, sigmas, precision, vc.funDef.loopBound)
+      // Roundoff errors have to be computed over the entire actual range,
+      // and inputs are exact
+      println("path condition: " + path.condition)
+      val actualRangesPrecondition = rangeConstraintFromIntervals(actualRanges)
+      val (_, sigmas)  = approximatorNew.approximateUpdateFncs(body,
+        And(actualRangesPrecondition, path.condition), vc.variables,
+        exactInputs = true,
+        actualRanges = true,
+        updateFncs.map(fnc => idealToActual(fnc, vc.variables)))
+
+      
+      println("actualRanges: " + actualRanges)
+
+      val lipschitzCnst = getLipschitzMatrix(path.bodyReal, ids, updateFncs, actualRanges, preReal, precision)
+      
+      val err = vc.funDef.loopBound match {
+        case Some(n) => computeErrorFromLoopBound(ids, sigmas, n,
+          //approxs.map({ case (v @ Variable(id), xr) => (vc.variables.getIdeal(v), xr.maxError)}), lipschitzCnst)
+          // very initial errors
+          vc.variables.inputs.map({ case (_, rec) => (rec.idealId, approxs(rec.actualExpr).maxError)}),
+           lipschitzCnst)
+        case None => Seq()
+      }
+      
                 
 
       if(vc.funDef.loopBound.nonEmpty && options.loopUnrolling) { //if (options.loopUnrolling) {
