@@ -43,10 +43,10 @@ class AAApproximator(val reporter: Reporter, val solver: RangeSolver, precision:
 
   val (minVal, maxVal) = precision.range
   val (maxNegNormal, minPosNormal) = (-precision.minNormal, precision.minNormal)
-  val (machineEps, bits) = precision match {
+  /*val (machineEps, bits) = precision match {
     case FPPrecision(bts) => (Rational.zero, bts)
     case _ => (getUnitRoundoff(precision), 0)
-  }
+  }*/
 
   private def getInitialVariables(in: VariablePool, exactInputs: Boolean,
     actualRanges: Boolean = false): Map[Expr, XReal] = precision match {
@@ -57,18 +57,18 @@ class AAApproximator(val reporter: Reporter, val solver: RangeSolver, precision:
 
       } else if (exactInputs) {
         // Only the method inputs are exact
-        val inputVars: Map[Expr, XReal] = variables2xfloatsExact(in.getValidInputRecords, config, machineEps)
-        val tmpVars: Map[Expr, XReal] = variables2xfloats(in.getValidTmpRecords, config, machineEps)._1
+        val inputVars: Map[Expr, XReal] = variables2xfloatsExact(in.getValidInputRecords, config, precision)
+        val tmpVars: Map[Expr, XReal] = variables2xfloats(in.getValidTmpRecords, config, precision)._1
         inputVars ++ tmpVars
       }
       else if (in.integers.nonEmpty) {
         val (intRecords, rest) = in.getValidRecords.partition(
           rec => in.integers.contains(rec.idealId)
           )
-        variables2xfloatsExact(intRecords, config, machineEps) ++
-          variables2xfloats(rest, config, machineEps)._1
+        variables2xfloatsExact(intRecords, config, precision) ++
+          variables2xfloats(rest, config, precision)._1
       } else {
-        variables2xfloats(in.getValidRecords, config, machineEps)._1
+        variables2xfloats(in.getValidRecords, config, precision)._1
       }
 
     case FPPrecision(bits) =>
@@ -86,7 +86,6 @@ class AAApproximator(val reporter: Reporter, val solver: RangeSolver, precision:
     exactInputs: Boolean = false): Seq[XReal] = {
     init(inputs, precond)
     val vars = getInitialVariables(inputs, exactInputs)
-    //println("initial variables: " + vars)
     process(e, vars, True)._3
   }
 
@@ -160,7 +159,7 @@ class AAApproximator(val reporter: Reporter, val solver: RangeSolver, precision:
       init(inputs, precond)
       val vars: Map[Expr, XReal] = variables.map({
         case (v @ Variable(_), r @ RationalInterval(lo, hi)) =>
-          (inputs.buddy(v), XFloat.xFloatExact(v, r, config, machineEps))
+          (inputs.buddy(v), XFloat.xFloatExact(v, r, config, precision))
         })
       val res = process(e, vars, True)._3
       assert(res.length == 1, "computing error on tuple-typed expression!")
@@ -238,7 +237,7 @@ class AAApproximator(val reporter: Reporter, val solver: RangeSolver, precision:
       //println("finished elseBranch: " + elze)
 
       val pathError: Seq[Rational] = if (checkPathError) {
-        val pathError = new PathError(reporter, solver, precision, machineEps, inputVariables, precondition, vars) 
+        val pathError = new PathError(reporter, solver, precision, inputVariables, precondition, vars) 
         pathError.computePathErrors(currentPathCondition, cond, thenn, elze)
 
         //val pathError = new LipschitzPathError(reporter, solver, precision, inputVariables)
@@ -279,7 +278,7 @@ class AAApproximator(val reporter: Reporter, val solver: RangeSolver, precision:
         case _ => xFloatWithUncertain(fresh, interval,
           config.addCondition(replace(Map(Variable(resId) -> fresh),
             leonToZ3.getZ3Condition(And(removeErrors(specExpr), spec.toRealExpr)))),
-          error, false, machineEps)._1
+          error, false, precision)._1
         }
       })
       (vars, path, res)
@@ -336,14 +335,14 @@ class AAApproximator(val reporter: Reporter, val solver: RangeSolver, precision:
       v match {
         case v: Variable =>
           vars(v) match {
-            case xfl: XFloat => new XFloat(xfl.tree, xfl.approxInterval, xfl.error, xfl.config.addCondition(leonToZ3.getZ3Condition(cond)), machineEps)
+            case xfl: XFloat => new XFloat(xfl.tree, xfl.approxInterval, xfl.error, xfl.config.addCondition(leonToZ3.getZ3Condition(cond)), precision)
             case xfx: XFixed => new XFixed(xfx.format, xfx.tree, xfx.approxInterval, xfx.error, xfx.config.addCondition(leonToZ3.getZ3Condition(cond)))
           }
 
         case FloatLiteral(r) =>
           precision match {
             case FPPrecision(bits) => XFixed(r, config.addCondition(leonToZ3.getZ3Condition(cond)), bits)
-            case _ => XFloat(r, config.addCondition(leonToZ3.getZ3Condition(cond)), machineEps) // TODO: save machineEps somewhere?
+            case _ => XFloat(r, config.addCondition(leonToZ3.getZ3Condition(cond)), precision) // TODO: save machineEps somewhere?
           }
       }
     }
@@ -383,7 +382,7 @@ class AAApproximator(val reporter: Reporter, val solver: RangeSolver, precision:
           case _ => xFloatWithUncertain(fresh, interval,
             config.addCondition(replace(Map(Variable(resId) -> fresh),
               leonToZ3.getZ3Condition(And(removeErrors(specExpr), spec.toRealExpr)))),
-            error, false, machineEps)._1
+            error, false, precision)._1
           }
         })
         assert(res.length == 1)
@@ -439,7 +438,7 @@ class AAApproximator(val reporter: Reporter, val solver: RangeSolver, precision:
             val newConfig = config.addCondition(leonToZ3.getZ3Condition(And(condition, rangeConstraint(fresh, newInt))))
             precision match {
               case FPPrecision(bts) => xFixedWithUncertain(fresh, newInt, newConfig, newError, false, bts)._1
-              case _ => xFloatWithUncertain(fresh, newInt, newConfig, newError, false, machineEps)._1
+              case _ => xFloatWithUncertain(fresh, newInt, newConfig, newError, false, precision)._1
             }
         })
       } else {
@@ -455,7 +454,7 @@ class AAApproximator(val reporter: Reporter, val solver: RangeSolver, precision:
             val newConfig = config.addCondition(leonToZ3.getZ3Condition(And(condition, rangeConstraint(fresh, newInt))))
             precision match {
               case FPPrecision(bts) => xFixedWithUncertain(fresh, newInt, newConfig, newError, false, bts)._1
-              case _ => xFloatWithUncertain(fresh, newInt, newConfig, newError, false, machineEps)._1
+              case _ => xFloatWithUncertain(fresh, newInt, newConfig, newError, false, precision)._1
             }
         })
       } else {
@@ -472,7 +471,7 @@ class AAApproximator(val reporter: Reporter, val solver: RangeSolver, precision:
           val newConfig = config.addCondition(leonToZ3.getZ3Condition(And(condition, rangeConstraint(fresh, newInt))))
           precision match {
             case FPPrecision(bts) => xFixedWithUncertain(fresh, newInt, newConfig, newError, false, bts)._1
-            case _ => xFloatWithUncertain(fresh, newInt, newConfig, newError, false, machineEps)._1
+            case _ => xFloatWithUncertain(fresh, newInt, newConfig, newError, false, precision)._1
           }
       })
   }
@@ -493,7 +492,7 @@ class AAApproximator(val reporter: Reporter, val solver: RangeSolver, precision:
     val newConfig = xreal.config.addCondition(rangeConstraint(newTree, xreal.realInterval))
     val (newXReal, index) = xreal match {
       case xf: XFloat =>
-        xFloatWithUncertain(newTree, xreal.approxInterval, newConfig, xreal.maxError, false, xf.machineEps)
+        xFloatWithUncertain(newTree, xreal.approxInterval, newConfig, xreal.maxError, false, xf.precision)
       case xfp: XFixed =>
         xFixedWithUncertain(newTree, xreal.approxInterval, newConfig, xreal.maxError, false, xfp.format.bits)
     }
@@ -517,14 +516,14 @@ class AAApproximator(val reporter: Reporter, val solver: RangeSolver, precision:
   // TODO: already exists in PathError
   private def rmErrors(xf: XReal): XReal = xf match {
     case xff: XFloat =>
-      new XFloat(xff.tree, xff.approxInterval, new XRationalForm(Rational.zero), xff.config, xff.machineEps)
+      new XFloat(xff.tree, xff.approxInterval, new XRationalForm(Rational.zero), xff.config, xff.precision)
     case xfp: XFixed =>
       new XFixed(xfp.format, xfp.tree, xfp.approxInterval, new XRationalForm(Rational.zero), xfp.config)
   }
 
   private def replaceError(xf: XReal, newError: Rational): XReal = xf match {
     case xff: XFloat =>
-      new XFloat(xff.tree, xff.approxInterval, new XRationalForm(newError), xff.config, xff.machineEps)
+      new XFloat(xff.tree, xff.approxInterval, new XRationalForm(newError), xff.config, xff.precision)
     case xfp: XFixed =>
       new XFixed(xfp.format, xfp.tree, xfp.approxInterval, new XRationalForm(newError), xfp.config)
   }

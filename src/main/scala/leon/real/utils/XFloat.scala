@@ -26,7 +26,7 @@ object XFloat {
     @param config solver, precondition, which precision to choose
     @param withRoundoff whether the initial XFloat should also get an roundoff error, additionally to the noise
    */
-  def variables2xfloats(vars: Iterable[Record], config: XConfig, machineEps: Rational, withRoundoff: Boolean = false): (Map[Expr, XFloat], Map[Int, Expr]) = {
+  def variables2xfloats(vars: Iterable[Record], config: XConfig, precision: Precision, withRoundoff: Boolean = false): (Map[Expr, XFloat], Map[Int, Expr]) = {
     var variableMap: Map[Expr, XFloat] = Map.empty
     var indexMap: Map[Int, Expr] = Map.empty
 
@@ -34,12 +34,12 @@ object XFloat {
       rec match {
         case r @ Record(id, lo, up, Some(absError), aId, _) =>
           val (xfloat, index) = XFloat.xFloatWithUncertain(Variable(id), RationalInterval(lo, up), config,
-            absError, withRoundoff, machineEps)
+            absError, withRoundoff, precision)
           variableMap = variableMap + (Variable(aId) -> xfloat)
           indexMap = indexMap + (index -> Variable(aId))
 
         case Record(id, lo, up, None, aId, None) =>
-          val (xfloat, index) = XFloat.xFloatWithRoundoff(Variable(id), RationalInterval(lo, up), config, machineEps)
+          val (xfloat, index) = XFloat.xFloatWithRoundoff(Variable(id), RationalInterval(lo, up), config, precision)
           variableMap = variableMap + (Variable(aId) -> xfloat)
           indexMap = indexMap + (index -> Variable(aId))
 
@@ -50,13 +50,14 @@ object XFloat {
     (variableMap, indexMap)
   }
 
-  def variables2xfloatsExact(vars: Iterable[Record], config: XConfig, machineEps: Rational): Map[Expr, XFloat] = {
+  def variables2xfloatsExact(vars: Iterable[Record], config: XConfig, precision: Precision): Map[Expr, XFloat] = {
     var variableMap: Map[Expr, XFloat] = Map.empty
     
     for(rec <- vars) {
       rec match {
+
         case Record(id, lo, up, _, aId, _) =>
-          val xfloat = XFloat.xFloatExact(Variable(id), RationalInterval(lo, up), config, machineEps)
+          val xfloat = XFloat.xFloatExact(Variable(id), RationalInterval(lo, up), config, precision)
           variableMap = variableMap + (Variable(aId) -> xfloat)
 
         case _ =>
@@ -84,21 +85,22 @@ object XFloat {
 
 
   // double constant (we include rdoff error)
-  def apply(d: Double, config: XConfig, machineEps: Rational): XFloat = {
+  def apply(d: Double, config: XConfig, precision: Precision): XFloat = {
+    val rndoff = roundoff(d, precision)
     val r = rationalFromReal(d)
-    val rndoff = roundoff(r, machineEps)
+    //val rndoff = roundoff(r, machineEps)
     val newError = addNoise(new XRationalForm(Rational.zero), rndoff)
-    new XFloat(RealLiteral(r), RationalInterval(r, r), newError, config, machineEps)
+    new XFloat(RealLiteral(r), RationalInterval(r, r), newError, config, precision)
   }
 
   // constant
-  def apply(r: Rational, config: XConfig, machineEps: Rational): XFloat = {
+  def apply(r: Rational, config: XConfig, precision: Precision): XFloat = {
     val newError =  if (Precision.isExactInFloats(r)) {
       new XRationalForm(Rational.zero)
     } else {
-      addNoise(new XRationalForm(Rational.zero), roundoff(r, machineEps))
+      addNoise(new XRationalForm(Rational.zero), roundoff(r, precision))
     }
-    new XFloat(RealLiteral(r), RationalInterval(r,r), newError, config, machineEps)
+    new XFloat(RealLiteral(r), RationalInterval(r,r), newError, config, precision)
   }
 
   /**
@@ -107,14 +109,14 @@ object XFloat {
     @param range real-valued range of this XFloat
     @param config solver, precondition, which precision to choose
   **/
-  def xFloatWithRoundoff(v: Variable, range: RationalInterval, config: XConfig, machineEps: Rational): (XFloat, Int) = {
+  def xFloatWithRoundoff(v: Variable, range: RationalInterval, config: XConfig, precision: Precision): (XFloat, Int) = {
     // For when the specs say 3 <= x && x <= 3
     if (range.isPointRange && isExactInFloats(range.xlo)) {
-      (new XFloat(v, range, new XRationalForm(Rational.zero), config, machineEps), -1)
+      (new XFloat(v, range, new XRationalForm(Rational.zero), config, precision), -1)
     } else {
-      val rndoff = roundoff(range, machineEps)
+      val rndoff = roundoff(range, precision)
       val (newError, index) = addNoiseWithIndex(new XRationalForm(Rational.zero), rndoff)
-      (new XFloat(v, range, newError, config, machineEps), index)
+      (new XFloat(v, range, newError, config, precision), index)
     }
 
     
@@ -126,8 +128,8 @@ object XFloat {
     @param range real-valued range of this XFloat
     @param config solver, precondition, which precision to choose
   **/
-  def xFloatExact(v: Variable, range: RationalInterval, config: XConfig, machineEps: Rational): XFloat = {
-    new XFloat(v, range, new XRationalForm(Rational.zero), config, machineEps)
+  def xFloatExact(v: Variable, range: RationalInterval, config: XConfig, precision: Precision): XFloat = {
+    new XFloat(v, range, new XRationalForm(Rational.zero), config, precision)
   }
 
   /**
@@ -139,23 +141,23 @@ object XFloat {
     @param withRoundoff if true an additional roundoff error will be added automatically, additionally to noise
   **/
   def xFloatWithUncertain(v: Expr, range: RationalInterval, config: XConfig,
-    uncertain: Rational, withRoundoff: Boolean, machineEps: Rational): (XFloat, Int) = {
+    uncertain: Rational, withRoundoff: Boolean, precision: Precision): (XFloat, Int) = {
     assert(uncertain >= Rational.zero)
 
     var (newError, index) = addNoiseWithIndex(new XRationalForm(Rational.zero), uncertain)
 
     if (withRoundoff) {
-      val rndoff = roundoff(range + new RationalInterval(-uncertain, uncertain), machineEps)
-      (new XFloat(v, range, addNoise(newError, rndoff), config, machineEps), index)
+      val rndoff = roundoff(range + new RationalInterval(-uncertain, uncertain), precision)
+      (new XFloat(v, range, addNoise(newError, rndoff), config, precision), index)
     } else {
-      (new XFloat(v, range, newError, config, machineEps), index)
+      (new XFloat(v, range, newError, config, precision), index)
     }
   }
 
-  def withIndex(v: Variable, range: RationalInterval, config: XConfig, machineEps: Rational): (XFloat, Int) = {
-    val rndoff = roundoff(range, machineEps)
+  def withIndex(v: Variable, range: RationalInterval, config: XConfig, precision: Precision): (XFloat, Int) = {
+    val rndoff = roundoff(range, precision)
     val (newError, index) = addNoiseWithIndex(new XRationalForm(Rational.zero), rndoff)
-    (new XFloat(v, range, newError, config, machineEps), index)
+    (new XFloat(v, range, newError, config, precision), index)
   }
 
   var verbose = false
@@ -164,7 +166,7 @@ object XFloat {
 
 
 class XFloat(val tr: Expr, val appInt: RationalInterval, val err: XRationalForm,
-  val cnfg: XConfig, val machineEps: Rational) extends XReal(tr, appInt, err, cnfg) {
+  val cnfg: XConfig, val precision: Precision) extends XReal(tr, appInt, err, cnfg) {
   import XFloat._
 
   /*def errorString(variables: Iterable[Int]): String = {
@@ -179,68 +181,68 @@ class XFloat(val tr: Expr, val appInt: RationalInterval, val err: XRationalForm,
   }*/
 
   override def cleanConfig: XReal = {
-    new XFloat(tree, approxInterval, error, getCleanConfig, machineEps)
+    new XFloat(tree, approxInterval, error, getCleanConfig, precision)
   }
 
   override def unary_-(): XReal = {
     var (newTree, newRealRange, newError, newConfig) = super.negate
-    new XFloat(newTree, newRealRange, newError, newConfig, machineEps)
+    new XFloat(newTree, newRealRange, newError, newConfig, precision)
   }
 
   override def +(y: XReal): XReal = {
     assert(y.getClass == this.getClass)
-    assert(this.machineEps == y.asInstanceOf[XFloat].machineEps)
+    assert(this.precision == y.asInstanceOf[XFloat].precision)
     if (verbose) println("+fl " + this + " to " + y)
     var (newTree, newRealRange, newError, newConfig) = super.add(y)
-    val rndoff = roundoff(newRealRange + newError.interval)
+    val rndoff = roundoff(newRealRange + newError.interval, precision)
     newError = addNoise(newError, rndoff)
-    new XFloat(newTree, newRealRange, newError, newConfig, machineEps)
+    new XFloat(newTree, newRealRange, newError, newConfig, precision)
   }
 
   override def -(y: XReal): XReal = {
     assert(y.getClass == this.getClass)
-    assert(this.machineEps == y.asInstanceOf[XFloat].machineEps)
+    assert(this.precision == y.asInstanceOf[XFloat].precision)
     if (verbose) println("-fl " + this + " from " + y)
     var (newTree, newRealRange, newError, newConfig) = super.subtract(y)
-    val rndoff = roundoff(newRealRange + newError.interval)
+    val rndoff = roundoff(newRealRange + newError.interval, precision)
     newError = addNoise(newError, rndoff)
-    new XFloat(newTree, newRealRange, newError, newConfig, machineEps)
+    new XFloat(newTree, newRealRange, newError, newConfig, precision)
   }
 
   override def *(y: XReal): XReal = {
     assert(y.getClass == this.getClass)
-    assert(this.machineEps == y.asInstanceOf[XFloat].machineEps)
+    assert(this.precision == y.asInstanceOf[XFloat].precision)
     if (verbose) println("*fl " + this.tree + " with " + y.tree)
     if (verbose) println("x.error: " + this.error.longString)
     if (verbose) println("y.error: " + y.error.longString)
     var (newTree, newRealRange, newError, newConfig) = super.multiply(y)
-    val rndoff = roundoff(newRealRange + newError.interval)
+    val rndoff = roundoff(newRealRange + newError.interval, precision)
     newError = addNoise(newError, rndoff)
-    new XFloat(newTree, newRealRange, newError, newConfig, machineEps)
+    new XFloat(newTree, newRealRange, newError, newConfig, precision)
   }
 
   override def /(y: XReal): XReal = {
     assert(y.getClass == this.getClass)
-    assert(this.machineEps == y.asInstanceOf[XFloat].machineEps)
+    assert(this.precision == y.asInstanceOf[XFloat].precision)
     if (verbose) println("/fl " + this.tree + " with " + y.tree)
     var (newTree, newRealRange, newError, newConfig) = super.divide(y)
-    val rndoff = roundoff(newRealRange + newError.interval)
+    val rndoff = roundoff(newRealRange + newError.interval, precision)
     newError = addNoise(newError, rndoff)
-    new XFloat(newTree, newRealRange, newError, newConfig, machineEps)
+    new XFloat(newTree, newRealRange, newError, newConfig, precision)
   }
 
   override def squareRoot: XReal = {
     var (newTree, newRealRange, newError, newConfig) = super.takeSqrtRoot
-    val rndoff = roundoff(newRealRange + newError.interval)
+    val rndoff = roundoff(newRealRange + newError.interval, precision)
     newError = addNoise(newError, rndoff)
-    new XFloat(newTree, newRealRange, newError, newConfig, machineEps)
+    new XFloat(newTree, newRealRange, newError, newConfig, precision)
   }
 
   override def toString: String =
     "%s -f (%.16g)(%s)".format(this.interval.toString, this.maxError.toDouble, tree)
 
   // Always returns a positive number
-  private def roundoff(range: RationalInterval): Rational = {
+  /*private def roundoff(range: RationalInterval): Rational = {
     val maxAbs = max(abs(range.xlo), abs(range.xhi))
     // Without scaling this can return fractions with very large numbers
     // TODO: try scaling the result
@@ -250,6 +252,6 @@ class XFloat(val tr: Expr, val appInt: RationalInterval, val err: XRationalForm,
 
   private def roundoff(r: Rational): Rational = {
     machineEps * abs(r)
-  }
+  }*/
 
 }

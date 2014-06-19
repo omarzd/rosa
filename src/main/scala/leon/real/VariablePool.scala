@@ -140,12 +140,12 @@ class VariablePool(val inputs: Map[Expr, Record], val resIds: Seq[Identifier],
       throw new Exception("getInitialErrors doesn't work yet for fixed-points")
     case _ =>
       var map = Map[Identifier, Rational]()
-      val machineEps = getUnitRoundoff(precision)
+      //val machineEps = getUnitRoundoff(precision)
       inputs.map({
         case (_, Record(id, _, _, Some(absError), _, _)) =>
           map += (id -> absError)
         case (_, Record(id, lo, up, _, _, _)) =>
-          map += (id -> machineEps * max(abs(lo), abs(up)))
+          map += (id -> roundoff(max(abs(lo), abs(up)), precision) )
       })
       map
   }
