@@ -106,6 +106,7 @@ object TypeTrees {
   case object Int32Type extends TypeTree
   case object Int64Type extends TypeTree
   case object RealType extends TypeTree
+  case object LoopCounterType extends TypeTree
   
   case object Float64Type extends TypeTree // code generation for reals
   case object Float32Type extends TypeTree

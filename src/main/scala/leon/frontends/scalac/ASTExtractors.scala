@@ -32,6 +32,7 @@ trait ASTExtractors {
   protected lazy val someClassSym       = classFromName("scala.Some")
   protected lazy val function1TraitSym  = classFromName("scala.Function1")
   protected lazy val realSym            = classFromName("leon.real.Real")
+  protected lazy val loopCounterSym     = classFromName("leon.real.LoopCounter")
 
   def isTuple2(sym : Symbol) : Boolean = sym == tuple2Sym
   def isTuple3(sym : Symbol) : Boolean = sym == tuple3Sym
@@ -39,6 +40,7 @@ trait ASTExtractors {
   def isTuple5(sym : Symbol) : Boolean = sym == tuple5Sym
   def isTuple6(sym : Symbol) : Boolean = sym == tuple6Sym
   def isReal(sym : Symbol) : Boolean = sym == realSym
+  def isLoopCounter(sym: Symbol): Boolean = sym == loopCounterSym
 
 
   // Resolve type aliases
@@ -712,6 +714,17 @@ trait ASTExtractors {
         case _ => None
       }
     }
+
+    object ExIncrement {
+      def unapply(tree: Apply): Option[(Tree, Tree)] = tree match {
+        case Apply(Select(lhs, n), List()) => //if (n.toString == "$greater$less") =>
+          println("--> " + n)
+          
+          //Some((lhs, arg))
+          None
+        case _ => None
+      }
+    }    
 
     object ExLoopCounter {
       def unapply(tree: Apply): Option[Tree] = tree match {

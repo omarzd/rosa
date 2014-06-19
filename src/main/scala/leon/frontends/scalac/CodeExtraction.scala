@@ -1352,6 +1352,10 @@ trait CodeExtraction extends ASTExtractors {
             case (IsTyped(a1, mt: MapType), "updated", List(k, v)) =>
               MapUnion(a1, FiniteMap(Seq((k, v))).setType(mt)).setType(mt)
 
+            case (IsTyped(x, LoopCounterType), "++", List()) =>
+              PlusR(x, IntLiteral(1))
+
+              
             case (_, name, _) =>
               outOfSubsetError(tr, "Unknown call to "+name)
           }
@@ -1387,6 +1391,10 @@ trait CodeExtraction extends ASTExtractors {
       case TypeRef(pkg, sym, Nil) if (isReal(sym)) =>
         RealType
     
+      case TypeRef(pkg, sym, Nil) if (isLoopCounter(sym)) =>
+        LoopCounterType
+    
+
       case tpe if tpe == DoubleClass.tpe =>
         RealType
 

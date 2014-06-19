@@ -66,6 +66,14 @@ object RealOps {
 }
 
 @ignore
+case class LoopCounter {
+
+  def <(i: Int): Boolean = ???
+  def ++(): LoopCounter = ???
+
+}
+
+@ignore
 case class Real private[real](v: Double) extends ScalaNumber with ScalaNumericConversions with Ordered[Real] {
     import Real._
 
