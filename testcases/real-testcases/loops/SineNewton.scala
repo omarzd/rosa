@@ -4,26 +4,25 @@ import annotations._
 
 object SineNewton {
 
-  @loopbound(10)
-  def newton(x: Real, k: Int): Real = {
-    require(loopCounter(k) && -1.0 < x && x < 1.0 && -1.0 < ~x && ~x < 1.0)
+
+  def newton(x: Real, k: LoopCounter): Real = {
+    require(-1.0 < x && x < 1.0 && -1.0 < ~x && ~x < 1.0)
 
     if (k < 10) {
       newton(x - (x - (x°°3)/6.0 + (x°°5)/120.0 + (x°°7)/5040.0) / 
-        (1.0 - (x*x)/2.0 + (x°°4)/24.0 + (x°°6)/720.0), k + 1)
+        (1.0 - (x*x)/2.0 + (x°°4)/24.0 + (x°°6)/720.0), k++)
     } else {
       x
     }
     
   } ensuring(res => -1.0 < res && res < 1.0 && -1.0 < ~res && ~res < 1.0)
 
-  @loopbound(10)
-  def newtonDiv(x: Real, k: Int): Real = {
-    require(loopCounter(k) && -1.2 < x && x < 1.2 && -1.2 < ~x && ~x < 1.2)
+  def newtonDiv(x: Real, k: LoopCounter): Real = {
+    require(-1.2 < x && x < 1.2 && -1.2 < ~x && ~x < 1.2)
 
     if (k < 10) {
       newtonDiv(x - (x - (x°°3)/6.0 + (x°°5)/120.0 + (x°°7)/5040.0) / 
-        (1 - (x*x)/2.0 + (x°°4)/24.0 + (x°°6)/720.0), k + 1)
+        (1 - (x*x)/2.0 + (x°°4)/24.0 + (x°°6)/720.0), k++)
     } else {
       x
     }

@@ -1,15 +1,40 @@
 import leon.real._
 import RealOps._
-
+import annotations._
 
 object Testing {
 
-  def test(x: Real, y: Real): Real = {
+  @model
+  def nextItem: Real = { 
+    realValue
+  } ensuring (res => -1200 <= res && res <= 1200)// && res +/- 1e-8)
+
+  def mean(n: Int, m: Real): Real = {
+    // If no actual range is given, take the real one?!
+    require(-1200 <= m && m <= 1200 && 2 <= n && n <= 1000 &&
+      -1200.5 <= ~m && ~m <= 1200.5)
+
+    if (n < 999) {
+
+      val x = nextItem
+
+      val m_new = ((n - 1.0) * m + x) / n
+      mean(n + 1, m_new)
+      
+    } else {
+      m
+    }
+    
+  } ensuring (res => -1200.00 <= res && res <= 1200.00)
+
+
+  
+  /*def test(x: Real, y: Real): Real = {
     require(2 <= x && x <= 3 && 2 <= y && y <= 3 && x +/- 1e-5 && y +/- 1e-6)
 
     x * y
 
-  }
+  }*/
 
   /*def doppler1(u: Real, v: Real, T: Real): Real = {
     require(-100.0 <= u && u <= 100 && 20 <= v && v <= 20000 && -30 <= T && T <= 50)

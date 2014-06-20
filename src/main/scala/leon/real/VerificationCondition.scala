@@ -22,9 +22,10 @@ class VerificationCondition(val funDef: FunDef, val kind: VCKind.Value, val pre:
 
   val fncId = funDef.id.toString // not unique
 
-  val isLoop = kind == VCKind.LoopError
+  val isLoop = kind == VCKind.LoopError //old
 
   var updateFunctions: Seq[(Identifier, Expr)] = Seq.empty
+  var loopBound: Option[Int] = None
 
   // (lowerBnd, upperBnd) absError
   var spec: Map[Precision, Seq[Spec]] = precisions.map(p => (p, Seq())).toMap

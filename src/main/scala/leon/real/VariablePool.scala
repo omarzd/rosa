@@ -101,7 +101,7 @@ class VariablePool(val inputs: Map[Expr, Record], val resIds: Seq[Identifier],
     inputs.map(x => (x._1 -> RationalInterval(x._2.lo - x._2.absUncert.get, x._2.up + x._2.absUncert.get)))
   }
 
-  def hasValidInput(varDecl: Seq[ValDef], reporter: Reporter): Boolean = {
+  /*def hasValidInput(varDecl: Seq[ValDef], reporter: Reporter): Boolean = {
     //println("params: " + varDecl(0) + "   " + varDecl(1))
     val params: Seq[Expr] = varDecl.map(vd => Variable(vd.id))
     if (loopCounter.isEmpty) {
@@ -110,10 +110,10 @@ class VariablePool(val inputs: Map[Expr, Record], val resIds: Seq[Identifier],
       (inputs.size == params.size - 1 && inputs.forall(v => params.contains(v._1)))
     }
     
-  }
+  }*/
 
-  def inputsWithoutNoise: Seq[Expr] = {
-    inputs.filter(x => x._2.absUncert.isEmpty).keySet.toSeq
+  def inputsWithoutNoiseAndNoInt: Seq[Expr] = {
+    inputs.filter(x => x._2.absUncert.isEmpty && !integers.contains(x._2.idealId)).keySet.toSeq
   }
 
   def isLoopCounter(x: Expr): Boolean = (loopCounter, x) match {
@@ -151,7 +151,7 @@ class VariablePool(val inputs: Map[Expr, Record], val resIds: Seq[Identifier],
   }
 
 
-  override def toString: String = allVars.mkString("\n")
+  override def toString: String = allVars.mkString("\n") + "\nloopCounter: " + loopCounter +"\nints: " + integers
 }
 
 case class Record(idealId: Identifier, lo: Rational, up: Rational, absUncert: Option[Rational],
@@ -166,6 +166,8 @@ case class Record(idealId: Identifier, lo: Rational, up: Rational, absUncert: Op
   
   var loAct: Option[Rational] = None
   var upAct: Option[Rational] = None
+
+  var isInteger: Boolean = false
 
   //def initialError(precision: Precision)
 
@@ -184,6 +186,7 @@ class PartialRecord {
   var abs: Rational = null
   var rel: Rational = null
 
+  var isInteger: Boolean = false
 }
 
 object VariablePool {
@@ -199,26 +202,42 @@ object VariablePool {
     records(Variable(id))
   }
 
-  def apply(expr: Expr, returnType: TypeTree): VariablePool = {
-    val (records, loopC, int) = collectVariables(expr)
-    
-    val resIds = returnType match {
-      case TupleType(baseTypes) =>
-        baseTypes.zipWithIndex.map( {
-          case (baseType, i) => FreshIdentifier("result" + i, true).setType(baseType)
-          })
-
-      case _ =>
-        Seq(FreshIdentifier("result", true).setType(returnType))
+  // Only returns a VariablePool if the precondition is complete
+  def apply(expr: Expr, valDefs: Seq[ValDef], returnType: TypeTree): Option[VariablePool] = {
+    var (records, loopC, int) = collectVariables(expr)
+   
+    if (loopC.isEmpty) {
+      valDefs.find(vdef => vdef.fixedType == LoopCounterType) match {
+        case Some(loopCounter) => loopC = Some(loopCounter.toVariable.id)
+        case _ => ;
+      }
     }
 
-    new VariablePool(records, resIds, loopC, int)
+    val params: Seq[Expr] = valDefs.map(vd => Variable(vd.id))
+    if ((loopC.isEmpty && (records.forall(v => params.contains(v._1))) ) ||
+        (records.forall(v => params.contains(v._1)))) { 
+
+      val resIds = returnType match {
+        case TupleType(baseTypes) =>
+          baseTypes.zipWithIndex.map( {
+            case (baseType, i) => FreshIdentifier("result" + i, true).setType(baseType)
+            })
+
+        case _ =>
+          Seq(FreshIdentifier("result", true).setType(returnType))
+      }
+
+      Some(new VariablePool(records, resIds, loopC, int))
+    } else {
+      None
+    }
   }
 
+  
   def collectVariables(expr: Expr): (Map[Expr, Record], Option[Identifier], Seq[Identifier]) = {
     var recordMap = Map[Expr, PartialRecord]()
     var loopCounter: Option[Identifier] = None
-    var integer: Seq[Identifier] = Seq.empty
+    var integer: Set[Identifier] = Set.empty
 
     def getRecord(ideal: Variable): PartialRecord = {
       if (recordMap.contains(ideal)) {
@@ -304,6 +323,19 @@ object VariablePool {
         getRecord(x).loAct = value
         getRecord(x).upAct = value
 
+      // Ranges loop variables
+
+      case LessEquals(IntLiteral(lwrBnd), x @ Variable(id)) => // a <= x
+        getRecord(x).lo = Rational(lwrBnd)
+        getRecord(x).isInteger = true
+        integer = integer + id
+        loopCounter = Some(id)
+
+
+      case LessEquals(x @ Variable(id), IntLiteral(uprBnd)) => // x <= b
+        getRecord(x).up = Rational(uprBnd)
+        getRecord(x).isInteger = true
+        integer = integer  + id
 
       // Errors
         
@@ -323,13 +355,16 @@ object VariablePool {
       case WithIn(e, lwrBnd, upBnd) =>
         throw UnsupportedRealFragmentException(expr.toString)
 
+
+      // Loops
+
       case LoopCounter(id) =>
         if (loopCounter.isEmpty) loopCounter = Some(id)
         else {
           throw UnsupportedRealFragmentException("two loop counters are not allowed")
         }
 
-      case IntegerValue(id) => integer = integer :+ id
+      case IntegerValue(id) => integer = integer + id
 
       // TODO: add extraction for actual bounds
 
@@ -358,12 +393,15 @@ object VariablePool {
             }
           if (rec.loAct != null) newRecord.loAct = Some(rec.loAct)
           if (rec.upAct != null) newRecord.upAct = Some(rec.upAct)
+          newRecord.isInteger = rec.isInteger
 
           (k -> newRecord)
-      }) 
+      })
+
+    // TODO: check that we only have one loop counter 
 
 
-    (fullRecords, loopCounter, integer)
+    (fullRecords, loopCounter, integer.toSeq)
   }
 
 }

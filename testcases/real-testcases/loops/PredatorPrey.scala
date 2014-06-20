@@ -4,11 +4,12 @@ import annotations._
 
 object PredatorPrey {
 
-  @loopbound(5)
-  def eulerRec2(x: Real, y: Real, i: Int): (Real, Real) = {
-    require(loopCounter(i) && 0 <= x && x <= 90 && 0 <= y && y <= 70)
 
-    if (i < 100) {
+  def eulerRec2(x: Real, y: Real, i: LoopCounter): (Real, Real) = {
+    require(0 <= x && x <= 90 && 0 <= y && y <= 70 &&
+      0 <= ~x && ~x <= 90 && 0 <= ~y && ~y <= 70)
+
+    if (i < 5) {
       /*val r: Real = 1.6
       val k: Real = 125.0
       val a: Real = 3.2
@@ -19,7 +20,7 @@ object PredatorPrey {
       */
       val x1 = x + 0.1 * ( 1.6*x*(1.0 - x/125.0) - ((3.2*x*y)/(50.0 + x)) )
       val y1 = y + 0.1 * ( 0.6*((3.2*x*y)/(50.0 + x)) - 0.56*y )
-      eulerRec2(x1, y1, i + 1)
+      eulerRec2(x1, y1, i++)
     } else {
       (x, y)
     }
@@ -31,11 +32,11 @@ object PredatorPrey {
 
 
   // range bounds only hold for about 5 generations
-  @loopbound(5)
-  def eulerRec(x: Real, y: Real, i: Int): (Real, Real) = {
-    require(loopCounter(i) && 0 <= x && x <= 90 && 0 <= y && y <= 70)
+  def eulerRec(x: Real, y: Real, i: LoopCounter): (Real, Real) = {
+    require(0 <= x && x <= 90 && 0 <= y && y <= 70 &&
+      0 <= ~x && ~x <= 90 && 0 <= ~y && ~y <= 70)
 
-    if (i < 100) {
+    if (i < 5) {
       val r: Real = 1.6
       val k: Real = 125.0
       val a: Real = 3.2
@@ -46,7 +47,7 @@ object PredatorPrey {
 
       val x1 = x + dt * ( r*x*(1.0 - x/k) - ((a*x*y)/(c + x)) )
       val y1 = y + dt * ( b*((a*x*y)/(c + x)) - d*y )
-      eulerRec(x1, y1, i + 1)
+      eulerRec(x1, y1, i++)
     } else {
       (x, y)
     }
@@ -75,11 +76,12 @@ object PredatorPrey {
     case (a, b) => -10 <= a && a <= 10 && -10 <= b && b <= 10
   })*/
 
-  @loopbound(5)
-  def rk2Rec(x: Real, y: Real, i: Int): (Real, Real) = {
-    require(loopCounter(i) && 0 <= x && x <= 90 && 0 <= y && y <= 70)
+  
+  def rk2Rec(x: Real, y: Real, i: LoopCounter): (Real, Real) = {
+    require(0 <= x && x <= 90 && 0 <= y && y <= 70 &&
+      0 <= ~x && ~x <= 90 && 0 <= ~y && ~y <= 70)
 
-    if (i < 100) {
+    if (i < 5) {
       val r: Real = 1.6
       val k: Real = 125.0
       val a: Real = 3.2
@@ -96,7 +98,7 @@ object PredatorPrey {
 
       val x1 = x + (h/2.0)*(k1x + k2x)
       val y1 = y + (h/2.0)*(k1y + k2y)
-      rk2Rec(x1, y1, i + 1)
+      rk2Rec(x1, y1, i++)
     } else {
       (x, y)
     }
@@ -129,11 +131,11 @@ object PredatorPrey {
     case (a, b) => -10 <= a && a <= 10 && -10 <= b && b <= 10
   })*/
 
-  @loopbound(5)
-  def rk4Rec(x: Real, y: Real, i: Int): (Real, Real) = {
-    require(loopCounter(i) && 0 <= x && x <= 90 && 0 <= y && y <= 70)
+  def rk4Rec(x: Real, y: Real, i: LoopCounter): (Real, Real) = {
+    require(0 <= x && x <= 90 && 0 <= y && y <= 70 &&
+      0 <= ~x && ~x <= 90 && 0 <= ~y && ~y <= 70)
 
-    if (i < 100) {
+    if (i < 5) {
       val r: Real = 1.6
       val k: Real = 125.0
       val a: Real = 3.2
@@ -157,7 +159,7 @@ object PredatorPrey {
 
       val x1 = x + (h/6.0)*(k1x + 2.0*k2x + 2.0*k3x + k4x)
       val y1 = y + (h/6.0)*(k1y + 2.0*k2y + 2.0*k3y + k4y)
-      rk4Rec(x1, y1, i + 1)
+      rk4Rec(x1, y1, i++)
     } else {
       (x, y)
     }

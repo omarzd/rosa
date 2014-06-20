@@ -4,55 +4,55 @@ import annotations._
 
 object HarmonicOscillator {
 
-  // TODO: to make this more inductive, include some energy loss term
+  
 
   /**
     Potential energy: E = 0.5 ( m v^2 + k x^2)
     here: m = 1, k = 2.3, E_initial = 115 (for v=0, x=10)
   */
-  @loopbound(10)
-  def eulerRec(x: Real, v: Real, i: Int): (Real, Real) = {
-    require(loopCounter(i) && -10.0 <= x && x <= 10. && -10.0 <= v && v <= 10.0 &&
+  def eulerRec(x: Real, v: Real, i: LoopCounter): (Real, Real) = {
+    require(-10.0 <= x && x <= 10. && -10.0 <= v && v <= 10.0 &&
       -11.2 <= ~x && ~x <= 11.2 && -12.5 <= ~v && ~v <= 12.5)// &&
       //0.5*(v*v + 2.3*x*x) <= 115)
     
-    if (i < 100) {
-      eulerRec(x + 0.01 * v, v - 2.3 * 0.01 * x, i + 1)
+    if (i < 10) {
+      eulerRec(x + 0.01 * v, v - 2.3 * 0.01 * x, i++)
     } else {
       (x, v)
     }
   } ensuring (_ match {
-    // case (a, b) => -10 <= a && a <= 10 && -10 <= b && b <= 10  pointless, since not inductive
-    case (a, b) => a +/- 3e-14 && b +/- 3.4e-14
+    case (a, b) => -10 <= a && a <= 10 && -10 <= b && b <= 10// &&
+      //a +/- 3e-14 && b +/- 3.4e-14
   })
 
-  @loopbound(10)
-  def rk2Rec(x: Real, v: Real, i: Int): (Real, Real) = {
-    require(loopCounter(i) && -10.0 <= x && x <= 10.0 && -10.0 <= v && v <= 10.0)// &&
+  def rk2Rec(x: Real, v: Real, i: LoopCounter): (Real, Real) = {
+    require(-10.0 <= x && x <= 10.0 && -10.0 <= v && v <= 10.0 &&
+            -11.0 <= ~x && ~x <= 11.0 && -12.0 <= ~v && ~v <= 12.0)// &&
        //0.5*(v*v + 2.3*x*x) <= 115)
 
-    if (i < 100) {
+    if (i < 10) {
       val k: Real = 2.3
       val h: Real = 0.1
       
       val dx = h * (v + (-k*x*h/2))
       val dv = h * (-k)* (x + v*h/2)
 
-      rk2Rec(x + dx, v + dv, i + 1)
+      rk2Rec(x + dx, v + dv, i++)
     } else {
       (x, v)
     }
 
   } ensuring (_ match {
-    case (a, b) => -10 <= a && a <= 10 && -10 <= b && b <= 10   
+    case (a, b) => -10 <= a && a <= 10 && -10 <= b && b <= 10// &&
+      //a +/- 3e-14 && b +/- 3.4e-14
   }) 
 
-  @loopbound(10)
-  def rk4Rec(x: Real, v: Real, i: Int): (Real, Real) = {
-    require(loopCounter(i) && -10.0 <= x && x <= 10.0 && -10.0 <= v && v <= 10.0)// &&
+  def rk4Rec(x: Real, v: Real, i: LoopCounter): (Real, Real) = {
+    require(-10.0 <= x && x <= 10.0 && -10.0 <= v && v <= 10.0 &&
+          -11.0 <= ~x && ~x <= 11.0 && -12.0 <= ~v && ~v <= 12.0)// &&
       //0.5*(v*v + 2.3*x*x) <= 115)
  
-    if (i < 100) {
+    if (i < 10) {
 
       val k: Real = 2.3
       val h: Real = 0.1
@@ -72,14 +72,15 @@ object HarmonicOscillator {
       val x1 = x + h*(k1x + 2.0*k2x + 2*k3x + k4x)/6.0
       val v1 = v + h*(k1v + 2.0*k2v + 2*k3v + k4v)/6.0
 
-      rk4Rec(x1, v1, i + 1)
+      rk4Rec(x1, v1, i++)
 
     } else {
       (x, v)
     }
 
   } ensuring (_ match {
-    case (a, b) => -10 <= a && a <= 10 && -10 <= b && b <= 10   
+    case (a, b) => -10 <= a && a <= 10 && -10 <= b && b <= 10// &&
+      //a +/- 3e-14 && b +/- 3.4e-14
   })
 
   /*def eulerControl(x: Real, v: Real): (Real, Real) = {

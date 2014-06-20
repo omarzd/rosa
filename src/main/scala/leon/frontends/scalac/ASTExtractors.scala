@@ -634,12 +634,32 @@ trait ASTExtractors {
       }
     }
 
+    object ExImplicitInt2RealExpr {
+      def unapply(tree: Apply): Option[Tree] = tree match {
+        case Apply(select, List(arg))
+          if (select.toString == "leon.real.RealOps.int2real") =>
+          
+          Some(arg)
+        case _ => None
+      }
+    }
+
     object ExImplicitDouble2Real {
       def unapply(tree: Apply): Option[Double] = tree match {
         case Apply(select, List(Literal(c @ Constant(i))))
           if (select.toString == "leon.real.RealOps.double2real") =>
           assert(c.tpe == DoubleClass.tpe)
           Some(c.doubleValue)
+        case _ => None
+      }
+    }
+
+    object ExImplicitDouble2RealExpr {
+      def unapply(tree: Apply): Option[Tree] = tree match {
+        case Apply(select, List(arg))
+          if (select.toString == "leon.real.RealOps.double2real") =>
+          
+          Some(arg)
         case _ => None
       }
     }

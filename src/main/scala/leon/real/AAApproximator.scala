@@ -53,7 +53,7 @@ class AAApproximator(val reporter: Reporter, val solver: RangeSolver, precision:
     
     case Float32 | Float64 | DoubleDouble | QuadDouble =>
       if (actualRanges && exactInputs) {
-        variables2xfloatsActualExact(in.getValidInputRecords, config, machineEps)
+        variables2xfloatsActualExact(in.getValidInputRecords, config, precision)
 
       } else if (exactInputs) {
         // Only the method inputs are exact

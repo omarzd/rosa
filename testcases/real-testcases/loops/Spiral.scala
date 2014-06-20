@@ -12,7 +12,7 @@ object Spiral {
           x*x + y*y < 100)
     
     // then, this bound gives the upper bound on the # iterations
-    if (k < 5) {
+    if (k < 50) {
 
       val x1 = (9.9*x - y)/10
       val y1 = (9.9*y + x)/10

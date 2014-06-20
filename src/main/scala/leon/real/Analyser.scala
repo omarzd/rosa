@@ -53,24 +53,26 @@ object Analyser {
 
     val (validFncs, invalidInputs) = complete.map(
       funDef => {
-        val variables = VariablePool(funDef.precondition.get, funDef.returnType)
-        //println("variables: " + variables)
-        (funDef, variables)
-      }).partition( x => x._2.hasValidInput(x._1.params, reporter))
+        (funDef, VariablePool(funDef.precondition.get, funDef.params, funDef.returnType))
+      }).partition( x => x._2.nonEmpty)
     invalidInputs.foreach(x => reporter.warning(x._1.id.name + ": inputs incomplete, skipping!"))
 
-    for ((funDef, variables) <- validFncs) {
+    for ((funDef, Some(variables)) <- validFncs) {
       val preGiven = removeLoopCounterAndIntegerValue( funDef.precondition.get )
       debug ("precondition is acceptable")
       val allFncCalls = functionCallsOf(funDef.body.get).map(invc => invc.tfd.id.toString)
 
+      debug("variables: " + variables)
+
       // Add default roundoff on inputs
-      val precondition = And(preGiven, And(variables.inputsWithoutNoise.map(i => Roundoff(i))))
+      val precondition = And(preGiven, And(variables.inputsWithoutNoiseAndNoInt.map(i => Roundoff(i))))
       debug ("precondition: " + precondition)
 
       val resFresh = variables.resIds
       val body = letsToEquals(funDef.body.get)
       debug("body: " + body)
+
+
 
       if (containsIteration(body)) {
         (body, funDef.postcondition) match {
@@ -210,6 +212,7 @@ object Analyser {
     }
   }*/
 
+
   // TODO: ignoring body for now
   private def unroll(body: Seq[Expr], updates: Seq[UpdateFunction], max: Int, varMap: Map[Expr, Expr],
     unrolled: Seq[Expr], count: Int): Seq[Expr] = {
@@ -258,6 +261,14 @@ object Analyser {
       case _ => false
     }
 
+    def extractLoopBound(e: Expr): Int = e match {
+      case And(args) => extractLoopBound(args.head) // has to be the first statement
+      case LessThan(v @ Variable(id), IntLiteral(b)) => b
+      case _ =>
+        throw new Exception("Unknown loop format!")
+        0
+    }
+
     type C = Seq[Expr]
     val initC = Nil
 
@@ -286,18 +297,17 @@ object Analyser {
         val allFncCalls = functionCallsOf(pathToFncCall).map(invc => invc.tfd.id.toString)
         if (outerFunDef.id == funDef.id) {
           recursive = true
-          /*println(s"pathToFncCall: $pathToFncCall")
-          //println(s"arguments: $arguments")
-          val valMap = inlineBody(pathToFncCall)
-          println("valMap: " + valMap)
-          println("arguments: " + arguments)
-          val updateFncs = arguments.filter(x => !variables.isLoopCounter(x._1) ).map {
-            case (k, v) => UpdateFunction(k, valMap(v))
-          }*/
-          //println(updateFncs)
-          //(LoopInvariant, updateFncs)
+
+          val lowerLoopBound: Int = variables.inputs.get(Variable(variables.loopCounter.get)) match {
+            case Some(rec) => rec.lo.toInt
+            case None => 0
+          }
+          val loopBound = Some(extractLoopBound(pathToFncCall) - lowerLoopBound)
+          //println("loopBound: " + loopBound)
           
           val (constrs, computation) = getClauses(pathToFncCall).partition(x => isConstraint(x))
+          //println("pathToFncCall: " + pathToFncCall)
+          //println("computation: " + computation)
           
           val vc = new VerificationCondition(outerFunDef, LoopInvariant, And(precondition, And(constrs)),
            And(computation), toProve, allFncCalls, variables, precisions)
@@ -306,6 +316,9 @@ object Analyser {
             !variables.isInteger(x._1)).map({
               case (Variable(id), upfnc) => (id, upfnc)
               }).toSeq
+          //println("updateFunctions: " + vc.updateFunctions)
+
+          vc.loopBound = loopBound
 
           vcs :+= vc
         } else {
@@ -314,9 +327,6 @@ object Analyser {
           vcs :+= new VerificationCondition(outerFunDef, Precondition, precondition, pathToFncCall, toProve,
             allFncCalls, variables, precisions)
         }
-
-         
-        
 
         e
 

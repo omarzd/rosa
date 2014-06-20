@@ -85,7 +85,7 @@ class RangeSolver(timeout: Long) {
   }
   
   private def prepareSorts: Unit = {
-    intSort = z3.mkIntSort
+    intSort = z3.mkRealSort
     boolSort = z3.mkBoolSort
     realSort = z3.mkRealSort
   }
@@ -95,6 +95,7 @@ class RangeSolver(timeout: Long) {
     case Int32Type => intSort
     case BooleanType => boolSort
     case RealType => realSort
+    case LoopCounterType => intSort
     // there is a good bit missing here that we shouldn't need
 
     case other => fallbackSorts.get(other) match {

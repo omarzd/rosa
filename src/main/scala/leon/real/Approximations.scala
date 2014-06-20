@@ -7,9 +7,9 @@ import purescala.Common._
 import purescala.Trees._
 import purescala.Definitions._
 import purescala.TreeOps._
-import purescala.TypeTrees.{Int32Type, RealType, TupleType}
+import purescala.TypeTrees.{Int32Type, RealType, TupleType, LoopCounterType}
 
-import real.Trees.{Noise, Roundoff, Actual, UpdateFunction, Iteration, RealLiteral, FncValue, FncBody}
+import real.Trees._
 import real.TreeOps._
 import Rational._
 import Calculus._
@@ -54,10 +54,10 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
     else kinds = kinds.filter(_.fncHandling != Uninterpreted)
   }
 
-
   // Note: only supports function calls in fnc bodies, not in pre and post
   def getApproximation(kind: ApproxKind, precision: Precision, postMap: Map[FunDef, Seq[Spec]]): Approximation = {
     reporter.debug("getting approximation: " + kind)
+
     leonToZ3 = new LeonToZ3Transformer(vc.variables, precision)
 
     def isFeasible(pre: Expr): Boolean = {
@@ -314,16 +314,20 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
 
       val actualRanges: Map[Expr, RationalInterval] = vc.variables.inputs.map({
         case (v @ Variable(_), rec @ Record(idealId, _, _, _, _, _)) =>
-          if (rec.loAct.isEmpty || rec.upAct.isEmpty) {
+
+          if (vc.variables.integers.contains(idealId)) {
+            (Variable(idealId), RationalInterval(rec.lo, rec.up))
+          } else if (rec.loAct.isEmpty || rec.upAct.isEmpty) {
             throw new Exception("Loop error computation needs actual ranges!")
           } else {
             (Variable(idealId), RationalInterval(rec.loAct.get, rec.upAct.get))
           }
+        
         })
 
       // Roundoff errors have to be computed over the entire actual range,
       // and inputs are exact
-      println("path condition: " + path.condition)
+      //println("path condition: " + path.condition)
       val actualRangesPrecondition = rangeConstraintFromIntervals(actualRanges)
       val (_, sigmas)  = approximatorNew.approximateUpdateFncs(body,
         And(actualRangesPrecondition, path.condition), vc.variables,
@@ -332,7 +336,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
         updateFncs.map(fnc => idealToActual(fnc, vc.variables)))
 
       
-      println("actualRanges: " + actualRanges)
+      //println("actualRanges: " + actualRanges)
 
       val lipschitzCnst = getLipschitzMatrix(path.bodyReal, ids, updateFncs, actualRanges, preReal, precision)
       
@@ -342,7 +346,15 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
           // very initial errors
           vc.variables.inputs.map({ case (_, rec) => (rec.idealId, approxs(rec.actualExpr).maxError)}),
            lipschitzCnst)
-        case None => Seq()
+
+        case None => vc.loopBound match {
+          case Some(n) => computeErrorFromLoopBound(ids, sigmas, n,
+          //approxs.map({ case (v @ Variable(id), xr) => (vc.variables.getIdeal(v), xr.maxError)}), lipschitzCnst)
+          // very initial errors
+          vc.variables.inputs.map({ case (_, rec) => (rec.idealId, approxs(rec.actualExpr).maxError)}),
+           lipschitzCnst)
+          case None =>  Seq()
+        }
       }
       
                 
@@ -417,12 +429,17 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
 
   private def removeLoopCounterUpdate(e: Expr): Expr = {
     preMap {
-      case Equals(tmp, Plus(c, IntLiteral(1))) => Some(True)
-      case Equals(tmp, Minus(c, IntLiteral(1))) => Some(True)
+      case Equals(tmp, Plus(c, IntLiteral(1))) => Some(Equals(tmp, PlusR(c, RealLiteral(Rational(1)))))
+      //case Equals(tmp, Minus(c, IntLiteral(1))) => Some(True)
       case LessEquals(l, r) if (l.getType == Int32Type && r.getType == Int32Type) => Some(True)
       case LessThan(l, r) if (l.getType == Int32Type && r.getType == Int32Type) => Some(True)
       case GreaterEquals(l, r) if (l.getType == Int32Type && r.getType == Int32Type) => Some(True)
       case GreaterThan(l, r) if (l.getType == Int32Type && r.getType == Int32Type) => Some(True)
+
+      case Equals(tmp, PlusR(lc, IntLiteral(1))) if (lc.getType == LoopCounterType) => Some(True)
+      //case Equals(tmp, PlusR(lc, IntLiteral(1))) if (lc.getType == Int32Type) => Some(True)
+      //case LessThan(l, r) if (l.getType == LoopCounterType && r.getType == Int32Type) => Some(True)
+
       case _ => None
     }(e)
   }
@@ -445,6 +462,11 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
 
     case GreaterThan(Variable(id), RealLiteral(_)) if (vc.variables.integers.contains(id)) => true
     case GreaterThan(RealLiteral(_), Variable(id)) if (vc.variables.integers.contains(id)) => true
+
+    //case LessEquals(l, r) if(l.getType == LoopCounterType && r.getType == Int32Type) => true
+    case LessThan(l, r) if(l.getType == LoopCounterType && r.getType == Int32Type) => true 
+    //case GreaterEquals(l, r) if(l.getType == Int32Type && r.getType == Int32Type) => true
+    //case GreaterThan(l, r) if(l.getType == Int32Type && r.getType == Int32Type) => true 
 
     case _ =>
       println("other")

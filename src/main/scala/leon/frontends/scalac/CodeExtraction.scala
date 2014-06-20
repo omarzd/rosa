@@ -1013,8 +1013,10 @@ trait CodeExtraction extends ASTExtractors {
         case ExFloat64Literal(v) => new RealLiteral(v)
           
         case ExImplicitDouble2Real(dbl) => new RealLiteral(dbl)
+        case ExImplicitDouble2RealExpr(dbl) => extractTree(dbl)
         
         case ExImplicitInt2Real(i) => new RealLiteral(i)
+        case ExImplicitInt2RealExpr(tr) => extractTree(tr)
         case ExImplicitDouble2RealVar(sym,tpt) => 
         dctx.vars.get(sym) match {
           case Some(fun) => fun()

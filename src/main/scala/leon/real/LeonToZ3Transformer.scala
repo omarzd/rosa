@@ -216,6 +216,8 @@ class LeonToZ3Transformer(variables: VariablePool, precision: Precision) extends
         throw new Exception("found integer arithmetic in LeonToZ3Transformer")
         null
 
+      case LessThan(x, IntLiteral(i)) if (x.getType == LoopCounterType) => True
+
       case _ =>
         super.rec(e, path)
     }
