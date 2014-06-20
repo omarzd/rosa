@@ -157,10 +157,16 @@ case class Record(idealId: Identifier, lo: Rational, up: Rational, absUncert: Op
 
   var isInteger: Boolean = false
 
-  //def initialError(precision: Precision)
+  // initial errors specified in the case of loops
+  var initialError: Option[Rational] = None
 
-  override def toString: String =
-    s"($idealId, $actualId)[$lo, $up] +/- $absUncert ~[$loAct, $upAct]"
+  override def toString: String = initialError match {
+    case Some(in) => 
+      s"($idealId, $actualId)[$lo, $up] +/- $absUncert (initial: $initialError) ~[$loAct, $upAct]"
+    case None =>
+      s"($idealId, $actualId)[$lo, $up] +/- $absUncert ~[$loAct, $upAct]"
+  }
+    
 }
 
 class PartialRecord {
@@ -173,6 +179,8 @@ class PartialRecord {
   var upAct: Rational = null
   var abs: Rational = null
   var rel: Rational = null
+
+  var initialError: Option[Rational] = None
 
   var isInteger: Boolean = false
 }
@@ -237,6 +245,13 @@ object VariablePool {
         rec
       }
 
+    }
+
+    def addInitialErrors(e: Expr): Unit = e match {
+      case And(args) => args.foreach(arg => addInitialErrors(arg))
+
+      case Noise(x @ Variable(_), RealLiteral(value)) =>
+        getRecord(x).initialError = Some(value)
     }
 
 
@@ -347,6 +362,9 @@ object VariablePool {
 
       // Loops
 
+      case InitialErrors(tr) => addInitialErrors(tr)
+
+
       /*case LoopCounter(id) =>
         if (loopCounter.isEmpty) loopCounter = Some(id)
         else {
@@ -383,6 +401,7 @@ object VariablePool {
           if (rec.loAct != null) newRecord.loAct = Some(rec.loAct)
           if (rec.upAct != null) newRecord.upAct = Some(rec.upAct)
           newRecord.isInteger = rec.isInteger
+          newRecord.initialError = rec.initialError
 
           (k -> newRecord)
       })

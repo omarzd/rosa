@@ -11,7 +11,7 @@ import purescala.TreeOps.replace
 import purescala.TreeOps.functionCallsOf
 import purescala.TransformerWithPC
 
-import real.Trees.{Roundoff, Iteration, UpdateFunction, Assertion}
+import real.Trees.{Roundoff, Iteration, UpdateFunction, Assertion, InitialErrors}
 import real.TreeOps._
 import real.VariableShop._
 import purescala.TreeOps._
@@ -58,7 +58,7 @@ object Analyser {
     invalidInputs.foreach(x => reporter.warning(x._1.id.name + ": inputs incomplete, skipping!"))
 
     for ((funDef, Some(variables)) <- validFncs) {
-      val preGiven = funDef.precondition.get
+      val preGiven = removeInitialErrors( funDef.precondition.get )
       debug ("precondition is acceptable")
       val allFncCalls = functionCallsOf(funDef.body.get).map(invc => invc.tfd.id.toString)
 
@@ -72,78 +72,6 @@ object Analyser {
       val body = letsToEquals(funDef.body.get)
       debug("body: " + body)
 
-
-
-      if (containsIteration(body)) {
-        (body, funDef.postcondition) match {
-          case (Iteration(ids, lb, upFncs), Some((resId, postExpr))) =>
-            
-            val loopInv = simplifyConstraint(And(preGiven, extractPostCondition(resId, postExpr, ids)))
-            
-            debug (s"loopInv: $loopInv")
-            
-            val loopInvAfterLoop = replace(ids.zip(resFresh).map({ 
-                case (id, r) => (Variable(id) -> Variable(r))
-              }).toMap, loopInv)
-            debug (s"loopInvAfterLoop: $loopInvAfterLoop")
-            
-            /*val updates = resFresh.zip(upFncs).map({
-              case (res, UpdateFunction(Variable(id), rhs)) =>
-                Equals(Variable(res), rhs)
-              })*/
-            val update = if (upFncs.length > 1) {
-              Tuple(upFncs.map(uf => uf.asInstanceOf[UpdateFunction].rhs))  
-            } else {
-              upFncs.head.asInstanceOf[UpdateFunction].rhs
-            }
-
-            
-              
-            val loopBody = And(Seq(lb) :+ update)
-            debug (s"loopBody: $loopBody")
-
-            val vc = new VerificationCondition(funDef, LoopIteration, loopInv, loopBody, loopInvAfterLoop,
-              allFncCalls, variables, precisions)
-
-            //println("\nfinal VC: \n" + vc.longString)
-
-            val vcError = new VerificationCondition(funDef, LoopError, preGiven, body, False,
-              allFncCalls, variables, precisions)
-            //println("\nfinal VC error \n" + vcError.longString)
-
-            vcs ++= Seq(vc, vcError)
-            // TODO: include recursive functions in overall functions
-            //fncs += ((funDef -> Fnc() ))
-
-            println("funDef.loopBound: " + funDef.loopBound)
-
-            if (funDef.loopBound.nonEmpty) {
-              if (lb == True) {
-                val varMap: Map[Expr, Expr] = ids.map(i => (Variable(i), Variable(i))).toMap
-                val unrolledBody = unroll(Seq.empty, upFncs.asInstanceOf[Seq[UpdateFunction]], funDef.loopBound.get, varMap, Seq.empty, 1)
-                println("unrolledBody: " + unrolledBody.mkString("\n"))
-
-                // TODO: need to add roundoff to precondition?
-
-                funDef.postcondition match {
-                  case Some((resId, postExpr)) =>
-                    val postcondition = extractPostCondition(resId, postExpr, resFresh)
-                    
-                    val vcUnrolled = new VerificationCondition(funDef, LoopUnroll, preGiven, And(unrolledBody),
-                      postcondition, allFncCalls, variables, precisions)
-                    vcs :+= vcUnrolled
-                }
-              } else {
-                reporter.warning("cannot unroll iteration with body (yet)")
-              }
-            }
-
-          // Error computation only
-          case (_, None) =>
-            // TODO
-
-        }  
-      } else {
       funDef.postcondition match {
          //Option[(Identifier, Expr)]
          // TODO: invariants
@@ -173,12 +101,19 @@ object Analyser {
 
           vcs ++= Seq(vcBody)
           fncs += ((funDef -> Fnc(precondition, body, True)))
-      }}
+      }
     }
     val sorted = vcs.sortWith((vc1, vc2) => lt(vc1, vc2))
     reporter.debug("VCs:")
     sorted.foreach(vc => reporter.debug(vc.longString))
     (sorted, fncs)
+  }
+
+  def removeInitialErrors(e: Expr): Expr = {
+    preMap {
+      case InitialErrors(_) => Some(True)
+      case _ => None
+    }(e)
   }
 
   // can return several, as we may have an if-statement
@@ -283,7 +218,7 @@ object Analyser {
         
         val arguments: Map[Expr, Expr] = funDef.params.map(decl => decl.toVariable).zip(simpleArgs).toMap
         
-        val toProve = replace(arguments, removeRoundoff(funDef.precondition.get) )
+        val toProve = replace(arguments, removeInitialErrors(removeRoundoff(funDef.precondition.get)) )
         
 
         val allFncCalls = functionCallsOf(pathToFncCall).map(invc => invc.tfd.id.toString)

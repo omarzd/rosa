@@ -212,9 +212,6 @@ object Definitions {
     }
     def annotations : Set[String] = annots
 
-    // maximum loop bound for real loops
-    var loopBound: Option[Int] = None
-
     def isPrivate : Boolean = annots.contains("private")
 
     def typed(tps: Seq[TypeTree]) = {

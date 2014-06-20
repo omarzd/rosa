@@ -112,106 +112,87 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
     }
     reporter.debug("after PATH handling:\nbody: %s".format(paths.mkString("\n")))
 
-    if (vc.isLoop) {
-      reporter.debug("vc is a loop")
-      /*var constraints = Seq[Constraint]()
+    
+    kind.arithmApprox match {
+      case NoApprox =>
+        var constraints = Seq[Constraint]()
+        for (path <- paths) {
+          constraints :+= Constraint(And(precondition, path.condition), path.bodyReal, path.bodyFinite, postcondition)
+        }
+        Approximation(kind, constraints, Seq())
+        
+      case JustFloat =>
+        var constraints = Seq[Constraint]()
+        var specsPerPath = Seq[SpecTuple]()
+        var spec: SpecTuple = Seq() // seq since we can have tuples
 
-      body match {
-        case Iteration(ids, body, updateFncs) =>
-          val inlinedUpdateFns = inlineBodyForUpdateFncs(body, updateFncs.asInstanceOf[Seq[UpdateFunction]])
-          reporter.debug("inlined fncs: " + inlinedUpdateFns)
+        // do not filter paths according to feasibility here
+        // TODO: path error with tuples
+        val lipschitzPathError: Rational =
+          if (options.lipschitzPathError) {
+            val res = getLipschitzPathError(paths.toSeq, precision)
+            reporter.info("--> lipschitzPathError: " + res)
+            res
+          }    
+          else zero
+        
 
-          if (options.lipschitz) {
-            val errors = getLoopError(preReal, inlinedUpdateFns, ids, precision)
+        for ( path <- paths if (isFeasible(And(precondition, path.condition))) ) {
+          reporter.debug("Computing approximation for path ...")
+          //solver.clearCounts          
+          if (vc.kind == VCKind.Precondition) {
+            val bodyApprox = getApproximationAndSpec_AllVars(path, precision)
+            reporter.debug("body approx: " + bodyApprox)    
+            constraints :+= Constraint(And(precondition, path.condition), path.bodyReal, bodyApprox,
+              postcondition)
+
+          } else if(vc.kind == VCKind.LoopInvariant) {
+            val bodyApprox = getApproximationAndSpec_LoopInv(path, precision, preReal)
+            reporter.debug("body approx: " + bodyApprox)    
+            constraints :+= Constraint(And(precondition, path.condition), path.bodyReal, bodyApprox,
+              postcondition)
+
+          } else {
+            
+            val (bodyApprox, nextSpecs) = getApproximationAndSpec_ResultOnly(path, precision,
+              lipschitzPathError, preReal)
+            reporter.debug("body approx: " + bodyApprox)
+            
+            //println("specs: " + nextSpecs)
+            spec = mergeSpecs(spec, nextSpecs) //TODO do at the end?
+            //println("merged: " + spec)
+            specsPerPath :+= nextSpecs
+            constraints :+= Constraint(And(precondition, path.condition), path.bodyReal, bodyApprox, postcondition)
+            
           }
-        case _ => reporter.error("cannot handle anything but a simple loop for now...")
-      }
-
-      Approximation(kind, constraints, emptySpecTuple)
-      */
-      // TODO: remove or fix
-      null
-    } else {
-      kind.arithmApprox match {
-        case NoApprox =>
-          var constraints = Seq[Constraint]()
-          for (path <- paths) {
-            constraints :+= Constraint(And(precondition, path.condition), path.bodyReal, path.bodyFinite, postcondition)
-          }
-          Approximation(kind, constraints, Seq())
-          
-        case JustFloat =>
-          var constraints = Seq[Constraint]()
-          var specsPerPath = Seq[SpecTuple]()
-          var spec: SpecTuple = Seq() // seq since we can have tuples
-
-          // do not filter paths according to feasibility here
-          // TODO: path error with tuples
-          val lipschitzPathError: Rational =
-            if (options.lipschitzPathError) {
-              val res = getLipschitzPathError(paths.toSeq, precision)
-              reporter.info("--> lipschitzPathError: " + res)
-              res
-            }    
-            else zero
-          
-
-          for ( path <- paths if (isFeasible(And(precondition, path.condition))) ) {
-            reporter.debug("Computing approximation for path ...")
-            //solver.clearCounts          
-            if (vc.kind == VCKind.Precondition) {
-              val bodyApprox = getApproximationAndSpec_AllVars(path, precision)
-              reporter.debug("body approx: " + bodyApprox)    
-              constraints :+= Constraint(And(precondition, path.condition), path.bodyReal, bodyApprox,
-                postcondition)
-
-            } else if(vc.kind == VCKind.LoopInvariant) {
-              val bodyApprox = getApproximationAndSpec_LoopInv(path, precision, preReal)
-              reporter.debug("body approx: " + bodyApprox)    
-              constraints :+= Constraint(And(precondition, path.condition), path.bodyReal, bodyApprox,
-                postcondition)
-
-            } else {
-              
-              val (bodyApprox, nextSpecs) = getApproximationAndSpec_ResultOnly(path, precision,
-                lipschitzPathError, preReal)
-              reporter.debug("body approx: " + bodyApprox)
-              
-              //println("specs: " + nextSpecs)
-              spec = mergeSpecs(spec, nextSpecs) //TODO do at the end?
-              //println("merged: " + spec)
-              specsPerPath :+= nextSpecs
-              constraints :+= Constraint(And(precondition, path.condition), path.bodyReal, bodyApprox, postcondition)
-              
-            }
-          }
-          spec = spec.map(s => s.addPathError(lipschitzPathError))
+        }
+        spec = spec.map(s => s.addPathError(lipschitzPathError))
 
 
-          val approx = Approximation(kind, constraints, spec)
-          vc.approximations += (precision -> (vc.approximations(precision) :+ approx))
-          approx.specsPerPath = specsPerPath
-          approx
+        val approx = Approximation(kind, constraints, spec)
+        vc.approximations += (precision -> (vc.approximations(precision) :+ approx))
+        approx.specsPerPath = specsPerPath
+        approx
 
-        case FloatNRange => // assumes that a JustFloat approximation has already been computed
-          val justFloatApprox = vc.approximations(precision).find(a =>
-            a.kind.fncHandling == kind.fncHandling && a.kind.pathHandling == kind.pathHandling && a.kind.arithmApprox == JustFloat
-            )
+      case FloatNRange => // assumes that a JustFloat approximation has already been computed
+        val justFloatApprox = vc.approximations(precision).find(a =>
+          a.kind.fncHandling == kind.fncHandling && a.kind.pathHandling == kind.pathHandling && a.kind.arithmApprox == JustFloat
+          )
 
-          justFloatApprox match {
-            case Some(approx) =>
-              val newConstraints =
-                for (
-                  (cnstr, specs) <- approx.constraints.zip(approx.specsPerPath)
-                ) yield
-                  Constraint(cnstr.precondition, And(specs.map(_.toRealExpr)), cnstr.finiteComp, cnstr.postcondition)
-              Approximation(kind, newConstraints, approx.spec)
-            case None =>
-              throw new RealArithmeticException("Cannot compute Float'n'Range approximation because JustFloat approximation is missing.")
-              null
-          }
-      }
+        justFloatApprox match {
+          case Some(approx) =>
+            val newConstraints =
+              for (
+                (cnstr, specs) <- approx.constraints.zip(approx.specsPerPath)
+              ) yield
+                Constraint(cnstr.precondition, And(specs.map(_.toRealExpr)), cnstr.finiteComp, cnstr.postcondition)
+            Approximation(kind, newConstraints, approx.spec)
+          case None =>
+            throw new RealArithmeticException("Cannot compute Float'n'Range approximation because JustFloat approximation is missing.")
+            null
+        }
     }
+
   }
   
   /*
@@ -299,7 +280,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
       //println("new:     " + approxNew)
       //println((System.currentTimeMillis - start) + "ms")
 
-      reporter.info("solver counts: " + solver.getCounts)
+      reporter.info("solver counts for loop invariant: " + solver.getCounts)
       
       val constraint = And(approxs.foldLeft(Seq[Expr]())(
           (seq, kv) => seq ++ Seq(LessEquals(RealLiteral(kv._2.interval.xlo), kv._1),
@@ -340,33 +321,29 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
 
       val lipschitzCnst = getLipschitzMatrix(path.bodyReal, ids, updateFncs, actualRanges, preReal, precision)
       
-      val err = vc.funDef.loopBound match {
-        case Some(n) => computeErrorFromLoopBound(ids, sigmas, n,
-          //approxs.map({ case (v @ Variable(id), xr) => (vc.variables.getIdeal(v), xr.maxError)}), lipschitzCnst)
-          // very initial errors
-          vc.variables.inputs.map({ case (_, rec) => (rec.idealId, approxs(rec.actualExpr).maxError)}),
-           lipschitzCnst)
 
-        case None => vc.loopBound match {
-          case Some(n) => computeErrorFromLoopBound(ids, sigmas, n,
-          //approxs.map({ case (v @ Variable(id), xr) => (vc.variables.getIdeal(v), xr.maxError)}), lipschitzCnst)
-          // very initial errors
-          vc.variables.inputs.map({ case (_, rec) => (rec.idealId, approxs(rec.actualExpr).maxError)}),
-           lipschitzCnst)
-          case None =>  Seq()
-        }
+      val initialErrors = vc.variables.inputs.map({
+        case (_, rec) =>
+          if (rec.initialError.isEmpty) (rec.idealId, approxs(rec.actualExpr).maxError)
+          else (rec.idealId, rec.initialError.get)
+      })
+
+      // TODO: use this, at least for documentation purposes!
+      val err = vc.loopBound match {
+        case Some(n) => computeErrorFromLoopBound(ids, sigmas, n, initialErrors, lipschitzCnst)
+        case None =>  Seq()
       }
       
                 
 
-      if(vc.funDef.loopBound.nonEmpty && options.loopUnrolling) { //if (options.loopUnrolling) {
+      if(vc.loopBound.nonEmpty && options.loopUnrolling) { //if (options.loopUnrolling) {
         val valMap = getValMapForInlining(path.bodyReal)
         val inlinedUp = vc.updateFunctions.map({
           case (id, e) => UpdateFunction(Variable(id), replace(valMap, e))
           })
         println("inlined update functions: " + inlinedUp)
         val initialVarMap: Map[Expr, Expr] = ids.map(i => (Variable(i), Variable(i))).toMap
-        val unrolledLoop = unroll(inlinedUp, vc.funDef.loopBound.get, initialVarMap, Seq(), 1)
+        val unrolledLoop = unroll(inlinedUp, vc.loopBound.get, initialVarMap, Seq(), 1)
         println("unrolledLoop: " + unrolledLoop.mkString("\n"))
         val unrolledResult = approximatorNew.approximate(idealToActual(And(unrolledLoop), vc.variables),
           And(vc.pre, path.condition), vc.variables, exactInputs = false)

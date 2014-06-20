@@ -399,17 +399,6 @@ trait CodeExtraction extends ASTExtractors {
 
       fd.addAnnotation(annotationsOf(sym).toSeq : _*)
 
-      // extract real annotation which has a parameter
-      for(a <- sym.annotations) {
-        val name = a.atp.safeToString
-        if (name.startsWith("leon.real.annotations.") && name.split("\\.")(3) == "loopbound") {
-          a.args(0) match {
-            case Literal(Constant(i: Int)) =>
-              fd.loopBound = Some(i)
-          }
-        }
-      }
-
       defsToDefs += sym -> fd
 
       fd
@@ -1063,6 +1052,9 @@ trait CodeExtraction extends ASTExtractors {
             }
         case ExActual(e) => Actual(extractTree(e))
         case ExAssertion(e) => Assertion(extractTree(e))
+        
+        case ExInitialErrors(e) => InitialErrors(extractTree(e))
+
         case ExElementOf(v, tpl) =>
           val rv = extractTree(v)
           val tuple = extractTree(tpl)

@@ -557,7 +557,21 @@ object Trees {
       printer.pp(rhs, Some(this))
       printer.append(")")
     }
-  } 
+  }
+
+  case class InitialErrors(expr: Expr) extends Expr with FixedType with UnaryExtractable with PrettyPrintable {
+    val fixedType = BooleanType
+
+    def extract: Option[(Expr, (Expr)=>Expr)] = {
+      Some((expr, InitialErrors(_)))
+    }
+
+    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
+      printer.append("initialErrors(")
+      printer.pp(expr, Some(this))
+      printer.append(")")
+    }
+  }
 
   case class Iteration(ids: Seq[Identifier], body: Expr, updateFncs: Seq[Expr]) extends Expr with FixedType with NAryExtractable with PrettyPrintable {
     val fixedType = TupleType(ids.map(i => RealType))

@@ -711,6 +711,13 @@ trait ASTExtractors {
       }
     }
 
+    object ExInitialErrors {
+      def unapply(tree: Apply): Option[Tree] = tree match {
+        case Apply(select, List(arg)) if (select.toString == "leon.real.RealOps.initialErrors") => Some(arg)
+        case _ => None
+      }
+    }
+
     object ExElementOf {
       def unapply(tree: Apply): Option[(Tree, Tree)] = tree match {
         case Apply(Select(lhs, n), List(arg)) if (n.toString == "$u2208") =>

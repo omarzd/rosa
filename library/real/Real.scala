@@ -24,6 +24,9 @@ object RealOps {
     @proxy
     def sqrt(x: Real): Real = ???
 
+    @proxy
+    def initialErrors(x: Boolean): Boolean = ???
+
     @ignore
     def iterate(x: Real)(updateFnc: Boolean): Real = ???
 
