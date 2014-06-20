@@ -69,7 +69,7 @@ object XFloat {
 
   def variables2xfloatsActualExact(vars: Iterable[Record], config: XConfig, precision: Precision): Map[Expr, XFloat] = {
     var variableMap: Map[Expr, XFloat] = Map.empty
-    println("actual xfloats")
+    //println("actual xfloats")
     for(rec <- vars) {
       rec match {
         case Record(id, lo, up, _, aId, _) if rec.isInteger =>

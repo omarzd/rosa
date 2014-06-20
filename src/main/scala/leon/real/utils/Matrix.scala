@@ -3,8 +3,12 @@
 package leon
 package real
 
+import ceres.common.DirectedRounding.{multUp}
+
 import purescala.Trees.{Expr}
 import Rational._
+
+
 
 object EMatrix {
   // sequence of rows
@@ -16,13 +20,12 @@ object EMatrix {
 
 // square matrix
 trait Matrix[T] {
-  val data: Seq[Seq[T]]
-  def apply(i: Int, j: Int) = data(i)(j)
+  val rows: Seq[Seq[T]]
+  def apply(i: Int, j: Int) = rows(i)(j)
 
   override def toString: String = {
-    "\n" + data.map(d => d.mkString(" | ")).mkString("\n")
+    "\n" + rows.map(d => d.mkString(" | ")).mkString("\n")
   }
-
 
 }
 
@@ -39,19 +42,91 @@ object RMatrix {
   def apply(ints: Seq[Seq[Int]]): RMatrix = {
     RMatrix(ints(0).length, ints.map(row => row.map(e => Rational(e))))
   }
+
+  def power(m: RMatrix, n: Int): RMatrix = {
+    assert(n >= 0)
+    if (n == 0) RMatrix.identity(m.dim)
+    else if (n == 1) m
+    else if (n % 2 == 0) power(m*m, n / 2)
+    else m * power(m*m, (n-1)/2)
+  }
+
+  def powerWithDoubles(m: RMatrix, num: Int): RMatrix = {
+    assert(num >= 0)
+
+    def powerBySquare(m: DMatrix, n: Int): DMatrix = {
+      if (n == 0) DMatrix.identity(m.dim)
+      else if (n == 1) m
+      else if (n % 2 == 0) powerBySquare(m*m, n / 2)
+      else m * powerBySquare(m*m, (n-1)/2)
+    }
+
+    powerBySquare(m.toDouble, num).toRationals
+  }
+
+  /*Function exp-by-squaring(x,n)
+     if n<0 then return exp-by-squaring(1/x, -n);
+     else if n=0 then return 1;
+     else if n=1 then return x;
+     else if n is even then return exp-by-squaring(x2, n/2);
+     else if n is odd then return x * exp-by-squaring(x2, (n-1)/2).
+  */
 }
 
-case class RMatrix (dim: Int, val data: Seq[Seq[Rational]]) extends Matrix[Rational] {
+object DMatrix {
+  def identity(dim: Int): DMatrix = {
+    val dta = Array.fill(dim, dim)(0.0)
+    for(i <- 0 until dim) {
+      dta(i)(i) = 1.0
+    }
+    DMatrix(dim, dta.map(r => r.toSeq).toSeq)
+  }
+}
+
+case class DMatrix (val dim: Int, val rows: Seq[Seq[Double]]) extends Matrix[Double] {
+
+  def *(y: DMatrix): DMatrix = {
+    DMatrix(dim, rows.map({ arow =>
+      y.columns.map({ bcoln =>
+         arow.zip(bcoln).foldLeft(0.0)({
+          case (sum, (a, b)) => sum + multUp(a, b)
+          })
+        })
+    }))
+  }
+
+  private def columns: Seq[Seq[Double]] = {
+    val firstRow = rows(0)
+
+    firstRow.zipWithIndex.map({
+      case (row, i) =>
+        rows.map(r => r(i))
+    })
+
+  }
+
+  def toRationals: RMatrix = {
+    RMatrix(dim, rows.map({ arow =>
+      arow.map( entry => Rational(entry))
+    }))
+  }
+
+}
+
+case class RMatrix (val dim: Int, val rows: Seq[Seq[Rational]]) extends Matrix[Rational] {
   //assert(data.length == dim)
-  assert(data.forall(d => d.length == dim))
+  assert(rows.forall(d => d.length == dim))
 
-  def isIdentity: Boolean = data.forall(row => row.forall(elem => elem == one))
+  def isIdentity: Boolean = rows.forall(row => row.forall(elem => elem == one))
 
-  // TODO: redundant
-  def rows: Seq[Seq[Rational]] = data
+  def toDouble: DMatrix = {
+    DMatrix(dim, rows.map({ arow =>
+      arow.map( entry => entry.toDouble)
+    }))
+  }
 
   private def columns: Seq[Seq[Rational]] = {
-    val firstRow = data(0)
+    val firstRow = rows(0)
 
     firstRow.zipWithIndex.map({
       case (row, i) =>
@@ -61,7 +136,7 @@ case class RMatrix (dim: Int, val data: Seq[Seq[Rational]]) extends Matrix[Ratio
   }
 
   def -(y:RMatrix): RMatrix = {
-    RMatrix(dim, data.zip(y.data).map({
+    RMatrix(dim, rows.zip(y.rows).map({
       case (arow, brow) =>
         arow.zip(brow).map({
           case (a, b) => a - b
@@ -70,7 +145,7 @@ case class RMatrix (dim: Int, val data: Seq[Seq[Rational]]) extends Matrix[Ratio
   }
 
   def *(y: RMatrix): RMatrix = {
-    RMatrix(dim, data.map({ arow =>
+    RMatrix(dim, rows.map({ arow =>
       y.columns.map({ bcoln =>
          arow.zip(bcoln).foldLeft(zero)({
           case (sum, (a, b)) => sum + a * b
@@ -88,7 +163,7 @@ case class RMatrix (dim: Int, val data: Seq[Seq[Rational]]) extends Matrix[Ratio
   }
 
   def *(vec: Seq[Rational]): Seq[Rational] = {
-    data.map( row => {
+    rows.map( row => {
       row.zip(vec).foldLeft(zero)({
         case (sum, (r, v)) => sum + r*v
         })
@@ -145,12 +220,12 @@ case class RMatrix (dim: Int, val data: Seq[Seq[Rational]]) extends Matrix[Ratio
   
 }
 
-class EMatrix private(dim: Int, val data: Seq[Seq[Expr]]) extends Matrix[Expr] {
+class EMatrix private(dim: Int, val rows: Seq[Seq[Expr]]) extends Matrix[Expr] {
   //assert(data.length == dim)
-  assert(data.forall(d => d.length == dim))
+  assert(rows.forall(d => d.length == dim))
 
   def map(f: Expr => Rational): RMatrix = {
-    RMatrix(dim, data.map(row => {
+    RMatrix(dim, rows.map(row => {
       row.map(elem => f(elem))
       }))
   }

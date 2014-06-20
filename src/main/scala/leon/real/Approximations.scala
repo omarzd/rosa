@@ -310,7 +310,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
 
       // this is computing loop errors
       reporter.info("Computing loop error...")          
-      println("variables: " + vc.variables)
+      //println("variables: " + vc.variables)
 
       val actualRanges: Map[Expr, RationalInterval] = vc.variables.inputs.map({
         case (v @ Variable(_), rec @ Record(idealId, _, _, _, _, _)) =>

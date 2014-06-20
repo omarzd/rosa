@@ -9,7 +9,8 @@ object Spiral {
   def spiral(x: Real, y: Real, k: LoopCounter): (Real, Real) = {
     require(-10 <= x && x <= 10 && -10 <= y && y <= 10 &&
           -10 <= ~x && ~x <= 10 && -10 <= ~y && ~y <= 10 &&
-          x*x + y*y < 100)
+          x*x + y*y < 100 &&
+          initialErrors(x +/- 1e-9 && y +/- 1e-9))
     
     // then, this bound gives the upper bound on the # iterations
     if (k < 50) {

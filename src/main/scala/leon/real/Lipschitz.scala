@@ -3,6 +3,8 @@
 package leon
 package real
 
+import ceres.common.DirectedRounding.{multUp}
+
 import Calculus._
 import purescala.Trees._
 import purescala.Common._
@@ -38,7 +40,7 @@ trait Lipschitz {
       reporter.debug("initial errors: " + initErrors)
 
       val lipschitzErrors: Seq[Rational] =
-        lipschitzConsts.data.map(dta => {
+        lipschitzConsts.rows.map(dta => {
           ids.zip(dta).foldLeft(zero){
             case (sum, (id, k)) => sum + k*initErrors(id) 
           }
@@ -80,7 +82,9 @@ trait Lipschitz {
           throw new Exception("K == I and we don't handle this case...")
         }
 
-        val mKn = mK.power(loopBound)
+        //val mKn = mK.power(loopBound)
+        //val mKn = RMatrix.power(mK, loopBound)
+        val mKn = RMatrix.powerWithDoubles(mK, loopBound)
         reporter.debug("K^n: " + mKn)
         val mI = RMatrix.identity(ids.length)
         reporter.debug("I: " + mI)
@@ -165,13 +169,13 @@ trait Lipschitz {
       val pre = And(rangeConstraintFromIntervals(vars), additionalConstraints)
       val (jacobian, lipschitzConsts, hessianConsts) = getSigmaJacobianHessian(
         pre, expr, ids, precision, vars)
-      assert(sigmas.length == 1 && lipschitzConsts.data.length == 1)
+      assert(sigmas.length == 1 && lipschitzConsts.rows.length == 1)
 
       println("jacobian: " + jacobian + "   * (sigma: "+sigmas(0)+")")
       
       println("hessian: " + hessianConsts)
       
-      val h: Seq[Seq[Rational]] = hessianConsts.map(hc => hc.data.zipWithIndex.flatMap({
+      val h: Seq[Seq[Rational]] = hessianConsts.map(hc => hc.rows.zipWithIndex.flatMap({
         case (row, i) =>
           row.zipWithIndex.map ({
             case (elem, j) =>
@@ -246,7 +250,7 @@ trait Lipschitz {
   }
 
   private def getHessian(jacobian: EMatrix, ids: Seq[Identifier]): Seq[EMatrix] = {
-    jacobian.data.map(row => {
+    jacobian.rows.map(row => {
       val elems = row.map( p => 
         ids.map(id =>  d(p, id) )
         )
@@ -289,14 +293,36 @@ trait Lipschitz {
     @param sigma error of one loop iteration
     @param K Lipschitz constant
   */
-  private def errorFromNIterations(n: Int, lambda: Rational, sigma: Rational, k: Rational): Rational = {
+  private def errorFromNIterations(num: Int, lambda: Rational, sigma: Rational, k: Rational): Rational = {
+    
+    def powerBySquaring(x: Rational, n: Int): Rational = {
+      if (n == 0) one
+      else if (n == 1) x
+      else if (n % 2 == 0) powerBySquaring(x*x, n / 2)
+      else x * powerBySquaring(x*x, (n-1)/2)
+    }
+
+    // we need directed rounding?!
+    def powerBySquaringDouble(x: Double, n: Int): Double = {
+      if (n == 0) 1.0
+      else if (n == 1) x
+      else if (n % 2 == 0) powerBySquaringDouble(multUp(x,x), n / 2)
+      else multUp(x, powerBySquaringDouble(multUp(x,x), (n-1)/2))
+    }
+
+
     if (k == one) {
-      Rational(n) * sigma + lambda
+      Rational(num) * sigma + lambda
     } else {
-      var kn = k
-      println("computing power of k")
-      for (i <- 1 until n) { kn *= k }
-      println("done")
+
+      //val kn = powerBySquaring(k, num)
+
+      val kn = Rational(powerBySquaringDouble(k.toDouble, num))
+
+      //var kn = k
+      //println("computing power of k")
+      //for (i <- 1 until n) { kn *= k }
+      //println("done")
       kn * lambda + sigma * ((one - kn)/(one - k))
     }
   }

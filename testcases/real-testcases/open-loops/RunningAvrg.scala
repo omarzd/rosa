@@ -15,7 +15,7 @@ object RunningAvrg {
     require(-1200 <= m && m <= 1200 && 2 <= n && n <= 1000 &&
       -1200.5 <= ~m && ~m <= 1200.5)
 
-    if (n < 10) {
+    if (n < 500) {
 
       val x = nextItem
 
