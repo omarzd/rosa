@@ -54,15 +54,10 @@ object RealOps {
     def iterate(x1: Real, x2: Real, x3: Real, x4: Real, x5: Real, x6: Real, x7: Real, x8: Real, x9: Real, x10: Real, x11: Real)(
         updateFnc: Boolean): (Real, Real, Real, Real, Real, Real, Real, Real, Real, Real, Real) = ???
     */
-    @proxy
-    def loopCounter(i: Int): Boolean = ???
-
+    
     // dummy value when we need to return something
     @proxy
     def realValue: Real = ???
-
-    @proxy
-    def integer(i: Real): Boolean = ???
 }
 
 @ignore

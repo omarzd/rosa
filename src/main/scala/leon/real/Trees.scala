@@ -581,19 +581,4 @@ object Trees {
     }
   }
 
-  case class LoopCounter(id: Identifier) extends Expr with Terminal with FixedType with PrettyPrintable {
-    val fixedType = BooleanType
-
-    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
-      printer.append("loopCounter(" + id + ")")
-    }
-  }
-
-  case class IntegerValue(id: Identifier) extends Expr with Terminal with FixedType with PrettyPrintable {
-    val fixedType = BooleanType
-
-    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
-      printer.append("integer(" + id + ")")
-    }
-  } 
 }

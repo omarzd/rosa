@@ -11,7 +11,7 @@ import purescala.TreeOps.replace
 import purescala.TreeOps.functionCallsOf
 import purescala.TransformerWithPC
 
-import real.Trees.{Roundoff, Iteration, UpdateFunction, Assertion, LoopCounter, IntegerValue}
+import real.Trees.{Roundoff, Iteration, UpdateFunction, Assertion}
 import real.TreeOps._
 import real.VariableShop._
 import purescala.TreeOps._
@@ -58,7 +58,7 @@ object Analyser {
     invalidInputs.foreach(x => reporter.warning(x._1.id.name + ": inputs incomplete, skipping!"))
 
     for ((funDef, Some(variables)) <- validFncs) {
-      val preGiven = removeLoopCounterAndIntegerValue( funDef.precondition.get )
+      val preGiven = funDef.precondition.get
       debug ("precondition is acceptable")
       val allFncCalls = functionCallsOf(funDef.body.get).map(invc => invc.tfd.id.toString)
 
@@ -246,14 +246,6 @@ object Analyser {
 
   }
 
-  private def removeLoopCounterAndIntegerValue(e: Expr): Expr = {
-    preMap {
-      case LoopCounter(_) => Some(True)
-      case IntegerValue(_) => Some(True)
-      case _ => None
-    }(e)
-  }
-
   class AssertionCollector(outerFunDef: FunDef, precondition: Expr, variables: VariablePool, precisions: List[Precision]) extends TransformerWithPC {
     def isConstraint(e: Expr): Boolean = e match {
       case LessThan(_,_) | LessEquals(_,_) | GreaterThan(_,_) | GreaterEquals(_,_) => true
@@ -291,7 +283,7 @@ object Analyser {
         
         val arguments: Map[Expr, Expr] = funDef.params.map(decl => decl.toVariable).zip(simpleArgs).toMap
         
-        val toProve = replace(arguments, removeLoopCounterAndIntegerValue( removeRoundoff(funDef.precondition.get)) )
+        val toProve = replace(arguments, removeRoundoff(funDef.precondition.get) )
         
 
         val allFncCalls = functionCallsOf(pathToFncCall).map(invc => invc.tfd.id.toString)

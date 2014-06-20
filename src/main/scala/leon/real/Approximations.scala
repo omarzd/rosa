@@ -430,46 +430,18 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
   private def removeLoopCounterUpdate(e: Expr): Expr = {
     preMap {
       case Equals(tmp, Plus(c, IntLiteral(1))) => Some(Equals(tmp, PlusR(c, RealLiteral(Rational(1)))))
-      //case Equals(tmp, Minus(c, IntLiteral(1))) => Some(True)
-      case LessEquals(l, r) if (l.getType == Int32Type && r.getType == Int32Type) => Some(True)
-      case LessThan(l, r) if (l.getType == Int32Type && r.getType == Int32Type) => Some(True)
-      case GreaterEquals(l, r) if (l.getType == Int32Type && r.getType == Int32Type) => Some(True)
-      case GreaterThan(l, r) if (l.getType == Int32Type && r.getType == Int32Type) => Some(True)
-
       case Equals(tmp, PlusR(lc, IntLiteral(1))) if (lc.getType == LoopCounterType) => Some(True)
-      //case Equals(tmp, PlusR(lc, IntLiteral(1))) if (lc.getType == Int32Type) => Some(True)
-      //case LessThan(l, r) if (l.getType == LoopCounterType && r.getType == Int32Type) => Some(True)
-
       case _ => None
     }(e)
   }
 
 
   private def validLoopCondition(e: Expr) = e match {
-    case LessEquals(l, r) if(l.getType == Int32Type && r.getType == Int32Type) => true
-    case LessThan(l, r) if(l.getType == Int32Type && r.getType == Int32Type) => true 
-    case GreaterEquals(l, r) if(l.getType == Int32Type && r.getType == Int32Type) => true
-    case GreaterThan(l, r) if(l.getType == Int32Type && r.getType == Int32Type) => true 
-
-    case LessEquals(Variable(id), RealLiteral(_)) if (vc.variables.integers.contains(id)) => true
-    case LessEquals(RealLiteral(_), Variable(id)) if (vc.variables.integers.contains(id)) => true
-
-    case LessThan(Variable(id), RealLiteral(_)) if (vc.variables.integers.contains(id)) => true
-    case LessThan(RealLiteral(_), Variable(id)) if (vc.variables.integers.contains(id)) => true
-
-    case GreaterEquals(Variable(id), RealLiteral(_)) if (vc.variables.integers.contains(id)) => true
-    case GreaterEquals(RealLiteral(_), Variable(id)) if (vc.variables.integers.contains(id)) => true
-
-    case GreaterThan(Variable(id), RealLiteral(_)) if (vc.variables.integers.contains(id)) => true
-    case GreaterThan(RealLiteral(_), Variable(id)) if (vc.variables.integers.contains(id)) => true
-
-    //case LessEquals(l, r) if(l.getType == LoopCounterType && r.getType == Int32Type) => true
-    case LessThan(l, r) if(l.getType == LoopCounterType && r.getType == Int32Type) => true 
-    //case GreaterEquals(l, r) if(l.getType == Int32Type && r.getType == Int32Type) => true
-    //case GreaterThan(l, r) if(l.getType == Int32Type && r.getType == Int32Type) => true 
+    case LessThan(l, IntLiteral(_)) if(l.getType == LoopCounterType) => true
+    case LessThan(v @ Variable(_), IntLiteral(_)) if (vc.variables.isLoopCounter(v)) => true
 
     case _ =>
-      println("other")
+      reporter.warning("unrecognized loop condition: " + e)
       false
   }
 

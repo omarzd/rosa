@@ -1098,22 +1098,6 @@ trait CodeExtraction extends ASTExtractors {
               outOfSubsetError(tr, "invalid use of ><")    
           }
 
-        case ExLoopCounter(v) =>
-          val varr = extractTree(v)
-          varr match {
-            case Variable(id) => LoopCounter(id)
-            case _ =>
-              outOfSubsetError(tr, "loopCounter() only applicable to a variable!")
-          }
-        
-        case ExInteger(v) =>
-          val varr = extractTree(v)
-          varr match {
-            case Variable(id) => IntegerValue(id)
-            case _ =>
-              outOfSubsetError(tr, "integer() only applicable to a variable!")
-          }
-
         case ExIterate(args, es) =>
           val block = extractTree(es)
           val (updateFncs: Seq[UpdateFunction], body) = letsToEquals(block) match {

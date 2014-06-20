@@ -85,7 +85,8 @@ class RangeSolver(timeout: Long) {
   }
   
   private def prepareSorts: Unit = {
-    intSort = z3.mkRealSort
+    //this is a hack to get the Int loop counters working with Z3, Z3 cannot mix ints and reals
+    intSort = z3.mkRealSort  
     boolSort = z3.mkBoolSort
     realSort = z3.mkRealSort
   }
@@ -367,7 +368,7 @@ class RangeSolver(timeout: Long) {
   def getRangeSimple(precond: Expr, expr: Expr, variables: VariablePool, maxIter: Int, prec: Rational) = {
     def inIntervals(expr: Expr, vars: VariablePool): RationalInterval = expr match {
       case RealLiteral(r) => RationalInterval(r, r)
-      case v @ Variable(_) => vars.getInterval(v)
+      case v @ Variable(_) => vars.getIdealInterval(v)
       case UMinusR(t) => - inIntervals(t, vars)
       case PlusR(l, r) => inIntervals(l, vars) + inIntervals(r, vars)
       case MinusR(l, r) => inIntervals(l, vars) - inIntervals(r, vars)

@@ -28,29 +28,6 @@ object RunningAvrg {
     
   } ensuring (res => -1200.00 <= res && res <= 1200.00)
 
-  /*@model
-  def nextItem: Real = { 
-    realValue
-  } ensuring (res => -1200 <= res && res <= 1200)// && res +/- 1e-8)
-
-  @loopbound(10)
-  def mean(n: Real, m: Real): Real = {
-    require(-1200 <= m && m <= 1200 && 2 <= n && n <= 1000 && integer(n))
-
-    if (n <= 998) {
-
-      val x = nextItem
-
-      val m_new = ((n - 1.0) * m + x) / n
-      mean(n + 1, m_new)
-      
-    } else {
-      m
-    }
-    
-  } ensuring (res => -1200.00 <= res && res <= 1200.00)
-  */
-
 
 /*  @loopbound(10) @robust
   def varianceRec(n: Real, m: Real, s: Real): (Real, Real) = {

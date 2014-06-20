@@ -91,8 +91,7 @@ class VariablePool(val inputs: Map[Expr, Record], val resIds: Seq[Identifier],
 
   def actualVariables: Set[Expr] = allVars.values.map(rec => rec.actualExpr).toSet
 
-  // TODO: should be called getidealInterval
-  def getInterval(v: Expr): RationalInterval = {
+  def getIdealInterval(v: Expr): RationalInterval = {
     val rec = allVars(v)
     RationalInterval(rec.lo, rec.up)
   }
@@ -100,17 +99,6 @@ class VariablePool(val inputs: Map[Expr, Record], val resIds: Seq[Identifier],
   def getInitIntervals: Map[Expr, RationalInterval] = {
     inputs.map(x => (x._1 -> RationalInterval(x._2.lo - x._2.absUncert.get, x._2.up + x._2.absUncert.get)))
   }
-
-  /*def hasValidInput(varDecl: Seq[ValDef], reporter: Reporter): Boolean = {
-    //println("params: " + varDecl(0) + "   " + varDecl(1))
-    val params: Seq[Expr] = varDecl.map(vd => Variable(vd.id))
-    if (loopCounter.isEmpty) {
-      (inputs.size == params.size && inputs.forall(v => params.contains(v._1)))  
-    } else {
-      (inputs.size == params.size - 1 && inputs.forall(v => params.contains(v._1)))
-    }
-    
-  }*/
 
   def inputsWithoutNoiseAndNoInt: Seq[Expr] = {
     inputs.filter(x => x._2.absUncert.isEmpty && !integers.contains(x._2.idealId)).keySet.toSeq
@@ -336,6 +324,7 @@ object VariablePool {
         getRecord(x).up = Rational(uprBnd)
         getRecord(x).isInteger = true
         integer = integer  + id
+        loopCounter = Some(id)
 
       // Errors
         
@@ -358,14 +347,14 @@ object VariablePool {
 
       // Loops
 
-      case LoopCounter(id) =>
+      /*case LoopCounter(id) =>
         if (loopCounter.isEmpty) loopCounter = Some(id)
         else {
           throw UnsupportedRealFragmentException("two loop counters are not allowed")
         }
 
       case IntegerValue(id) => integer = integer + id
-
+      */
       // TODO: add extraction for actual bounds
 
       case _ =>;
