@@ -83,7 +83,7 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
     val (vcs, fncs) = Analyser.analyzeThis(fncsToAnalyse, options.precision, reporter)
     if (reporter.errorCount > 0) throw LeonFatalError(None)
 
-    //println("functions sorted: " + vcs)
+    println("vcs: " + vcs)
     //fncs.foreach(f => println(f.fncId))
 
     reporter.info("--- Analysis complete ---")
@@ -97,21 +97,21 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
       val prover = new Prover(ctx, options, program, fncs)
 
       val (finalPrecision, success) = prover.check(vcs)
-      if (success) {
-        val moduleNameId = program.modules.map(m => m.id).find(id => id.toString != "RealOps").get
-        val codeGenerator = new CodeGenerator(reporter, ctx, options, program, finalPrecision, fncs)
-        val newProgram = codeGenerator.specToCode(program.id, moduleNameId, vcs)
-        val newProgramAsString = ScalaPrinter(newProgram)
-        reporter.info("Generated program with %d lines.".format(newProgramAsString.lines.length))
-        //reporter.info(newProgramAsString)
 
-        val writer = new PrintWriter(new File("generated/" + moduleNameId +".scala"))
-        writer.write(newProgramAsString)
-        writer.close()
-      }
-      else {// verification did not succeed for any precision
-        reporter.warning("Could not find data type that works for all methods.")
-      }
+      if (success) reporter.info("Verification successful for precision: " + finalPrecision)
+      else reporter.warning("Could not find data type that works for all methods." +
+          "Generating code for largest possible data type.")
+
+      val moduleNameId = program.modules.map(m => m.id).find(id => id.toString != "RealOps").get
+      val codeGenerator = new CodeGenerator(reporter, ctx, options, program, finalPrecision, fncs)
+      val newProgram = codeGenerator.specToCode(program.id, moduleNameId, vcs)
+      val newProgramAsString = ScalaPrinter(newProgram)
+      reporter.info("Generated program with %d lines.".format(newProgramAsString.lines.length))
+      //reporter.info(newProgramAsString)
+
+      val writer = new PrintWriter(new File("generated/" + moduleNameId +".scala"))
+      writer.write(newProgramAsString)
+      writer.close()
 
       new CompilationReport(vcs.sortWith((vc1, vc2) => vc1.fncId < vc2.fncId), finalPrecision)
     }

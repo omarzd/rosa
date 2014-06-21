@@ -11,6 +11,7 @@ import purescala.Common._
 import purescala.TypeTrees._
 import xlang.Trees.Block
 
+import real.{VerificationCondition => VC}
 import real.TreeOps._
 import real.{FixedPointFormat => FPFormat}
 import FPFormat._
@@ -18,153 +19,69 @@ import real.Trees._
 import VariableShop._
 
 
-object CodeGenerator {
 
-  val constConstructorInt = (r: Rational, f: Int) => { IntLiteral(rationalToInt(r, f)) }
-      
-  val constConstructorLong = (r: Rational, f: Int) => { LongLiteral(rationalToLong(r, f)) }
 
-  /*
-    Turns the VC body into fixed-point code.
-    @return (fixed-point body, number of fractional bits of the result)
-  */
-  def getFPCode(vc: VerificationCondition, solver: RangeSolver, bitlength: Int, fncs: Map[FunDef, Fnc],
-    reporter: Reporter): (Expr, Int) = {
-    
-    val ssaBody = addResultsF(idealToActual(toSSA(vc.body, fncs), vc.variables), vc.variables.fResultVars)
-    val transformer = new AAApproximator(reporter, solver, FPPrecision(bitlength), checkPathError = false)
-    val approxVariables = transformer.approximateEquations(ssaBody, vc.pre, vc.variables, exactInputs = false)
-         
-    val formats = approxVariables.map {
-      case (v, r) => (v, FPFormat.getFormat(r.interval.xlo, r.interval.xhi, bitlength))
-    }
-    //println("formats: " + formats); println("ssaBody: " + ssaBody)
-    val fpBody = translateToFP(ssaBody, formats, bitlength,
-       if (bitlength <= 16) constConstructorInt else constConstructorLong)
+class CodeGenerator(val reporter: Reporter, ctx: LeonContext, options: RealOptions, prog: Program,
+ precision: Precision, fncs: Map[FunDef, Fnc]) extends FixedpointCodeGenerator {
 
-    var resFracBits = formats(vc.variables.fResultVars.head).f
-
-    (actualToIdealVars(fpBody, vc.variables), resFracBits)
-  }
-
-  def toSSA(expr: Expr, fncs: Map[FunDef, Fnc]): Expr = {
-    val transformer = new SSATransformer(fncs)
-    transformer.transform(expr)
-  }
-
-  private class SSATransformer(fncs: Map[FunDef, Fnc]) extends TransformerWithPC {
-    type C = Seq[Expr]
-    val initC = Nil
-
-    // Note that this transforms real arithmetic to float arithmetic
-    private def arithToSSA(expr: Expr): (Seq[Expr], Expr) = expr match {
-      case PlusR(lhs, rhs) =>
-        val (lSeq, lVar) = arithToSSA(lhs)
-        val (rSeq, rVar) = arithToSSA(rhs)
-        val tmpVar = getFreshValidTmp
-        (lSeq ++ rSeq :+ Equals(tmpVar, PlusR(lVar, rVar)), tmpVar)
-
-      case MinusR(lhs, rhs) =>
-        val (lSeq, lVar) = arithToSSA(lhs)
-        val (rSeq, rVar) = arithToSSA(rhs)
-        val tmpVar = getFreshValidTmp
-        (lSeq ++ rSeq :+ Equals(tmpVar, MinusR(lVar, rVar)), tmpVar)
-
-      case TimesR(lhs, rhs) =>
-        val (lSeq, lVar) = arithToSSA(lhs)
-        val (rSeq, rVar) = arithToSSA(rhs)
-        val tmpVar = getFreshValidTmp
-        (lSeq ++ rSeq :+ Equals(tmpVar, TimesR(lVar, rVar)), tmpVar)
-
-      case DivisionR(lhs, rhs) =>
-        val (lSeq, lVar) = arithToSSA(lhs)
-        val (rSeq, rVar) = arithToSSA(rhs)
-        val tmpVar = getFreshValidTmp
-        (lSeq ++ rSeq :+ Equals(tmpVar, DivisionR(lVar, rVar)), tmpVar)
-
-      case UMinusR(t) =>
-        val (seq, v) = arithToSSA(t)
-        val tmpVar = getFreshValidTmp
-        (seq :+ Equals(tmpVar, UMinusR(v)), tmpVar)
-
-      case RealLiteral(_) | Variable(_) => (Seq[Expr](), expr)
-
-      case FunctionInvocation(funDef, args) =>
-        val argsToSSA: Seq[(Seq[Expr], Expr)] = args.map( arithToSSA(_) )
-
-        val (ssa, newArgs) = argsToSSA.unzip
-
-        val arguments: Map[Expr, Expr] = funDef.fd.params.map(decl => decl.toVariable).zip(newArgs).toMap
-        val fncBody = fncs(funDef.fd).body
-
-        val newBody = replace(arguments, fncBody)
-        
-        val tmpVar = getFreshValidTmp
-        (ssa.flatten :+ Equals(tmpVar, FncBody(funDef.id.name, newBody, funDef.fd, newArgs)), tmpVar)
-
-    }
-
-    def register(e: Expr, path: C) = path :+ e
-
-    override def rec(e: Expr, path: C) = e match {
-      case Equals(v, arithExpr: RealArithmetic) =>
-        val (seq, tmpVar) = arithToSSA(arithExpr)
-        And(And(seq), EqualsF(v, tmpVar))
-
-      case Equals(v, fnc: FunctionInvocation) =>
-        val (seq, tmpVar) = arithToSSA(fnc)
-        And(And(seq), EqualsF(v, tmpVar))
-      
-      case IfExpr(GreaterEquals(l, r), t, e) =>
-        val (seqLhs, tmpVarLhs) = arithToSSA(l)
-        val (seqRhs, tmpVarRhs) = arithToSSA(r)
-        And(And(seqLhs ++ seqRhs), IfExpr(GreaterEquals(tmpVarLhs, tmpVarRhs), rec(t, path), rec(e, path)))
-
-      case IfExpr(LessEquals(l, r), t, e) =>
-        val (seqLhs, tmpVarLhs) = arithToSSA(l)
-        val (seqRhs, tmpVarRhs) = arithToSSA(r)
-        And(And(seqLhs ++ seqRhs), IfExpr(LessEquals(tmpVarLhs, tmpVarRhs), rec(t, path), rec(e, path)))
-
-      case IfExpr(GreaterThan(l, r), t, e) =>
-        val (seqLhs, tmpVarLhs) = arithToSSA(l)
-        val (seqRhs, tmpVarRhs) = arithToSSA(r)
-        And(And(seqLhs ++ seqRhs), IfExpr(GreaterThan(tmpVarLhs, tmpVarRhs), rec(t, path), rec(e, path)))
-
-      case IfExpr(LessThan(l, r), t, e) =>
-        val (seqLhs, tmpVarLhs) = arithToSSA(l)
-        val (seqRhs, tmpVarRhs) = arithToSSA(r)
-        And(And(seqLhs ++ seqRhs), IfExpr(LessThan(tmpVarLhs, tmpVarRhs), rec(t, path), rec(e, path)))
-
-      case arithExpr: RealArithmetic =>
-        val (seq, tmpVar) = arithToSSA(arithExpr)
-        And(And(seq), tmpVar)
-
-      case fnc: FunctionInvocation =>
-        val (seq, tmpVar) = arithToSSA(fnc)
-        And(And(seq), tmpVar)
-
-      case _ =>
-        super.rec(e, path)
-    }
-  }
-
-}
-
-class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, prog: Program, precision: Precision, fncs: Map[FunDef, Fnc]) {
-  import CodeGenerator._
-
-  val nonRealType: TypeTree = (precision: @unchecked) match {
+  val implType: TypeTree = (precision: @unchecked) match {
     case Float64 => Float64Type
     case Float32 => Float32Type
     case DoubleDouble => FloatDDType
     case QuadDouble => FloatQDType
-    case _ => Int32Type
+    case FPPrecision(bits) if (bits <= 16) => Int32Type
+    case FPPrecision(bits) if (bits <= 32) => Int64Type
+    case _ => throw new Exception("Don't know how to generate code for: " + precision)
+  } 
+  
+  
+
+  def specToCode(programId: Identifier, objectId: Identifier, vcs: Seq[VC]): Program = {
+
+    val funDefs: Set[FunDef] = vcs.map(vc => vc.funDef).toSet
+    val vcFncMap: Map[FunDef, Seq[VC]] = funDefs.map(fnc =>
+      (fnc -> vcs.filter(vc => vc.funDef.id == fnc.id))).toMap
+
+    val defs: Seq[Definition] = funDefs.map ( funDef => {
+      val successful = vcFncMap(funDef).forall(vc => vc.value(precision) == Valid.VALID)
+
+      // function arguments 
+      val (args, returnType) = getArgs(funDef)
+
+      val fD = new FunDef(funDef.id, Seq.empty, returnType, args)
+
+      // generate function body
+      fD.body = precision match {
+        case FPPrecision(bitlength) =>
+          val solver = new RangeSolver(options.z3Timeout)
+          val vc = vcFncMap(funDef).find(vc => (vc.kind == VCKind.Postcondition || vc.kind == VCKind.SpecGen))
+          val fpBody = getFPCode(vc.get, solver, bitlength, fncs)._1
+          Some(mathToCode(fpBody))
+        case _ => convertToFloatConstant(funDef.body)
+      }
+
+      // generate assertions still left in
+      //fD.precondition = ???
+      //fD.postcondition = ???
+
+      // generate comments
+       
+      fD
+    }).toSeq
+
+
+    val newProgram = Program(programId, List(ModuleDef(objectId, defs)))
+    newProgram
   }
 
-  def getReturnType(realType: TypeTree): TypeTree = realType match {
-    case TupleType(args) => TupleType(args.map(a => getReturnType(a)))
-    case simpleType => nonRealType
+  def getArgs(f: FunDef): (Seq[ValDef], TypeTree) = {
+    val returnType = f.returnType match {
+      case TupleType(args) => TupleType(args.map(a => implType))
+      case _ => implType
+    }
+    (f.params.map(decl => ValDef(decl.id, implType)), returnType)
   }
+
 
   def convertToFloatConstant(e: Option[Expr]) = (e, precision) match {
     case (Some(expr), Float32) =>
@@ -198,18 +115,10 @@ class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, 
     }
   }
 
-  def specToCode(programId: Identifier, objectId: Identifier, vcs: Seq[VerificationCondition]): Program = precision match {
-    case FPPrecision(bts) =>
-      if (bts <= 32) specToFixedCode(programId, objectId, vcs, bts)
-      else {
-        reporter.error("Fixed-point code generation not possible for bitlengths larger than 32 bits.")
-        Program(programId, List())
-      }
-    case _ => specToFloatCode(programId, objectId, vcs, precision)
-  }
 
 
-  private def specToFloatCode(programId: Identifier, objectId: Identifier, vcs: Seq[VerificationCondition], precision: Precision): Program = {
+
+  /*private def specToFloatCode(programId: Identifier, objectId: Identifier, vcs: Seq[VerificationCondition], precision: Precision): Program = {
     var defs: Seq[Definition] = Seq.empty
     
     for (vc <- vcs if (vc.kind == VCKind.Postcondition || vc.kind == VCKind.SpecGen || vc.kind == VCKind.LoopInvariant)) {
@@ -290,10 +199,10 @@ class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, 
 
     val newProgram = Program(programId, List(ModuleDef(objectId, defs)))
     newProgram
-  }
+  }*/
 
   // This is repeating some of the computation
-  private def specToFixedCode(programId: Identifier, objectId: Identifier, vcs: Seq[VerificationCondition], bitlength: Int): Program = {
+  /*private def specToFixedCode(programId: Identifier, objectId: Identifier, vcs: Seq[VerificationCondition], bitlength: Int): Program = {
     var defs: Seq[Definition] = Seq.empty
     val invariants: Seq[Expr] = Seq.empty
 
@@ -315,7 +224,7 @@ class CodeGenerator(reporter: Reporter, ctx: LeonContext, options: RealOptions, 
 
     val newProgram = Program(programId, List(ModuleDef(objectId, defs)))
     newProgram
-  }
+  }*/
 
   private def mathToCode(expr: Expr): Expr = expr match {
     case And(args) => Block(args.init.map(a => mathToCode(a)), mathToCode(args.last))

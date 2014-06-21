@@ -19,7 +19,7 @@ import Precision._
 
 // Manages the approximation
 class AAApproximator(val reporter: Reporter, val solver: RangeSolver, precision: Precision, checkPathError: Boolean = true,
-  useLipschitz: Boolean = false) extends Lipschitz {
+  useLipschitz: Boolean = false, collectIntervals: Boolean = false) extends Lipschitz {
 
   implicit override val debugSection = utils.DebugSectionAffine
   val compactingThreshold = 500
@@ -32,6 +32,7 @@ class AAApproximator(val reporter: Reporter, val solver: RangeSolver, precision:
   var initialCondition: Expr = True
   var config: XConfig = null
   var precondition: Expr = True
+  var fpIntervals: Map[Expr, RationalInterval] = Map()
 
   private def init(inputs: VariablePool, precond: Expr) = {
     inputVariables = inputs
@@ -39,6 +40,7 @@ class AAApproximator(val reporter: Reporter, val solver: RangeSolver, precision:
     leonToZ3 = new LeonToZ3Transformer(inputs, precision)
     initialCondition = leonToZ3.getZ3Expr(removeErrors(precondition))
     config = XConfig(solver, initialCondition, solverMaxIterMedium, solverPrecisionMedium)
+    fpIntervals = Map()
   }
 
   val (minVal, maxVal) = precision.range
@@ -101,6 +103,9 @@ class AAApproximator(val reporter: Reporter, val solver: RangeSolver, precision:
     init(inputs, precond)
     val vars = getInitialVariables(inputs, exactInputs)
     val (newVars, path, res) = process(e, vars, True)
+
+    println("newVars: " + newVars)
+    println("intervals: " + fpIntervals)
     //sanity check (does not hold for fixed-point code generation)
     //assert(res.length == 0, "computing xreals for equations but open expression found")
     // TODO: remove input vars?
@@ -185,26 +190,13 @@ class AAApproximator(val reporter: Reporter, val solver: RangeSolver, precision:
       }
       if (currRes.isEmpty)  (currentVars, currentPath, Seq())
       else (currentVars, currentPath, currRes.get)
-      // first seq collects the path condition, second sequence collects the results
-      /*val (path, allEs) = es.foldLeft((Seq[Expr](), Seq[XRealTuple]()))((counter, ex) => {
-        ex match {
-          case GreaterEquals(_, _) | GreaterThan(_, _) | LessEquals(_, _) | LessThan(_, _) =>
-            (counter._1 :+ ex, counter._2)
-          case _ =>
-            (counter._1, counter._2 :+ approx(ex, counter._1))
-        }
-        })
-      */
-      //val allEs = for(ex <- es) yield approx(ex, path)
-      //allEs.last
+      
 
     // TODO: val (x1, x2) = fnc Call doesn't work atm
     case EqualsF(lhs, rhs) if (lhs.getType == RealType) =>
       val res = evalArithmetic(rhs, vars, path)
 
-      //println("lhs: " + lhs)
-      //val compactedRes = compactXFloat(res, inputVariables.getIdeal(lhs))
-      //println("compactedRes: " + compactedRes)
+      if (collectIntervals) fpIntervals = fpIntervals + (lhs -> res.interval)
 
       (vars + (lhs -> res), path, Seq())
 
@@ -240,14 +232,9 @@ class AAApproximator(val reporter: Reporter, val solver: RangeSolver, precision:
         val pathError = new PathError(reporter, solver, precision, inputVariables, precondition, vars) 
         pathError.computePathErrors(currentPathCondition, cond, thenn, elze)
 
-        //val pathError = new LipschitzPathError(reporter, solver, precision, inputVariables)
-        //pathError.computePathErrors(precondition: Expr, branchCond: Expr, thenn, elze, vars)
-
       } else {
         Seq()
       }
-      //println("pathError: " + pathError)
-
       (vars, path, mergeXReal(thenBranch, elseBranch, pathError, path))
 
     case FncBodyF(_, body, _, _) =>

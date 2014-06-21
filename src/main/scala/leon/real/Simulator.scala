@@ -17,7 +17,7 @@ import FPFormat._
 /*
  Note: simulation does not work with tuples.
 */
-class Simulator(ctx: LeonContext, options: RealOptions, prog: Program, reporter: Reporter, fncs: Map[FunDef, Fnc]) {
+class Simulator(ctx: LeonContext, options: RealOptions, prog: Program, val reporter: Reporter, fncs: Map[FunDef, Fnc]) extends FixedpointCodeGenerator {
 
   val simSize = 10000000//00
   reporter.info("Simulation size: " + simSize + "\n")
@@ -55,13 +55,13 @@ class Simulator(ctx: LeonContext, options: RealOptions, prog: Program, reporter:
 
   private def runFixedpointSimulation(inputs: Map[Variable, (RationalInterval, Rational)], vc: VerificationCondition,
     precision: Precision): (Double, Interval) = {
-    import CodeGenerator._
+    
 
     val bitlength = precision.asInstanceOf[FPPrecision].bitlength
 
     // first generate the comparison code
     val solver = new RangeSolver(options.z3Timeout)
-    val (fixedBody, resFracBits) = getFPCode(vc, solver, bitlength, fncs, reporter)
+    val (fixedBody, resFracBits) = getFPCode(vc, solver, bitlength, fncs)
     val realBody = vc.body
 
     // Now do the actual simulation
