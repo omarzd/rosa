@@ -32,7 +32,7 @@ trait Lipschitz {
       
       val lipschitzConsts: RMatrix = getLipschitzMatrix(completePre, es, ids,
         vars.map(x => (x._1, x._2.interval)))
-      reporter.info("K: " + lipschitzConsts)
+      reporter.info("K: (" + ids.mkString(", ") + ")" + lipschitzConsts)
 
       val initErrors: Map[Identifier, Rational] = vars.map({
         case (Variable(id), xreal) => (id, xreal.maxError)

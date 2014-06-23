@@ -83,7 +83,7 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
     val (vcs, fncs) = Analyser.analyzeThis(fncsToAnalyse, options.precision, reporter)
     if (reporter.errorCount > 0) throw LeonFatalError(None)
 
-    println("vcs: " + vcs)
+    //println("vcs: " + vcs)
     //fncs.foreach(f => println(f.fncId))
 
     reporter.info("--- Analysis complete ---")

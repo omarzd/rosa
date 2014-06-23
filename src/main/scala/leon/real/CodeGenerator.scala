@@ -83,13 +83,8 @@ class CodeGenerator(val reporter: Reporter, ctx: LeonContext, options: RealOptio
             (v -> RationalInterval(lo - error, up + error))
           }
         })))
-      
-      //fD.postcondition = ???
-
-
-      
+            
       // generate comments
-      
       var docLinesParam: Seq[Expr] = vcSpec.variables.getInitialErrors(precision).map({
         case (id, error) => DocLine("param " + id, Noise(Variable(id), RealLiteral(error)))
         }).toSeq
@@ -102,11 +97,9 @@ class CodeGenerator(val reporter: Reporter, ctx: LeonContext, options: RealOptio
           })
       }
 
-
       val docLineReturn: Expr = DocLine("return", Tuple(vcSpec.spec(precision).map(_.toExpr)))
        
       fD.doc = Some(DocComment(docLinesParam :+ docLineReturn))
-       
       fD
     }).toSeq
 

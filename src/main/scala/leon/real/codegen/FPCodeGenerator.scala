@@ -28,7 +28,7 @@ trait FixedpointCodeGenerator {
   def getFPCode(vc: VerificationCondition, solver: RangeSolver, bitlength: Int, fncs: Map[FunDef, Fnc]): (Expr, Int) = {
     
     val ssaBody = addResultsF(idealToActual(toSSA(vc.body, fncs), vc.variables), vc.variables.fResultVars)
-    println("\n ssaBody: " + ssaBody)
+    //println("\n ssaBody: " + ssaBody)
 
     val transformer = new AAApproximator(reporter, solver, FPPrecision(bitlength), checkPathError = false, collectIntervals = true)
     val approxVariables = transformer.approximateEquations(ssaBody, vc.pre, vc.variables, exactInputs = false)

@@ -104,8 +104,6 @@ class AAApproximator(val reporter: Reporter, val solver: RangeSolver, precision:
     val vars = getInitialVariables(inputs, exactInputs)
     val (newVars, path, res) = process(e, vars, True)
 
-    println("newVars: " + newVars)
-    println("intervals: " + fpIntervals)
     //sanity check (does not hold for fixed-point code generation)
     //assert(res.length == 0, "computing xreals for equations but open expression found")
     // TODO: remove input vars?
