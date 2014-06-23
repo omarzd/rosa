@@ -119,7 +119,7 @@ trait Lipschitz {
       var modelCnstrs = Set[Expr]()
       val body2 = preMap {
         //TODO: check that this is a model?
-        case FncValue(specs, specExpr, true) =>
+        case FncValue(specs, specExpr, true, _, _) =>
           assert(specs.length == 1)
           modelCnstrs += specExpr
 

@@ -378,10 +378,11 @@ object Trees {
 
   // A value returned from a function call described by it's specification
   //@param model whether this function call came from a @model
-  case class FncValue(spec: Seq[Spec], specExpr: Expr, model: Boolean) extends Expr with FixedType with UnaryExtractable with PrettyPrintable {
+  case class FncValue(spec: Seq[Spec], specExpr: Expr, model: Boolean, funDef: FunDef, params: Seq[Expr]) extends Expr with FixedType with UnaryExtractable with PrettyPrintable {
     val fixedType = RealType
+
     def extract: Option[(Expr, (Expr)=>Expr)] = {
-      Some((specExpr, (e) => FncValue(spec, e, model)))
+      Some((specExpr, (e) => FncValue(spec, e, model, funDef, params)))
     }
     def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
       printer.append("fncVal(" + spec.toString + "-")
@@ -390,10 +391,10 @@ object Trees {
     }
   }
 
-  case class FncValueF(spec: Seq[Spec], specExpr: Expr) extends Expr with FixedType with UnaryExtractable with PrettyPrintable {
+  case class FncValueF(spec: Seq[Spec], specExpr: Expr, funDef: FunDef, params: Seq[Expr]) extends Expr with FixedType with UnaryExtractable with PrettyPrintable {
     val fixedType = RealType
     def extract: Option[(Expr, (Expr)=>Expr)] = {
-      Some((specExpr, (e) => FncValueF(spec, e)))
+      Some((specExpr, (e) => FncValueF(spec, e, funDef, params)))
     }
     def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
       printer.append("fncValF(" + spec.toString + ")(")

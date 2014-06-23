@@ -334,7 +334,7 @@ object TreeOps {
 
     case Not(t) => Not(addResults(t, variables))
 
-    case FncValue(specs, specExpr, _) =>
+    case FncValue(specs, specExpr, _, _, _) =>
       assert(specs.length == variables.length)
       And(variables.zip(specs).map({
         case (resVar, spec) =>
@@ -375,7 +375,7 @@ object TreeOps {
 
     case Not(t) => Not(addResultsF(t, variables))
 
-    case FncValueF(specs, specExpr) =>
+    case FncValueF(specs, specExpr, _, _) =>
       assert(specs.length == variables.length)
       And(variables.zip(specs).map({
         case (resVar, spec) =>
@@ -545,7 +545,7 @@ object TreeOps {
     }
 
     preMap {
-      case FncValue(s, sexpr, m) => Some(FncValue(s, filterOutActual(sexpr), m))
+      case FncValue(s, sexpr, m, f, a) => Some(FncValue(s, filterOutActual(sexpr), m, f, a))
       case _ => None
     }(e)
   }
@@ -577,7 +577,7 @@ object TreeOps {
       // leave conditions on if-then-else in reals, as they will be passed as conditions to Z3
       case LessEquals(_,_) | LessThan(_,_) | GreaterEquals(_,_) | GreaterThan(_,_) => e
 
-      case FncValue(s, sexpr, _) => FncValueF(s, filterOutIdeal(sexpr))
+      case FncValue(s, sexpr, _, f, a) => FncValueF(s, filterOutIdeal(sexpr), f, a)
 
       case FncBody(n, b, f, a) => FncBodyF(n, rec(b, path), f, a)
       case FunctionInvocation(fundef, args) =>
@@ -751,7 +751,10 @@ object TreeOps {
     case GreaterEquals(_, _) | GreaterThan(_, _) | LessEquals(_, _) | LessThan(_, _) => expr
 
     case FncBodyF(name, body, funDef, args) =>
-      FunctionInvocation(TypedFunDef(funDef, Seq.empty), args) 
+      FunctionInvocation(TypedFunDef(funDef, Seq.empty), args)
+
+    case FncValueF(_, _, funDef, args) =>
+      FunctionInvocation(TypedFunDef(funDef, Seq.empty), args)    
 
     case EqualsF(vr, PlusF(lhs, rhs)) =>
       val resultFormat = formats(vr)

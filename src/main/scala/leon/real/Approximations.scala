@@ -12,9 +12,10 @@ import purescala.TypeTrees.{Int32Type, RealType, TupleType, LoopCounterType}
 import real.Trees._
 import real.TreeOps._
 import Rational._
-import Calculus._
+//import Calculus._
 import VariableShop._
 import Precision._
+import Spec._
 
 case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val reporter: Reporter, val solver: RangeSolver,
   vc: VerificationCondition) extends Lipschitz {
@@ -78,7 +79,10 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
     /* --------------  Functions -------------- */
     var body = kind.fncHandling match {
       case Uninterpreted => vc.body
-      case Postcondition => inlinePostcondition(vc.body, precision, postMap)
+      case Postcondition =>
+        val tmp = inlinePostcondition(vc.body, precision, postMap)
+        vc.inlinedBody = Some(tmp)
+        tmp
       case Inlining => inlineFunctions(vc.body, fncs)
     }
     if (kind.fncHandling != Uninterpreted)
@@ -567,7 +571,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
               //println("realSpecExpr: " + realSpecExpr)
 
               //println("inlining : " + funDef.id + "   " + funDef.annotations.contains("model"))
-              Some(FncValue(specs, realSpecExpr, funDef.annotations.contains("model")))
+              Some(FncValue(specs, realSpecExpr, funDef.annotations.contains("model"), funDef, args))
             } catch {
               case e: Exception =>
                 //println("exception " + e)
@@ -579,7 +583,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
           case _ => postcondMap.getOrElse(funDef, Seq()) match {
             case specs: Seq[Spec] if specs.nonEmpty =>
               val specsExpr = And(specs.map(_.toExpr))
-              Some(FncValue(specs, replace(arguments, specsExpr), funDef.annotations.contains("model")))
+              Some(FncValue(specs, replace(arguments, specsExpr), funDef.annotations.contains("model"), funDef, args))
             case _ =>
               throw PostconditionInliningFailedException("missing postcondition for " + funDef.id.name);
               null
@@ -612,25 +616,7 @@ object Approximations {
 
   
 
-  // to avoid confusion with nested sequences
-  type SpecTuple = Seq[Spec]
-  val emptySpecTuple: SpecTuple = Seq.empty
-
-  def mergeSpecs(currentSpec: SpecTuple, newSpecs: SpecTuple): SpecTuple = (currentSpec, newSpecs) match {
-    case (Seq(), specs) => specs
-
-    case (current, Seq()) => current
-
-    case _ =>
-      currentSpec.zip(newSpecs).map({
-        case (SimpleSpec(id1, b1, Some(e1)), SimpleSpec(id2, b2, Some(e2))) =>
-          val lowerBnd = min(b1.xlo, b2.xlo)
-          val upperBnd = max(b1.xhi, b2.xhi)
-          val err = max(e1, e2)
-          assert(id1 == id2)
-          SimpleSpec(id1, RationalInterval(lowerBnd, upperBnd), Some(err))
-        })
-  }
+  
 
   
 

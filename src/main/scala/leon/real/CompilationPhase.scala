@@ -104,7 +104,8 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
 
       val moduleNameId = program.modules.map(m => m.id).find(id => id.toString != "RealOps").get
       val codeGenerator = new CodeGenerator(reporter, ctx, options, program, finalPrecision, fncs)
-      val newProgram = codeGenerator.specToCode(program.id, moduleNameId, vcs)
+      val models:Seq[FunDef] = fncs.filter(_._1.annotations.contains("model")).map(_._1).toSeq
+      val newProgram = codeGenerator.specToCode(program.id, moduleNameId, vcs, models)
       val newProgramAsString = ScalaPrinter(newProgram)
       reporter.info("Generated program with %d lines.".format(newProgramAsString.lines.length))
       //reporter.info(newProgramAsString)

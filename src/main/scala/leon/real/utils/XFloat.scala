@@ -26,28 +26,33 @@ object XFloat {
     @param config solver, precondition, which precision to choose
     @param withRoundoff whether the initial XFloat should also get an roundoff error, additionally to the noise
    */
-  def variables2xfloats(vars: Iterable[Record], config: XConfig, precision: Precision, withRoundoff: Boolean = false): (Map[Expr, XFloat], Map[Int, Expr]) = {
+  def variables2xfloats(vars: Iterable[Record], config: XConfig, precision: Precision,
+    withRoundoff: Boolean = false): Map[Expr, XFloat] = {
     var variableMap: Map[Expr, XFloat] = Map.empty
-    var indexMap: Map[Int, Expr] = Map.empty
+    //var indexMap: Map[Int, Expr] = Map.empty
 
     for(rec <- vars) {
       rec match {
         case r @ Record(id, lo, up, Some(absError), aId, _) =>
-          val (xfloat, index) = XFloat.xFloatWithUncertain(Variable(id), RationalInterval(lo, up), config,
+          val (xfloat, _) = xFloatWithUncertain(Variable(id), RationalInterval(lo, up), config,
             absError, withRoundoff, precision)
           variableMap = variableMap + (Variable(aId) -> xfloat)
-          indexMap = indexMap + (index -> Variable(aId))
+          //indexMap = indexMap + (index -> Variable(aId))
+
+        case Record(id, lo, up, None, aId, None) if (rec.isInteger) =>
+          val xfloat = xFloatExact(Variable(id), RationalInterval(lo, up), config, precision)
+          variableMap = variableMap + (Variable(aId) -> xfloat)
 
         case Record(id, lo, up, None, aId, None) =>
-          val (xfloat, index) = XFloat.xFloatWithRoundoff(Variable(id), RationalInterval(lo, up), config, precision)
+          val (xfloat, index) = xFloatWithRoundoff(Variable(id), RationalInterval(lo, up), config, precision)
           variableMap = variableMap + (Variable(aId) -> xfloat)
-          indexMap = indexMap + (index -> Variable(aId))
+          //indexMap = indexMap + (index -> Variable(aId))
 
         case _ =>
           throw new Exception("bug!")
       }
     }
-    (variableMap, indexMap)
+    variableMap//, indexMap)
   }
 
   def variables2xfloatsExact(vars: Iterable[Record], config: XConfig, precision: Precision): Map[Expr, XFloat] = {
@@ -57,7 +62,7 @@ object XFloat {
       rec match {
 
         case Record(id, lo, up, _, aId, _) =>
-          val xfloat = XFloat.xFloatExact(Variable(id), RationalInterval(lo, up), config, precision)
+          val xfloat = xFloatExact(Variable(id), RationalInterval(lo, up), config, precision)
           variableMap = variableMap + (Variable(aId) -> xfloat)
 
         case _ =>
@@ -73,12 +78,12 @@ object XFloat {
     for(rec <- vars) {
       rec match {
         case Record(id, lo, up, _, aId, _) if rec.isInteger =>
-          val xfloat = XFloat.xFloatExact(Variable(id), RationalInterval(lo, up), config, precision)
+          val xfloat = xFloatExact(Variable(id), RationalInterval(lo, up), config, precision)
           variableMap = variableMap + (Variable(aId) -> xfloat)
 
 
         case Record(id, lo, up, _, aId, _) =>
-          val xfloat = XFloat.xFloatExact(Variable(id), RationalInterval(rec.loAct.get, rec.upAct.get), config, precision)
+          val xfloat = xFloatExact(Variable(id), RationalInterval(rec.loAct.get, rec.upAct.get), config, precision)
           variableMap = variableMap + (Variable(aId) -> xfloat)
 
         case _ =>

@@ -38,7 +38,7 @@ class CodeGenerator(val reporter: Reporter, ctx: LeonContext, options: RealOptio
   
   
 
-  def specToCode(programId: Identifier, objectId: Identifier, vcs: Seq[VC]): Program = {
+  def specToCode(programId: Identifier, objectId: Identifier, vcs: Seq[VC], models: Seq[FunDef]): Program = {
 
     val funDefs: Set[FunDef] = vcs.map(vc => vc.funDef).toSet
     val vcFncMap: Map[FunDef, Seq[VC]] = funDefs.map(fnc =>
@@ -104,7 +104,7 @@ class CodeGenerator(val reporter: Reporter, ctx: LeonContext, options: RealOptio
     }).toSeq
 
 
-    val newProgram = Program(programId, List(ModuleDef(objectId, defs)))
+    val newProgram = Program(programId, List(ModuleDef(objectId, defs ++ models)))
     newProgram
   }
 

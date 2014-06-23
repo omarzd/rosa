@@ -27,8 +27,11 @@ trait FixedpointCodeGenerator {
   */
   def getFPCode(vc: VerificationCondition, solver: RangeSolver, bitlength: Int, fncs: Map[FunDef, Fnc]): (Expr, Int) = {
     
-    val ssaBody = addResultsF(idealToActual(toSSA(vc.body, fncs), vc.variables), vc.variables.fResultVars)
-    //println("\n ssaBody: " + ssaBody)
+    // if we have loops, we cannot inline the body, but if it's straightline code, we get more precise results.
+    // TODO: this should be done based on which verification succeeded...
+    val body = if (vc.kind == VCKind.LoopPost) vc.inlinedBody.get else vc.body
+
+    val ssaBody = addResultsF(idealToActual(toSSA(body, fncs), vc.variables), vc.variables.fResultVars)
 
     val transformer = new AAApproximator(reporter, solver, FPPrecision(bitlength), checkPathError = false, collectIntervals = true)
     val approxVariables = transformer.approximateEquations(ssaBody, vc.pre, vc.variables, exactInputs = false)
@@ -47,6 +50,8 @@ trait FixedpointCodeGenerator {
   }
 
   def toSSA(expr: Expr, fncs: Map[FunDef, Fnc]): Expr = {
+    //println("transforming to SSA: " + expr)
+
     val transformer = new SSATransformer(fncs)
     transformer.transform(expr)
   }
@@ -86,15 +91,28 @@ trait FixedpointCodeGenerator {
         val tmpVar = getFreshValidTmp
         (seq :+ Equals(tmpVar, UMinusR(v)), tmpVar)
 
-      case RealLiteral(_) | Variable(_) => (Seq[Expr](), expr)
+      case RealLiteral(_) | Variable(_)  | IntLiteral(_) => (Seq[Expr](), expr)
+
+      // function value for recursive functions
+      case FncValue(specs, specExpr, model, _, _) =>
+        if (specs.length == 1) {
+          val tmpVar = getFreshValidTmp
+          (Seq[Expr]() :+ Equals(tmpVar, expr), tmpVar)
+        } else {
+          val tmpVars: Seq[Expr] = specs.map(s => getFreshValidTmp)
+          (Seq[Expr]() :+ Equals(Tuple(tmpVars), expr), Tuple(tmpVars))
+        }
+
 
       case FunctionInvocation(funDef, args) =>
         val argsToSSA: Seq[(Seq[Expr], Expr)] = args.map( arithToSSA(_) )
 
+        //println("argsToSSA: " + argsToSSA)
         val (ssa, newArgs) = argsToSSA.unzip
 
         val arguments: Map[Expr, Expr] = funDef.fd.params.map(decl => decl.toVariable).zip(newArgs).toMap
         val fncBody = fncs(funDef.fd).body
+
 
         val newBody = replace(arguments, fncBody)
         
@@ -142,7 +160,12 @@ trait FixedpointCodeGenerator {
         val (seq, tmpVar) = arithToSSA(fnc)
         And(And(seq), tmpVar)
 
+      case fnc: FncValue =>
+        val (seq, tmpVar) = arithToSSA(fnc)
+        And(And(seq), tmpVar)      
+
       case _ =>
+        //println("!!!  other: " + e)
         super.rec(e, path)
     }
   }

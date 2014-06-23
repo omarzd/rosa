@@ -12,28 +12,70 @@ import Rational._
 
 object XFixed {
 
-  def variables2xfixed(vars: VariablePool, config: XConfig, bits: Int, withRoundoff: Boolean = false): (Map[Expr, XFixed], Map[Int, Expr]) = {
+  def variables2xfixed(vars: Iterable[Record], config: XConfig, bits: Int, withRoundoff: Boolean = false): Map[Expr, XFixed] = {
     var variableMap: Map[Expr, XFixed] = Map.empty
-    var indexMap: Map[Int, Expr] = Map.empty
+    //var indexMap: Map[Int, Expr] = Map.empty
 
-    for(rec <- vars.getValidRecords) {
+    for(rec <- vars) {
       rec match {
         case r @ Record(id, lo, up, Some(absError), aId, _) =>
           val (xfixed, index) = xFixedWithUncertain(Variable(id), RationalInterval(lo, up), config, absError,
             withRoundoff, bits)
           variableMap = variableMap + (Variable(aId) -> xfixed)
-          indexMap = indexMap + (index -> Variable(aId))
+          //indexMap = indexMap + (index -> Variable(aId))
+
+        case Record(id, lo, up, None, aId, None) if (rec.isInteger) =>
+          val xfixed = xFixedExact(Variable(id), RationalInterval(lo, up), config, bits)      
+          variableMap = variableMap + (Variable(aId) -> xfixed)
 
         case Record(id, lo, up, None, aId, None) =>
           val (xfixed, index) = xFixedWithRoundoff(Variable(id), RationalInterval(lo, up), config, bits)
           variableMap = variableMap + (Variable(aId) -> xfixed)
-          indexMap = indexMap + (index -> Variable(aId))
+          //indexMap = indexMap + (index -> Variable(aId))
 
         case _ =>
           throw new Exception("bug!")
       }
     }
-    (variableMap, indexMap)
+    variableMap //, indexMap)
+  }
+
+   def variables2xfixedExact(vars: Iterable[Record], config: XConfig, bits: Int): Map[Expr, XFixed] = {
+    var variableMap: Map[Expr, XFixed] = Map.empty
+    
+    for(rec <- vars) {
+      rec match {
+
+        case Record(id, lo, up, _, aId, _) =>
+          val xfixed = xFixedExact(Variable(id), RationalInterval(lo, up), config, bits)
+          variableMap = variableMap + (Variable(aId) -> xfixed)
+
+        case _ =>
+          throw new Exception("bug!")
+      }
+    }
+    variableMap
+  }
+
+  def variables2xfixedActualExact(vars: Iterable[Record], config: XConfig, bits: Int): Map[Expr, XFixed] = {
+    var variableMap: Map[Expr, XFixed] = Map.empty
+    
+    for(rec <- vars) {
+      rec match {
+        case Record(id, lo, up, _, aId, _) if rec.isInteger =>
+          val xfloat = xFixedExact(Variable(id), RationalInterval(lo, up), config, bits)
+          variableMap = variableMap + (Variable(aId) -> xfloat)
+
+
+        case Record(id, lo, up, _, aId, _) =>
+          val xfloat = xFixedExact(Variable(id), RationalInterval(rec.loAct.get, rec.upAct.get), config, bits)
+          variableMap = variableMap + (Variable(aId) -> xfloat)
+
+        case _ =>
+          throw new Exception("bug!")
+      }
+    }
+    variableMap
   }
 
   // double constant (we include rdoff error)
@@ -66,6 +108,11 @@ object XFixed {
     val rndoff = format.quantError
     val (newError, index) = addNoiseWithIndex(new XRationalForm(Rational.zero), rndoff)
     (new XFixed(format, v, range, newError, config), index)
+  }
+
+  def xFixedExact(v: Variable, range: RationalInterval, config: XConfig, bits: Int): XFixed = {
+    val format = getFormat(range, bits)
+    new XFixed(format, v, range, new XRationalForm(Rational.zero), config)
   }
 
   def xFixedWithUncertain(v: Expr, range: RationalInterval, config: XConfig,

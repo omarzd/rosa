@@ -85,7 +85,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
 
         try {
           val currentApprox = approx.getApproximation(aKind, precision, postMap)
-          spec = mergeSpecs(spec, currentApprox.spec)
+          spec = Spec.mergeSpecs(spec, currentApprox.spec)
           postMap += (vc.funDef -> currentApprox.spec)
 
           if (vc.kind == VCKind.SpecGen) true  // specGen, no need to check, only uses first approximation

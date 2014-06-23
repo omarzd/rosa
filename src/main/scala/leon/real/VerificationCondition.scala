@@ -31,6 +31,9 @@ class VerificationCondition(val funDef: FunDef, val kind: VCKind.Value, val pre:
   // (lowerBnd, upperBnd) absError
   var spec: Map[Precision, Seq[Spec]] = precisions.map(p => (p, Seq())).toMap
 
+  // body after function inlining
+  var inlinedBody: Option[Expr] = None
+
   // None = still unknown
   // Some(true) = valid
   // Some(false) = invalid

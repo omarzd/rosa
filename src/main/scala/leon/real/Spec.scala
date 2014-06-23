@@ -7,7 +7,39 @@ import purescala.Trees._
 import purescala.Common._
 
 import real.Trees.{RealLiteral, Noise}
+import Rational._
 
+object Spec {
+
+  // to avoid confusion with nested sequences
+  type SpecTuple = Seq[Spec]
+  val emptySpecTuple: SpecTuple = Seq.empty
+
+  def mergeSpecs(currentSpec: SpecTuple, newSpecs: SpecTuple): SpecTuple = (currentSpec, newSpecs) match {
+    case (Seq(), specs) => specs
+
+    case (current, Seq()) => current
+
+    case _ =>
+      currentSpec.zip(newSpecs).map({
+        case (SimpleSpec(id1, b1, Some(e1)), SimpleSpec(id2, b2, Some(e2))) =>
+          val lowerBnd = min(b1.xlo, b2.xlo)
+          val upperBnd = max(b1.xhi, b2.xhi)
+          val err = max(e1, e2)
+          assert(id1 == id2)
+          SimpleSpec(id1, RationalInterval(lowerBnd, upperBnd), Some(err))
+
+        case (LoopSpec(id1, k1, s1, b1, Some(err1)), LoopSpec(id2, k2, s2, b2, Some(err2))) =>
+          assert(id2 == id2)
+          val lowerBnd = min(b1.xlo, b2.xlo)
+          val upperBnd = max(b1.xhi, b2.xhi)
+          val err = max(err1, err2)
+          val k = k1.zip(k2).map({ case (a, b) => max(a, b)})
+          LoopSpec(id1, k, max(s1, s2), RationalInterval(lowerBnd, upperBnd), Some(err))
+        })
+  }
+
+}
 
 /**
   Represents a specification of a variable.
