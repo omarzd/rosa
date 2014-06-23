@@ -17,6 +17,8 @@ import real.{FixedPointFormat => FPFormat}
 import FPFormat._
 import real.Trees._
 import VariableShop._
+import Precision.roundoff
+import Rational.{max, abs}
 
 
 
@@ -45,6 +47,14 @@ class CodeGenerator(val reporter: Reporter, ctx: LeonContext, options: RealOptio
     val defs: Seq[Definition] = funDefs.map ( funDef => {
       val successful = vcFncMap(funDef).forall(vc => vc.value(precision) == Valid.VALID)
 
+
+      // for loops we get the specs from LoopInv!
+      val vcBody = vcFncMap(funDef).find(vc => (vc.kind == VCKind.Postcondition || 
+        vc.kind == VCKind.SpecGen || vc.kind == VCKind.LoopPost)).get
+      val vcSpec = vcFncMap(funDef).find(vc => (vc.kind == VCKind.Postcondition || 
+        vc.kind == VCKind.SpecGen || vc.kind == VCKind.LoopInvariant)).get
+
+      
       // function arguments 
       val (args, returnType) = getArgs(funDef)
 
@@ -54,17 +64,48 @@ class CodeGenerator(val reporter: Reporter, ctx: LeonContext, options: RealOptio
       fD.body = precision match {
         case FPPrecision(bitlength) =>
           val solver = new RangeSolver(options.z3Timeout)
-          val vc = vcFncMap(funDef).find(vc => (vc.kind == VCKind.Postcondition || vc.kind == VCKind.SpecGen))
-          val fpBody = getFPCode(vc.get, solver, bitlength, fncs)._1
+          val fpBody = getFPCode(vcBody, solver, bitlength, fncs)._1
           Some(mathToCode(fpBody))
         case _ => convertToFloatConstant(funDef.body)
       }
 
-      // generate assertions still left in
-      //fD.precondition = ???
+      // generate precondition checking actual ranges
+      fD.precondition = Some(rangeConstraintFromIntervals(vcSpec.variables.inputs.map({
+        case (v, rec @ Record(idealId, lo, up, absUncert, actualId, relUncert)) =>
+          // loops have to fall in this case
+          if (rec.loAct.nonEmpty && rec.upAct.nonEmpty) (v -> RationalInterval(rec.loAct.get, rec.upAct.get))
+          // no loops any more
+          else if (absUncert.nonEmpty) (v -> RationalInterval(lo - absUncert.get, up + absUncert.get))
+          else if (rec.isInteger) (v -> RationalInterval(lo, up))
+          // roundoff
+          else {
+            val error = roundoff(max(abs(lo), abs(up)), precision)
+            (v -> RationalInterval(lo - error, up + error))
+          }
+        })))
+      
       //fD.postcondition = ???
 
+
+      
       // generate comments
+      
+      var docLinesParam: Seq[Expr] = vcSpec.variables.getInitialErrors(precision).map({
+        case (id, error) => DocLine("param " + id, Noise(Variable(id), RealLiteral(error)))
+        }).toSeq
+
+      if (vcSpec.kind == VCKind.LoopInvariant) {
+        docLinesParam ++= vcSpec.spec(precision).flatMap({
+          case LoopSpec(id, k, sigma, _, _) =>
+            Seq(DocLine("loopParam " + id + " (K) ", Tuple(k.map(RealLiteral(_)))),
+              DocLine("loopParam " + id + " (sigma) ", RealLiteral(sigma)))
+          })
+      }
+
+
+      val docLineReturn: Expr = DocLine("return", Tuple(vcSpec.spec(precision).map(_.toExpr)))
+       
+      fD.doc = Some(DocComment(docLinesParam :+ docLineReturn))
        
       fD
     }).toSeq

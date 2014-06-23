@@ -147,7 +147,9 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
               postcondition)
 
           } else if(vc.kind == VCKind.LoopInvariant) {
-            val bodyApprox = getApproximationAndSpec_LoopInv(path, precision, preReal)
+            val (bodyApprox, loopSpecs) = getApproximationAndSpec_LoopInv(path, precision, preReal)
+            spec = loopSpecs
+
             reporter.debug("body approx: " + bodyApprox)    
             constraints :+= Constraint(And(precondition, path.condition), path.bodyReal, bodyApprox,
               postcondition)
@@ -166,7 +168,10 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
             
           }
         }
-        spec = spec.map(s => s.addPathError(lipschitzPathError))
+
+        // this is not clean, but loops currently do not support path errors
+        if (lipschitzPathError != zero)
+          spec = spec.map(s => s.asInstanceOf[SimpleSpec].addPathError(lipschitzPathError))
 
 
         val approx = Approximation(kind, constraints, spec)
@@ -220,7 +225,8 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
 
       val specs = zipped.map({
         case (resVar: Variable, resXFloat: XReal) =>
-          Spec(resVar.id, RationalInterval(resXFloat.realInterval.xlo, resXFloat.realInterval.xhi), Some(resXFloat.maxError))
+          SimpleSpec(resVar.id, RationalInterval(resXFloat.realInterval.xlo, resXFloat.realInterval.xhi),
+                    Some(resXFloat.maxError))
         })
 
       val constraint = And(zipped.foldLeft(Seq[Expr]())(
@@ -264,12 +270,13 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
       constraint
   }
 
-  private def getApproximationAndSpec_LoopInv(path: Path, precision: Precision, preReal: Expr): Expr = path.bodyFinite match {
-    case True => True // noop
+  private def getApproximationAndSpec_LoopInv(path: Path, precision: Precision, preReal: Expr):
+    (Expr, Seq[LoopSpec]) = path.bodyFinite match {
+    case True => (True, Seq()) // noop
     case body =>
       solver.clearCounts
       
-      val (ids, updateFncs) = vc.updateFunctions.unzip
+      val (ids: Seq[Identifier], updateFncs) = vc.updateFunctions.unzip
 
       //start = System.currentTimeMillis
 
@@ -310,7 +317,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
       // and inputs are exact
       //println("path condition: " + path.condition)
       val actualRangesPrecondition = rangeConstraintFromIntervals(actualRanges)
-      val (_, sigmas)  = approximatorNew.approximateUpdateFncs(body,
+      val (_, sigmas:Seq[Rational])  = approximatorNew.approximateUpdateFncs(body,
         And(actualRangesPrecondition, path.condition), vc.variables,
         exactInputs = true,
         actualRanges = true,
@@ -328,8 +335,8 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
           else (rec.idealId, rec.initialError.get)
       })
 
-      // TODO: use this, at least for documentation purposes!
-      val err = vc.loopBound match {
+      
+      val loopError = vc.loopBound match {
         case Some(n) => computeErrorFromLoopBound(ids, sigmas, n, initialErrors, lipschitzCnst)
         case None =>  Seq()
       }
@@ -353,8 +360,13 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
         }
       }
 
+      val loopSpecs = ids.zip(sigmas).zipWithIndex.map({               
+        case ((id, sigma), index) =>  // row in lipCnsts corresponds to one update fnc 
+          LoopSpec(id, lipschitzCnst.rows(index), sigma, actualRanges(Variable(id)), Some(loopError(index)))
+        })
 
-      constraint
+
+      (constraint, loopSpecs)
   }
 
   private def unroll(updates: Seq[UpdateFunction], max: Int, varMap: Map[Expr, Expr],
@@ -476,7 +488,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
       error match {
         case Some(err) =>
           if ((lwrBoundReal.nonEmpty || lwrBoundActual.nonEmpty) && (upBoundReal.nonEmpty || upBoundActual.nonEmpty)) {
-            Some(Spec(id, RationalInterval(lwrBoundReal.getOrElse(lwrBoundActual.get - err),
+            Some(SimpleSpec(id, RationalInterval(lwrBoundReal.getOrElse(lwrBoundActual.get - err),
                upBoundReal.getOrElse(upBoundActual.get + err)), error))
           } else {
             None
@@ -486,7 +498,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
           if (lwrBoundReal.nonEmpty && upBoundReal.nonEmpty) {
             // we do assume, however, that there is a roundoff error attached
             val rndoff = roundoff(max(lwrBoundReal.get, upBoundReal.get), precision)
-            Some(Spec(id, RationalInterval(lwrBoundReal.get, upBoundReal.get), Some(rndoff)))
+            Some(SimpleSpec(id, RationalInterval(lwrBoundReal.get, upBoundReal.get), Some(rndoff)))
           } else {
             reporter.warning("Insufficient information in postcondition for inlining: " + e)
             None
@@ -611,12 +623,12 @@ object Approximations {
 
     case _ =>
       currentSpec.zip(newSpecs).map({
-        case (s1, s2) =>
-          val lowerBnd = min(s1.bounds.xlo, s2.bounds.xlo)
-          val upperBnd = max(s1.bounds.xhi, s2.bounds.xhi)
-          val err = max(s1.absError.get, s2.absError.get)
-          assert(s1.id == s2.id)
-          Spec(s1.id, RationalInterval(lowerBnd, upperBnd), Some(err))
+        case (SimpleSpec(id1, b1, Some(e1)), SimpleSpec(id2, b2, Some(e2))) =>
+          val lowerBnd = min(b1.xlo, b2.xlo)
+          val upperBnd = max(b1.xhi, b2.xhi)
+          val err = max(e1, e2)
+          assert(id1 == id2)
+          SimpleSpec(id1, RationalInterval(lowerBnd, upperBnd), Some(err))
         })
   }
 

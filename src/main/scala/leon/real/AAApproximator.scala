@@ -113,7 +113,9 @@ class AAApproximator(val reporter: Reporter, val solver: RangeSolver, precision:
   }
 
   def approximateUpdateFncs(e: Expr, precond: Expr, inputs: VariablePool,
-    exactInputs: Boolean = true, actualRanges: Boolean = true, updateFncs: Seq[Expr]): (Map[Expr, XReal], Seq[Rational]) = {
+    exactInputs: Boolean = true, actualRanges: Boolean = true,
+     updateFncs: Seq[Expr]): (Map[Expr, XReal], Seq[Rational]) = {
+    
     init(inputs, precond)
     val vars = getInitialVariables(inputs, exactInputs, actualRanges)
 
@@ -254,7 +256,7 @@ class AAApproximator(val reporter: Reporter, val solver: RangeSolver, precision:
       //println("\nfncValueF: " + specs)
       //println("specExpr: " + specExpr)
       val res = specs.map (spec => {
-        val (resId, interval, error, constraints) = (spec.id, spec.bounds, spec.absError.get, True) // constraints not (yet) used
+        val (resId, interval, error, constraints) = (spec.id, spec.realBounds, spec.absError.get, True) // constraints not (yet) used
         val fresh = getNewXFloatVar
         //println("fresh: " + fresh)
         precision match {
@@ -358,7 +360,7 @@ class AAApproximator(val reporter: Reporter, val solver: RangeSolver, precision:
         //println("\nfncValueF: " + specs)
         //println("specExpr: " + specExpr)
         val res = specs.map (spec => {
-          val (resId, interval, error, constraints) = (spec.id, spec.bounds, spec.absError.get, True) // constraints not (yet) used
+          val (resId, interval, error, constraints) = (spec.id, spec.realBounds, spec.absError.get, True) // constraints not (yet) used
           val fresh = getNewXFloatVar
           //println("fresh: " + fresh)
           precision match {

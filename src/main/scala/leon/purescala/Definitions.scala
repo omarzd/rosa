@@ -185,6 +185,7 @@ object Definitions {
     def implementation : Option[Expr] = body
     var precondition: Option[Expr] = None
     var postcondition: Option[(Identifier, Expr)] = None
+    var doc: Option[Expr] = None
 
     // Metadata kept here after transformations
     var parent: Option[FunDef] = None

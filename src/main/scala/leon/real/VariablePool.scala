@@ -96,6 +96,7 @@ class VariablePool(val inputs: Map[Expr, Record], val resIds: Seq[Identifier],
     RationalInterval(rec.lo, rec.up)
   }
 
+  // TODO: this is not safe, absUncert may remain empty!
   def getInitIntervals: Map[Expr, RationalInterval] = {
     inputs.map(x => (x._1 -> RationalInterval(x._2.lo - x._2.absUncert.get, x._2.up + x._2.absUncert.get)))
   }
@@ -123,19 +124,17 @@ class VariablePool(val inputs: Map[Expr, Record], val resIds: Seq[Identifier],
     new VariablePool(newInputs, resIds, loopCounter, integers)
   }
 
-  def getInitialErrors(precision: Precision): Map[Identifier, Rational] = precision match {
-    case FPPrecision(_) => 
-      throw new Exception("getInitialErrors doesn't work yet for fixed-points")
-    case _ =>
-      var map = Map[Identifier, Rational]()
-      //val machineEps = getUnitRoundoff(precision)
-      inputs.map({
-        case (_, Record(id, _, _, Some(absError), _, _)) =>
-          map += (id -> absError)
-        case (_, Record(id, lo, up, _, _, _)) =>
-          map += (id -> roundoff(max(abs(lo), abs(up)), precision) )
-      })
-      map
+  def getInitialErrors(precision: Precision): Map[Identifier, Rational] = {
+    var map = Map[Identifier, Rational]()
+    inputs.map({
+      case (_, rec) if (rec.initialError.nonEmpty) =>
+        map += (rec.idealId -> rec.initialError.get)
+      case (_, Record(id, _, _, Some(absError), _, _)) =>
+        map += (id -> absError)
+      case (_, Record(id, lo, up, _, _, _)) =>
+        map += (id -> roundoff(max(abs(lo), abs(up)), precision) )
+    })
+    map
   }
 
 

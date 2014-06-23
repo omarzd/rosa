@@ -22,6 +22,7 @@ class VerificationCondition(val funDef: FunDef, val kind: VCKind.Value, val pre:
 
   val fncId = funDef.id.toString // not unique
 
+  // TODO: obsolete...
   val isLoop = kind == VCKind.LoopError //old
 
   var updateFunctions: Seq[(Identifier, Expr)] = Seq.empty

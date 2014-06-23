@@ -11,6 +11,7 @@ import Definitions._
 class ScalaPrinter(opts: PrinterOptions, sb: StringBuffer = new StringBuffer) extends PrettyPrinter(opts, sb) {
   import Common._
   import Trees._
+  import real.Trees.{DocComment}
   import TypeTrees._
   import Definitions._
 
@@ -293,6 +294,12 @@ class ScalaPrinter(opts: PrinterOptions, sb: StringBuffer = new StringBuffer) ex
         pp(vd.tpe, p)
 
       case fd: FunDef =>
+        fd.doc match {
+          case None =>
+          case Some(d) =>
+            pp(d, p)(lvl)
+        }
+
         sb.append("def ")
         pp(fd.id, p)
 
@@ -337,6 +344,15 @@ class ScalaPrinter(opts: PrinterOptions, sb: StringBuffer = new StringBuffer) ex
             pp(postc, p)
             sb.append(" }")
         }
+
+      case DocComment(args) =>
+        sb.append("/*\n")
+        args.foreach { line =>
+          ind(lvl+1)
+          pp(line, p)(lvl+1)
+          sb.append("\n")
+        }
+        sb.append("*/\n")
 
       case _ =>
         super.pp(tree, parent)(lvl)

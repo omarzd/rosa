@@ -15,7 +15,7 @@ package object real {
   val True = BooleanLiteral(true)
   val False = BooleanLiteral(false)
 
-  val DummySpec = Spec(FreshIdentifier("dummyResult"),
+  val DummySpec = SimpleSpec(FreshIdentifier("dummyResult"),
     RationalInterval(Rational.zero, Rational.zero), Some(Rational.zero))
 
   val useMassageArithmetic = true
