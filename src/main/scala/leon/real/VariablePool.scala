@@ -97,8 +97,32 @@ class VariablePool(val inputs: Map[Expr, Record], val resIds: Seq[Identifier],
   }
 
   // TODO: this is not safe, absUncert may remain empty!
-  def getInitIntervals: Map[Expr, RationalInterval] = {
-    inputs.map(x => (x._1 -> RationalInterval(x._2.lo - x._2.absUncert.get, x._2.up + x._2.absUncert.get)))
+  def getInitIntervals(precision: Precision): Map[Expr, RationalInterval] = {
+
+    val errors = getInitialErrors(precision)
+
+    inputs.map({
+      case (v, Record(id, lo, up, _, _, _)) =>
+        val err = errors(id)
+        (v -> RationalInterval(lo - err, up + err))
+      })
+
+    /*inputs.map({
+      case (v, rec) if (rec.initialError.nonEmpty) =>
+        (v -> RationalInterval(rec.lo - rec.initialError.get, rec.up + rec.initialError.get))  
+
+
+      case (v, Record(id, lo, up, Some(absError), _, _)) =>
+        (v -> RationalInterval(lo - absError, up + absError))
+
+
+      case (v, Record(id, lo, up, _, _, _)) =>
+        val rndoff = roundoff(max(abs(lo), abs(up)), precision)
+        (v -> RationalInterval(lo - rndoff, up + rndoff))
+
+    })*/
+
+     //(x._1 -> RationalInterval(x._2.lo - x._2.absUncert.get, x._2.up + x._2.absUncert.get)))
   }
 
   def inputsWithoutNoiseAndNoInt: Seq[Expr] = {
@@ -125,16 +149,16 @@ class VariablePool(val inputs: Map[Expr, Record], val resIds: Seq[Identifier],
   }
 
   def getInitialErrors(precision: Precision): Map[Identifier, Rational] = {
-    var map = Map[Identifier, Rational]()
+    //var map = Map[Identifier, Rational]()
     inputs.map({
       case (_, rec) if (rec.initialError.nonEmpty) =>
-        map += (rec.idealId -> rec.initialError.get)
+        (rec.idealId -> rec.initialError.get)
       case (_, Record(id, _, _, Some(absError), _, _)) =>
-        map += (id -> absError)
+        (id -> absError)
       case (_, Record(id, lo, up, _, _, _)) =>
-        map += (id -> roundoff(max(abs(lo), abs(up)), precision) )
+        (id -> roundoff(max(abs(lo), abs(up)), precision) )
     })
-    map
+    //map
   }
 
 

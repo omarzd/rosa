@@ -28,7 +28,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
 
   var leonToZ3: LeonToZ3Transformer = null
   
-  val taylorError = false
+  val taylorError = true
 
   val containsIfs = containsIfExpr(vc.body)
   val containsFncs = vc.allFncCalls.nonEmpty
@@ -238,13 +238,20 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
                                 LessEquals(vc.variables.buddy(kv._1), RealLiteral(kv._2.interval.xhi)),
                                 Noise(kv._1, RealLiteral( max(pathError, kv._2.maxError) )))))
 
+
       if (taylorError) {
-        val ids = vc.variables.inputs.keys.map(k => k.asInstanceOf[Variable].id).toSeq
-        val initErrors = vc.variables.getInitialErrors(precision)
-        val vars = vc.variables.getInitIntervals
-        //val lipschitz = new Lipschitz(reporter, solver, leonToZ3)
-        getTaylorErrorLipschitz(path.bodyReal, ids, approx.map(a => a.maxError), initErrors, vars,
-         And(getClauses(preReal).filter(cl => !belongsToActual(cl) && !isRangeClause(cl))), precision)
+        try {
+          val ids = vc.variables.inputs.keys.map(k => k.asInstanceOf[Variable].id).toSeq
+          val initErrors = vc.variables.getInitialErrors(precision)
+
+          val vars = vc.variables.getInitIntervals(precision)
+          //val lipschitz = new Lipschitz(reporter, solver, leonToZ3)
+          getTaylorErrorLipschitz(path.bodyReal, ids, approx.map(a => a.maxError), initErrors, vars,
+            And(getClauses(preReal).filter(cl => !belongsToActual(cl) && !isRangeClause(cl))), precision)
+        } catch {
+          case e: Exception => reporter.warning("Taylor computation failed for " + vc.fncId) ;
+        }
+
       }
       (constraint, specs)
     }
