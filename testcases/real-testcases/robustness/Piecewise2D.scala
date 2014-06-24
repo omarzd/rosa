@@ -1,5 +1,6 @@
 import leon.real._
 import RealOps._
+import annotations._
 
 object Piecewise2D {
 
@@ -45,4 +46,17 @@ object Piecewise2D {
       }
     }
   } ensuring ( res => res +/- 1e-9 )
+
+  @robust
+  def quadraticFit2(x: Real, y: Real): Real = {
+    require(-4 <= x && x <= 4 && -4 <= y && y <= 4)// && x +/- 1e-8 && y +/- 1e-8)
+
+    if (x > y) {
+      0.238604 - 0.143624*x + 0.0137*x*x + 0.143624*y + 0.00605411*x*y + 0.0137*y*y
+    } else {
+      0.238604 + 0.143624*x + 0.0137*x*x - 0.143624*y + 0.00605411*x*y + 0.0137*y*y
+    }
+  }  ensuring ( res => res +/- 1e-9 )
+
+
 }

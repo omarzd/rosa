@@ -45,7 +45,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
 
     if (!containsIfs) {
       kinds = kinds.filter(_.pathHandling == Merging)
-    } else if(options.lipschitzPathError) {
+    } else if(options.lipschitzPathError && checkPathError) {
       kinds = kinds.filter(_.pathHandling == Pathwise)
     } else if(checkPathError) {
       kinds = kinds.filter(_.pathHandling == Merging)
@@ -133,7 +133,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
         // do not filter paths according to feasibility here
         // TODO: path error with tuples
         val lipschitzPathError: Rational =
-          if (options.lipschitzPathError) {
+          if (options.lipschitzPathError && checkPathError) {
             val res = getLipschitzPathError(paths.toSeq, precision)
             reporter.info("--> lipschitzPathError: " + res)
             res
