@@ -10,7 +10,7 @@ object TriangleProgressionRoundoffUnknown {
 
     val s = (a + b + c)/2.0
     sqrt(s * (s - a) * (s - b) * (s - c))
-  } ensuring (res => 0.29432 < res && res < 35.0741 && res +/- 2.6926e-11)
+  } ensuring (res => 0.29432 < res && res < 35.0741 && res +/- 2.0181e-11)
 
   def triangle2(a: Real, b: Real, c: Real): Real = {
     require(a >< (1.0, 9.0) && b >< (1.0, 9.0) && c >< (1.0, 9.0) &&
@@ -18,7 +18,7 @@ object TriangleProgressionRoundoffUnknown {
 
     val s = (a + b + c)/2.0
     sqrt(s * (s - a) * (s - b) * (s - c))
-  } ensuring (res => 0.099375 < res && res < 35.0741 && res +/- 8.03e-11)
+  } ensuring (res => 0.099375 < res && res < 35.0741 && res +/- 6.0243e-11)
 
   def triangle3(a: Real, b: Real, c: Real): Real = {
     require(a >< (1.0, 9.0) && b >< (1.0, 9.0) && c >< (1.0, 9.0) &&
@@ -26,6 +26,6 @@ object TriangleProgressionRoundoffUnknown {
 
     val s = (a + b + c)/2.0
     sqrt(s * (s - a) * (s - b) * (s - c))
-  } ensuring (res => 3.16031e-2 < res && res < 35.0741 && res +/- 2.52e-10)
+  } ensuring (res => 3.16031e-2 < res && res < 35.0741 && res +/- 1.8943e-10)
 
 }

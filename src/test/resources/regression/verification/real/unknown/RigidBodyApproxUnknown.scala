@@ -14,7 +14,7 @@ object RigidBodyApproxUnknown {
     require(-15.0 <= x1 && x1 <= 15 && -15.0 <= x2 && x2 <= 15.0 && -15.0 <= x3 && x3 <= 15)
 
     -x1*x2 - 2*x2*x3 - x1 - x3
-  } ensuring(res => -705.0 <= res && res <= 705.0 && res +/- 5.07927e-13)
+  } ensuring(res => -705.0 <= res && res <= 705.0 && res +/- 3.2152e-13)
 
 
   def rigidBody2Star(x1: Real, x2: Real, x3: Real): Real = {
@@ -28,6 +28,6 @@ object RigidBodyApproxUnknown {
     require(-15.0 <= x1 && x1 <= 15 && -15.0 <= x2 && x2 <= 15.0 && -15.0 <= x3 && x3 <= 15)
 
     2*x1*x2*x3 + 3*x3*x3 - x2*x1*x2*x3 + 3*x3*x3 - x2
-  } ensuring(res => -56010.0001 <= res && res <= 58740.0 && res +/- 6.475183e-11)
+  } ensuring(res => -56010.0001 <= res && res <= 58740.0 && res +/- 3.6465e-11)
 
 }

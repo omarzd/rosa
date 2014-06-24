@@ -15,7 +15,7 @@ object PhysicsApproxUnknown {
     require(-4.5 <= v && v <= -0.3 && 0.4 <= w && w <= 0.9 && 3.8 <= r && r <= 7.8)
 
     3 + 2/(r*r) - 0.125*(3-2*v)*(w*w*r*r)/(1-v) - 4.5
-  } ensuring(res => -18.525727 < res && res < -1.991604 && res +/- 1.24161e-13)
+  } ensuring(res => -18.525727 < res && res < -1.991604 && res +/- 8.8685e-14)
 
   def turbine2Star(v: Real, w: Real, r: Real): Real = {
     require(-4.5 <= v && v <= -0.3 && 0.4 <= w && w <= 0.9 && 3.8 <= r && r <= 7.8 &&
@@ -28,7 +28,7 @@ object PhysicsApproxUnknown {
     require(-4.5 <= v && v <= -0.3 && 0.4 <= w && w <= 0.9 && 3.8 <= r && r <= 7.8)
 
     6*v - 0.5 * v * (w*w*r*r) / (1-v) - 2.5
-  } ensuring(res => -28.55484 < res && res < 3.822207 && res +/- 1.75704e-13)
+  } ensuring(res => -28.55484 < res && res < 3.822207 && res +/- 1.2311e-13)
 
   def turbine3Star(v: Real, w: Real, r: Real): Real = {
     require(-4.5 <= v && v <= -0.3 && 0.4 <= w && w <= 0.9 && 3.8 <= r && r <= 7.8 &&
@@ -41,7 +41,7 @@ object PhysicsApproxUnknown {
     require(-4.5 <= v && v <= -0.3 && 0.4 <= w && w <= 0.9 && 3.8 <= r && r <= 7.8)
 
     3 - 2/(r*r) - 0.125 * (1+2*v) * (w*w*r*r) / (1-v) - 0.5
-  } ensuring(res => 0.571726 < res && res < 11.4272 && res +/- 8.49925e-14)
+  } ensuring(res => 0.571726 < res && res < 11.4272 && res +/- 6.2732e-14)
 
   def verhulstStar(r: Real, K: Real, x: Real): Real = {
     require(r >= 4.0 && r <= 4.0 && K >= 1.11 && K <= 1.11 && 0.1 <= x && x <= 0.3 &&
@@ -56,7 +56,7 @@ object PhysicsApproxUnknown {
 
     (r*x) / (1 + (x/K))
 
-  } ensuring(res => 0.3148936 < res && res < 1.1008265 && res +/- 5.5956e-16)
+  } ensuring(res => 0.3148936 < res && res < 1.1008265 && res +/- 4.73742e-16)
 
   /*def predatorPreyStar(r: Real, K: Real, x: Real): Real = {
     require(r >= 4.0 && r <= 4.0 && K >= 1.11 && K <= 1.11 && 0.1 <= x && x <= 0.3 &&
@@ -71,7 +71,7 @@ object PhysicsApproxUnknown {
 
     (r*x*x) / (1 + (x/K)*(x/K))
 
-  } ensuring(res => 0.0396779 < res && res < 0.335494 && res +/- 2.5388e-16)
+  } ensuring(res => 0.0396779 < res && res < 0.335494 && res +/- 2.0792e-16)
               // [0.0396779646892767640, 0.335493533074089630] ± 2.9353123670875065e-16
 
   def carbonGasStar(T: Real, a: Real, b: Real, N: Real, p: Real, V: Real): Real = {
@@ -90,23 +90,23 @@ object PhysicsApproxUnknown {
     val k = 1.3806503e-23
     (p + a * (N / V) * (N / V)) * (V - N * b) - k * N * T
 
-  } ensuring(res => 4303229.99 < res && res <= 16739009.21 && res +/- 4.06718e-8)
+  } ensuring(res => 4303229.99 < res && res <= 16739009.21 && res +/- 3.3544e-8)
   
   def sine(x: Real): Real = {
     require(x > -1.57079632679 && x < 1.57079632679)
     x - (x*x*x)/6.0 + (x*x*x*x*x)/120.0 - (x*x*x*x*x*x*x)/5040.0 
-  } ensuring(res => -0.9998435 < res && res < 0.9998435 && res +/- 9.554116e-16)//res +/- 9.5541e-16)
+  } ensuring(res => -0.9998435 < res && res < 0.9998435 && res +/- 6.3959e-16)//res +/- 9.5541e-16)
 
   //[-0.999843499718823400, 0.999843499718823400] ± 9.554116700798416e-16
 
   def sqroot(x: Real): Real = {
     require(x >= 0.0 && x < 1.0)
     1.0 + 0.5*x - 0.125*x*x + 0.0625*x*x*x - 0.0390625*x*x*x*x
-  } ensuring(res => 0.9999999 < res && res < 1.398438 && res +/- 8.4047352e-16)
+  } ensuring(res => 0.9999999 < res && res < 1.398438 && res +/- 6.4705e-16)
 
   def sineOrder3(x: Real): Real = {
     require(-2.0 < x && x < 2.0)
     0.954929658551372 * x -  0.12900613773279798*(x*x*x)
-  } ensuring(res => -1.00000001 < res && res < 1.0000001 && res +/- 1.1079985e-15)
+  } ensuring(res => -1.00000001 < res && res < 1.0000001 && res +/- 1.2254e-15)
   
 }
