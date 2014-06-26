@@ -13,7 +13,7 @@ object Pendulum {
 
   def pendulum(t: Real, w: Real, n: LoopCounter): (Real, Real) = {
     require(-2 <= t && t <= 2 && -5 <= w && w <= 5 &&
-      -2 <= ~t && ~t <= 2 && 5 <= ~w && ~w <= 5)
+      -2.01 <= ~t && ~t <= 2.01 && -5.01 <= ~w && ~w <= 5.01)
 
     if (n < 1000) {
       val h: Real = 0.01
@@ -36,7 +36,7 @@ object Pendulum {
 
   } ensuring (_ match {
     case (tRes, wRes) =>
-      -2 <= t && t <= 2 && -5 <= w && w <= 5
+      -2 <= tRes && tRes <= 2 && -5 <= wRes && wRes <= 5
     })
     
 
