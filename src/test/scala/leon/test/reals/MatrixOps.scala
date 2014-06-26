@@ -136,8 +136,11 @@ class MatrixOps extends LeonTestSuite {
 
   test("inverse") {
     //val (RMatrix.identity(6) - m6).inverse
-    val result = RMatrix.inverseGauss(RMatrix.identity(6) - m6)
+    //val result = RMatrix.inverseGauss(RMatrix.identity(6) - m6)
+    val result = RMatrix.inverseGauss(m5)
     print("result: " + result)
-    assert(true)
+
+    assert(m5 * result === RMatrix.identity(5))
+    
   }
 }
