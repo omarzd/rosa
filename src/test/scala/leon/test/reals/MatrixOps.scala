@@ -19,13 +19,36 @@ class MatrixOps extends LeonTestSuite {
                        Seq(6,5,4),
                        Seq(4,6,5)))
 
+  val m3 = RMatrix(Seq(Seq(8, 10, 9),
+                       Seq(11, 12, 13),
+                       Seq(7, 6, 2)))
+
+  val m4 = RMatrix(Seq(Seq(12, 10, 11, 13),
+                       Seq(2, 6, 14, 9),
+                       Seq(5, 3, 4, 8),
+                       Seq(7, 15, 16, 17)))
+
+  val m5 = RMatrix(Seq(Seq(4, 11, 13, 7, 8),
+                       Seq(3, 5, 9, 14, 6),
+                       Seq(12, 10, 15 ,16, 17),
+                       Seq(2, 18, 19, 20, 21),
+                       Seq(22, 23, 24, 25, 26)))
+
+
+  val m6 = RMatrix.fromDoubles(Seq(Seq(1.0125958110204192, 0., 0.022617800112495742, 0.1, 0. , 0.0005958662735577874),
+                   Seq(0.005921762731020502, 1., 0.007539266704165247, 0., 0., 0.04413821270376106),
+                   Seq(0.017765288193061505, 0., 1.0219721471017966, 0., 0.1, 0.0007944883647437166),
+                   Seq(0.12595811020419093, 0., 0.22617800112495742, 1., 0., 0.005958662735577875),
+                   Seq(0.17765288193061504, 0., 0.2197214710179657, 0., 1., 0.007944883647437166),
+                   Seq(0.0005921762731020501, 0.1, 0.0007539266704165247, 0., 0., 0.9993808299347923)))
+
   val i2 = RMatrix(Seq(Seq(1, 0), Seq(0, 1)))
   val i3 = RMatrix(Seq(Seq(1, 0, 0), Seq(0, 1, 0), Seq(0, 0, 1)))
 
   val t1 = Seq(R(4), R(5), R(6))
   val t2 = Seq(R(1), R(2), R(3))
 
-  test("matrix mult 1") {
+  /*test("matrix mult 1") {
     val result = m1 * m2
     val trueResult = RMatrix(Seq(Seq(28,33,29),
                                  Seq(28,31,31),
@@ -109,5 +132,12 @@ class MatrixOps extends LeonTestSuite {
 
     val trueResult = Seq(R(32), R(28), R(31))
     assert(result === trueResult)
+  }*/
+
+  test("inverse") {
+    //val (RMatrix.identity(6) - m6).inverse
+    val result = RMatrix.inverseGauss(RMatrix.identity(6) - m6)
+    print("result: " + result)
+    assert(true)
   }
 }

@@ -7,9 +7,9 @@ object SimulationExperiments {
 
   def harmonicEuler = {
     val k = 2.3
-    val dt = 0.1
+    val dt = 0.01
     val kQ = QD(2.3)
-    val dtQ = QD(0.1)
+    val dtQ = QD(0.01)
 
     def next(x: Double, v: Double): (Double, Double) = {
       (x + v*dt, v + (-k*x*dt))
@@ -24,7 +24,7 @@ object SimulationExperiments {
     var xnQ = QD(xn)
     var vnQ = QD(vn)
 
-    for (i <- 0 until 300) {
+    for (i <- 0 until 500) {
       val (xi, vi) = next(xn, vn)
       val (xiQ, viQ) = nextQ(xnQ, vnQ)
       val errX = xiQ - QD(xi)
@@ -33,7 +33,7 @@ object SimulationExperiments {
       print(i + ": ")
       //println(xi + "  -  " + vi)
       //println(xiQ + "  -  " + viQ)
-      print("x: " + xi + ", " + errX )
+      print("x: " + xi + ", " + errX + " v: " + vi)
       println(", rel: " + (errX / xiQ))
       xn = xi; vn = vi; xnQ = xiQ; vnQ = viQ
     } 
@@ -227,7 +227,7 @@ object SimulationExperiments {
       xQ = xNew; yQ = yNew; zQ = zNew; vxQ = vxNew; vyQ = vyNew; vzQ = vzNew
     }    
 
-    for (i <- 0 until 10000) {
+    for (i <- 0 until 1000) {
       next
       nextQ
       val errX = xQ - QD(x)
@@ -235,9 +235,10 @@ object SimulationExperiments {
       val errZ = zQ - QD(z)
 
       print(i + ": ")
-      //print(x + ", " + y + ", " + z)
-      print(errX + ", " + errY + ", " + errZ)
-      println(", rel: " + (errX / xQ) + ", " + (errY / yQ) + ", " + (errZ / zQ))
+      println(x + ", " + y + ", " + z + ", " + vx + ", " + vy + ", " + vz)
+      
+      //print(errX + ", " + errY + ", " + errZ)
+      //println(", rel: " + (errX / xQ) + ", " + (errY / yQ) + ", " + (errZ / zQ))
       
     } 
     

@@ -30,7 +30,7 @@ trait Lipschitz {
     } else {
       val completePre = And(rangeConstraint(vars), additionalConstraints)
       
-      val lipschitzConsts: RMatrix = getLipschitzMatrix(completePre, es, ids,
+      val lipschitzConsts: RMatrix = _getLipschitzMatrix(completePre, es, ids,
         vars.map(x => (x._1, x._2.interval)))
       reporter.info("K: (" + ids.mkString(", ") + ")" + lipschitzConsts)
 
@@ -54,8 +54,6 @@ trait Lipschitz {
   def computeErrorFromLoopBound(ids: Seq[Identifier], sigmas: Seq[Rational], loopBound: Int,
     initErrorsMap: Map[Identifier, Rational], mK: RMatrix): Seq[Rational] = {
 
-    println("computing loop bound")
-    println("initial errors: " + initErrorsMap)
     val dim = sigmas.length
     dim match {
       case 1 =>
@@ -128,8 +126,12 @@ trait Lipschitz {
             records(Variable(specs(0).id))))
           
           Some(Variable(specs(0).id))
+
+        case FncBody(name, body, _, _) => Some(body)
+
         case _ => None
       }(body)
+      //println("body2: " + body2)
 
       var valMap: Map[Expr, Expr] = getValMapForInlining(body2)
 
@@ -147,7 +149,7 @@ trait Lipschitz {
     
     val precondition = And(rangeConstraintFromIntervals(allVars), cleanedAdditionalConstraints)
     
-    val mK = getLipschitzMatrix(precondition, inlinedFncs, ids, allVars)    
+    val mK = _getLipschitzMatrix(precondition, inlinedFncs, ids, allVars)    
     //reporter.info("sigmas: " + sigmas)
     reporter.info("K: " + mK)
     mK
@@ -204,7 +206,7 @@ trait Lipschitz {
     In order for this computation to be sounds, the intervals need to include all
     the values from the ideal and actual ranges
   */
-  private def getLipschitzMatrix(preReal: Expr, fncs: Seq[Expr], ids: Seq[Identifier],
+  private def _getLipschitzMatrix(preReal: Expr, fncs: Seq[Expr], ids: Seq[Identifier],
    vars: Map[Expr, RationalInterval]): RMatrix = {
   
     reporter.debug("preReal: " + preReal)
@@ -242,7 +244,8 @@ trait Lipschitz {
     solver.clearCounts
     val res = m.map(e => {
       val rangeDerivative = solver.getRange(pre, e, vars, leonToZ3,
-                solverMaxIterMedium, solverPrecisionMedium) 
+                solverMaxIterMedium, solverPrecisionMedium)
+      reporter.debug("computed range for: " + e + "  --> " + maxAbs(Seq(rangeDerivative.xlo, rangeDerivative.xhi)))
       maxAbs(Seq(rangeDerivative.xlo, rangeDerivative.xhi))
     })
     reporter.info("Bound ranges solver counts: " + solver.getCounts)

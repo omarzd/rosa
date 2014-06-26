@@ -307,9 +307,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
 
       
 
-      // this is computing loop errors
-      reporter.info("Computing loop error...")          
-      //println("variables: " + vc.variables)
+      // ~~~~~~~~~~~~~ Loop errors ~~~~~~~~~~~~~~~~~~~~~~
 
       val actualRanges: Map[Expr, RationalInterval] = vc.variables.inputs.map({
         case (v @ Variable(_), rec @ Record(idealId, _, _, _, _, _)) =>
@@ -328,12 +326,15 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
       // and inputs are exact
       //println("path condition: " + path.condition)
       val actualRangesPrecondition = rangeConstraintFromIntervals(actualRanges)
+      val additionalRealConstraints = And(getAdditionalRealConstraints(vc.pre))
+      println("additionalRealConstraints: " + additionalRealConstraints)
       val (_, sigmas:Seq[Rational])  = approximatorNew.approximateUpdateFncs(body,
-        And(actualRangesPrecondition, path.condition), vc.variables,
+        And(actualRangesPrecondition, And(path.condition, additionalRealConstraints)), vc.variables,
         exactInputs = true,
         actualRanges = true,
         updateFncs.map(fnc => idealToActual(fnc, vc.variables)))
 
+      reporter.debug("sigmas: " + sigmas)
       
       //println("actualRanges: " + actualRanges)
 
@@ -376,6 +377,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
           LoopSpec(id, lipschitzCnst.rows(index), sigma, actualRanges(Variable(id)), Some(loopError(index)))
         })
 
+      //val loopSpecs = Seq()
 
       (constraint, loopSpecs)
   }

@@ -7,7 +7,7 @@ import purescala.Trees._
 import purescala.Common.Identifier
 import purescala.TreeOps.{preMap, replace}
 
-import real.TreeOps.{idealToActual,inlineBody, getClauses}
+import real.TreeOps._
 import real.Trees.{PlusR, WithInEq, MinusR, RealLiteral}
 import Rational._
 import Precision._
@@ -180,19 +180,7 @@ class LipschitzPathError(reporter: Reporter, solver: RangeSolver, precision: Pre
     maxAbs(lipschitzConstants) * maxAbs(initErrors)
   }
 
-  def isRangeConstraint(e: Expr): Boolean = e match {
-    case GreaterThan(RealLiteral(_),Variable(_)) |
-        GreaterEquals(RealLiteral(_), Variable(_)) |
-        LessThan(RealLiteral(_),Variable(_)) |
-        LessEquals(RealLiteral(_),Variable(_)) => true
-
-    case GreaterThan(Variable(_), RealLiteral(_)) |
-        GreaterEquals(Variable(_), RealLiteral(_)) |
-        LessThan(Variable(_), RealLiteral(_)) |
-        LessEquals(Variable(_), RealLiteral(_)) => true
-
-    case _ => false
-  }
+  
 
   /*
    we currently only accept clauses of the form x < y where x, y can be constants or arithmetic expressions 

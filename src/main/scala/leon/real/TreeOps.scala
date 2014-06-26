@@ -20,6 +20,25 @@ import Rational._
 
 object TreeOps {
 
+  def getAdditionalRealConstraints(e: Expr) = {
+    getClauses(e).filter(cl => !belongsToActual(cl) && !isRangeConstraint(cl))
+  }
+
+  def isRangeConstraint(e: Expr): Boolean = e match {
+    case GreaterThan(RealLiteral(_),Variable(_)) |
+        GreaterEquals(RealLiteral(_), Variable(_)) |
+        LessThan(RealLiteral(_),Variable(_)) |
+        LessEquals(RealLiteral(_),Variable(_)) => true
+
+    case GreaterThan(Variable(_), RealLiteral(_)) |
+        GreaterEquals(Variable(_), RealLiteral(_)) |
+        LessThan(Variable(_), RealLiteral(_)) |
+        LessEquals(Variable(_), RealLiteral(_)) => true
+
+    case _ => false
+  }
+
+
   /*def deduplicateClauses(expr: Expr): Expr = expr match {
     case And(args) => And(args.toSet.toSeq)
     case _ => expr
@@ -335,6 +354,7 @@ object TreeOps {
     case Not(t) => Not(addResults(t, variables))
 
     case FncValue(specs, specExpr, _, _, _) =>
+      println("specs: " + specs + ", vars.len: " + variables.length)
       assert(specs.length == variables.length)
       And(variables.zip(specs).map({
         case (resVar, spec) =>
@@ -513,6 +533,7 @@ object TreeOps {
     contains
   }
 
+  // TODO: duplicate?
   def isRangeClause(e: Expr): Boolean = e match {
     case LessThan(Variable(_), RealLiteral(_)) | LessThan(RealLiteral(_), Variable(_)) => true
     case LessEquals(Variable(_), RealLiteral(_)) | LessEquals(RealLiteral(_), Variable(_)) => true
@@ -532,8 +553,7 @@ object TreeOps {
     case _ => expr
   }
 
-  def filterOutActualInFncVal(e: Expr): Expr = {
-    def filterOutActual(expr: Expr): Expr = expr match {
+  def filterOutActual(expr: Expr): Expr = expr match {
       case And(args) =>
         And(args.map(a => filterOutActual(a)))
 
@@ -544,6 +564,7 @@ object TreeOps {
       case _ => expr
     }
 
+  def filterOutActualInFncVal(e: Expr): Expr = {
     preMap {
       case FncValue(s, sexpr, m, f, a) => Some(FncValue(s, filterOutActual(sexpr), m, f, a))
       case _ => None

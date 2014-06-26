@@ -43,6 +43,10 @@ object RMatrix {
     RMatrix(ints(0).length, ints.map(row => row.map(e => Rational(e))))
   }
 
+  def fromDoubles(ints: Seq[Seq[Double]]): RMatrix = {
+    RMatrix(ints(0).length, ints.map(row => row.map(e => Rational(e))))
+  }
+
   def power(m: RMatrix, n: Int): RMatrix = {
     assert(n >= 0)
     if (n == 0) RMatrix.identity(m.dim)
@@ -64,13 +68,80 @@ object RMatrix {
     powerBySquare(m.toDouble, num).toRationals
   }
 
-  /*Function exp-by-squaring(x,n)
-     if n<0 then return exp-by-squaring(1/x, -n);
-     else if n=0 then return 1;
-     else if n=1 then return x;
-     else if n is even then return exp-by-squaring(x2, n/2);
-     else if n is odd then return x * exp-by-squaring(x2, (n-1)/2).
-  */
+  def printArray(a: Array[Array[Rational]]) = {
+    "\n" + a.map(r => r.mkString(", ")).mkString("\n")
+  }
+
+  def inverseGauss(m: RMatrix): RMatrix = {
+
+    // create augmented matrix
+    val am: Array[Array[Rational]] = m.rows.zipWithIndex.map({
+      case (row, index) =>
+        val identityRow: Array[Rational] = Array.fill(m.dim)(zero)
+        identityRow(index) = one
+        
+        row.toArray ++ identityRow 
+        
+      }).toArray
+    println("augmentedMatrix: " + printArray(am))
+
+
+    // bring it into row echelon form
+
+    for (j <- 0 until m.dim) {
+      //println("\n\nj: " + j)
+      // find maximum jth column element
+      var tmp = j
+      for (i <- j + 1 until m.dim) 
+        if (abs(am(i)(j)) > abs(am(tmp)(j))) tmp = i
+
+      //println("tmp: " + tmp)
+      if (tmp != j) {
+        val currentRow = am(j)
+        val maxRow = am(tmp)
+        am(j) = maxRow
+        am(tmp) = currentRow
+      }
+
+      //println("am after swap: " + printArray(am))
+    
+      for (i <- 0 until m.dim) {
+
+        if ( i != j) {
+          // add or subtract a multiple of one row to another
+          val r = am(i)(j)   // this is the multiple
+
+          for (k <- 0 until (2 * m.dim)) {
+
+            am(i)(k) = am(i)(k) - am(j)(k) * r / am(j)(j)
+          }
+
+
+
+        } else {
+          // divide the current row by 
+          val r = am(i)(j)
+          //println("dividing by " + r)
+          //println("before: " + am(i).mkString(", "))
+          am(i) = am(i).map(elem => elem / r)
+          //println("after: " + am(i).mkString(", "))
+        }
+
+      }// end row ops
+
+
+    }// end outer for
+
+
+    //println("final: " + printArray(am))
+
+    // extract the inverse
+    val res = am.map(row => row.drop(m.dim).toSeq).toSeq
+    println("res: " + res)
+    RMatrix(m.dim, res)
+  }
+
+
 }
 
 object DMatrix {
@@ -215,6 +286,9 @@ case class RMatrix (val dim: Int, val rows: Seq[Seq[Rational]]) extends Matrix[R
                         Seq(B,E,H),
                         Seq(C,F,I))
       RMatrix(dim, newData)
+
+    case x if (x > 3) =>
+      RMatrix.inverseGauss(this)
   }
 
   
