@@ -60,7 +60,7 @@ object RealOps {
     
     // dummy value when we need to return something
     @proxy
-    def realValue: Real = ???
+    def ????(): Real = ???
 }
 
 @ignore

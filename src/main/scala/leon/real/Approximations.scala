@@ -327,14 +327,14 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
       //println("path condition: " + path.condition)
       val actualRangesPrecondition = rangeConstraintFromIntervals(actualRanges)
       val additionalRealConstraints = And(getAdditionalRealConstraints(vc.pre))
-      println("additionalRealConstraints: " + additionalRealConstraints)
+      //println("additionalRealConstraints: " + additionalRealConstraints)
       val (_, sigmas:Seq[Rational])  = approximatorNew.approximateUpdateFncs(body,
         And(actualRangesPrecondition, And(path.condition, additionalRealConstraints)), vc.variables,
         exactInputs = true,
         actualRanges = true,
         updateFncs.map(fnc => idealToActual(fnc, vc.variables)))
 
-      reporter.debug("sigmas: " + sigmas)
+      reporter.info("sigmas: " + sigmas)
       
       //println("actualRanges: " + actualRanges)
 
