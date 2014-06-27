@@ -152,8 +152,8 @@ class LipschitzPathError(reporter: Reporter, solver: RangeSolver, precision: Pre
 
     */
 
-    //val diff = MinusR(inlineBody(f1), inlineBody(f2))
-    val diff = massageArithmetic( MinusR(inlineBody(f1), inlineBody(f2)) ) 
+    val diff = MinusR(inlineBody(f1), inlineBody(f2))
+    //val diff = massageArithmetic( MinusR(inlineBody(f1), inlineBody(f2)) ) 
     
     val rangeDiff = solver.getRange(z3Constraint, diff, inputs, leonToZ3,
       solverMaxIterHigh, solverPrecisionHigh)
