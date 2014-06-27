@@ -308,6 +308,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
       
 
       // ~~~~~~~~~~~~~ Loop errors ~~~~~~~~~~~~~~~~~~~~~~
+      val start = System.currentTimeMillis
 
       val actualRanges: Map[Expr, RationalInterval] = vc.variables.inputs.map({
         case (v @ Variable(_), rec @ Record(idealId, _, _, _, _, _)) =>
@@ -352,31 +353,33 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
         case Some(n) => computeErrorFromLoopBound(ids, sigmas, n, initialErrors, lipschitzCnst)
         case None =>  Seq()
       }
-      
+      reporter.info("loop error computation time: " + (System.currentTimeMillis - start) + "ms")
                 
 
       if(vc.loopBound.nonEmpty && options.loopUnrolling) { //if (options.loopUnrolling) {
+        val start2 = System.currentTimeMillis
         val valMap = getValMapForInlining(path.bodyReal)
         val inlinedUp = vc.updateFunctions.map({
           case (id, e) => UpdateFunction(Variable(id), replace(valMap, e))
           })
-        println("inlined update functions: " + inlinedUp)
+        //println("inlined update functions: " + inlinedUp)
         val initialVarMap: Map[Expr, Expr] = ids.map(i => (Variable(i), Variable(i))).toMap
         val unrolledLoop = unroll(inlinedUp, vc.loopBound.get, initialVarMap, Seq(), 1)
-        println("unrolledLoop: " + unrolledLoop.mkString("\n"))
+        //println("unrolledLoop: " + unrolledLoop.mkString("\n"))
         val unrolledResult = approximatorNew.approximate(idealToActual(And(unrolledLoop), vc.variables),
           And(vc.pre, path.condition), vc.variables, exactInputs = false)
         println("unrolledResult: ")
         unrolledResult.foreach{ x =>
           println("\n" + x.interval + ", " + x.maxError)
         }
+        reporter.info("loop unrolling time: " + (System.currentTimeMillis - start2) + "ms")
       }
 
       val loopSpecs = ids.zip(sigmas).zipWithIndex.map({               
         case ((id, sigma), index) =>  // row in lipCnsts corresponds to one update fnc 
           LoopSpec(id, lipschitzCnst.rows(index), sigma, actualRanges(Variable(id)), Some(loopError(index)))
         })
-
+      
       //val loopSpecs = Seq()
 
       (constraint, loopSpecs)

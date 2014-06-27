@@ -8,7 +8,7 @@ object RunningAvrg {
   @model
   def nextItem: Real = { 
     ????
-  } ensuring (res => -1200 <= res && res <= 1200 && res +/- 1e-8)
+  } ensuring (res => -1200 <= res && res <= 1200)// && res +/- 1e-8)
 
   def mean(n: Int, m: Real): Real = {
     require(-1200 <= m && m <= 1200 && 2 <= n && n <= 1002 &&
