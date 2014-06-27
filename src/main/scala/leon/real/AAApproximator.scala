@@ -93,6 +93,7 @@ class AAApproximator(val reporter: Reporter, val solver: RangeSolver, precision:
     exactInputs: Boolean = false): Seq[XReal] = {
     init(inputs, precond)
     val vars = getInitialVariables(inputs, exactInputs)
+    //println("vars: " + vars)
     process(e, vars, True)._3
   }
 

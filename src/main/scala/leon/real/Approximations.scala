@@ -28,7 +28,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
 
   var leonToZ3: LeonToZ3Transformer = null
   
-  val taylorError = true
+  val taylorError = false
 
   val containsIfs = containsIfExpr(vc.body)
   val containsFncs = vc.allFncCalls.nonEmpty
