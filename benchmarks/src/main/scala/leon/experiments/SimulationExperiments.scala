@@ -1,5 +1,6 @@
 package leon
 package experiments
+import java.io.{PrintWriter, File}
 
 import ceres.common.{DoubleDouble, QuadDouble => QD}
 
@@ -227,21 +228,27 @@ object SimulationExperiments {
       xQ = xNew; yQ = yNew; zQ = zNew; vxQ = vxNew; vyQ = vyNew; vzQ = vzNew
     }    
 
-    for (i <- 0 until 1000) {
+
+    val writer = new PrintWriter(new File("jupiter.txt"))
+     
+
+    for (i <- 0 until 10000) {
       next
       nextQ
       val errX = xQ - QD(x)
       val errY = yQ - QD(y)
       val errZ = zQ - QD(z)
 
-      print(i + ": ")
-      println(x + ", " + y + ", " + z + ", " + vx + ", " + vy + ", " + vz)
+      print(i + ", ")
+      //println(x + ", " + y + ", " + z + ", " + vx + ", " + vy + ", " + vz)
+     
+       writer.write(x + " " + y + " " + z +  " " + errX + " " + errY + " " + errZ + "\n")
       
       //print(errX + ", " + errY + ", " + errZ)
       //println(", rel: " + (errX / xQ) + ", " + (errY / yQ) + ", " + (errZ / zQ))
       
     } 
-    
+    writer.close()
   }
 
   // Equations and initial values taken from Feedback Systems by Astrom and Murray

@@ -344,6 +344,7 @@ class RangeSolver(timeout: Long) {
           x
       }
       //print(".");// flush
+      //val mExpr = massageArithmetic( e )
       
       if (leonToZ3Necessary) {
         // needed for sqrt, and doing quite the duplicate work, but this is clean

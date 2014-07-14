@@ -84,7 +84,7 @@ class LipschitzPathError(reporter: Reporter, solver: RangeSolver, precision: Pre
 
             
             val roundoffError = computeRoundoffError(fPath.bodyFinite, floatIntervals,
-              And(otherConstraints2, preAdditionalConstraints))
+              And(otherConstraints1, preAdditionalConstraints))
             reporter.info("roundoff error: " + roundoffError)
 
             val totalError = lipschitzError + diffError + roundoffError

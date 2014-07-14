@@ -4,16 +4,15 @@ import RealOps._
 object NBody {
 
 
-  // TODO: Einheiten?
   def step(x: Real, y: Real, z: Real, vx: Real, vy: Real,
     vz: Real, i: LoopCounter): (Real, Real, Real, Real, Real, Real) = {
 
     require(-6 <= x && x <= 6 && -6 <= y && y <= 6 && -0.2 <= z && z <= 0.2 &&
         -3 <= vx && vx <= 3 && -3 <= vy && vy <= 3 && -0.1 <= vz && vz <= 0.1 &&
-        x*x + y*y + z*z >= 20.0 &&
+        x*x + y*y + z*z >= 15.0 &&
         -6 <= ~x && ~x <= 6 && -6 <= ~y && ~y <= 6 && -0.2 <= ~z && ~z <= 0.2 &&
         -3 <= ~vx && ~vx <= 3 && -3 <= ~vy && ~vy <= 3 && -0.1 <= ~vz && ~vz <= 0.1 &&
-         (~x)*(~x) + (~y)*(~y)+ (~z)*(~z) >= 20.0)
+         (~x)*(~x) + (~y)*(~y)+ (~z)*(~z) >= 15.0)
 
     if (i < 100) {
       val dt = 0.1

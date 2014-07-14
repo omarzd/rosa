@@ -347,7 +347,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
           if (rec.initialError.isEmpty) (rec.idealId, approxs(rec.actualExpr).maxError)
           else (rec.idealId, rec.initialError.get)
       })
-
+      //println("initial errors: " + initialErrors)
       
       val loopError = vc.loopBound match {
         case Some(n) => computeErrorFromLoopBound(ids, sigmas, n, initialErrors, lipschitzCnst)

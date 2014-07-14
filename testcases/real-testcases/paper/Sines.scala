@@ -2,7 +2,7 @@ import leon.real._
 import RealOps._
 import annotations._
 
-object Testing {
+object Sines {
 
   def sineTaylor(x: Real): Real = {
     require(-3.5 < x && x < 3.5 && x +/- 1e-8)

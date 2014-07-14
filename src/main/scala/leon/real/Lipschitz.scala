@@ -243,7 +243,9 @@ trait Lipschitz {
   private def boundRanges(pre: Expr, m: EMatrix, vars: Map[Expr, RationalInterval]): RMatrix = {
     solver.clearCounts
     val res = m.map(e => {
-      val rangeDerivative = solver.getRange(pre, e, vars, leonToZ3,
+      val expr = massageArithmetic( e )
+      //val expr = e
+      val rangeDerivative = solver.getRange(pre, expr, vars, leonToZ3,
                 solverMaxIterMedium, solverPrecisionMedium)
       reporter.debug("computed range for: " + e + "  --> " + maxAbs(Seq(rangeDerivative.xlo, rangeDerivative.xhi)))
       maxAbs(Seq(rangeDerivative.xlo, rangeDerivative.xhi))

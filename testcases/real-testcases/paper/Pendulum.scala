@@ -15,7 +15,7 @@ object Pendulum {
     require(-2 <= t && t <= 2 && -5 <= w && w <= 5 &&
       -2.01 <= ~t && ~t <= 2.01 && -5.01 <= ~w && ~w <= 5.01)
 
-    if (n < 3) {
+    if (n < 1000) {
       val h: Real = 0.01
       val L: Real = 2.0
       val m: Real = 1.5

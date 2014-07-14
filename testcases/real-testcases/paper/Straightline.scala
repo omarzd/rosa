@@ -9,7 +9,7 @@ object Straightline {
    
     (- (331.4 + 0.6 * T) *v) / (((331.4 + 0.6 * T) + u)*((331.4 + 0.6 * T) + u))
   
-  }// ensuring(res => -137.63858 < res && res < -0.03394 && res +/- 4.91906e-13)
+  }
 
   def dopplerRefactored(u: Real, v: Real, T: Real): Real = {
     require(-100.0 <= u && u <= 100 && 20 <= v && v <= 20000 && -30 <= T && T <= 50)
@@ -17,8 +17,7 @@ object Straightline {
     val t1 = 331.4 + 0.6 * T
     (- (t1) *v) / ((t1 + u)*(t1 + u))
 
-  }// ensuring(res => -137.63858 < res && res < -0.03394 && res +/- 4.91906e-13)
-
+  }
 
   def rigidBody(x1: Real, x2: Real, x3: Real): Real = {
     require(-15.0 <= x1 && x1 <= 15 && -15.0 <= x2 && x2 <= 15.0 &&
@@ -26,6 +25,7 @@ object Straightline {
 
     2*(x1*x2*x3) + (3*x3*x3) - x2*(x1*x2*x3) + (3*x3*x3) - x2
   }
+
 
   def rigidBodyRefactored(x1: Real, x2: Real, x3: Real): Real = {
     require(-15.0 <= x1 && x1 <= 15 && -15.0 <= x2 && x2 <= 15.0 &&
@@ -56,6 +56,7 @@ object Straightline {
     3*((3*x1*x1 + 2*x2 -x1)/(x1*x1 + 1)))
   }
 
+  
 
   def turbine1(v: Real, w: Real, r: Real): Real = {
     require(-4.5 <= v && v <= -0.3 && 0.4 <= w && w <= 0.9 && 3.8 <= r && r <= 7.8)
@@ -118,5 +119,4 @@ object Straightline {
     require(-2.0 < x && x < 2.0)
     0.954929658551372 * x -  0.12900613773279798*(x*x*x)
   }
-
 }

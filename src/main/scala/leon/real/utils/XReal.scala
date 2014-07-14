@@ -98,8 +98,8 @@ class XReal(val tree: Expr, val approxInterval: RationalInterval, val error: XRa
     val yAA = XRationalForm(y.realInterval)
     val yErr = y.error
     val xErr = this.error
-
     var newError = xAA*yErr + yAA*xErr + xErr*yErr
+
     val newRealRange = getTightInterval(newTree, newInterval, newConfig.getCondition)
     (newTree, newRealRange, newError, newConfig)
   }
