@@ -20,6 +20,7 @@ object Rational {
   private val MIN_DOUBLE = new BigInt(new BigInteger(Double.MinValue.toInt.toString))
 
   private val MAX_INT = new BigInt(new BigInteger(Int.MaxValue.toString))
+  private val MAX_LONG = new BigInt(new BigInteger(Long.MaxValue.toString))
 
   private val baseTen = 10
   private val bits32 = 32
@@ -142,6 +143,7 @@ object Rational {
 
 
   val MIN_INT_RATIONAL = 1.0 / Int.MaxValue
+  val MIN_LONG_RATIONAL = 1.0 / Long.MaxValue
 
   /**
     Creates a new rational number where the nominator and denominator consists
@@ -218,6 +220,48 @@ object Rational {
 
         val divN = if (num.bitLength < bits32) oneBigInt else num / MAX_INT + oneBigInt
         val divD = if (den.bitLength < bits32) oneBigInt else den / MAX_INT + oneBigInt
+        val div = divN.max(divD)
+
+        val res =
+          if (r.toDouble > 0.0) {// Rounding up, so num round up, den round down
+            val nn = num / div + oneBigInt
+            val dd = den / div
+            Rational(nn, dd)
+          } else {
+            val nn = num / div
+            val dd = den / div + oneBigInt
+            Rational(-nn, dd)
+          }
+        assert(res.toDouble >= r.toDouble, "\nres (" + res.toDouble +
+          ") is larger than before\n    (" + r.toDouble)
+        res
+      }
+    }
+  }
+
+  def scaleToLongUp(r: Rational): Rational = {
+    // Too large
+    if (math.abs(r.toDouble) > Long.MaxValue) {
+      throw new RationalCannotBeCastToIntException(
+        "Rational too big to be cast to long integer rational.")
+    }
+    // Too small
+    if (math.abs(r.toDouble) < MIN_LONG_RATIONAL) {
+      // Underflow
+      if (r < Rational(0)) Rational(-1L, Long.MaxValue)
+      else Rational(0.0)
+    } else {
+
+      val num = r.n.abs
+      val den = r.d
+
+      // Already small enough
+      if (num.abs < Long.MaxValue && den < Long.MaxValue) {
+        r
+      } else {
+
+        val divN = if (num.bitLength < bits32) oneBigInt else num / MAX_LONG + oneBigInt
+        val divD = if (den.bitLength < bits32) oneBigInt else den / MAX_LONG + oneBigInt
         val div = divN.max(divD)
 
         val res =

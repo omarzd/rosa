@@ -19,7 +19,13 @@ object Straightline {
 
   }
 
-  def rigidBody(x1: Real, x2: Real, x3: Real): Real = {
+  def rigidBody1(x1: Real, x2: Real, x3: Real): Real = {
+    require(-15.0 <= x1 && x1 <= 15 && -15.0 <= x2 && x2 <= 15.0 && -15.0 <= x3 && x3 <= 15)
+
+    -x1*x2 - 2*x2*x3 - x1 - x3
+  }
+
+  def rigidBody2(x1: Real, x2: Real, x3: Real): Real = {
     require(-15.0 <= x1 && x1 <= 15 && -15.0 <= x2 && x2 <= 15.0 &&
       -15.0 <= x3 && x3 <= 15)
 
@@ -27,7 +33,7 @@ object Straightline {
   }
 
 
-  def rigidBodyRefactored(x1: Real, x2: Real, x3: Real): Real = {
+  def rigidBody2Refactored(x1: Real, x2: Real, x3: Real): Real = {
     require(-15.0 <= x1 && x1 <= 15 && -15.0 <= x2 && x2 <= 15.0 &&
       -15.0 <= x3 && x3 <= 15)
 
@@ -118,5 +124,29 @@ object Straightline {
   def sineOrder3(x: Real): Real = {
     require(-2.0 < x && x < 2.0)
     0.954929658551372 * x -  0.12900613773279798*(x*x*x)
+  }
+
+
+  def verhulst(r: Real, K: Real, x: Real): Real = {
+    require(r >= 4.0 && r <= 4.0 && K >= 1.11 && K <= 1.11 && 0.1 <= x && x <= 0.3)
+
+    (r*x) / (1 + (x/K))
+
+  }
+
+  def predatorPrey(r: Real, K: Real, x: Real): Real = {
+    require(r >= 4.0 && r <= 4.0 && K >= 1.11 && K <= 1.11 && 0.1 <= x && x <= 0.3)
+
+    (r*x*x) / (1 + (x/K)*(x/K))
+
+  }
+
+  def carbonGas(T: Real, a: Real, b: Real, N: Real, p: Real, V: Real): Real = {
+    require(T >= 300 && T <= 300 && a >= 0.401 && a <= 0.401 && b >= 42.7e-6 && b <= 42.7e-6 && N >= 1000 && N <= 1000 &&
+    p >= 3.5e7 && p <= 3.5e7 && 0.1 < V && V < 0.5)
+
+    val k = 1.3806503e-23
+    (p + a * (N / V) * (N / V)) * (V - N * b) - k * N * T
+
   }
 }

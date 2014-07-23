@@ -26,7 +26,10 @@ class Simulator(ctx: LeonContext, options: RealOptions, prog: Program, val repor
     reporter.info("-----> Simulating function " + vc.funDef.id.name + "...")
     val funDef = vc.funDef
 
-    val body = vc.body
+    //val body = vc.body
+    val body = addResults(vc.body, Seq(Variable(vc.variables.resIds.head)))
+    //println("body: " + body)
+    //println("with res: " + addResults(body, Seq(Variable(vc.variables.resIds.head)) ))
 
     val inputs: Map[Variable, (RationalInterval, Rational)] = inputs2intervals(vc.variables)
     //println("Inputs: " + inputs)

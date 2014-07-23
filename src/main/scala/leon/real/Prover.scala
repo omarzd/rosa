@@ -84,7 +84,9 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
         reporter.info("approx: " + aKind)
 
         try {
+          rangeSolver.clearCounts
           val currentApprox = approx.getApproximation(aKind, precision, postMap)
+          reporter.info(rangeSolver.getCounts)
           spec = Spec.mergeSpecs(spec, currentApprox.spec)
           postMap += (vc.funDef -> currentApprox.spec)
 
