@@ -1,12 +1,13 @@
 import leon.real._
 import RealOps._
+import annotations._
 
 
 object SmartFloat {
 
   def triangleTextbook(b: Real, c: Real): Real = {
-    require(4.71 <= b && b <= 4.89 && 4.71 <= c && c <= 4.89)
-    //require(4.61 <= b && b <= 4.79 && 4.61 <= c && c <= 4.79)
+    //require(4.71 < b && b <= 4.89 && 4.71 <= c && c <= 4.89)
+    require(4.61 <= b && b <= 4.79 && 4.61 <= c && c <= 4.79)
     //require(4.501 <= b && b <= 4.581 && 4.501 <= c && c <= 4.581)
 
     val a: Real = 9.0
@@ -15,9 +16,10 @@ object SmartFloat {
 
   }
 
+  @robust
   def triangle(b: Real, c: Real): Real = {
-    require(4.71 <= b && b <= 4.89 && 4.71 <= c && c <= 4.89)
-    //require(4.61 <= b && b <= 4.79 && 4.61 <= c && c <= 4.79)
+    //require(4.71 <= b && b <= 4.89 && 4.71 <= c && c <= 4.89)
+    require(4.61 <= b && b <= 4.79 && 4.61 <= c && c <= 4.79)
     //require(4.501 <= b && b <= 4.581 && 4.501 <= c && c <= 4.581)
 
     val a: Real = 9.0
@@ -47,4 +49,6 @@ object SmartFloat {
     }
     
   }
+
+  //def quadraticClassic(a: Real, b: Real, c: Real)
 }
