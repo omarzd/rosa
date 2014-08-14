@@ -10,6 +10,7 @@ object TrueErrorExperiments {
     val benchmarks = if (args.size > 0) args else Array("")
 
     benchmarks.foreach { _ match {
+      case "triangle" => TriangleExperiment.run
       case "sine" => SineExperiments.sine
       case "cube" => IterativeExperiments.cubeRoot(10.0, 5.4)
       case "newton" =>
