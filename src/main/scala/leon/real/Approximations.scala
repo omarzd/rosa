@@ -100,7 +100,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
           //Set(Path(True, thennClean, True), Path(True, elzeClean, True))
 
         case _ =>
-          println(body.getClass)
+          //println(body.getClass)
           reporter.error("Unsupported loop type.")
           Set()
       }     
@@ -289,15 +289,13 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
       
       val (ids: Seq[Identifier], updateFncs) = vc.updateFunctions.unzip
 
-      //start = System.currentTimeMillis
-
       // this is trying to show that this thing is inductive
       val approximatorNew = new AAApproximator(reporter, solver, precision, checkPathError, options.lipschitz)
       val approxs = approximatorNew.approximateEquations(body,
         And(vc.pre, path.condition), vc.variables, exactInputs = false)
-      //println("new:     " + approxNew)
-      //println((System.currentTimeMillis - start) + "ms")
-
+      
+      //println("new:     " + approxs)
+      
       reporter.info("solver counts for loop invariant: " + solver.getCounts)
       
       val constraint = And(approxs.foldLeft(Seq[Expr]())(
@@ -305,10 +303,10 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
                                   LessEquals(kv._1, RealLiteral(kv._2.interval.xhi)),
                                   Noise(vc.variables.getIdeal(kv._1), RealLiteral(kv._2.maxError)))))
 
-      
+      //println("constraint: " + constraint)
 
       // ~~~~~~~~~~~~~ Loop errors ~~~~~~~~~~~~~~~~~~~~~~
-      val start = System.currentTimeMillis
+      /*val start = System.currentTimeMillis
 
       val actualRanges: Map[Expr, RationalInterval] = vc.variables.inputs.map({
         case (v @ Variable(_), rec @ Record(idealId, _, _, _, _, _)) =>
@@ -379,8 +377,8 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
         case ((id, sigma), index) =>  // row in lipCnsts corresponds to one update fnc 
           LoopSpec(id, lipschitzCnst.rows(index), sigma, actualRanges(Variable(id)), Some(loopError(index)))
         })
-      
-      //val loopSpecs = Seq()
+      */
+      val loopSpecs = Seq()
 
       (constraint, loopSpecs)
   }
@@ -564,7 +562,11 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
         funDef.postcondition.flatMap({
           case (resId, postExpr) =>
             val resFresh = resId.getType match {
-              case TupleType(bases) => Seq(getFreshTmpId, getFreshTmpId)
+              case TupleType(bases) =>
+                bases.foldLeft[Seq[Identifier]](Seq())({
+                  case (seq, next) => seq :+ getFreshTmpId
+                  })
+                
               case _ => Seq(getFreshTmpId)
             }
             //println(s"$resFresh")

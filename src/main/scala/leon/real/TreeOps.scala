@@ -354,7 +354,7 @@ object TreeOps {
     case Not(t) => Not(addResults(t, variables))
 
     case FncValue(specs, specExpr, _, _, _) =>
-      println("specs: " + specs + ", vars.len: " + variables.length)
+      //println("specs: " + specs + ", vars.len: " + variables.length)
       assert(specs.length == variables.length)
       And(variables.zip(specs).map({
         case (resVar, spec) =>
