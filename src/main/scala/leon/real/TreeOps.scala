@@ -97,27 +97,25 @@ object TreeOps {
     - equality propagation
     - removing of redundant bounds constraints (included in another)
   */
-  def simplifyConstraint(e: Expr, removeBounds: Boolean = true,
+  def simplifyConstraint(e: Expr, removeBounds: Boolean = false,
     equalityPropagation: Boolean = true): Expr = {
     // for bounds, first collect all bounds, then re-generate constraints
-    val (boundsConstraint, remainder) = if (removeBounds) {
-      val boundsCollector = new TightBoundsCollector
-      val rem = boundsCollector.transform(e)
-      (And(boundsCollector.getConstraints), rem)
-    } else {
-      (True, e)
-    }
-
-
-    if (equalityPropagation) {
+    
+    val expr = if (equalityPropagation) {
       // for equality propagation, replace variables by their definition
-      And(boundsConstraint, propagateEquals(remainder))
+      propagateEquals(e)
     } else {
-      And(boundsConstraint, remainder)
+      e
     }
 
-    // Remove redundant constraints
 
+    if (removeBounds) {
+      val boundsCollector = new TightBoundsCollector
+      val rem = boundsCollector.transform(expr)
+      And(And(boundsCollector.getConstraints), rem)
+    } else {
+      expr
+    }
 
   }
 

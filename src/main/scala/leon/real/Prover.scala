@@ -10,7 +10,7 @@ import purescala.Definitions._
 import purescala.TreeOps._
 import purescala.TransformerWithPC
 
-import real.Trees.{Noise, Roundoff, Actual, RealLiteral, RelError, WithIn}
+import real.Trees.{Noise, Roundoff, Actual, RealLiteral, RelError, WithIn, FncValue}
 import real.TreeOps._
 import Sat._
 import Valid._
@@ -19,6 +19,7 @@ import FncHandling._
 import ArithmApprox._
 import PathHandling._
 import Rational._
+import VariableShop._
 
 
 class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[FunDef, Fnc]) {
@@ -169,34 +170,33 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
       var sanityConstraint: Expr = And(cnstr.precondition, And(realCnstr, finiteCnstr))
       reporter.debug("\nsanityConstraint before preprocessing:")
       reporter.debug(sanityConstraint)
-      if (options.removeRedundant) {
-        //println("removing redundant")
-        var args = removeRedundantConstraints(sanityConstraint, transformer.getZ3Expr(cnstr.postcondition))
-        //println("\nbefore: " + args)
 
+      sanityConstraint = preprocessFunctions(sanityConstraint)
+      
+      if (options.removeRedundant) {
+        var args = removeRedundantConstraints(sanityConstraint, transformer.getZ3Expr(cnstr.postcondition))
+        
         if (!belongsToActual(cnstr.postcondition))
           args = args.filter(x => !belongsToActual(x))
 
-        //println("\n after: " + args)
         sanityConstraint = And(args.toSeq)
       }
-      //reporter.debug("\nafter removeRedundant: " + sanityConstraint)
+      
       if (options.simplifyCnstr) {
         sanityConstraint = simplifyConstraint( sanityConstraint )
       }
-      //reporter.debug("\nafter simplify: " + sanityConstraint)
       if (options.massageArithmetic) {
         sanityConstraint = massageArithmetic (sanityConstraint)
       }
       //println("\nafter massage arithm.: " + sanityConstraint)
 
-      val toCheck = And(sanityConstraint, negate(cnstr.postcondition))
+      val toCheck = And(sanityConstraint, negate(transformer.getZ3Expr(cnstr.postcondition)))
 
       val z3constraint = transformer.getZ3Expr(toCheck)
       reporter.debug("z3constraint ("+index+"): " + z3constraint)
 
       val sanityExpr = transformer.getZ3Expr(sanityConstraint)
-
+      
       if (reporter.errorCount == 0 && sanityCheck(sanityExpr, name + "-" +app.kind.toString)) {
         solver.checkSat(z3constraint) match {
           case (UNSAT, _) =>
@@ -272,5 +272,21 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
       writer.write(a+ "\n")
     }
     writer.close()
+  }
+
+  private def preprocessFunctions(e: Expr): Expr = {
+    var extra: Expr = True
+    
+    val tmp = preMap { expr => expr match {
+      case FncValue(specs, specExpr, _, _, _) =>
+        val fresh = getNewXFloatVar
+        // TODO: tuples: fresh will have to be a tuple?
+        extra = And(extra, replace(Map(Variable(specs(0).id) -> fresh), specExpr))
+        Some(fresh)
+      case _ => None
+      }
+    }(e)
+
+    And(tmp, extra)
   }
 }
