@@ -12,10 +12,7 @@ import Deviation._
 
 object RationalAffineUtils {
 
-  // Until we get this sorted in Rational
-  def sqrtUp(x: Rational): Rational = Rational(DirectedRounding.sqrtUp(Rational.scaleToIntsUp(x).doubleValue))
-  def sqrtDown(x: Rational): Rational = Rational(DirectedRounding.sqrtDown(Rational.scaleToIntsDown(x).doubleValue))
-
+  
   def computeZeta(dmin: Rational, dmax: Rational): Rational = {
     dmin / Rational(2L, 1L) +  dmax / Rational(2L, 1L)
   }
@@ -184,6 +181,39 @@ object RationalAffineUtils {
       val zii = xi * yi
       z0Addition += zii / Rational(2.0)
       if (zii != 0) zqueue += abs(zii / Rational(2.0))
+
+      var j = i + 1
+      while (j < indices.length) {
+        val jInd = indices(j)
+        val xj = xqueue.find((d: Deviation) => d.index == jInd) match {
+          case Some(d) => d.value; case None => Rational(0) }
+        val yj = yqueue.find((d: Deviation) => d.index == jInd) match {
+        case Some(d) => d.value; case None => Rational(0) }
+        val zij = xi * yj + xj * yi
+        if (zij != 0) zqueue += abs(zij)
+        j += 1
+      }
+      i += 1
+    }
+    (z0Addition, zqueue)
+  }
+
+  def multiplyNonlinearQueuesNoAddition(xqueue: Queue[Deviation], yqueue: Queue[Deviation]): (Rational, Rational) = {
+    val indices = mergeIndices(getIndices(xqueue), getIndices(yqueue))
+    var zqueue = Rational(0.0)
+    var z0Addition = Rational(0.0)
+
+    var i = 0
+    while (i < indices.length) {
+      val iInd = indices(i)
+      // quadratic
+      val xi = xqueue.find((d: Deviation) => d.index == iInd) match {
+        case Some(d) => d.value; case None => Rational(0) }
+      val yi = yqueue.find((d: Deviation) => d.index == iInd) match {
+        case Some(d) => d.value; case None => Rational(0) }
+      val zii = xi * yi
+      //z0Addition += zii / Rational(2.0)
+      if (zii != 0) zqueue += abs(zii)
 
       var j = i + 1
       while (j < indices.length) {

@@ -3,6 +3,7 @@
 package leon
 package real
 
+import purescala.TransformerWithPC
 import purescala.Common._
 import purescala.Trees._
 import purescala.TreeOps._
@@ -12,6 +13,7 @@ import real.Trees._
 import VariableShop._
 import Rational._
 import TreeOps._
+import Precision._
 
 class LeonToZ3Transformer(variables: VariablePool, precision: Precision) extends TransformerWithPC {
     type C = Seq[Expr]
@@ -51,6 +53,7 @@ class LeonToZ3Transformer(variables: VariablePool, precision: Precision) extends
         Equals(variables.buddy(v), TimesR(PlusR(new RealLiteral(1), delta), v))
 
       // For bspline 3 to work, we need this:
+      // TODO:  test if better in general?
       /*case Noise(v @ Variable(_), r @ RealLiteral(value)) =>
         And(LessEquals(RealLiteral(-value), MinusR(v, variables.buddy(v))),
             LessEquals(MinusR(v, variables.buddy(v)), r))
@@ -140,8 +143,9 @@ class LeonToZ3Transformer(variables: VariablePool, precision: Precision) extends
         extraConstraints ++= Seq(Equals(TimesR(n, n), xN), LessEquals(RealLiteral(zero), n))
         TimesR(n, mult)
 
-      case r @ FloatLiteral(v, exact) =>
-        if (exact) RealLiteral(v)
+      case r @ FloatLiteral(v) =>
+        assert(precision.getClass != FPPrecision)
+        if (isExactInFloats(v)) RealLiteral(v)
         else {
           val (mult, dlt) = getFreshRndoffMultiplier
           addExtra(constrainDelta(dlt))
@@ -155,9 +159,19 @@ class LeonToZ3Transformer(variables: VariablePool, precision: Precision) extends
       case WithIn(x, lwrBnd, upBnd) =>
         And(LessThan(RealLiteral(lwrBnd), x), LessThan(x, RealLiteral(upBnd)))
 
-      case FncValue(spec, specExpr) =>
+      case WithInEq(x, lwrBnd, upBnd) =>
+        And(LessEquals(RealLiteral(lwrBnd), x), LessEquals(x, RealLiteral(upBnd)))
+
+      /* 
+      Apparently this is not true:
+      if we allow only tuples as the last return value, this is not needed
+      else we need to modify the whole function to be returning tuples, or we return one, maybe that works too
+      */
+      // TODO: what happens with tuples?
+      case FncValue(specs, specExpr, _, _, _) =>
         val fresh = getNewXFloatVar
-        addExtra(rec(replace(Map(Variable(spec.id) -> fresh), specExpr), path))
+        // tuples: fresh will have to be a tuple?
+        addExtra(rec(replace(Map(Variable(specs(0).id) -> fresh), specExpr), path))
         fresh
 
       case FncBody(name, body, fundef, args) =>
@@ -170,6 +184,11 @@ class LeonToZ3Transformer(variables: VariablePool, precision: Precision) extends
         }
         fresh
 
+      case FncValueF(specs, specExpr, _, _) =>
+        val fresh = getNewXFloatVar
+        // tuples: fresh will have to be a tuple?
+        addExtra(rec(replace(Map(variables.buddy(Variable(specs(0).id)) -> fresh), specExpr), path))
+        fresh
 
       // normally this is approximated
       case FncBodyF(name, body, fundef, args) =>
@@ -197,6 +216,9 @@ class LeonToZ3Transformer(variables: VariablePool, precision: Precision) extends
         throw new Exception("found integer arithmetic in LeonToZ3Transformer")
         null
 
+      // LoopCounters are only used for error computation
+      case LessThan(x, IntLiteral(i)) if (x.getType == LoopCounterType) => True
+
       case _ =>
         super.rec(e, path)
     }
@@ -209,6 +231,12 @@ class LeonToZ3Transformer(variables: VariablePool, precision: Precision) extends
       And(And(extraConstraints), z3Expr)
     }
 
+    def getZ3ExprWithCondition(e: Expr): (Expr, Expr) = {
+      extraConstraints = Seq[Expr]()
+      val z3Expr = this.transform(e)
+      (z3Expr, And(extraConstraints))
+    }    
+
     def getZ3Expr(e: Expr): Expr = {
       extraConstraints = Seq[Expr]()
       initEps
@@ -219,8 +247,7 @@ class LeonToZ3Transformer(variables: VariablePool, precision: Precision) extends
         case FPPrecision(bts) =>
           // Only remove roundoffs from the precondition, since our translation (for now) cannot handle it,
           // and we don't need them since we use the approximation anyway
-          val roundoffRemover = new RoundoffRemover
-          val eWoRoundoff = roundoffRemover.transform(e)
+          val eWoRoundoff = removeRoundoff(e)
           //val z3Expr = replace(Map(ResultVariable() -> res, FResVariable() -> fres), this.transform(eWoRoundoff))
           val z3Expr = this.transform(eWoRoundoff)
           assert (!epsUsed)
@@ -229,7 +256,7 @@ class LeonToZ3Transformer(variables: VariablePool, precision: Precision) extends
         case _ =>
           ///val z3Expr = replace(Map(ResultVariable() -> res, FResVariable() -> fres), this.transform(e))
           val z3Expr = this.transform(e)
-          if (epsUsed) And(And(extraConstraints :+ Equals(machineEps, RealLiteral(getUnitRoundoff(precision)))), z3Expr)
+          if (epsUsed) And(And(extraConstraints :+ Equals(machineEps, RealLiteral(getMachineEpsilon(precision)))), z3Expr)
           else And(And(extraConstraints), z3Expr)
       }
     }

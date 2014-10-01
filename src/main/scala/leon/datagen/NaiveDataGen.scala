@@ -55,6 +55,8 @@ class NaiveDataGen(ctx: LeonContext, p: Program, evaluator: Evaluator, _bounds :
   private def intStream : Stream[Expr] = Stream.cons(IntLiteral(0), intStream0(1))
   private def intStream0(n : Int) : Stream[Expr] = Stream.cons(IntLiteral(n), intStream0(if(n > 0) -n else -(n-1)))
 
+  private def tpStream(tp: TypeParameter, i: Int = 1): Stream[Expr] = Stream.cons(GenericValue(tp, i), tpStream(tp, i+1))
+
   def natStream : Stream[Expr] = natStream0(0)
   private def natStream0(n : Int) : Stream[Expr] = Stream.cons(IntLiteral(n), natStream0(n+1))
 
@@ -77,6 +79,9 @@ class NaiveDataGen(ctx: LeonContext, p: Program, evaluator: Evaluator, _bounds :
       case Int32Type =>
         intStream
 
+      case tp: TypeParameter =>
+        tpStream(tp)
+
       case TupleType(bses) =>
         naryProduct(bses.map(generate(_, bounds))).map(Tuple)
 
@@ -84,30 +89,27 @@ class NaiveDataGen(ctx: LeonContext, p: Program, evaluator: Evaluator, _bounds :
         // We prioritize base cases among the children.
         // Otherwise we run the risk of infinite recursion when
         // generating lists.
-        val ccChildren = act.classDef.knownChildren.collect(_ match {
-            case ccd : CaseClassDef => ccd
-          }
-        )
+        val ccChildren = act.knownCCDescendents
+
         val (leafs,conss) = ccChildren.partition(_.fields.size == 0)
 
         // The stream for leafs...
-        val leafsStream = leafs.toStream.flatMap { ccd =>
-          generate(classDefToClassType(ccd), bounds)
+        val leafsStream = leafs.toStream.flatMap { cct =>
+          generate(cct, bounds)
         }
 
         // ...to which we append the streams for constructors.
-        leafsStream.append(interleave(conss.map { ccd =>
-          generate(classDefToClassType(ccd), bounds)
+        leafsStream.append(interleave(conss.map { cct =>
+          generate(cct, bounds)
         }))
 
       case cct : CaseClassType =>
-        val ccd = cct.classDef
-        if(ccd.fields.isEmpty) {
-          Stream.cons(CaseClass(ccd, Nil), Stream.empty)
+        if(cct.fields.isEmpty) {
+          Stream.cons(CaseClass(cct, Nil), Stream.empty)
         } else {
-          val fieldTypes = ccd.fields.map(_.tpe)
+          val fieldTypes = cct.fieldsTypes
           val subStream = naryProduct(fieldTypes.map(generate(_, bounds)))
-          subStream.map(prod => CaseClass(ccd, prod))
+          subStream.map(prod => CaseClass(cct, prod))
         }
 
       case _ => Stream.empty
@@ -121,6 +123,7 @@ class NaiveDataGen(ctx: LeonContext, p: Program, evaluator: Evaluator, _bounds :
 
       naryProduct(ins.map(id => generate(id.getType, bounds)))
         .take(maxEnumerated)
+        .takeWhile(s => !interrupted.get)
         .filter{s => evalFun(s) == sat }
         .take(maxValid)
         .iterator

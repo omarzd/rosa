@@ -19,8 +19,10 @@ case class RationalInterval(xlo: Rational, xhi: Rational) {
   val mid: Rational = xlo/Rational(2.0) + xhi/Rational(2.0)
   val radius: Rational = abs(xhi - xlo) / Rational(2.0)
 
-  // FIXME: not sound
+  // TODO: not sound
   val toInterval: Interval = Interval(xlo.toDouble, xhi.toDouble)
+
+  def isPointRange: Boolean = xlo == xhi
 
   def unary_-(): RationalInterval = RationalInterval(-xhi, -xlo)
 
@@ -82,6 +84,6 @@ case class RationalInterval(xlo: Rational, xhi: Rational) {
     temp
   }
 
-  override def toString = "[%.16g, %.16g]".format(xlo.toDouble, xhi.toDouble)
+  override def toString = "[%.18g, %.18g]".format(xlo.toDouble, xhi.toDouble)
 
 }

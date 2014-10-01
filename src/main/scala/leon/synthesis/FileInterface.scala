@@ -7,6 +7,7 @@ import purescala.Trees._
 import purescala.Common.Tree
 import purescala.Definitions.FunDef
 import purescala.ScalaPrinter
+import purescala.PrinterOptions
 
 import leon.utils.RangePosition
 
@@ -54,12 +55,18 @@ class FileInterface(reporter: Reporter) {
         val before = str.substring(0, from)
         val after  = str.substring(to, str.length)
 
-        val newCode = ScalaPrinter(toTree, fromTree.getPos.col/2)
+        // Get base indentation of last line:
+        val lineChars = before.substring(before.lastIndexOf('\n')+1).toList
 
-        before + newCode + after
+        val indent = lineChars.takeWhile(_ == ' ').size
 
-      case _ =>
-        sys.error("Substitution requires RangePos on the input tree: "+fromTree)
+        val p = new ScalaPrinter(PrinterOptions())
+        p.pp(toTree, Some(fromTree))(indent/2)
+
+        before + p.toString + after
+
+      case p =>
+        sys.error("Substitution requires RangePos on the input tree: "+fromTree +": "+fromTree.getClass+" GOT" +p)
     }
   }
 

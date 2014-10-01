@@ -16,6 +16,7 @@ object Runner {
       case "doppler" => CaliperRunner.main(classOf[DopplerBenchmark])
       case "jetEngine" => CaliperRunner.main(classOf[JetEngineBenchmark])
       case "turbine" => CaliperRunner.main(classOf[TurbineBenchmark])
+      case "sine" => CaliperRunner.main(classOf[SineBenchmark])
       
       case _ => println("unknown benchmark")
     }}

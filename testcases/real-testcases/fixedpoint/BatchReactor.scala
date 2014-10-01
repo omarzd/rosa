@@ -1,6 +1,5 @@
-import leon.Real
-import Real._
-
+import leon.real._
+import RealOps._
 
 object BatchReactor {
 

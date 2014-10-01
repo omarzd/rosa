@@ -1,0 +1,48 @@
+%!TEX root = main.tex
+\section{Propagation of Errors}
+
+Previous approaches to (roundoff) error computations treated all errors
+in the same way. We take a different approach here and separate errors
+into roundoff errors and propagation errors. We will exploit this separation
+in the rest of the paper.
+
+We will use the following notation.
+$f$ denotes a mathematical function $f: \R^n \to \R^n$ or $f: \R^n \to \R$,
+and we will denote by $\tl{f}$ the finite-precision version of $f$, i.e. $f$ evaluated in floating-point
+or fixed-point arithmetic.
+We take a modular view, hence we consider each function in isolation. Then, for each function,
+the parameters will have initial errors, either only roundoff errors or also further errors, such as measurement
+errors. Let $x \in \R^n$ denote the exact, ideal, real-valued inputs, and $\tl{x}$
+the finite-precision counter-parts, including all errors. We denote the upper bound on the initial errors
+by $\lambda = \lv x - \tl{x} \rv$.
+$\sigma$ denotes the roundoff error on evaluating $f$ with exact inputs, i.e.
+  $\sigma = \lv f(x) - \tl{f}(x) \rv$. When $n > 1$, these definitions are component-wise.
+$\lv \rv$ denotes some norm.
+
+\paragraph{Assumptions}
+\begin{itemize}
+\item We have a method to compute an upper bound on the roundoff error, i.e. we can compute $\sigma$.
+\end{itemize}
+
+\subsection{Division of Errors}
+We want to compute the overall error on evaluating $f$ in finite-precision arithmetic with imprecise inputs.
+That is, we want to compute
+  $\lv f(x) - \tl{f}(\tl{x}) \rv$, where $\lv x - \tl{x} \rv \le \lambda$.
+
+We can decompose this expression as follows:
+\eqn{
+\lv f(x) - \tl{f}(\tl{x}) \rv &=
+ \lv f(x) - f(\tl{x}) + f(\tl{x}) - \tl{f}(\tl{x}) \rv \\
+ &\le \lv f(x) - f(\tl{x}) \rv + \lv f(\tl{x}) - \tl{f}(\tl{x}) \rv
+}
+
+Now, $\lv f(\tl{x}) - \tl{f}(\tl{x}) \rv$ is the roundoff error on
+computing $f$ with exact inputs.
+Further, suppose there is a function $g: \R \to \R$, such that $\lv f(x) - f(y) \rv \le g(\lv x - y \rv)$.
+Then we obtain:
+\eqnnumbered{
+\label{errorLoopBody}
+\lv f(x) - \tl{f}(\tl{x}) \rv &\le g(\lv x - \tl{x} \rv) + \sigma
+}
+We have thus separated the overall error into the error from propagating
+the initial uncertainty and the new roundoff error.

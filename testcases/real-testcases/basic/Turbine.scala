@@ -1,7 +1,7 @@
 
 
-import leon.Real
-import Real._
+import leon.real._
+import RealOps._
 
 /* From:
   Numerical Methods with Worked Examples, C. Woodford and C. Phillips, 2012

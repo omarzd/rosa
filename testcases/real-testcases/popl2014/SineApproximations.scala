@@ -1,7 +1,5 @@
-import leon.Real
-import Real._
-
-import leon.Utils._
+import leon.real._
+import RealOps._
 
 //http://www.coranac.com/2009/07/sines/
 object SineApproximations {
@@ -24,7 +22,7 @@ object SineApproximations {
     require(-2.0 < x && x < 2.0)
 
     x - (x*x*x)/6.0 + (x*x*x*x*x)/120.0 - (x*x*x*x*x*x*x)/5040.0 
-  } ensuring(res => -1.0 < res && res < 1.0 && res +/- 1e-14)
+  } ensuring(res => -1.0 < ~res && ~res < 1.0 && res +/- 1e-14)
 
   def sineOrder3(x: Real): Real = {
     require(-2.0 < x && x < 2.0)

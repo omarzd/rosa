@@ -56,12 +56,12 @@ class VerifierTest extends FunSpec {
               funDef.body = newFunDef.body
 
               expectResult(1) { problem.xs.size }
-              funDef.postcondition = Some((problem.xs.head, getNewPostcondition(newFunDef.args.map(_.id))))
+              funDef.postcondition = Some((problem.xs.head, getNewPostcondition(newFunDef.params.map(_.id))))
               funDef.precondition = Some(BooleanLiteral(true)) 
               
               val verifier = new Verifier(timeoutSolver, problem)
               
-              assert( verifier.analyzeFunction(funDef)._1 )
+              assert( verifier.analyzeFunction(funDef.typed)._1 )
               verifier.solver.free()
         }       
         
@@ -70,12 +70,12 @@ class VerifierTest extends FunSpec {
               funDef.body = newFunDef.body
 
               expectResult(1) { problem.xs.size }
-              funDef.postcondition = Some((problem.xs.head, getNewPostcondition(newFunDef.args.map(_.id))))
+              funDef.postcondition = Some((problem.xs.head, getNewPostcondition(newFunDef.params.map(_.id))))
               funDef.precondition = Some(BooleanLiteral(true)) 
               
               val verifier = new Verifier(timeoutSolver, problem)
               
-              assert( verifier.analyzeFunction(funDef)._1 )
+              assert( verifier.analyzeFunction(funDef.typed)._1 )
               verifier.solver.free()
         }       
         
@@ -84,12 +84,12 @@ class VerifierTest extends FunSpec {
               funDef.body = newFunDef.body
 
               expectResult(1) { problem.xs.size }
-              funDef.postcondition = Some((problem.xs.head, getNewPostcondition(newFunDef.args.map(_.id))))
+              funDef.postcondition = Some((problem.xs.head, getNewPostcondition(newFunDef.params.map(_.id))))
               funDef.precondition = Some(BooleanLiteral(true)) 
               
               val verifier = new Verifier(timeoutSolver, problem)
               
-              assert( ! verifier.analyzeFunction(funDef)._1 )
+              assert( ! verifier.analyzeFunction(funDef.typed)._1 )
               verifier.solver.free()
         }
       }
@@ -127,12 +127,12 @@ class VerifierTest extends FunSpec {
               funDef.body = newFunDef.body
 
               expectResult(1) { problem.xs.size }
-              funDef.postcondition = Some((problem.xs.head, getNewPostcondition(newFunDef.args.map(_.id))))
-              funDef.precondition = Some(getNewPrecondition(newFunDef.args.map(_.id)))
+              funDef.postcondition = Some((problem.xs.head, getNewPostcondition(newFunDef.params.map(_.id))))
+              funDef.precondition = Some(getNewPrecondition(newFunDef.params.map(_.id)))
               
               val verifier = new RelaxedVerifier(timeoutSolver, problem)
               
-              assert( verifier.analyzeFunction(funDef)._1 )
+              assert( verifier.analyzeFunction(funDef.typed)._1 )
               verifier.solver.free()
         }       
                 
@@ -141,12 +141,12 @@ class VerifierTest extends FunSpec {
               funDef.body = newFunDef.body
 
               expectResult(1) { problem.xs.size }
-              funDef.postcondition = Some((problem.xs.head, getNewPostcondition(newFunDef.args.map(_.id))))
-              funDef.precondition = Some(getNewPrecondition(newFunDef.args.map(_.id)))
+              funDef.postcondition = Some((problem.xs.head, getNewPostcondition(newFunDef.params.map(_.id))))
+              funDef.precondition = Some(getNewPrecondition(newFunDef.params.map(_.id)))
               
               val verifier = new Verifier(timeoutSolver, problem)
               
-              assert( verifier.analyzeFunction(funDef)._1 )
+              assert( verifier.analyzeFunction(funDef.typed)._1 )
               verifier.solver.free()
         }
       }

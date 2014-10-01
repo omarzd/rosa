@@ -12,27 +12,70 @@ import Rational._
 
 object XFixed {
 
-  def variables2xfixed(vars: VariablePool, config: XConfig, bits: Int, withRoundoff: Boolean = false): (Map[Expr, XFixed], Map[Int, Expr]) = {
+  def variables2xfixed(vars: Iterable[Record], config: XConfig, bits: Int, withRoundoff: Boolean = false): Map[Expr, XFixed] = {
     var variableMap: Map[Expr, XFixed] = Map.empty
-    var indexMap: Map[Int, Expr] = Map.empty
+    //var indexMap: Map[Int, Expr] = Map.empty
 
-    for(rec <- vars.getValidRecords) {
+    for(rec <- vars) {
       rec match {
-        case r @ Record(v @ Variable(_), a @ Variable(_), Some(lo), Some(up), _, _) if (!r.uncertainty.isEmpty) =>
-          val (xfixed, index) = xFixedWithUncertain(v, RationalInterval(lo, up), config, r.uncertainty.get, withRoundoff, bits)
-          variableMap = variableMap + (a -> xfixed)
-          indexMap = indexMap + (index -> a)
+        case r @ Record(id, lo, up, Some(absError), aId, _) =>
+          val (xfixed, index) = xFixedWithUncertain(Variable(id), RationalInterval(lo, up), config, absError,
+            withRoundoff, bits)
+          variableMap = variableMap + (Variable(aId) -> xfixed)
+          //indexMap = indexMap + (index -> Variable(aId))
 
-        case Record(v @ Variable(_), a @ Variable(_), Some(lo), Some(up), None, None) =>
-          val (xfixed, index) = xFixedWithRoundoff(v, RationalInterval(lo, up), config, bits)
-          variableMap = variableMap + (a -> xfixed)
-          indexMap = indexMap + (index -> a)
+        case Record(id, lo, up, None, aId, None) if (rec.isInteger) =>
+          val xfixed = xFixedExact(Variable(id), RationalInterval(lo, up), config, bits)      
+          variableMap = variableMap + (Variable(aId) -> xfixed)
+
+        case Record(id, lo, up, None, aId, None) =>
+          val (xfixed, index) = xFixedWithRoundoff(Variable(id), RationalInterval(lo, up), config, bits)
+          variableMap = variableMap + (Variable(aId) -> xfixed)
+          //indexMap = indexMap + (index -> Variable(aId))
 
         case _ =>
           throw new Exception("bug!")
       }
     }
-    (variableMap, indexMap)
+    variableMap //, indexMap)
+  }
+
+   def variables2xfixedExact(vars: Iterable[Record], config: XConfig, bits: Int): Map[Expr, XFixed] = {
+    var variableMap: Map[Expr, XFixed] = Map.empty
+    
+    for(rec <- vars) {
+      rec match {
+
+        case Record(id, lo, up, _, aId, _) =>
+          val xfixed = xFixedExact(Variable(id), RationalInterval(lo, up), config, bits)
+          variableMap = variableMap + (Variable(aId) -> xfixed)
+
+        case _ =>
+          throw new Exception("bug!")
+      }
+    }
+    variableMap
+  }
+
+  def variables2xfixedActualExact(vars: Iterable[Record], config: XConfig, bits: Int): Map[Expr, XFixed] = {
+    var variableMap: Map[Expr, XFixed] = Map.empty
+    
+    for(rec <- vars) {
+      rec match {
+        case Record(id, lo, up, _, aId, _) if rec.isInteger =>
+          val xfloat = xFixedExact(Variable(id), RationalInterval(lo, up), config, bits)
+          variableMap = variableMap + (Variable(aId) -> xfloat)
+
+
+        case Record(id, lo, up, _, aId, _) =>
+          val xfloat = xFixedExact(Variable(id), RationalInterval(rec.loAct.get, rec.upAct.get), config, bits)
+          variableMap = variableMap + (Variable(aId) -> xfloat)
+
+        case _ =>
+          throw new Exception("bug!")
+      }
+    }
+    variableMap
   }
 
   // double constant (we include rdoff error)
@@ -67,6 +110,11 @@ object XFixed {
     (new XFixed(format, v, range, newError, config), index)
   }
 
+  def xFixedExact(v: Variable, range: RationalInterval, config: XConfig, bits: Int): XFixed = {
+    val format = getFormat(range, bits)
+    new XFixed(format, v, range, new XRationalForm(Rational.zero), config)
+  }
+
   def xFixedWithUncertain(v: Expr, range: RationalInterval, config: XConfig,
     uncertain: Rational, withRoundoff: Boolean, bits: Int): (XFixed, Int) = {
     assert(uncertain >= Rational.zero)
@@ -88,8 +136,13 @@ object XFixed {
 /*
   Assumes that all operands always have the same bitlength.
 */
+// TODO: make consistent with XFloat and put format at the end of the parameter list
 class XFixed(val format: FixedPointFormat, val tr: Expr, val appInt: RationalInterval, val err: XRationalForm,
   val cnfg: XConfig) extends XReal(tr, appInt, err, cnfg) {
+
+  override def cleanConfig: XReal = {
+    new XFixed(format, tree, approxInterval, error, getCleanConfig)
+  }
 
   //Assumes signed format.
   override def unary_-(): XReal = {
@@ -103,7 +156,7 @@ class XFixed(val format: FixedPointFormat, val tr: Expr, val appInt: RationalInt
   override def +(y: XReal): XReal = {
     assert(y.getClass == this.getClass)
     assert(this.format.bits == y.asInstanceOf[XFixed].format.bits)
-    if (verbose) println("+fix " + this + " to " + y)
+    if (verbose) println("+fix " + this.tree + " to " + y.tree)
     var (newTree, newRealRange, newError, newConfig) = super.add(y)
 
     val newFormat = getFormat(newRealRange + newError.interval, format.bits)
@@ -111,7 +164,7 @@ class XFixed(val format: FixedPointFormat, val tr: Expr, val appInt: RationalInt
       newError = addNoise(newError, newFormat.quantError)
     }
 
-    new XFixed(format, newTree, newRealRange, newError, newConfig)
+    new XFixed(newFormat, newTree, newRealRange, newError, newConfig)
   }
 
   override def -(y: XReal): XReal = {
@@ -125,7 +178,7 @@ class XFixed(val format: FixedPointFormat, val tr: Expr, val appInt: RationalInt
       newError = addNoise(newError, newFormat.quantError)
     }
 
-    new XFixed(format, newTree, newRealRange, newError, newConfig)
+    new XFixed(newFormat, newTree, newRealRange, newError, newConfig)
   }
 
 
@@ -141,8 +194,8 @@ class XFixed(val format: FixedPointFormat, val tr: Expr, val appInt: RationalInt
     if (newFormat.f < this.format.f + y.asInstanceOf[XFixed].format.f) { //loosing precision
       // TODO: if (!exactConstantMultiplication || (this.qRadius != 0.0 && y.qRadius != 0.0))
       newError = addNoise(newError, newFormat.quantError)
-    }
-    new XFixed(format, newTree, newRealRange, newError, newConfig)
+    }    
+    new XFixed(newFormat, newTree, newRealRange, newError, newConfig)
   }
 
 
@@ -156,7 +209,7 @@ class XFixed(val format: FixedPointFormat, val tr: Expr, val appInt: RationalInt
       "New format has wrong number of bits %d (vs %d)".format(newFormat.bits, this.format.bits))
 
     newError = addNoise(newError, newFormat.quantError)
-    new XFixed(format, newTree, newRealRange, newError, newConfig)
+    new XFixed(newFormat, newTree, newRealRange, newError, newConfig)
   }
 
   override def squareRoot: XReal = {

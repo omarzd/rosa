@@ -31,6 +31,7 @@ object Main {
       LeonFlagOptionDef ("termination", "--termination",        "Check program termination"),
       LeonFlagOptionDef ("synthesis",   "--synthesis",          "Partial synthesis of choose() constructs"),
       LeonFlagOptionDef ("xlang",       "--xlang",              "Support for extra program constructs (imperative,...)"),
+      LeonFlagOptionDef ("library",     "--library",            "Inject Leon standard library"),
       LeonValueOptionDef("debug",       "--debug=<sections..>", "Enables specific messages"),
       LeonFlagOptionDef ("help",        "--help",               "Show help"),
       LeonFlagOptionDef ("real",        "--real",               "Compilation of programs over reals")
@@ -69,7 +70,9 @@ object Main {
     val allOptionsMap = allOptions.map(o => o.name -> o).toMap
 
     // Detect unknown options:
-    val options = args.filter(_.startsWith("--"))
+    var options = args.filter(_.startsWith("--"))
+    // Make real default
+    if (!options.contains("--real")) options :+= "--real"
 
     val files = args.filterNot(_.startsWith("-")).map(new java.io.File(_))
 
@@ -130,8 +133,6 @@ object Main {
         Some(LeonValueOption(vod.name, value))
     }.toSeq
 
-
-
     var settings  = Settings()
 
     // Process options we understand:
@@ -140,6 +141,8 @@ object Main {
         settings = settings.copy(termination = value)
       case LeonFlagOption("synthesis", value) =>
         settings = settings.copy(synthesis = value)
+      case LeonFlagOption("library", value) =>
+        settings = settings.copy(injectLibrary = value)
       case LeonFlagOption("xlang", value) =>
         settings = settings.copy(xlang = value)
       case LeonValueOption("debug", ListValue(sections)) =>
@@ -191,7 +194,11 @@ object Main {
   def computePipeline(settings: Settings): Pipeline[List[String], Any] = {
     import purescala.Definitions.Program
 
-    val pipeBegin : Pipeline[List[String],Program] = frontends.scalac.ExtractionPhase andThen SubtypingPhase
+    val pipeBegin : Pipeline[List[String],Program] =
+      frontends.scalac.ExtractionPhase andThen
+      purescala.MethodLifting andThen
+      utils.SubtypingPhase andThen
+      purescala.CompleteAbstractDefinitions
 
     val pipeProcess: Pipeline[Program, Any] =
       if (settings.synthesis) {
@@ -213,12 +220,22 @@ object Main {
   }
 
   def main(args : Array[String]) {
+    val timer     = new Timer().start
+
+    val argsl = args.toList
+
+    val realArgs = argsl
+    /*// By default we add --library from Main
+    val realArgs = if (!args.exists(_.contains("--library"))) {
+      "--library" :: argsl
+    } else {
+      argsl
+    }*/
+
+    // Process options
+    val ctx = processOptions(realArgs)
+
     try {
-      // Process options
-      val timer     = new Timer().start
-
-      val ctx = processOptions(args.toList)
-
       ctx.interruptManager.registerSignalHandler()
 
       ctx.timers.get("Leon Opts") += timer
@@ -255,7 +272,19 @@ object Main {
       }
 
     } catch {
-      case LeonFatalError() => sys.exit(1)
+      case LeonFatalError(None) =>
+        sys.exit(1)
+
+      case LeonFatalError(Some(msg)) =>
+        // For the special case of fatal errors not sent though Reporter, we
+        // send them through reporter one time
+        try {
+          ctx.reporter.fatalError(msg)
+        } catch {
+          case _: LeonFatalError =>
+        }
+
+        sys.exit(1)
     }
   }
 }

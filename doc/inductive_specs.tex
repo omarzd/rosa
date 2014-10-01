@@ -1,0 +1,165 @@
+%!TEX root = work-in-progress.tex
+\section{Inductive Specifications}
+
+Consider the case of a generic loop, iteratively applying a function $f$.
+The following three definitions are equivalent.
+\begin{figure}[h!]
+  \centering
+  \lstset{numbers=none}
+  \begin{subfigure}[b]{0.25\textwidth}
+    \begin{lstlisting}
+var x1 = ???
+var x2 = ???
+while(i < N) {
+  (x1, x2) = f(x1, x2)
+}
+(x1, x2)
+    \end{lstlisting}
+    \caption{}
+  \end{subfigure}%
+  \begin{subfigure}[b]{0.32\textwidth}
+    \begin{lstlisting}
+    val x1, x2 = ???
+
+    def iter(x1, x2, i) = {
+      if (i < N) {
+        val (y1, y2) = f(x1, x2)
+        iter(y1, y2, i + 1)
+      } else {
+        (x1, x2)
+      }
+    }
+    \end{lstlisting}
+    \caption{}
+  \end{subfigure}
+  \begin{subfigure}[b]{0.32\textwidth}
+    \begin{lstlisting}
+    val x1, x2 = ???
+
+    def iter(x1, x2, i) = {
+      if (i < N) {
+        val (y1, y2) = iter(x1, x2, i + 1)
+        f(y1, y2)
+      } else {
+        (x1, x2)
+      }
+    }
+    \end{lstlisting}
+    \caption{}
+  \end{subfigure}
+\end{figure}
+
+\newpage
+\subsection{Specification language for loops}
+We propose the following DSL for writing the specific type of loops given above.
+\begin{lstlisting}
+@loopbound(5)
+def spiral(x: Real, y: Real): (Real, Real) = {
+    require(x*x + y*y < 100 && -10 <= x && x <= 10 && -10 <= y && y <= 10)
+
+    iterate(x, y) {
+      x <== (9.9*x - y) / 10.0
+      y <-- (9.9*y + x) / 10.0
+    }
+
+  } ensuring (_ match {
+    case (a, b) => -10 <= a && a <= 10 && -10 <= b && b <= 10
+  })
+\end{lstlisting}
+
+The loop body is given by the block passed to \lstinline{iterate},
+and the loop counter is implicit, i.e. the verification is performed
+with respect to any number of loop iterations.
+
+The variables that are being updated in every iteration are given by
+\lstinline{x <==} or \lstinline{x <--} (it's not yet decided which one is better).
+
+For verification purposes, we can translate the above into a recursive function
+in the form of $(a)$ or $(b)$.
+
+In the case of the tail-recursive definition $(b)$, we need to prove three verification
+conditions:
+\begin{itemize}
+\item $P \wedge \text{ body-if } \to P'$
+
+\item $Q \to Q$
+
+\item $P \to Q$
+\end{itemize}
+
+In the case of formulation $(c)$, we need to show
+\begin{itemize}
+\item $P \to P$
+
+\item $Q \wedge \text{ body-if } Q'$
+
+\item $P \to Q$
+\end{itemize}
+
+Effectively, both recursive definitions require the same verification effort.,
+i.e. we need to find an inductive invariant $I$ such that $I \wedge body \to I'$,
+and $P \to I$ and $I \to Q$.
+This is in particular the case when $I = P = Q$.
+
+In the \lstinline{spiral} example, the condition $x^2 + y^2 < 100$ is crutial for proving
+the loop inductive, but the programmer may only provide it in the precondition.
+In the absence of the user's specification being inductive by itself,
+we can choose one of the following strategies for constructing $I$.
+\begin{enumerate}
+\item $I = P \wedge Q$, i.e. we strengthen the condition. It may happen that if verification
+succeeds, we have shown inductiveness for a smaller input range than what the user indicated initially.
+
+\item $I = P \vee Q$, we weaken the condition, taking into account all possible behaviours.
+The question is that we may not be able to prove much (as in the example above).
+\end{enumerate}
+
+\subsection{Finite precision ranges}
+The above spiral example only dealt with real bounds. Now suppose we want to show that the bounds
+are satisfied also for a finite precision computation:
+\begin{lstlisting}
+def spiralBoth(x: Real, y: Real): (Real, Real) = {
+    require(x*x + y*y < 100 && -10 <= x && x <= 10 && -10 <= y && y <= 10)
+
+    iterate {
+      x <== (9.9*x - y) / 10.0
+      y <== (9.9*y + x) / 10.0
+    }
+
+  } ensuring (_ match {
+    case (a, b) => -10 <= a && a <= 10 && -10 <= b && b <= 10 &&
+      -10 <= ~a && ~a <= 10 && -10 <= ~b && ~b <= 10
+  })
+\end{lstlisting}
+
+This example works out of box with the previous definition as follows.
+The loop invariant we want to prove becomes under $I = P \wedge Q$:
+\eqn{
+  x*x + y*y < 100 &\wedge -10 <= x \wedge x <= 10 \wedge -10 <= y \wedge y <= 10 \wedge\\
+      &-10 <= ~a \wedge ~a <= 10 \wedge -10 <= ~b \wedge ~b <= 10
+}
+which can be proven using our approximation procedure, which computes sound
+bounds for $~x$ and $~y$, under the assumption that loop begin the ideal real
+and actual finite variables differ by at most roundoff, and for the ideal counter-
+part the condition \lstinline{x*x + y*y < 100} holds.
+It is a little unfortunate that this is currently implicit.
+
+
+\subsubsection{Code generation}
+We can choose in principle to generate code in any version $(a), (b), (c)$,
+adding an explicit loop counter.
+
+
+
+\subsection{Where are the errors?}
+In the above examples we took into account roundoff errors in each loop iteration,
+but not the propagation across iterations. We also do not compute any bound on the final error.
+
+Errors depend on the number of iterations, and if we add a term \lstinline{ x +/- a}
+in the pre- or postcondition, it will necessarily be part of the loop invariant.
+This condition, however, will be impossible to prove, expect in the rare cases where
+absolute errors become smaller and smaller in each iteration.
+
+As is explained in Section~\ref{theory-errors}, the two important values are $\sigma$,
+the roundoff error of computing one loop body, and $K$ the Lipschitz constant.
+It would thus make sense to verify and treat the error propagation separately from the
+range bounds. (DLS for how to express this TBD).

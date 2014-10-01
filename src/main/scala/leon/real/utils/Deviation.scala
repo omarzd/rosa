@@ -24,6 +24,8 @@ case class Magnitude(val value: Rational, val expr: Expr) {
 
 
 object Deviation {
+  //private val bitLimit = 32
+
   var currIndex: Int = 0
   def newIndex: Int = {
     currIndex += 1
@@ -31,15 +33,41 @@ object Deviation {
     currIndex
   }
 
-  def apply(i: Int, v: Rational): Deviation =
-    Deviation(Index(i, List.empty), Magnitude(v, RealLiteral(v)))
+  def apply(i: Int, v: Rational): Deviation = {
+    /*if (v.n.bitLength > bitLimit || v.d.bitLength > bitLimit) {
+      //println("scaling")
+      val scaled = if (v.n < 0) - scaleToLongUp(abs(v))
+                   else scaleToLongUp(v)
+      Deviation(Index(i, List.empty), Magnitude(scaled, RealLiteral(scaled)))
+
+    } else {
+    */
+      Deviation(Index(i, List.empty), Magnitude(v, RealLiteral(v)))
+    //}
+  }
 
   def apply(i: Int, hist: List[Int], v: Rational) : Deviation =
-    Deviation(Index(i, hist), Magnitude(v, RealLiteral(v)))
+    /*if (v.n.bitLength > bitLimit || v.d.bitLength > bitLimit) {
+      //println("scaling")
+      val scaled = if (v.n < 0) - scaleToLongUp(abs(v))
+                   else scaleToLongUp(v)
+      Deviation(Index(i, hist), Magnitude(scaled, RealLiteral(scaled)))
+    } else {
+    */
+      Deviation(Index(i, hist), Magnitude(v, RealLiteral(v)))
+    //}
 
   def apply(i: Int, hist: List[Int], v: Rational, variable: Variable) : Deviation =
-    Deviation(Index(i, hist), Magnitude(v, variable))
-
+    /*if (v.n.bitLength > bitLimit || v.d.bitLength > bitLimit) {
+      //println("scaling")
+      val scaled = if (v.n < 0) - scaleToLongUp(abs(v))
+                   else scaleToLongUp(v)
+      Deviation(Index(i, hist), Magnitude(scaled, variable))
+    } else {
+    */
+      Deviation(Index(i, hist), Magnitude(v, variable))
+    //}
+  
 
   val dummyDev = Deviation(Index(Int.MaxValue, List.empty),
     Magnitude(Rational.zero, RealLiteral(Rational.zero)))

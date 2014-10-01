@@ -19,23 +19,28 @@ trait ASTExtractors {
     rootMirror.getClassByName(newTermName(str))
   }
 
+
   protected lazy val tuple2Sym          = classFromName("scala.Tuple2")
   protected lazy val tuple3Sym          = classFromName("scala.Tuple3")
   protected lazy val tuple4Sym          = classFromName("scala.Tuple4")
   protected lazy val tuple5Sym          = classFromName("scala.Tuple5")
+  protected lazy val tuple6Sym          = classFromName("scala.Tuple6")
   protected lazy val mapSym             = classFromName("scala.collection.immutable.Map")
   protected lazy val setSym             = classFromName("scala.collection.immutable.Set")
   protected lazy val optionClassSym     = classFromName("scala.Option")
   protected lazy val arraySym           = classFromName("scala.Array")
   protected lazy val someClassSym       = classFromName("scala.Some")
   protected lazy val function1TraitSym  = classFromName("scala.Function1")
-  protected lazy val realSym            = classFromName("leon.Real")
+  protected lazy val realSym            = classFromName("leon.real.Real")
+  protected lazy val loopCounterSym     = classFromName("leon.real.LoopCounter")
 
   def isTuple2(sym : Symbol) : Boolean = sym == tuple2Sym
   def isTuple3(sym : Symbol) : Boolean = sym == tuple3Sym
   def isTuple4(sym : Symbol) : Boolean = sym == tuple4Sym
   def isTuple5(sym : Symbol) : Boolean = sym == tuple5Sym
+  def isTuple6(sym : Symbol) : Boolean = sym == tuple6Sym
   def isReal(sym : Symbol) : Boolean = sym == realSym
+  def isLoopCounter(sym: Symbol): Boolean = sym == loopCounterSym
 
 
   // Resolve type aliases
@@ -123,7 +128,7 @@ trait ASTExtractors {
 
     object ExHoldsExpression {
       def unapply(tree: Select) : Option[Tree] = tree match {
-        case Select(Apply(ExSelected("leon", "Utils", "any2IsValid"), realExpr :: Nil), ExNamed("holds")) =>
+        case Select(Apply(ExSelected("leon", "lang", "any2IsValid"), realExpr :: Nil), ExNamed("holds")) =>
             Some(realExpr)
         case _ => None
        }
@@ -159,17 +164,17 @@ trait ASTExtractors {
       /** Matches an abstract class or a trait with no type parameters, no
        * constrctor args (in the case of a class), no implementation details,
        * no abstract members. */
-      def unapply(cd: ClassDef): Option[(String,Symbol)] = cd match {
+      def unapply(cd: ClassDef): Option[(String, Symbol, Template)] = cd match {
         // abstract class
-        case ClassDef(_, name, tparams, impl) if (cd.symbol.isAbstractClass && tparams.isEmpty && impl.body.size == 1) => Some((name.toString, cd.symbol))
+        case ClassDef(_, name, tparams, impl) if (cd.symbol.isAbstractClass) => Some((name.toString, cd.symbol, impl))
 
         case _ => None
       }
     }
 
     object ExCaseClass {
-      def unapply(cd: ClassDef): Option[(String,Symbol,Seq[(String,Tree)])] = cd match {
-        case ClassDef(_, name, tparams, impl) if (cd.symbol.isCase && !cd.symbol.isAbstractClass && tparams.isEmpty && impl.body.size >= 8) => {
+      def unapply(cd: ClassDef): Option[(String,Symbol,Seq[(String,Tree)], Template)] = cd match {
+        case ClassDef(_, name, tparams, impl) if (cd.symbol.isCase && !cd.symbol.isAbstractClass && impl.body.size >= 8) => {
           val constructor: DefDef = impl.children.find(child => child match {
             case ExConstructorDef() => true
             case _ => false
@@ -177,7 +182,7 @@ trait ASTExtractors {
 
           val args = constructor.vparamss(0).map(vd => (vd.name.toString, vd.tpt))
 
-          Some((name.toString, cd.symbol, args))
+          Some((name.toString, cd.symbol, args, impl))
         }
         case _ => None
       }
@@ -219,8 +224,9 @@ trait ASTExtractors {
     object ExFunctionDef {
       /** Matches a function with a single list of arguments, no type
        * parameters and regardless of its visibility. */
-      def unapply(dd: DefDef): Option[(String,Seq[ValDef],Tree,Tree)] = dd match {
-        case DefDef(_, name, tparams, vparamss, tpt, rhs) if(tparams.isEmpty && vparamss.size == 1 && name != nme.CONSTRUCTOR) => Some((name.toString, vparamss(0), tpt, rhs))
+      def unapply(dd: DefDef): Option[(Symbol, Seq[Symbol], Seq[ValDef], Type, Tree)] = dd match {
+        case DefDef(_, name, tparams, vparamss, tpt, rhs) if(vparamss.size <= 1 && name != nme.CONSTRUCTOR) =>
+          Some((dd.symbol, tparams.map(_.symbol), vparamss.headOption.getOrElse(Nil), tpt.tpe, rhs))
         case _ => None
       }
     }
@@ -233,7 +239,7 @@ trait ASTExtractors {
     object ExEpsilonExpression {
       def unapply(tree: Apply) : Option[(Type, Symbol, Tree)] = tree match {
         case Apply(
-              TypeApply(ExSelected("leon", "Utils", "epsilon"), typeTree :: Nil),
+              TypeApply(ExSelected("leon", "lang", "epsilon"), typeTree :: Nil),
               Function((vd @ ValDef(_, _, _, EmptyTree)) :: Nil, predicateBody) :: Nil) =>
             Some((typeTree.tpe, vd.symbol, predicateBody))
         case _ => None
@@ -242,7 +248,7 @@ trait ASTExtractors {
 
     object ExErrorExpression {
       def unapply(tree: Apply) : Option[(String, Type)] = tree match {
-        case a @ Apply(TypeApply(ExSelected("leon", "Utils", "error"), List(tpe)), List(lit : Literal)) =>
+        case a @ Apply(TypeApply(ExSelected("leon", "lang", "error"), List(tpe)), List(lit : Literal)) =>
           Some((lit.value.stringValue, tpe.tpe))
         case _ =>
           None
@@ -252,7 +258,7 @@ trait ASTExtractors {
     object ExChooseExpression {
       def unapply(tree: Apply) : Option[(List[(Type, Symbol)], Type, Tree, Tree)] = tree match {
         case a @ Apply(
-              TypeApply(s @ ExSelected("leon", "Utils", "choose"), types),
+              TypeApply(s @ ExSelected("leon", "lang", "choose"), types),
               Function(vds, predicateBody) :: Nil) =>
             Some(((types.map(_.tpe) zip vds.map(_.symbol)).toList, a.tpe, predicateBody, s))
         case _ => None
@@ -262,9 +268,18 @@ trait ASTExtractors {
     object ExWaypointExpression {
       def unapply(tree: Apply) : Option[(Type, Tree, Tree)] = tree match {
         case Apply(
-              TypeApply(ExSelected("leon", "Utils", "waypoint"), typeTree :: Nil),
+              TypeApply(ExSelected("leon", "lang", "waypoint"), typeTree :: Nil),
               List(i, expr)) =>
             Some((typeTree.tpe, i, expr))
+        case _ => None
+      }
+    }
+
+    object ExArrayUpdated {
+      def unapply(tree: Apply): Option[(Tree,Tree,Tree)] = tree match {
+        case Apply(
+              Apply(TypeApply(Select(Apply(ExSelected("scala", "Predef", s), Seq(lhs)), n), _), Seq(index, value)),
+              List(Apply(_, _))) if (s.toString contains "Array") && (n.toString == "updated") => Some((lhs, index, value))
         case _ => None
       }
     }
@@ -358,6 +373,13 @@ trait ASTExtractors {
           List(e1, e2, e3, e4, e5)
         ) if tupleType.symbol == tuple5Sym => tupleType.tpe match {
             case TypeRef(_, sym, List(t1, t2, t3, t4, t5)) => Some((Seq(t1, t2, t3, t4, t5), Seq(e1, e2, e3, e4, e5)))
+            case _ => None
+          }
+        case Apply(
+          Select(New(tupleType), _),
+          List(e1, e2, e3, e4, e5, e6)
+        ) if tupleType.symbol == tuple6Sym => tupleType.tpe match {
+            case TypeRef(_, sym, List(t1, t2, t3, t4, t5, t6)) => Some((Seq(t1, t2, t3, t4, t5, t6), Seq(e1, e2, e3, e4, e5, e6)))
             case _ => None
           }
         // Match e1 -> e2
@@ -590,25 +612,14 @@ trait ASTExtractors {
       }
     }
 
-    object ExLocalCall {
-      def unapply(tree: Apply): Option[(Symbol,String,List[Tree])] = tree match {
-        case a @ Apply(Select(This(_), nme), args) => Some((a.symbol, nme.toString, args))
-        case a @ Apply(Ident(nme), args) => Some((a.symbol, nme.toString, args))
-        case _ => None
-      }
-    }
-
-    // used for case classes selectors.
-    object ExParameterlessMethodCall {
-      def unapply(tree: Select): Option[(Tree,Name)] = tree match {
-        case Select(lhs, n) => Some((lhs, n))
-        case _ => None
-      }
+    object ExPatternMatching {
+      def unapply(tree: Match): Option[(Tree,List[CaseDef])] =
+        if(tree != null) Some((tree.selector, tree.cases)) else None
     }
 
     object ExSqrt {
       def unapply(tree: Apply): Option[Tree] = tree match {
-        case Apply(select, List(arg)) if (select.toString == "leon.Real.sqrt") => Some(arg)
+        case Apply(select, List(arg)) if (select.toString == "leon.real.RealOps.sqrt") => Some(arg)
         case _ => None
       }
     }
@@ -616,9 +627,19 @@ trait ASTExtractors {
     object ExImplicitInt2Real {
       def unapply(tree: Apply): Option[Int] = tree match {
         case Apply(select, List(Literal(c @ Constant(i))))
-          if (select.toString == "leon.Real.int2real") =>
+          if (select.toString == "leon.real.RealOps.int2real") =>
           assert(c.tpe == IntClass.tpe)
           Some(c.intValue)
+        case _ => None
+      }
+    }
+
+    object ExImplicitInt2RealExpr {
+      def unapply(tree: Apply): Option[Tree] = tree match {
+        case Apply(select, List(arg))
+          if (select.toString == "leon.real.RealOps.int2real") =>
+          
+          Some(arg)
         case _ => None
       }
     }
@@ -626,9 +647,19 @@ trait ASTExtractors {
     object ExImplicitDouble2Real {
       def unapply(tree: Apply): Option[Double] = tree match {
         case Apply(select, List(Literal(c @ Constant(i))))
-          if (select.toString == "leon.Real.double2real") =>
+          if (select.toString == "leon.real.RealOps.double2real") =>
           assert(c.tpe == DoubleClass.tpe)
           Some(c.doubleValue)
+        case _ => None
+      }
+    }
+
+    object ExImplicitDouble2RealExpr {
+      def unapply(tree: Apply): Option[Tree] = tree match {
+        case Apply(select, List(arg))
+          if (select.toString == "leon.real.RealOps.double2real") =>
+          
+          Some(arg)
         case _ => None
       }
     }
@@ -636,8 +667,16 @@ trait ASTExtractors {
     object ExImplicitDouble2RealVar {
       def unapply(tree: Apply): Option[(Symbol, Tree)] = tree match {
         case Apply(select, List(i @ Ident(s)))
-          if (select.toString == "leon.Real.double2real") =>
+          if (select.toString == "leon.real.RealOps.double2real") =>
           Some((i.symbol, i))
+        case _ => None
+      }
+    }
+
+    object ExCircle {
+      def unapply(tree: Apply): Option[(Tree,Tree)] = tree match {
+        case Apply(Select(lhs, n), List(rhs)) if (n.toString == "$u00B0") => Some((lhs,rhs))
+        case Apply(Select(lhs, n), List(rhs)) if (n.toString == "$u00B0$u00B0") => Some((lhs,rhs))
         case _ => None
       }
     }
@@ -645,6 +684,7 @@ trait ASTExtractors {
     object ExPlusMinus {
       def unapply(tree: Apply): Option[(Tree,Tree)] = tree match {
         case Apply(Select(lhs, n), List(rhs)) if (n.toString == "$plus$div$minus") => Some((lhs,rhs))
+        case Apply(Select(lhs, n), List(rhs)) if (n.toString == "$u00B1") => Some((lhs,rhs))
         case _ => None
       }
     }
@@ -671,40 +711,70 @@ trait ASTExtractors {
       }
     }
 
+    object ExInitialErrors {
+      def unapply(tree: Apply): Option[Tree] = tree match {
+        case Apply(select, List(arg)) if (select.toString == "leon.real.RealOps.initialErrors") => Some(arg)
+        case _ => None
+      }
+    }
+
+    object ExElementOf {
+      def unapply(tree: Apply): Option[(Tree, Tree)] = tree match {
+        case Apply(Select(lhs, n), List(arg)) if (n.toString == "$u2208") =>
+          Some((lhs, arg))
+        case _ => None
+      }
+    }
+
+    object ExElementOfEquals {
+      def unapply(tree: Apply): Option[(Tree, Tree)] = tree match {
+        case Apply(Select(lhs, n), List(arg)) if (n.toString == "$u2208$eq") =>
+          Some((lhs, arg))
+        case _ => None
+      }
+    }
+
     object ExWithin {
       def unapply(tree: Apply): Option[(Tree, Tree)] = tree match {
         case Apply(Select(lhs, n), List(arg)) if (n.toString == "$greater$less") =>
           Some((lhs, arg))
         case _ => None
       }
-    }    
-  
-    object ExPatternMatching {
-      def unapply(tree: Match): Option[(Tree,List[CaseDef])] =
-        if(tree != null) Some((tree.selector, tree.cases)) else None
     }
 
+    object ExIncrement {
+      def unapply(tree: Apply): Option[(Tree, Tree)] = tree match {
+        case Apply(Select(lhs, n), List()) => //if (n.toString == "$greater$less") =>
+          println("--> " + n)
+          
+          //Some((lhs, arg))
+          None
+        case _ => None
+      }
+    }    
+
+    object ExIterate {
+      def unapply(tree: Apply): Option[(Seq[Tree], Tree)] = tree match {
+        case Apply(Apply(select, args), List(rhs)) if (select.toString == "leon.real.RealOps.iterate") =>
+          Some(args, rhs)
+        case _ => None
+      }
+    }
+
+    object ExUpdateFunction {
+      def unapply(tree: Apply): Option[(Tree, Tree)] = tree match {
+        case Apply(Select(lhs, n), List(rhs)) if (n.toString == "$less$eq$eq" ) =>
+          Some(lhs, rhs)
+
+        case Apply(Select(lhs, n), List(rhs)) if (n.toString == "$less$minus$minus" ) =>
+          Some(lhs, rhs)
+        case _ => None
+      }
+    }
+  
     object ExIsInstanceOf {
       def unapply(tree: TypeApply) : Option[(Tree, Tree)] = tree match {
         case TypeApply(Select(t, isInstanceOfName), typeTree :: Nil) if isInstanceOfName.toString == "isInstanceOf" => Some((typeTree, t))
-        case _ => None
-      }
-    }
-
-    object ExSetMin {
-      def unapply(tree: Apply) : Option[Tree] = tree match {
-        case Apply(
-          TypeApply(Select(setTree, minName), typeTree :: Nil),
-          ordering :: Nil) if minName.toString == "min" && typeTree.tpe == IntClass.tpe => Some(setTree)
-        case _ => None
-      }
-    }
-
-    object ExSetMax {
-      def unapply(tree: Apply) : Option[Tree] = tree match {
-        case Apply(
-          TypeApply(Select(setTree, maxName), typeTree :: Nil),
-          ordering :: Nil) if maxName.toString == "max" && typeTree.tpe == IntClass.tpe => Some(setTree)
         case _ => None
       }
     }
@@ -786,79 +856,33 @@ trait ASTExtractors {
       }
     }
 
-    object ExUnion {
-      def unapply(tree: Apply): Option[(Tree,Tree)] = tree match {
-        case Apply(Select(lhs, n), List(rhs)) if n == encode("++") => Some((lhs,rhs))
+    object ExCall { 
+      def unapply(tree: Tree): Option[(Tree, Symbol, Seq[Tree], Seq[Tree])] = tree match {
+        case s @ Select(t, _) =>
+          Some((t, s.symbol, Nil, Nil))
+
+        case TypeApply(s @ Select(t, _), tps) => 
+          Some((t, s.symbol, tps, Nil))
+
+        case TypeApply(i: Ident, tps) => 
+          Some((i, i.symbol, tps, Nil))
+
+        case Apply(TypeApply(s @ Select(t, _), tps), args) => 
+          Some((t, s.symbol, tps, args))
+
+        case Apply(TypeApply(i: Ident, tps), args) => 
+          Some((i, i.symbol, tps, args))
+
+        case Apply(s @ Select(t, _), args) => 
+          Some((t, s.symbol, Nil, args))
+
+        case Apply(i: Ident, args) => 
+          Some((i, i.symbol, Nil, args))
+
         case _ => None
       }
     }
 
-    object ExPlusPlusPlus {
-      def unapply(tree: Apply): Option[(Tree,Tree)] = tree match {
-        case Apply(Select(lhs, n), List(rhs)) if n.toString == encode("+++") => Some((lhs,rhs))
-        case _ => None
-      }
-    }
-
-    object ExIntersection {
-      def unapply(tree: Apply): Option[(Tree,Tree)] = tree match {
-        case Apply(Select(lhs, n), List(rhs)) if (n == encode("**") || n == encode("&")) => Some((lhs,rhs))
-        case _ => None
-      }
-    }
-
-    object ExSetContains {
-      def unapply(tree: Apply) : Option[(Tree,Tree)] = tree match {
-        case Apply(Select(lhs, n), List(rhs)) if (n.toString == "contains") => Some((lhs,rhs))
-        case _ => None
-      }
-    }
-
-    object ExSetSubset {
-      def unapply(tree: Apply) : Option[(Tree,Tree)] = tree match {
-        case Apply(Select(lhs, n), List(rhs)) if (n.toString == "subsetOf") => Some((lhs,rhs))
-        case _ => None
-      }
-    }
-
-    object ExSetMinus {
-      def unapply(tree: Apply): Option[(Tree,Tree)] = tree match {
-        case Apply(Select(lhs, n), List(rhs)) if (n == encode("--")) => Some((lhs,rhs))
-        case _ => None
-      }
-    }
-
-    object ExSetCard {
-      def unapply(tree: Select): Option[Tree] = tree match {
-        case Select(t, n) if (n.toString == "size") => Some(t)
-        case _ => None
-      }
-    }
-
-    object ExMultisetToSet {
-      def unapply(tree: Select): Option[Tree] = tree match {
-        case Select(t, n) if (n.toString == "toSet") => Some(t)
-        case _ => None
-      }
-    }
-
-    object ExUpdated {
-      def unapply(tree: Apply): Option[(Tree,Tree,Tree)] = tree match {
-        case Apply(TypeApply(Select(lhs, n), typeTreeList), List(from, to)) if (n.toString == "updated") =>
-          Some((lhs, from, to))
-        case Apply(
-              Apply(TypeApply(Select(Apply(_, Seq(lhs)), n), _), Seq(index, value)),
-              List(Apply(_, _))) if (n.toString == "updated") => Some((lhs, index, value))
-        case _ => None
-      }
-    }
-
-    object ExApply {
-      def unapply(tree: Apply): Option[(Tree,List[Tree])] = tree match {
-        case Apply(Select(lhs, n), rhs) if (n.toString == "apply") => Some((lhs, rhs))
-        case _ => None
-      }
-    }
     object ExUpdate {
       def unapply(tree: Apply): Option[(Tree, Tree, Tree)] = tree match {
         case Apply(
@@ -867,28 +891,6 @@ trait ASTExtractors {
         case _ => None
       }
     }
-
-    object ExMapIsDefinedAt {
-      def unapply(tree: Apply): Option[(Tree,Tree)] = tree match {
-        case Apply(Select(lhs, n), List(rhs)) if (n.toString == "isDefinedAt") => Some((lhs, rhs))
-        case _ => None
-      }
-    }
-
-    object ExArrayLength {
-      def unapply(tree: Select): Option[Tree] = tree match {
-        case Select(ExHasType(t, `arraySym`), n) if n.toString == "length" => Some(t)
-        case _ => None
-      }
-    }
-
-    object ExArrayClone {
-      def unapply(tree: Apply): Option[Tree] = tree match {
-        case Apply(Select(ExHasType(t, `arraySym`), n), List()) if n.toString == "clone" => Some(t)
-        case _ => None
-      }
-    }
-
 
     object ExArrayFill {
       def unapply(tree: Apply): Option[(Tree, Tree, Tree)] = tree match {

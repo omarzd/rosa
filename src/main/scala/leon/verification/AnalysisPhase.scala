@@ -19,14 +19,19 @@ object AnalysisPhase extends LeonPhase[Program,VerificationReport] {
   val name = "Analysis"
   val description = "Leon Verification"
 
-  implicit val debugSection = DebugSectionVerification
+  implicit val debugSection = utils.DebugSectionVerification
 
   override val definedOptions : Set[LeonOptionDef] = Set(
     LeonValueOptionDef("functions", "--functions=f1:f2", "Limit verification to f1,f2,..."),
+    LeonValueOptionDef("solvers",   "--solvers=s1,s2",   "Use solvers s1 and s2 (fairz3,enum)", default = Some("fairz3")),
     LeonValueOptionDef("timeout",   "--timeout=T",       "Timeout after T seconds when trying to prove a verification condition.")
   )
 
-  def generateVerificationConditions(reporter: Reporter, program: Program, functionsToAnalyse: Set[String]): Map[FunDef, List[VerificationCondition]] = {
+  def generateVerificationConditions(vctx: VerificationContext, functionsToAnalyse: Set[String]): Map[FunDef, List[VerificationCondition]] = {
+
+    import vctx.reporter
+    import vctx.program
+
     val defaultTactic = new DefaultTactic(reporter)
     defaultTactic.setProgram(program)
     val inductionTactic = new InductionTactic(reporter)
@@ -34,7 +39,27 @@ object AnalysisPhase extends LeonPhase[Program,VerificationReport] {
 
     var allVCs = Map[FunDef, List[VerificationCondition]]()
 
-    for(funDef <- program.definedFunctions.toList.sortWith((fd1, fd2) => fd1.getPos < fd2.getPos) if (functionsToAnalyse.isEmpty || functionsToAnalyse.contains(funDef.id.name))) {
+    val patterns = functionsToAnalyse.map{ s =>
+      import java.util.regex.Pattern
+
+      val p = s.replaceAll("\\.", "\\\\.").replaceAll("_", ".+")
+      Pattern.compile(p)
+    }
+
+    def markedForVerification(name: String): Boolean = {
+      patterns.exists(p => p.matcher(name).matches())
+    }
+
+    val toVerify = program.definedFunctions.toList.sortWith((fd1, fd2) => fd1.getPos < fd2.getPos).filter {
+      fd =>
+        (functionsToAnalyse.isEmpty && !(fd.annotations contains "verified")) || 
+        (markedForVerification(fd.id.name))
+    }
+
+    for(funDef <- toVerify) {
+      if (funDef.annotations contains "verified") {
+        reporter.warning("Forcing verification of "+funDef.id.name+" which was assumed verified")
+      }
 
       val tactic: Tactic =
         if(funDef.annotations.contains("induct")) {
@@ -54,15 +79,13 @@ object AnalysisPhase extends LeonPhase[Program,VerificationReport] {
       }
     }
 
-    val notFound = functionsToAnalyse -- allVCs.keys.map(_.id.name)
-    notFound.foreach(fn => reporter.error("Did not find function \"" + fn + "\" though it was marked for analysis."))
-
     allVCs
   }
 
   def checkVerificationConditions(vctx: VerificationContext, vcs: Map[FunDef, List[VerificationCondition]]) : VerificationReport = {
-    val reporter = vctx.reporter
-    val solvers  = vctx.solvers
+    import vctx.reporter
+    import vctx.solverFactory
+    import vctx.program
 
     val interruptManager = vctx.context.interruptManager
 
@@ -70,64 +93,62 @@ object AnalysisPhase extends LeonPhase[Program,VerificationReport] {
       val funDef = vcInfo.funDef
       val vc = vcInfo.condition
 
+      // Check if vc targets abstract methods
+      val targets = functionCallsOf(vc).map(_.tfd.fd)
+      val callsAbstract = (vctx.program.callGraph.transitiveCallees(targets) ++ targets).exists(_.annotations("abstract"))
+
       reporter.info("Now considering '" + vcInfo.kind + "' VC for " + funDef.id + "...")
       reporter.debug("Verification condition (" + vcInfo.kind + ") for ==== " + funDef.id + " ====")
-      reporter.debug(simplifyLets(vc))
+      reporter.debug(simplifyLets(vc).asString(vctx.context))
 
-      // try all solvers until one returns a meaningful answer
-      solvers.find(sf => {
-        val s = sf.getNewSolver
-        try {
-          reporter.debug("Trying with solver: " + s.name)
-          val t1 = System.nanoTime
-          s.assertCnstr(Not(vc))
+      val s = solverFactory.getNewSolver
+      try {
+        reporter.debug("Solving with: " + s.name)
+        val t1 = System.nanoTime
+        s.assertCnstr(Not(vc))
 
-          val satResult = s.check
-          val counterexample: Map[Identifier, Expr] = if (satResult == Some(true)) s.getModel else Map()
-          val solverResult = satResult.map(!_)
+        val satResult = s.check
+        val counterexample: Map[Identifier, Expr] = if (satResult == Some(true)) s.getModel else Map()
+        val solverResult = satResult.map(!_)
 
-          val t2 = System.nanoTime
-          val dt = ((t2 - t1) / 1000000) / 1000.0
+        val t2 = System.nanoTime
+        val dt = ((t2 - t1) / 1000000) / 1000.0
 
-          solverResult match {
-            case _ if interruptManager.isInterrupted() =>
-              reporter.info("=== CANCELLED ===")
-              vcInfo.time = Some(dt)
-              false
+        solverResult match {
+          case _ if interruptManager.isInterrupted() =>
+            reporter.info("=== CANCELLED ===")
+            vcInfo.time = Some(dt)
+            false
 
-            case None =>
-              vcInfo.time = Some(dt)
-              false
-
-            case Some(true) =>
-              reporter.info("==== VALID ====")
-
-              vcInfo.hasValue = true
-              vcInfo.value = Some(true)
-              vcInfo.solvedWith = Some(s)
-              vcInfo.time = Some(dt)
-              true
-
-            case Some(false) =>
-              reporter.error("Found counter-example : ")
-              reporter.error(counterexample.toSeq.sortBy(_._1.name).map(p => p._1 + " -> " + p._2).mkString("\n"))
-              reporter.error("==== INVALID ====")
-              vcInfo.hasValue = true
-              vcInfo.value = Some(false)
-              vcInfo.solvedWith = Some(s)
-              vcInfo.counterExample = Some(counterexample)
-              vcInfo.time = Some(dt)
-              true
-          }
-        } finally {
-          s.free()
-        }}) match {
-          case None => {
+          case None =>
             vcInfo.hasValue = true
             reporter.warning("==== UNKNOWN ====")
-          }
-          case _ =>
+            vcInfo.time = Some(dt)
+            false
+
+          case Some(true) =>
+            reporter.info("==== VALID ====")
+
+            vcInfo.hasValue = true
+            vcInfo.value = Some(true)
+            vcInfo.solvedWith = Some(s)
+            vcInfo.time = Some(dt)
+            true
+
+          case Some(false) =>
+            reporter.error("Found counter-example : ")
+            reporter.error(counterexample.toSeq.sortBy(_._1.name).map(p => p._1 + " -> " + p._2).mkString("\n"))
+            reporter.error("==== INVALID ====")
+            vcInfo.hasValue = true
+            vcInfo.value = Some(false)
+            vcInfo.solvedWith = Some(s)
+            vcInfo.counterExample = Some(counterexample)
+            vcInfo.time = Some(dt)
+            true
         }
+      } finally {
+        s.free()
+      }
     }
 
     val report = new VerificationReport(vcs)
@@ -137,10 +158,25 @@ object AnalysisPhase extends LeonPhase[Program,VerificationReport] {
   def run(ctx: LeonContext)(program: Program) : VerificationReport = {
     var functionsToAnalyse   = Set[String]()
     var timeout: Option[Int] = None
+    var selectedSolvers      = Set[String]("fairz3")
+
+    val allSolvers = Map(
+      "fairz3" -> SolverFactory(() => new FairZ3Solver(ctx, program) with TimeoutSolver),
+      "enum"   -> SolverFactory(() => new EnumerationSolver(ctx, program) with TimeoutSolver)
+    )
+
+    val reporter = ctx.reporter
 
     for(opt <- ctx.options) opt match {
       case LeonValueOption("functions", ListValue(fs)) =>
         functionsToAnalyse = Set() ++ fs
+
+      case LeonValueOption("solvers", ListValue(ss)) =>
+        val unknownSolvers = ss.toSet -- allSolvers.keySet
+        if (unknownSolvers.nonEmpty) {
+          reporter.error("Unknown solver(s): "+unknownSolvers.mkString(", ")+" (Available: "+allSolvers.keys.mkString(", ")+")")
+        }
+        selectedSolvers = Set() ++ ss
 
       case v @ LeonValueOption("timeout", _) =>
         timeout = v.asInt(ctx)
@@ -148,25 +184,29 @@ object AnalysisPhase extends LeonPhase[Program,VerificationReport] {
       case _ =>
     }
 
-    val reporter = ctx.reporter
+    // Solvers selection and validation
+    val solversToUse = allSolvers.filterKeys(selectedSolvers)
 
-    val baseFactories = Seq(
-      SolverFactory(() => new FairZ3Solver(ctx, program))
-    )
-
-    val solverFactories = timeout match {
-      case Some(sec) =>
-        baseFactories.map { sf =>
-          new TimeoutSolverFactory(sf, sec*1000L)
-        }
-      case None =>
-        baseFactories
+    val entrySolver = if (solversToUse.isEmpty) {
+      reporter.fatalError("No solver selected. Aborting")
+    } else if (solversToUse.size == 1) {
+      solversToUse.values.head
+    } else {
+      SolverFactory( () => new PortfolioSolver(ctx, solversToUse.values.toSeq) with TimeoutSolver)
     }
 
-    val vctx = VerificationContext(ctx, solverFactories, reporter)
+
+    val mainSolver = timeout match {
+      case Some(sec) =>
+        new TimeoutSolverFactory(entrySolver, sec*1000L)
+      case None =>
+        entrySolver
+    }
+
+    val vctx = VerificationContext(ctx, program, mainSolver, reporter)
 
     reporter.debug("Running verification condition generation...")
-    val vcs = generateVerificationConditions(reporter, program, functionsToAnalyse)
+    val vcs = generateVerificationConditions(vctx, functionsToAnalyse)
     checkVerificationConditions(vctx, vcs)
   }
 }

@@ -16,7 +16,7 @@ import vanuatoo.{Pattern => VPattern, _}
 import evaluators._
 
 class VanuatooDataGen(ctx: LeonContext, p: Program) extends DataGenerator {
-  val unit = CompilationUnit.compileProgram(p).get
+  val unit = new CompilationUnit(ctx, p)
 
   val ints = (for (i <- Set(0, 1, 2, 3)) yield {
     i -> Constructor[Expr, TypeTree](List(), Int32Type, s => IntLiteral(i), ""+i)
@@ -34,9 +34,7 @@ class VanuatooDataGen(ctx: LeonContext, p: Program) extends DataGenerator {
     ConstructorPattern[Expr, TypeTree](c, args)
   }
 
-  private var ccConstructors = Map[CaseClassDef, Constructor[Expr, TypeTree]]()
-  private var acConstructors = Map[AbstractClassDef, List[Constructor[Expr, TypeTree]]]()
-  private var tConstructors  = Map[TupleType, Constructor[Expr, TypeTree]]()
+  private var constructors   = Map[TypeTree, List[Constructor[Expr, TypeTree]]]()
 
   private def getConstructorFor(t: CaseClassType, act: AbstractClassType): Constructor[Expr, TypeTree] = {
     // We "up-cast" the returnType of the specific caseclass generator to match its superclass
@@ -45,31 +43,66 @@ class VanuatooDataGen(ctx: LeonContext, p: Program) extends DataGenerator {
 
 
   private def getConstructors(t: TypeTree): List[Constructor[Expr, TypeTree]] = t match {
-    case tt @ TupleType(parts) =>
-      List(tConstructors.getOrElse(tt, {
-        val c = Constructor[Expr, TypeTree](parts, tt, s => Tuple(s).setType(tt), tt.toString)
-        tConstructors += tt -> c
-        c
-      }))
+    case UnitType =>
+      constructors.getOrElse(t, {
+        val cs = List(Constructor[Expr, TypeTree](List(), t, s => UnitLiteral(), "()"))
+        constructors += t -> cs
+        cs
+      })
 
-    case act @ AbstractClassType(acd) =>
-      acConstructors.getOrElse(acd, {
-        val cs = acd.knownDescendents.collect {
-          case ccd: CaseClassDef =>
-            getConstructorFor(CaseClassType(ccd), act)
+    case at @ ArrayType(sub) =>
+      constructors.getOrElse(at, {
+        val cs = for (size <- List(0, 1, 2, 5)) yield {
+          Constructor[Expr, TypeTree]((1 to size).map(i => sub).toList, at, s => FiniteArray(s).setType(at), at.toString+"@"+size)
+        }
+        constructors += at -> cs
+        cs
+      })
+
+    case tt @ TupleType(parts) =>
+      constructors.getOrElse(tt, {
+        val cs = List(Constructor[Expr, TypeTree](parts, tt, s => Tuple(s).setType(tt), tt.toString))
+        constructors += tt -> cs
+        cs
+      })
+
+    case mt @ MapType(from, to) =>
+      constructors.getOrElse(mt, {
+        val cs = for (size <- List(0, 1, 2, 5)) yield {
+          val subs   = (1 to size).flatMap(i => List(from, to)).toList
+
+          Constructor[Expr, TypeTree](subs, mt, s => FiniteMap(s.grouped(2).map(t => (t(0), t(1))).toSeq).setType(mt), mt.toString+"@"+size)
+        }
+        constructors += mt -> cs
+        cs
+      })
+
+    case tp: TypeParameter =>
+      constructors.getOrElse(tp, {
+        val cs = for (i <- List(1, 2)) yield {
+          Constructor[Expr, TypeTree](List(), tp, s => GenericValue(tp, i), tp.id+"#"+i)
+        }
+        constructors += tp -> cs
+        cs
+      })
+
+    case act: AbstractClassType =>
+      constructors.getOrElse(act, {
+        val cs = act.knownCCDescendents.map {
+          cct => getConstructorFor(cct, act)
         }.toList
 
-        acConstructors += acd -> cs
+        constructors += act -> cs
 
         cs
       })
 
-    case CaseClassType(ccd) =>
-      List(ccConstructors.getOrElse(ccd, {
-        val c = Constructor[Expr, TypeTree](ccd.fields.map(_.tpe), CaseClassType(ccd), s => CaseClass(ccd, s), ccd.id.name)
-        ccConstructors += ccd -> c
+    case cct: CaseClassType =>
+      constructors.getOrElse(cct, {
+        val c = List(Constructor[Expr, TypeTree](cct.fieldsTypes, cct, s => CaseClass(cct, s), cct.id.name))
+        constructors += cct -> c
         c
-      }))
+      })
 
     case _ =>
       ctx.reporter.error("Unknown type to generate constructor for: "+t)
@@ -86,13 +119,14 @@ class VanuatooDataGen(ctx: LeonContext, p: Program) extends DataGenerator {
     case (cc: codegen.runtime.CaseClass, ct: ClassType) =>
       val r = cc.__getRead()
 
-      unit.jvmClassToDef.get(cc.getClass.getName) match {
+      unit.jvmClassToLeonClass(cc.getClass.getName) match {
         case Some(ccd: CaseClassDef) =>
+          val cct = CaseClassType(ccd, ct.tps)
           val c = ct match {
             case act : AbstractClassType =>
-              getConstructorFor(CaseClassType(ccd), act)
+              getConstructorFor(cct, act)
             case cct : CaseClassType =>
-              getConstructors(CaseClassType(ccd))(0)
+              getConstructors(cct)(0)
           }
 
           val fields = cc.productElements()
@@ -100,7 +134,7 @@ class VanuatooDataGen(ctx: LeonContext, p: Program) extends DataGenerator {
           val elems = for (i <- 0 until fields.length) yield {
             if (((r >> i) & 1) == 1) {
               // has been read
-              valueToPattern(fields(i), ccd.fieldsIds(i).getType)
+              valueToPattern(fields(i), cct.fieldsTypes(i))
             } else {
               (AnyPattern[Expr, TypeTree](), false)
             }
@@ -128,8 +162,10 @@ class VanuatooDataGen(ctx: LeonContext, p: Program) extends DataGenerator {
 
       (ConstructorPattern(c, elems.map(_._1)), elems.forall(_._2))
 
-    case _ =>
-      sys.error("Unsupported value, can't paternify : "+v+" : "+expType)
+    case (gv: GenericValue, t: TypeParameter) =>
+      (cPattern(getConstructors(t)(gv.id-1), List()), true)
+    case (v, t) =>
+      sys.error("Unsupported value, can't paternify : "+v+" ("+v.getClass+") : "+t)
   }
 
   type InstrumentedResult = (EvaluationResults.Result, Option[vanuatoo.Pattern[Expr, TypeTree]])
@@ -159,6 +195,9 @@ class VanuatooDataGen(ctx: LeonContext, p: Program) extends DataGenerator {
 
           (EvaluationResults.Successful(result), if (!pattern._2) Some(pattern._1) else None)
         } catch {
+          case e : ClassCastException  =>
+            (EvaluationResults.RuntimeError(e.getMessage), None)
+
           case e : ArithmeticException =>
             (EvaluationResults.RuntimeError(e.getMessage), None)
 
@@ -229,7 +268,7 @@ class VanuatooDataGen(ctx: LeonContext, p: Program) extends DataGenerator {
 
 
       def computeNext(): Option[Seq[Expr]] = {
-        while(total < maxEnumerated && found < maxValid && it.hasNext) {
+        while(total < maxEnumerated && found < maxValid && it.hasNext && !interrupted.get) {
           val model = it.next.asInstanceOf[Tuple]
 
           if (model eq null) {
@@ -251,10 +290,10 @@ class VanuatooDataGen(ctx: LeonContext, p: Program) extends DataGenerator {
             }
 
             if (!failed) {
-              println("Got model:")
-              for ((i, v) <- (ins zip model.exprs)) {
-                println(" - "+i+" -> "+v)
-              }
+              //println("Got model:")
+              //for ((i, v) <- (ins zip model.exprs)) {
+              //  println(" - "+i+" -> "+v)
+              //}
 
               found += 1
 
@@ -265,9 +304,9 @@ class VanuatooDataGen(ctx: LeonContext, p: Program) extends DataGenerator {
               return Some(model.exprs);
             }
 
-            if (total % 1000 == 0) {
-              println("... "+total+" ...")
-            }
+            //if (total % 1000 == 0) {
+            //  println("... "+total+" ...")
+            //}
           }
         }
         None

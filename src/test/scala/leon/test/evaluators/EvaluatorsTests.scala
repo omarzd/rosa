@@ -44,12 +44,12 @@ class EvaluatorsTests extends LeonTestSuite {
       throw new AssertionError("No function named '%s' defined in program.".format(name))
     }
 
-    FunctionInvocation(fDef, args.toSeq)
+    FunctionInvocation(fDef.typed, args.toSeq)
   }
 
   private def mkCaseClass(name : String, args : Expr*)(implicit p : Program) = {
-    val ccDef = p.mainObject.caseClassDef(name)
-    CaseClass(ccDef, args.toSeq)
+    val ccDef = p.caseClassDef(name)
+    CaseClass(CaseClassType(ccDef, Nil), args.toSeq)
   }
 
   private def checkCompSuccess(evaluator : Evaluator, in : Expr) : Expr = {
@@ -377,7 +377,12 @@ class EvaluatorsTests extends LeonTestSuite {
     val p = """|object Program {
                |  def boolArrayRead(bools : Array[Boolean], index : Int) : Boolean = bools(index)
                |
-               |  def intArrayRead(bools : Array[Int], index : Int) : Int = bools(index)
+               |  def intArrayRead(ints : Array[Int], index : Int) : Int = ints(index)
+               |
+               |  def intArrayUpdate(ints : Array[Int], index : Int, value: Int) : Int = {
+               |    val na = ints.updated(index, value)
+               |    na(index)
+               |  }
                |}
                |""".stripMargin
 
@@ -393,6 +398,9 @@ class EvaluatorsTests extends LeonTestSuite {
       checkComp(e, mkCall("intArrayRead", ia, IL(0)), IL(41))
       checkComp(e, mkCall("intArrayRead", ia, IL(1)), IL(42))
       checkComp(e, ArrayLength(ia), IL(3))
+
+      checkComp(e, mkCall("intArrayUpdate", ia, IL(0), IL(13)), IL(13))
+      checkComp(e, mkCall("intArrayUpdate", ia, IL(1), IL(17)), IL(17))
 
       checkError(e, mkCall("boolArrayRead", ba, IL(2)))
     }
@@ -420,11 +428,11 @@ class EvaluatorsTests extends LeonTestSuite {
     }
   }
 
-  test("Misc") {
+  test("Executing Chooses") {
     val p = """|object Program {
-               |  import leon.Utils._
+               |  import leon.lang._
                |
-               |  def c(i : Int) : Int = choose { (j : Int) => j > i }
+               |  def c(i : Int) : Int = choose { (j : Int) => j > i && j < i + 2 }
                |}
                |""".stripMargin
 
@@ -432,7 +440,7 @@ class EvaluatorsTests extends LeonTestSuite {
     val evaluators = prepareEvaluators
 
     for(e <- evaluators) {
-      checkEvaluatorError(e, mkCall("c", IL(42)))
+      checkComp(e, mkCall("c", IL(42)), IL(43))
     }
   }
 
@@ -440,7 +448,7 @@ class EvaluatorsTests extends LeonTestSuite {
     import codegen._
 
     val p = """|object Program {
-               |  import leon.Utils._
+               |  import leon.lang._
                |
                |  def c(i : Int) : Int = c(i-1)
                |}
@@ -456,7 +464,7 @@ class EvaluatorsTests extends LeonTestSuite {
     import codegen._
 
     val p = """|object Program {
-               |  import leon.Utils._
+               |  import leon.lang._
                |
                |  def c(i : Int) : Int = {
                |    require(i > 0);

@@ -1,6 +1,6 @@
-name := "Leon"
+name := "Rosa"
 
-version := "2.0"
+version := "0.1"
 
 organization := "ch.epfl.lara"
 
@@ -45,4 +45,20 @@ logBuffered in Test := false
 
 testOptions in Test += Tests.Argument("-oD")
 
+javaOptions in test += "-Xss32M"
+
+//parallelExecution in Test := false
+
 sourcesInBase in Compile := false
+
+// do not skip parent Eclipse project definition
+//EclipseKeys.skipParents in ThisBuild := false
+
+cleanFiles <+= baseDirectory { base => base / "generated" }
+
+cleanFiles <+= baseDirectory { base => base / "vcs" }
+
+cleanKeepFiles <+= baseDirectory { base => base / "generated" / "README" }
+
+cleanKeepFiles <+= baseDirectory { base => base / "vcs" / "README" }
+
