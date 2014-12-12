@@ -1,4 +1,4 @@
-/* Copyright 2009-2013 EPFL, Lausanne */
+/* Copyright 2009-2014 EPFL, Lausanne */
 
 package leon
 package codegen.runtime
@@ -46,7 +46,7 @@ object ChooseEntryPoint {
 
     val inputsMap = (p.as zip inputs).map {
       case (id, v) =>
-        Equals(Variable(id), unit.jvmToExpr(v))
+        Equals(Variable(id), unit.jvmToExpr(v, id.getType))
     }
 
     solver.assertCnstr(And(Seq(p.pc, p.phi) ++ inputsMap))
@@ -70,7 +70,7 @@ object ChooseEntryPoint {
           ctx.reporter.debug("Synthesis took "+total+"ms")
           ctx.reporter.debug("Finished synthesis with "+leonRes.asString(ctx))
 
-          unit.exprToJVM(leonRes)
+          unit.exprToJVM(leonRes)(new LeonCodeGenRuntimeMonitor(unit.params.maxFunctionInvocations))
         case Some(false) =>
           throw new LeonCodeGenRuntimeException("Constraint is UNSAT")
         case _ =>

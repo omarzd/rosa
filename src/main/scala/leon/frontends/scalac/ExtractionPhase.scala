@@ -1,4 +1,4 @@
-/* Copyright 2009-2013 EPFL, Lausanne */
+/* Copyright 2009-2014 EPFL, Lausanne */
 
 package leon
 package frontends.scalac
@@ -12,28 +12,30 @@ import scala.tools.nsc.{Settings=>NSCSettings,CompilerCommand}
 
 object ExtractionPhase extends LeonPhase[List[String], Program] {
 
-  val name = "Scalc Extraction"
+  val name = "Scalac Extraction"
   val description = "Extraction of trees from the Scala Compiler"
 
   implicit val debug = DebugSectionTrees
 
   def run(ctx: LeonContext)(args: List[String]): Program = {
+    val timer = ctx.timers.frontend.start()
 
     val settings = new NSCSettings
 
-    settings.classpath.value = ctx.settings.classPath.mkString(":")
+    val neededClasses = List[Class[_]](
+      scala.Predef.getClass
+    )
+
+    val urls = neededClasses.map{ _.getProtectionDomain().getCodeSource().getLocation() }
+
+    val classpath = urls.map(_.getPath).mkString(":")
+
+    settings.classpath.value = classpath
+    settings.usejavacp.value = false
+    settings.Yrangepos.value = true
     settings.skip.value      = List("patmat")
 
-    val libFiles = Settings.defaultLibFiles()
-
-    val injected = if (ctx.settings.injectLibrary) {
-      libFiles
-    } else {
-      libFiles.filter(f => f.contains("/lang/") || f.contains("/annotation/") ||
-        f.contains("/real/"))
-    }
-
-    val compilerOpts = injected ::: args.filterNot(_.startsWith("--"))
+    val compilerOpts = Build.libFiles ::: args.filterNot(_.startsWith("--"))
 
     val command = new CompilerCommand(compilerOpts, settings) {
       override val cmdName = "leon"
@@ -47,26 +49,17 @@ object ExtractionPhase extends LeonPhase[List[String], Program] {
       //   )
       // }
 
+
       val compiler = new ScalaCompiler(settings, ctx)
       val run = new compiler.Run
       run.compile(command.files)
 
-      (compiler.leonExtraction.units, compiler.leonExtraction.modules) match {
-        case (Nil, Nil) =>
-          ctx.reporter.fatalError("Error while compiling. Empty input?")
+      timer.stop()
 
-        case (_, Nil) =>
-          ctx.reporter.fatalError("Error while compiling.")
+      compiler.leonExtraction.setImports(compiler.saveImports.imports )
 
-        case (_, modules) =>
-          if (ctx.reporter.errorCount > 0 && ctx.settings.strictCompilation) {
-            ctx.reporter.fatalError("Error while compiling.")
-          } else {
-            val pgm = Program(FreshIdentifier("<program>"), modules)
-            ctx.reporter.debug(pgm.asString(ctx))
-            pgm
-          }
-      }
+      val pgm = Program(FreshIdentifier("__program"), compiler.leonExtraction.compiledUnits)
+      pgm
     } else {
       ctx.reporter.fatalError("No input program.")
     }

@@ -1,4 +1,4 @@
-/* Copyright 2009-2013 EPFL, Lausanne */
+/* Copyright 2009-2014 EPFL, Lausanne */
 
 package leon
 package purescala
@@ -21,10 +21,26 @@ object Trees {
     self: Expr =>
   }
 
+  case class NoTree(tpe: TypeTree) extends Expr with Terminal with FixedType {
+    val fixedType = tpe
+  }
+
   /* This describes computational errors (unmatched case, taking min of an
    * empty set, division by zero, etc.). It should always be typed according to
    * the expected type. */
   case class Error(description: String) extends Expr with Terminal
+
+  case class Require(pred: Expr, body: Expr) extends Expr with FixedType {
+    val fixedType = body.getType
+  }
+
+  case class Ensuring(body: Expr, id: Identifier, pred: Expr) extends Expr with FixedType {
+    val fixedType = body.getType
+  }
+
+  case class Assert(pred: Expr, error: Option[String], body: Expr) extends Expr with FixedType {
+    val fixedType = body.getType
+  }
 
   case class Choose(vars: List[Identifier], pred: Expr) extends Expr with FixedType with UnaryExtractable {
 
@@ -37,15 +53,30 @@ object Trees {
     }
   }
 
+  // Provide an oracle (synthesizable, all-seeing choose)
+  case class WithOracle(oracles: List[Identifier], body: Expr) extends Expr with FixedType with UnaryExtractable {
+    assert(!oracles.isEmpty)
+
+    val fixedType = body.getType
+
+    def extract = {
+      Some((body, (e: Expr) => WithOracle(oracles, e).setPos(this)))
+    }
+  }
+
+  case class Hole(fixedType: TypeTree, alts: Seq[Expr]) extends Expr with FixedType with NAryExtractable {
+
+    def extract = {
+      Some((alts, (es: Seq[Expr]) => Hole(fixedType, es).setPos(this)))
+    }
+  }
+
   /* Like vals */
   case class Let(binder: Identifier, value: Expr, body: Expr) extends Expr with FixedType {
-    binder.markAsLetBinder
-
     val fixedType = body.getType
   }
 
   case class LetTuple(binders: Seq[Identifier], value: Expr, body: Expr) extends Expr with FixedType {
-    binders.foreach(_.markAsLetBinder)
     assert(value.getType.isInstanceOf[TupleType],
            "The definition value in LetTuple must be of some tuple type; yet we got [%s]. In expr: \n%s".format(value.getType, this))
 
@@ -86,7 +117,7 @@ object Trees {
 
   case class IfExpr(cond: Expr, thenn: Expr, elze: Expr) extends Expr with FixedType {
     val fixedType = leastUpperBound(thenn.getType, elze.getType).getOrElse{
-      AnyType
+      Untyped
     }
   }
 
@@ -119,7 +150,7 @@ object Trees {
         ts(index - 1)
 
       case _ =>
-        AnyType
+        Untyped
     }
 
     override def equals(that: Any): Boolean = (that != null) && (that match {
@@ -127,7 +158,7 @@ object Trees {
       case _ => false
     })
 
-    override def hashCode: Int = tuple.hashCode + index.hashCode
+    override def hashCode: Int = tuple.hashCode + index.hashCode + 1
   }
 
   object MatchExpr {
@@ -138,8 +169,9 @@ object Trees {
           case CaseClassPattern(_, cct, _) if cct.classDef != c.classDef => false
           case _ => true
         }))
-        case t: TupleType => new MatchExpr(scrutinee, cases)
-        case _ => scala.sys.error("Constructing match expression on non-class type.")
+        case _: TupleType | Int32Type | BooleanType | UnitType => new MatchExpr(scrutinee, cases)
+        
+        case _ => scala.sys.error("Constructing match expression on non-supported type.")
       }
     }
 
@@ -150,7 +182,7 @@ object Trees {
     assert(cases.nonEmpty)
 
     val fixedType = leastUpperBound(cases.map(_.rhs.getType)).getOrElse{
-      AnyType
+      Untyped
     }
 
     def scrutineeClassType: ClassType = scrutinee.getType.asInstanceOf[ClassType]
@@ -160,7 +192,7 @@ object Trees {
       case _ => false
     })
 
-    override def hashCode: Int = scrutinee.hashCode+cases.hashCode
+    override def hashCode: Int = scrutinee.hashCode + cases.hashCode + 2
   }
 
   sealed abstract class MatchCase extends Tree {
@@ -197,6 +229,10 @@ object Trees {
   case class CaseClassPattern(binder: Option[Identifier], ct: CaseClassType, subPatterns: Seq[Pattern]) extends Pattern
 
   case class TuplePattern(binder: Option[Identifier], subPatterns: Seq[Pattern]) extends Pattern
+
+  case class LiteralPattern[+T](binder: Option[Identifier], lit : Literal[T]) extends Pattern {
+    val subPatterns = Seq()    
+  }
 
 
   /* Propositional logic */
@@ -236,7 +272,7 @@ object Trees {
       case _ => false
     })
 
-    override def hashCode: Int = exprs.hashCode
+    override def hashCode: Int = exprs.hashCode + 3
   }
 
   object Or {
@@ -269,7 +305,7 @@ object Trees {
       if(or == null) None else Some(or.exprs)
   }
 
-  class Or(val exprs: Seq[Expr]) extends Expr with FixedType {
+  class Or private[Trees] (val exprs: Seq[Expr]) extends Expr with FixedType {
     val fixedType = BooleanType
 
     assert(exprs.size >= 2)
@@ -279,7 +315,7 @@ object Trees {
       case _ => false
     })
 
-    override def hashCode: Int = exprs.hashCode
+    override def hashCode: Int = exprs.hashCode + 4
   }
 
   object Iff {
@@ -296,7 +332,7 @@ object Trees {
     }
   }
 
-  class Iff(val left: Expr, val right: Expr) extends Expr with FixedType {
+  class Iff private[Trees] (val left: Expr, val right: Expr) extends Expr with FixedType {
     val fixedType = BooleanType
 
     override def equals(that: Any): Boolean = (that != null) && (that match {
@@ -304,7 +340,7 @@ object Trees {
       case _ => false
     })
 
-    override def hashCode: Int = left.hashCode + right.hashCode
+    override def hashCode: Int = left.hashCode + right.hashCode + 5
   }
 
   object Implies {
@@ -320,19 +356,15 @@ object Trees {
       if(imp == null) None else Some(imp.left, imp.right)
   }
 
-  class Implies(val left: Expr, val right: Expr) extends Expr with FixedType {
+  class Implies private[Trees] (val left: Expr, val right: Expr) extends Expr with FixedType {
     val fixedType = BooleanType
-    // if(left.getType != BooleanType || right.getType != BooleanType) {
-    //   println("culprits: " + left.getType + ", " + right.getType)
-    //   assert(false)
-    // }
 
     override def equals(that: Any): Boolean = (that != null) && (that match {
-      case t: Iff => t.left == left
+      case t: Implies => t.left == left && t.right == right
       case _ => false
     })
 
-    override def hashCode: Int = left.hashCode + right.hashCode
+    override def hashCode: Int = left.hashCode + right.hashCode + 6
   }
 
   object Not {
@@ -347,7 +379,7 @@ object Trees {
     }
   }
 
-  class Not private (val expr: Expr) extends Expr with FixedType {
+  class Not private[Trees] (val expr: Expr) extends Expr with FixedType {
     val fixedType = BooleanType
 
     override def equals(that: Any) : Boolean = (that != null) && (that match {
@@ -355,7 +387,7 @@ object Trees {
       case _ => false
     })
 
-    override def hashCode : Int = expr.hashCode ^ Int.MinValue
+    override def hashCode : Int = expr.hashCode + 7
   }
 
   object Equals {
@@ -382,7 +414,7 @@ object Trees {
     }
   }
 
-  class Equals(val left: Expr, val right: Expr) extends Expr with FixedType {
+  class Equals private[Trees] (val left: Expr, val right: Expr) extends Expr with FixedType {
     val fixedType = BooleanType
 
     override def equals(that: Any): Boolean = (that != null) && (that match {
@@ -390,7 +422,7 @@ object Trees {
       case _ => false
     })
 
-    override def hashCode: Int = left.hashCode+right.hashCode
+    override def hashCode: Int = left.hashCode + right.hashCode + 8
   }
 
   case class Variable(id: Identifier) extends Expr with Terminal {
@@ -399,12 +431,16 @@ object Trees {
   }
 
   /* Literals */
-  sealed abstract class Literal[T] extends Expr with Terminal {
+  sealed abstract class Literal[+T] extends Expr with Terminal {
     val value: T
   }
 
   case class GenericValue(tp: TypeParameter, id: Int) extends Expr with Terminal with FixedType {
     val fixedType = tp
+  }
+
+  case class CharLiteral(value: Char) extends Literal[Char] with FixedType {
+    val fixedType = CharType
   }
 
   case class IntLiteral(value: Int) extends Literal[Int] with FixedType {
@@ -448,14 +484,15 @@ object Trees {
   }
 
   class CaseClassSelector(val classType: CaseClassType, val caseClass: Expr, val selector: Identifier) extends Expr with FixedType {
-    val fixedType = classType.fieldsTypes(classType.classDef.selectorID2Index(selector))
+    val selectorIndex = classType.classDef.selectorID2Index(selector)
+    val fixedType = classType.fieldsTypes(selectorIndex)
 
     override def equals(that: Any): Boolean = (that != null) && (that match {
       case t: CaseClassSelector => (t.classType, t.caseClass, t.selector) == (classType, caseClass, selector)
       case _ => false
     })
 
-    override def hashCode: Int = (classType, caseClass, selector).hashCode
+    override def hashCode: Int = (classType, caseClass, selector).hashCode + 9
   }
 
   /* Arithmetic */
@@ -491,8 +528,8 @@ object Trees {
   }
 
   /* Set expressions */
-  case class FiniteSet(elements: Seq[Expr]) extends Expr {
-    val tpe = if (elements.isEmpty) None else leastUpperBound(elements.map(_.getType))
+  case class FiniteSet(elements: Set[Expr]) extends Expr {
+    val tpe = if (elements.isEmpty) None else leastUpperBound(elements.toSeq.map(_.getType))
     tpe.foreach(t => setType(SetType(t)))
   }
   // TODO : Figure out what evaluation order is, for this.
@@ -549,10 +586,12 @@ object Trees {
   }
 
   /* Array operations */
+  @deprecated("Unsupported Array operation with most solvers", "Leon 2.3")
   case class ArrayFill(length: Expr, defaultValue: Expr) extends Expr with FixedType {
     val fixedType = ArrayType(defaultValue.getType)
   }
 
+  @deprecated("Unsupported Array operation with most solvers", "Leon 2.3")
   case class ArrayMake(defaultValue: Expr) extends Expr with FixedType {
     val fixedType = ArrayType(defaultValue.getType)
   }
@@ -565,7 +604,7 @@ object Trees {
       case ArrayType(base) =>
         base
       case _ =>
-        AnyType
+        Untyped
     }
 
   }
@@ -576,9 +615,9 @@ object Trees {
 
     val fixedType = array.getType match {
       case ArrayType(base) =>
-        leastUpperBound(base, newValue.getType).map(ArrayType(_)).getOrElse(AnyType)
+        leastUpperBound(base, newValue.getType).map(ArrayType(_)).getOrElse(Untyped)
       case _ =>
-        AnyType
+        Untyped
     }
   }
 
@@ -586,18 +625,12 @@ object Trees {
     val fixedType = Int32Type
   }
   case class FiniteArray(exprs: Seq[Expr]) extends Expr
+
+  @deprecated("Unsupported Array operation with most solvers", "Leon 2.3")
   case class ArrayClone(array: Expr) extends Expr {
     if(array.getType != Untyped)
       setType(array.getType)
   }
-
-  /* List operations */
-  case class NilList(baseType: TypeTree) extends Expr with Terminal
-  case class Cons(head: Expr, tail: Expr) extends Expr
-  case class Car(list: Expr) extends Expr
-  case class Cdr(list: Expr) extends Expr
-  case class Concat(list1: Expr, list2: Expr) extends Expr
-  case class ListAt(list: Expr, index: Expr) extends Expr
 
   /* Constraint programming */
   case class Distinct(exprs: Seq[Expr]) extends Expr with FixedType {

@@ -1,4 +1,4 @@
-/* Copyright 2009-2013 EPFL, Lausanne */
+/* Copyright 2009-2014 EPFL, Lausanne */
 
 package leon
 package synthesis
@@ -44,7 +44,7 @@ case object IntInduction extends Rule("Int Induction") with Heuristic {
                                  And(LessThan(Variable(inductOn), IntLiteral(0)),    lt.pre)))
               val preOut = subst(inductOn -> Variable(origId), preIn)
 
-              val newFun = new FunDef(FreshIdentifier("rec", true), Nil, tpe, Seq(ValDef(inductOn, inductOn.getType)))
+              val newFun = new FunDef(FreshIdentifier("rec", true), Nil, tpe, Seq(ValDef(inductOn, inductOn.getType)),DefType.MethodDef)
               val idPost = FreshIdentifier("res").setType(tpe)
 
               newFun.precondition = Some(preIn)
@@ -65,7 +65,7 @@ case object IntInduction extends Rule("Int Induction") with Heuristic {
             None
         }
 
-        Some(HeuristicInstantiation(p, this, List(subBase, subGT, subLT), onSuccess, "Int Induction on '"+origId+"'"))
+        Some(RuleInstantiation.immediateDecomp(p, this, List(subBase, subGT, subLT), onSuccess, "Int Induction on '"+origId+"'"))
       case _ =>
         None
     }

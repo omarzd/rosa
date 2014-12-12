@@ -1,8 +1,7 @@
-/* Copyright 2009-2013 EPFL, Lausanne */
+/* Copyright 2009-2014 EPFL, Lausanne */
 
-package leon
-package test
-package synthesis
+package leon.test.synthesis
+import leon.test._
 
 import leon._
 import leon.purescala.Definitions._
@@ -25,24 +24,25 @@ class SynthesisRegressionSuite extends LeonTestSuite {
   }
 
   private def testSynthesis(cat: String, f: File, bound: Int) {
-    val ctx = testContext.copy(settings = Settings(
-        synthesis = true,
-        xlang     = false,
-        verify    = false
-      ))
 
-    val opts = SynthesisOptions(searchBound = Some(bound))
+    var chooses = List[ChooseInfo]()
 
-    val pipeline = frontends.scalac.ExtractionPhase andThen leon.utils.SubtypingPhase
+    test(cat+": "+f.getName()+" Compilation") {
+      val ctx = createLeonContext("--synthesis")
 
-    val program = pipeline.run(ctx)(f.getAbsolutePath :: Nil)
+      val opts = SynthesisOptions(searchBound = Some(bound), allSeeing = true)
 
-    var chooses = ChooseInfo.extractFromProgram(ctx, program, opts)
+      val pipeline = leon.frontends.scalac.ExtractionPhase andThen leon.utils.PreprocessingPhase
+
+      val program = pipeline.run(ctx)(f.getAbsolutePath :: Nil)
+
+      chooses = ChooseInfo.extractFromProgram(ctx, program, opts)
+    }
 
     for (ci <- chooses) {
       test(cat+": "+f.getName()+" - "+ci.fd.id.name) {
-        val (sol, isComplete) = ci.synthesizer.synthesize()
-        if (!isComplete) {
+        val (search, sols) = ci.synthesizer.synthesize()
+        if (sols.isEmpty) {
           fail("Solution was not found. (Search bound: "+bound+")")
         }
       }
@@ -57,11 +57,7 @@ class SynthesisRegressionSuite extends LeonTestSuite {
     testSynthesis("List", f, 200)
   }
 
-  //forEachFileIn("regression/synthesis/SortedList/") { f =>
-  //  testSynthesis("SortedList", f, 400)
-  //}
-
-  //forEachFileIn("regression/synthesis/StrictSortedList/") { f =>
-  //  testSynthesis("StrictSortedList", f, 400)
-  //}
+  forEachFileIn("regression/synthesis/Holes/") { f =>
+    testSynthesis("Holes", f, 1000)
+  }
 }

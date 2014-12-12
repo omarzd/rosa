@@ -1,11 +1,14 @@
-/* Copyright 2009-2013 EPFL, Lausanne */
+/* Copyright 2009-2014 EPFL, Lausanne */
 
 package leon
 package purescala
 
+import utils.Simplifiers
+
 import leon.solvers._
 
 import scala.collection.concurrent.TrieMap
+import DefOps._
 
 object TreeOps {
   import Common._
@@ -115,6 +118,10 @@ object TreeOps {
    * pre-transformation of the tree, takes a partial function of replacements.
    * Substitutes *before* recursing down the trees.
    *
+   * Supports two modes : 
+   * 
+   * - If applyRec is false (default), will only substitute once on each level.
+   * 
    * e.g.
    *
    *   Add(a, Minus(b, c)) with replacements: Minus(b,c) -> d, b -> e, d -> f
@@ -122,11 +129,28 @@ object TreeOps {
    * will yield:
    *
    *   Add(a, d)   // And not Add(a, f) because it only substitute once for each level.
+   *   
+   * - If applyRec is true, it will substitute multiple times on each level:
+   * 
+   * e.g.
+   *
+   *   Add(a, Minus(b, c)) with replacements: Minus(b,c) -> d, b -> e, d -> f
+   *
+   * will yield:
+   *
+   *   Add(a, f)  
+   *   
+   * WARNING: The latter mode can diverge if f is not well formed
    */
-  def preMap(f: Expr => Option[Expr])(e: Expr): Expr = {
-    val rec = preMap(f) _
+  def preMap(f: Expr => Option[Expr], applyRec : Boolean = false)(e: Expr): Expr = {
+    val rec = preMap(f, applyRec) _
 
-    val newV = f(e).getOrElse(e)
+    val newV = if (applyRec) {
+      // Apply f as long as it returns Some()
+      fixpoint { e : Expr => f(e) getOrElse e } (e) 
+    } else {
+      f(e) getOrElse e
+    }
 
     newV match {
       case u @ UnaryOperator(e, builder) =>
@@ -166,6 +190,9 @@ object TreeOps {
    * post-transformation of the tree, takes a partial function of replacements.
    * Substitutes *after* recursing down the trees.
    *
+   * Supports two modes : 
+   * - If applyRec is false (default), will only substitute once on each level.
+   *
    * e.g.
    *
    *   Add(a, Minus(b, c)) with replacements: Minus(b,c) -> d, b -> e, d -> f
@@ -173,9 +200,22 @@ object TreeOps {
    * will yield:
    *
    *   Add(a, Minus(e, c))
+   *   
+   * If applyRec is true, it will substitute multiple times on each level:
+   * 
+   * e.g.
+   *
+   *   Add(a, Minus(b, c)) with replacements: Minus(e,c) -> d, b -> e, d -> f
+   *
+   * will yield:
+   *
+   *   Add(a, f)  
+   *   
+   * WARNING: The latter mode can diverge if f is not well formed
    */
-  def postMap(f: Expr => Option[Expr])(e: Expr): Expr = {
-    val rec = postMap(f) _
+
+  def postMap(f: Expr => Option[Expr], applyRec : Boolean = false)(e: Expr): Expr = {
+    val rec = postMap(f, applyRec) _
 
     val newV = e match {
       case u @ UnaryOperator(e, builder) =>
@@ -210,22 +250,35 @@ object TreeOps {
         t
     }
 
-    f(newV).getOrElse(newV)
+    if (applyRec) {
+      // Apply f as long as it returns Some()
+      fixpoint { e : Expr => f(e) getOrElse e } (newV) 
+    } else {
+      f(newV) getOrElse newV
+    }
+
   }
 
   /*
    * Apply 'f' on 'e' as long as until it stays the same (value equality)
    */
-  def fixpoint[T](f: T => T)(e: T): T = {
+  def fixpoint[T](f: T => T, limit: Int = -1)(e: T): T = {
     var v1 = e
     var v2 = f(v1)
-    while(v2 != v1) {
+    var lim = limit
+    while(v2 != v1 && lim != 0) {
       v1 = v2
+      lim -= 1
       v2 = f(v2)
     }
     v2
   }
 
+  
+  
+  
+  
+  
   ///*
   // * Turn a total function returning Option[A] into a partial function
   // * returning A.
@@ -278,6 +331,7 @@ object TreeOps {
     postMap(substs.lift)(expr)
   }
 
+
   def replaceFromIDs(substs: Map[Identifier, Expr], expr: Expr) : Expr = {
     postMap( {
         case Variable(i) => substs.get(i)
@@ -312,15 +366,20 @@ object TreeOps {
    * Returns all Function calls found in an expression
    */
   def functionCallsOf(expr: Expr): Set[FunctionInvocation] = {
-    foldRight[Set[FunctionInvocation]]({
-      case (e, subs) =>
-        val c: Set[FunctionInvocation] = e match {
-          case f: FunctionInvocation => Set(f)
-          case _ => Set()
-        }
-        subs.foldLeft(c)(_ ++ _)
-    })(expr)
+    collect[FunctionInvocation] {
+      case f: FunctionInvocation => Set(f)
+      case _ => Set()
+    }(expr)
   }
+  
+  /** Returns functions in directly nested LetDefs */
+  def directlyNestedFunDefs(e: Expr): Set[FunDef] = {
+    foldRight[Set[FunDef]]{ 
+      case (LetDef(fd,bd), _) => Set(fd)
+      case (_, subs) => subs.foldLeft(Set[FunDef]())(_ ++ _) 
+    }(e)
+  }
+  
   def negate(expr: Expr) : Expr = (expr match {
     case Let(i,b,e) => Let(i,b,negate(e))
     case Not(e) => e
@@ -344,6 +403,7 @@ object TreeOps {
       case WildcardPattern(Some(b)) => WildcardPattern(Some(sm(b)))
       case TuplePattern(ob, sps) => TuplePattern(ob.map(sm(_)), sps.map(rewritePattern(_, sm)))
       case CaseClassPattern(ob, ccd, sps) => CaseClassPattern(ob.map(sm(_)), ccd, sps.map(rewritePattern(_, sm)))
+      case LiteralPattern(Some(bind), lit) => LiteralPattern(Some(sm(bind)), lit)
       case other => other
     }
 
@@ -367,8 +427,64 @@ object TreeOps {
         val newID = FreshIdentifier(i.name, true).copiedFrom(i)
         Some(Let(newID, e, replace(Map(Variable(i) -> Variable(newID)), b)))
 
+      case lt @ LetTuple(ids,e,b) =>
+        val newIDs = ids.map(_.freshen)
+        val substsMap: Map[Expr, Expr] = (ids zip newIDs).map { case (id, newId) => (id.toVariable -> newId.toVariable) }.toMap
+        Some(LetTuple(newIDs, e, replace(substsMap, b)))
+
       case _ => None
     })(expr)
+  }
+
+  def normalizeExpression(expr: Expr) : Expr = {
+    def rec(e: Expr): Option[Expr] = e match {
+      case TupleSelect(Let(id, v, b), ts) =>
+        Some(Let(id, v, TupleSelect(b, ts)))
+
+      case TupleSelect(LetTuple(ids, v, b), ts) =>
+        Some(LetTuple(ids, v, TupleSelect(b, ts)))
+
+      case IfExpr(c, thenn, elze) if (thenn == elze) && !containsChoose(e) =>
+        Some(thenn)
+
+      case IfExpr(c, BooleanLiteral(true), BooleanLiteral(false)) =>
+        Some(c)
+
+      case IfExpr(Not(c), thenn, elze) =>
+        Some(IfExpr(c, elze, thenn).copiedFrom(e))
+
+      case IfExpr(c, BooleanLiteral(false), BooleanLiteral(true)) =>
+        Some(Not(c))
+
+      case FunctionInvocation(tfd, List(IfExpr(c, thenn, elze))) =>
+        Some(IfExpr(c, FunctionInvocation(tfd, List(thenn)), FunctionInvocation(tfd, List(elze))))
+
+      case _ =>
+        None
+    }
+
+    fixpoint(postMap(rec))(expr)
+  }
+
+  def isGround(e: Expr): Boolean = {
+    variablesOf(e).isEmpty && !containsChoose(e)
+  }
+
+  def evalGround(ctx: LeonContext, program: Program): Expr => Expr = {
+    import evaluators._
+
+    val eval = new DefaultEvaluator(ctx, program)
+    
+    def rec(e: Expr): Option[Expr] = e match {
+      case l: Terminal => None
+      case e if isGround(e) => eval.eval(e) match {
+        case EvaluationResults.Successful(v) => Some(v)
+        case _ => None
+      }
+      case _ => None
+    }
+
+    preMap(rec)
   }
 
   /**
@@ -578,6 +694,7 @@ object TreeOps {
           val subTests = subps.zipWithIndex.map{case (p, i) => rec(TupleSelect(in, i+1).setType(tpes(i)), p)}
           And(bind(ob, in) +: subTests)
         }
+        case LiteralPattern(ob,lit) => And(Equals(in,lit), bind(ob,in))
       }
     }
 
@@ -611,6 +728,8 @@ object TreeOps {
           case None => map
         }
       }
+      case LiteralPattern(None, lit) => Map()
+      case LiteralPattern(Some(id), lit) => Map(id -> in)
     }
 
     def rewritePM(e: Expr) : Option[Expr] = e match {
@@ -628,7 +747,7 @@ object TreeOps {
           (realCond, newRhs)
         }
 
-        val bigIte = condsAndRhs.foldRight[Expr](Error("non-exhaustive match").copiedFrom(m))((p1, ex) => {
+        val bigIte = condsAndRhs.foldRight[Expr](Error("Match is non-exhaustive").copiedFrom(m))((p1, ex) => {
           if(p1._1 == BooleanLiteral(true)) {
             p1._2
           } else {
@@ -674,8 +793,9 @@ object TreeOps {
    */
   def simplestValue(tpe: TypeTree) : Expr = tpe match {
     case Int32Type                  => IntLiteral(0)
+    case CharType                   => CharLiteral('a')
     case BooleanType                => BooleanLiteral(false)
-    case SetType(baseType)          => FiniteSet(Seq()).setType(tpe)
+    case SetType(baseType)          => FiniteSet(Set()).setType(tpe)
     case MapType(fromType, toType)  => FiniteMap(Seq()).setType(tpe)
     case TupleType(tpes)            => Tuple(tpes.map(simplestValue))
     case ArrayType(tpe)             => ArrayFill(IntLiteral(0), simplestValue(tpe))
@@ -715,6 +835,8 @@ object TreeOps {
    */
   def hoistIte(expr: Expr): Expr = {
     def transform(expr: Expr): Option[Expr] = expr match {
+      case IfExpr(c, t, e) => None
+
       case uop@UnaryOperator(IfExpr(c, t, e), op) =>
         Some(IfExpr(c, op(t).copiedFrom(uop), op(e).copiedFrom(uop)).copiedFrom(uop))
 
@@ -922,12 +1044,12 @@ object TreeOps {
             substMap += prefix -> Variable(binder)
             substMap += CaseClassInstanceOf(ct, prefix) -> BooleanLiteral(true)
 
-            val subconds = for (id <- ct.classDef.fieldsIds) yield {
-              val fieldSel = CaseClassSelector(ct, prefix, id)
+            val subconds = for (f <- ct.fields) yield {
+              val fieldSel = CaseClassSelector(ct, prefix, f.id)
               if (conditions contains fieldSel) {
                 computePatternFor(conditions(fieldSel), fieldSel)
               } else {
-                val b = FreshIdentifier(id.name, true).setType(id.getType)
+                val b = FreshIdentifier(f.id.name, true).setType(f.tpe)
                 substMap += fieldSel -> Variable(b)
                 WildcardPattern(Some(b))
               }
@@ -962,6 +1084,7 @@ object TreeOps {
               WildcardPattern(simplerBinder(ob))
             case TuplePattern(ob, patterns) =>
               TuplePattern(simplerBinder(ob), patterns map simplifyPattern)
+            case LiteralPattern(ob,lit) => LiteralPattern(simplerBinder(ob), lit)
             case _ =>
               p
           }
@@ -1000,6 +1123,14 @@ object TreeOps {
               } else {
                 TuplePattern(ob, subs)
               }
+            case LiteralPattern(ob, lit) => // TODO: is this correct?
+              if (ob == Some(anchor)) {
+                sys.error("WOOOT: "+to+" <<= "+pat +" on "+anchor)
+                pat
+              } else {
+                LiteralPattern(ob,lit) 
+              }
+                
           }
 
           val newCases = resCases.flatMap { c => c match {
@@ -1014,7 +1145,8 @@ object TreeOps {
               } else {
                 Seq(c)
               }
-            case _ => Seq(c)
+            case _ => 
+              Seq(c)
           }}
 
           var finalMatch = MatchExpr(scrutinee, List(newCases.head)).setType(e.getType)
@@ -1090,24 +1222,48 @@ object TreeOps {
     def traverse(e: Expr): T
   }
 
-  class CollectorWithPaths[T](matcher: PartialFunction[Expr, T]) extends TransformerWithPC with Traverser[Seq[(T, Expr)]]{
+  object CollectorWithPaths {
+    def apply[T](p: PartialFunction[Expr,T]): CollectorWithPaths[(T, Expr)] = new CollectorWithPaths[(T, Expr)] {
+      def collect(e: Expr, path: Seq[Expr]): Option[(T, Expr)] = if (!p.isDefinedAt(e)) None else {
+        Some(p(e) -> And(path))
+      }
+    }
+  }
+
+  trait CollectorWithPaths[T] extends TransformerWithPC with Traverser[Seq[T]] {
     type C = Seq[Expr]
-    val initC = Nil
+    val initC : C = Nil
     def register(e: Expr, path: C) = path :+ e
 
-    var results: Seq[(T, Expr)] = Nil
+    private var results: Seq[T] = Nil
 
-    override def rec(e: Expr, path: C) = {
-      if(matcher.isDefinedAt(e)) {
-        val res = matcher(e)
-        results = results :+ (res, And(path))
+    def collect(e: Expr, path: Seq[Expr]): Option[T]
+
+    def walk(e: Expr, path: Seq[Expr]): Option[Expr] = None
+
+    override final def rec(e: Expr, path: Seq[Expr]) = {
+      collect(e, path).foreach { results :+= _ }
+      walk(e, path) match {
+        case Some(r) => r
+        case _ => super.rec(e, path)
       }
-      super.rec(e, path)
     }
 
-    def traverse(e: Expr) = {
+    def traverse(funDef: FunDef): Seq[T] = {
+      val precondition = funDef.precondition.map(e => matchToIfThenElse(e)).toSeq
+      val precTs = funDef.precondition.map(e => traverse(e)).toSeq.flatten
+      val bodyTs = funDef.body.map(e => traverse(e, precondition)).toSeq.flatten
+      val postTs = funDef.postcondition.map(p => traverse(p._2)).toSeq.flatten
+      precTs ++ bodyTs ++ postTs
+    }
+
+    def traverse(e: Expr): Seq[T] = traverse(e, initC)
+
+    def traverse(e: Expr, init: Expr): Seq[T] = traverse(e, Seq(init))
+
+    def traverse(e: Expr, init: Seq[Expr]): Seq[T] = {
       results = Nil
-      rec(e, initC)
+      rec(e, init)
       results
     }
   }
@@ -1121,7 +1277,11 @@ object TreeOps {
       case _ => false
     }
   }
-  class ChooseCollectorWithPaths extends CollectorWithPaths[Choose](ChooseMatch)
+
+  class ChooseCollectorWithPaths extends CollectorWithPaths[(Choose,Expr)] {
+    val matcher = ChooseMatch.lift
+    def collect(e: Expr, path: Seq[Expr]) = matcher(e).map(_ -> And(path))
+  }
 
   /**
    * Eliminates tuples of arity 0 and 1.
@@ -1156,10 +1316,9 @@ object TreeOps {
       case ft : FunctionType => None // FIXME
 
       case a : AbstractClassType => None
-      case c : CaseClassType     =>
+      case cct : CaseClassType     =>
         // This is really just one big assertion. We don't rewrite class defs.
-        val ccd = c.classDef
-        val fieldTypes = ccd.fields.map(_.tpe)
+        val fieldTypes = cct.fields.map(_.tpe)
         if(fieldTypes.exists(t => t match {
           case TupleType(ts) if ts.size <= 1 => true
           case _ => false
@@ -1168,7 +1327,7 @@ object TreeOps {
         } else {
           None
         }
-      case Untyped | AnyType | BottomType | BooleanType | Int32Type | UnitType | TypeParameter(_) => None  
+      case Untyped | BooleanType | Int32Type | UnitType | TypeParameter(_) => None  
     }
 
     var idMap     = Map[Identifier, Identifier]()
@@ -1183,7 +1342,7 @@ object TreeOps {
         val newFD = mapType(funDef.returnType) match {
           case None => funDef
           case Some(rt) =>
-            val fd = new FunDef(FreshIdentifier(funDef.id.name, true), funDef.tparams, rt, funDef.params)
+            val fd = new FunDef(FreshIdentifier(funDef.id.name, true), funDef.tparams, rt, funDef.params, funDef.defType)
             // These will be taken care of in the recursive traversal.
             fd.body = funDef.body
             fd.precondition = funDef.precondition
@@ -1205,6 +1364,7 @@ object TreeOps {
       case Tuple(Seq()) => UnitLiteral()
       case Variable(id) if idMap contains id => Variable(idMap(id))
 
+      case Error(err) => Error(err).setType(mapType(e.getType).getOrElse(e.getType)).copiedFrom(e)
       case Tuple(Seq(s)) => pre(s)
 
       case ts @ TupleSelect(t, 1) => t.getType match {
@@ -1246,9 +1406,9 @@ object TreeOps {
   }
 
   def containsChoose(e: Expr): Boolean = {
-    simplePreTransform{
+    preTraversal{
       case Choose(_, _) => return true
-      case e => e
+      case _ =>
     }(e)
     false
   }
@@ -1486,6 +1646,10 @@ object TreeOps {
                 } else {
                   (false, Map())
                 }
+
+              case (LiteralPattern(ob1, lit1), LiteralPattern(ob2,lit2)) =>
+                (ob1.size == ob2.size && lit1 == lit2, (ob1 zip ob2).toMap)
+
               case _ =>
                 (false, Map())
             }
@@ -1629,6 +1793,27 @@ object TreeOps {
             }
           }
 
+        case BooleanType => 
+          // make sure ps contains either 
+          // - Wildcard or
+          // - both true and false 
+          (ps exists { _.isInstanceOf[WildcardPattern] }) || {
+            var found = Set[Boolean]()
+            ps foreach { 
+              case LiteralPattern(_, BooleanLiteral(b)) => found += b
+              case _ => ()
+            }
+            (found contains true) && (found contains false)
+          }
+
+        case UnitType => 
+          // Anything matches ()
+          !ps.isEmpty
+
+        case Int32Type => 
+          // Can't possibly pattern match against all Ints one by one
+          ps exists (_.isInstanceOf[WildcardPattern])
+
         case _ =>
           true
       }
@@ -1661,7 +1846,7 @@ object TreeOps {
    *   if (..) { foo(b, a) } else { .. }
    * }
    **/
-  def flattenFunctions(fdOuter: FunDef): FunDef = {
+  def flattenFunctions(fdOuter: FunDef, ctx: LeonContext, p: Program): FunDef = {
     fdOuter.body match {
       case Some(LetDef(fdInner, FunctionInvocation(tfdInner2, args))) if fdInner == tfdInner2.fd =>
         val argsDef  = fdOuter.params.map(_.id)
@@ -1707,9 +1892,11 @@ object TreeOps {
 
           val newFd = fdOuter.duplicate
 
+          val simp = Simplifiers.bestEffort(ctx, p) _
+
           newFd.body          = fdInner.body.map(b => simplePreTransform(pre)(b))
-          newFd.precondition  = mergePre(fdOuter.precondition, fdInner.precondition)
-          newFd.postcondition = mergePost(fdOuter.postcondition, fdInner.postcondition)
+          newFd.precondition  = mergePre(fdOuter.precondition, fdInner.precondition).map(simp)
+          newFd.postcondition = mergePost(fdOuter.postcondition, fdInner.postcondition).map{ case (id, ex) => id -> simp(ex) }
 
           newFd
         } else {
@@ -1734,6 +1921,156 @@ object TreeOps {
     simplifyArithmetic(expr0)
   }
 
+  /**
+   * Body manipulation
+   * ========
+   */
+  
+  def withPrecondition(expr: Expr, pred: Option[Expr]): Expr = (pred, expr) match {
+    case (Some(newPre), Require(pre, b))                 => Require(newPre, b)
+    case (Some(newPre), Ensuring(Require(pre, b), i, p)) => Ensuring(Require(newPre, b), i, p)
+    case (Some(newPre), Ensuring(b, i, p))               => Ensuring(Require(newPre, b), i, p)
+    case (Some(newPre), b)                               => Require(newPre, b)
+    case (None, Require(pre, b))                         => b
+    case (None, Ensuring(Require(pre, b), i, p))         => Ensuring(b, i, p)
+    case (None, Ensuring(b, i, p))                       => Ensuring(b, i, p)
+    case (None, b)                                       => b
+  }
+
+  def withPostcondition(expr: Expr, oie: Option[(Identifier, Expr)]) = (oie, expr) match {
+    case (Some((nid, npost)), Ensuring(b, id, post))     => Ensuring(b, nid, npost)
+    case (Some((nid, npost)), b)                         => Ensuring(b, nid, npost)
+    case (None, Ensuring(b, i, p))                       => b
+    case (None, b)                                       => b
+  }
+
+  def withBody(expr: Expr, body: Option[Expr]) = expr match {
+    case Require(pre, _)                    => Require(pre, body.getOrElse(NoTree(expr.getType)))
+    case Ensuring(Require(pre, _), i, post) => Ensuring(Require(pre, body.getOrElse(NoTree(expr.getType))), i, post)
+    case Ensuring(_, i, post)               => Ensuring(body.getOrElse(NoTree(expr.getType)), i, post)
+    case _                                  => body.getOrElse(NoTree(expr.getType))
+  }
+
+  def withoutSpec(expr: Expr) = expr match {
+    case Require(pre, b)                    => Option(b).filterNot(_.isInstanceOf[NoTree])
+    case Ensuring(Require(pre, b), i, post) => Option(b).filterNot(_.isInstanceOf[NoTree])
+    case Ensuring(b, i, post)               => Option(b).filterNot(_.isInstanceOf[NoTree])
+    case b                                  => Option(b).filterNot(_.isInstanceOf[NoTree])
+  }
+
+  def preconditionOf(expr: Expr) = expr match {
+    case Require(pre, _)                    => Some(pre)
+    case Ensuring(Require(pre, _), _, _)    => Some(pre)
+    case b                                  => None
+  }
+
+  def postconditionOf(expr: Expr) = expr match {
+    case Ensuring(_, i, post)               => Some((i, post))
+    case _                                  => None
+  }
+
+  def preTraversalWithParent(f: (Expr, Option[Tree]) => Unit, initParent: Option[Tree] = None)(e: Expr): Unit = {
+    val rec = preTraversalWithParent(f, Some(e)) _
+
+    f(e, initParent)
+
+    e match {
+      case u @ UnaryOperator(e, builder) =>
+        rec(e)
+
+      case b @ BinaryOperator(e1, e2, builder) =>
+        rec(e1)
+        rec(e2)
+
+      case n @ NAryOperator(es, builder) =>
+        es.foreach(rec)
+
+      case t: Terminal =>
+    }
+  }
+
+  /**
+   * Used to lift closures introduced by synthesis. Closures already define all
+   * the necessary information as arguments, no need to close them.
+   */
+  def liftClosures(e: Expr): (Set[FunDef], Expr) = {
+    var fds: Map[FunDef, FunDef] = Map()
+    val res1 = preMap({
+      case LetDef(fd, b) =>
+        val nfd = new FunDef(fd.id.freshen, fd.tparams, fd.returnType, fd.params, fd.defType)
+        nfd.copyContentFrom(fd)
+        nfd.copiedFrom(fd)
+
+        fds += fd -> nfd
+
+        Some(LetDef(nfd, b))
+
+      case fi @ FunctionInvocation(tfd, args) =>
+        if (fds contains tfd.fd) {
+          Some(FunctionInvocation(fds(tfd.fd).typed(tfd.tps), args))
+        } else {
+          None
+        }
+
+      case _ =>
+        None
+    })(e)
+
+    // we now remove LetDefs
+    val res2 = preMap({
+      case LetDef(fd, b) =>
+        Some(b)
+      case _ =>
+        None
+    }, applyRec = true)(res1)
+
+    (fds.values.toSet, res2)
+  }
+
+  def isStringLiteral(e: Expr): Option[String] = e match {
+    case CaseClass(cct, args) =>
+      val lib = inProgram(cct.classDef).library
+
+      if (Some(cct.classDef) == lib.String) {
+        isListLiteral(args(0)) match {
+          case Some((_, chars)) =>
+            val str = chars.map {
+              case CharLiteral(c) => Some(c)
+              case _              => None
+            }
+
+            if (str.forall(_.isDefined)) {
+              Some(str.flatten.mkString)
+            } else {
+              None
+            }
+          case _ =>
+            None
+
+        }
+      } else {
+        None
+      }
+    case _ =>
+      None
+  }
+
+  def isListLiteral(e: Expr): Option[(TypeTree, List[Expr])] = e match {
+    case CaseClass(cct, args) =>
+      val lib = inProgram(cct.classDef).library
+
+      if (Some(cct.classDef) == lib.Nil) {
+        Some((cct.tps.head, Nil))
+      } else if (Some(cct.classDef) == lib.Cons) {
+        isListLiteral(args(1)).map { case (_, t) =>
+          (cct.tps.head, args(0) :: t)
+        }
+      } else {
+        None
+      }
+    case _ =>
+      None
+  }
 
   /**
    * Deprecated API

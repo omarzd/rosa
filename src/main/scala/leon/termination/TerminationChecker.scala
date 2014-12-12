@@ -1,13 +1,16 @@
-/* Copyright 2009-2013 EPFL, Lausanne */
+/* Copyright 2009-2014 EPFL, Lausanne */
 
 package leon
 package termination
 
 import purescala.Definitions._
 import purescala.Trees._
+import purescala.DefOps._
 
-abstract class TerminationChecker(val context : LeonContext, val program : Program) extends LeonComponent {
-  
+abstract class TerminationChecker(val context: LeonContext, val program: Program) extends LeonComponent {
+
+  val functions = visibleFunDefsFromMain(program)
+
   def initialize() : Unit
   def terminates(funDef : FunDef) : TerminationGuarantee
 }
@@ -27,6 +30,7 @@ abstract class NonTerminating extends TerminationGuarantee {
 }
 
 case class LoopsGivenInputs(justification: String, args: Seq[Expr]) extends NonTerminating
+case class MaybeLoopsGivenInputs(justification: String, args: Seq[Expr]) extends NonTerminating
 
 case class CallsNonTerminating(calls: Set[FunDef]) extends NonTerminating
 

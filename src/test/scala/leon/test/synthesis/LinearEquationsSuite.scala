@@ -1,20 +1,20 @@
-/* Copyright 2009-2013 EPFL, Lausanne */
+/* Copyright 2009-2014 EPFL, Lausanne */
 
-package leon.test
-package synthesis
+package leon.test.synthesis
+import leon.test._
 
 import leon.purescala.Trees._
 import leon.purescala.TypeTrees._
 import leon.purescala.TreeOps._
 import leon.purescala.Common._
 import leon.purescala.Definitions._
-import leon.test.purescala.LikelyEq
+import leon.test.purescala.WithLikelyEq
 import leon.evaluators._
 import leon.LeonContext
 
 import leon.synthesis.LinearEquations._
 
-class LinearEquationsSuite extends LeonTestSuite {
+class LinearEquationsSuite extends LeonTestSuite with WithLikelyEq {
 
   def i(x: Int) = IntLiteral(x)
 

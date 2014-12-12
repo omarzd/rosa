@@ -14,11 +14,11 @@ import Precision._
 
 
 class LipschitzPathError(reporter: Reporter, solver: RangeSolver, precision: Precision,
-  variables: VariablePool) {
+  variables: VariablePool, silent: Boolean = false) {
 
   implicit val debugSection = utils.DebugSectionPathError
 
-  val approximator = new AAApproximator(reporter, solver, precision, checkPathError = true)
+  val approximator = new AAApproximator(reporter, solver, precision, silent, checkPathError = true)
   val leonToZ3 = new LeonToZ3Transformer(variables, precision)
 
   /*val machineEps = precision match {
@@ -75,20 +75,20 @@ class LipschitzPathError(reporter: Reporter, solver: RangeSolver, precision: Pre
             reporter.debug("computing the real difference")
             val diffError = computeDifference(rPath.bodyReal, fPath.bodyReal, floatIntervals,
               And(And(otherConstraints1, otherConstraints2), preAdditionalConstraints))
-            reporter.info("diff error: " + diffError)
+            if (!silent) reporter.info("diff error: " + diffError)
             
 
             val lipschitzError = getLipschitzError(rPath.bodyReal, criticalIntervals,
               And(otherConstraints1, preAdditionalConstraints))
-            reporter.info("lipschitz error: " + lipschitzError)
+            if (!silent) reporter.info("lipschitz error: " + lipschitzError)
 
             
             val roundoffError = computeRoundoffError(fPath.bodyFinite, floatIntervals,
               And(otherConstraints1, preAdditionalConstraints))
-            reporter.info("roundoff error: " + roundoffError)
+            if (!silent) reporter.info("roundoff error: " + roundoffError)
 
             val totalError = lipschitzError + diffError + roundoffError
-            reporter.info("total error: " + totalError)
+            if (!silent) reporter.info("total error: " + totalError)
             Some(totalError)
         }
     }

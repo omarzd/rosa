@@ -18,8 +18,8 @@ case class RealOptions(
   massageArithmetic: Boolean    = true,         // whether to massage arithmetic before passing to Z3
   removeRedundant: Boolean      = true,         // remove redundant constraints before passing to Z3
   lipschitz: Boolean            = false,        // compute Lipschitz constants
-  lipschitzPathError: Boolean   = true         // compute path error with new lipschitz-based procedure
-
+  lipschitzPathError: Boolean   = true,         // compute path error with new lipschitz-based procedure
+  silent: Boolean               = false
 ) {
   override def toString: String = 
     "simulation: %b, z3Timeout: %d, precision: %s, z3Only: %b, solverMaxIter: %d, solverPrecision: %s,".format(

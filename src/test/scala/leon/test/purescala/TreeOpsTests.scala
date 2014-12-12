@@ -1,7 +1,9 @@
-/* Copyright 2009-2013 EPFL, Lausanne */
+/* Copyright 2009-2014 EPFL, Lausanne */
 
-package leon.test
-package purescala
+package leon.test.purescala
+
+import leon._
+import leon.test._
 
 import leon.LeonContext
 
@@ -13,7 +15,7 @@ import leon.purescala.TreeOps._
 
 import leon.solvers.z3._
 
-class TreeOpsTests extends LeonTestSuite {
+class TreeOpsTests extends LeonTestSuite with WithLikelyEq {
   
   test("Path-aware simplifications") {
     // TODO actually testing something here would be better, sorry
@@ -138,4 +140,20 @@ class TreeOpsTests extends LeonTestSuite {
     assert(res === "123MP")
   }
 
+  test("pre- and postMap") {
+    val expr = Plus(IntLiteral(1), Minus(IntLiteral(2), IntLiteral(3)))
+    def op(e : Expr ) = e match {
+      case Minus(IntLiteral(2), e2) => Some(IntLiteral(2))
+      case IntLiteral(1) => Some(IntLiteral(2))
+      case IntLiteral(2) => Some(IntLiteral(42))
+      case _ => None
+    }
+    
+    assert( preMap(op, false)(expr) == Plus(IntLiteral(2),  IntLiteral(2))  )
+    assert( preMap(op, true )(expr) == Plus(IntLiteral(42), IntLiteral(42)) )
+    assert( postMap(op, false)(expr) == Plus(IntLiteral(2),  Minus(IntLiteral(42), IntLiteral(3))) )
+    assert( postMap(op, true)(expr)  == Plus(IntLiteral(42), Minus(IntLiteral(42), IntLiteral(3))) )
+    
+  }
+  
 }

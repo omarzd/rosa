@@ -1,4 +1,4 @@
-/* Copyright 2009-2013 EPFL, Lausanne */
+/* Copyright 2009-2014 EPFL, Lausanne */
 
 package leon.verification
 
@@ -10,10 +10,10 @@ import leon.utils.{Position, Positioned}
 import leon.solvers._
 
 /** This is just to hold some history information. */
-class VerificationCondition(val condition: Expr, val funDef: FunDef, val kind: VCKind.Value, val tactic: Tactic, val info: String = "") extends Positioned {
+class VerificationCondition(val condition: Expr, val funDef: FunDef, val kind: VCKind, val tactic: Tactic, val info: String = "") extends Positioned {
   // None = still unknown
   // Some(true) = valid
-  // Some(false) = valid
+  // Some(false) = invalid
   var hasValue = false
   var value : Option[Boolean] = None
   var solvedWith : Option[Solver] = None
@@ -36,16 +36,19 @@ class VerificationCondition(val condition: Expr, val funDef: FunDef, val kind: V
     case None => ""
   }
 
+  override def toString = {
+    kind.toString + " in function " + funDef.id.name + "\n" +
+    condition.toString
+  }
+
 }
 
-object VCKind extends Enumeration {
-  val Precondition = Value("precond.")
-  val Postcondition = Value("postcond.")
-  val ExhaustiveMatch = Value("match.")
-  val MapAccess = Value("map acc.")
-  val ArrayAccess = Value("arr. acc.")
-  val InvariantInit = Value("inv init.")
-  val InvariantInd = Value("inv ind.")
-  val InvariantPost = Value("inv post.")
-  val InvariantPre = Value("inv pre.")
+abstract class VCKind(val name: String, val abbrv: String) {
+  override def toString = name
 }
+case object VCPrecondition    extends VCKind("precondition", "precond.")
+case object VCPostcondition   extends VCKind("postcondition", "postcond.")
+case object VCAssert          extends VCKind("body assertion", "assert.")
+case object VCExhaustiveMatch extends VCKind("match exhaustivness", "match.")
+case object VCMapUsage        extends VCKind("map usage", "map use")
+case object VCArrayUsage      extends VCKind("array usage", "arr. use")

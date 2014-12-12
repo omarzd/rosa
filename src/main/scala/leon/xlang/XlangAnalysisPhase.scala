@@ -1,4 +1,4 @@
-/* Copyright 2009-2013 EPFL, Lausanne */
+/* Copyright 2009-2014 EPFL, Lausanne */
 
 package leon
 package xlang
@@ -11,6 +11,9 @@ object XlangAnalysisPhase extends LeonPhase[Program, VerificationReport] {
   val name = "xlang analysis"
   val description = "apply analysis on xlang"
 
+  case object VCInvariantPost extends VCKind("invariant postcondition", "inv. post.")
+  case object VCInvariantInd  extends VCKind("invariant inductive",     "inv. ind.")
+
   def run(ctx: LeonContext)(pgm: Program): VerificationReport = {
 
     val pgm1 = ArrayTransformation(ctx, pgm)
@@ -19,13 +22,14 @@ object XlangAnalysisPhase extends LeonPhase[Program, VerificationReport] {
     val pgm4 = purescala.FunctionClosure.run(ctx)(pgm3)
 
     def functionWasLoop(fd: FunDef): Boolean = fd.orig match {
-      case None => false //meaning, this was a top level function
-      case Some(nested) => wasLoop.contains(nested) //could have been a LetDef originally
+      case Some(nested) => // could have been a LetDef originally
+        wasLoop.contains(nested)
+      case _ => false //meaning, this was a top level function
     }
 
     var subFunctionsOf = Map[FunDef, Set[FunDef]]().withDefaultValue(Set())
-    pgm4.definedFunctions.foreach { fd => fd.parent match {
-      case Some(p) =>
+    pgm4.definedFunctions.foreach { fd => fd.owner match {
+      case Some(p : FunDef) =>
         subFunctionsOf += p -> (subFunctionsOf(p) + fd)
       case _ =>
     }}
@@ -69,8 +73,8 @@ object XlangAnalysisPhase extends LeonPhase[Program, VerificationReport] {
       if(functionWasLoop(funDef)) {
         val freshVc = new VerificationCondition(
           vc.condition, 
-          funDef.parent.getOrElse(funDef), 
-          if(vc.kind == VCKind.Postcondition) VCKind.InvariantPost else if(vc.kind == VCKind.Precondition) VCKind.InvariantInd else vc.kind,
+          funDef.owner match { case Some(fd : FunDef) => fd; case _ => funDef }, 
+          if(vc.kind == VCPostcondition) VCInvariantPost else if(vc.kind == VCPrecondition) VCInvariantInd else vc.kind,
           vc.tactic,
           vc.info).setPos(funDef)
         freshVc.value = vc.value

@@ -1,4 +1,4 @@
-/* Copyright 2009-2013 EPFL, Lausanne */
+/* Copyright 2009-2014 EPFL, Lausanne */
 
 package leon
 package frontends.scalac
@@ -10,13 +10,20 @@ import scala.tools.nsc.plugins._
 import scala.language.implicitConversions
 
 import purescala._
-import purescala.Definitions.{ClassDef => LeonClassDef, ModuleDef => LeonModuleDef, ValDef => LeonValDef, _}
+import purescala.Definitions.{
+  ClassDef  => LeonClassDef, 
+  ModuleDef => LeonModuleDef, 
+  ValDef    => LeonValDef, 
+  Import    => LeonImport,
+  _
+}
 import purescala.Trees.{Expr => LeonExpr, This => LeonThis, _}
 import purescala.TypeTrees.{TypeTree => LeonType, _}
 import purescala.Common._
 import purescala.Extractors.IsTyped
 import purescala.TreeOps._
 import purescala.TypeTreeOps._
+import purescala.DefOps.{inPackage, inUnit}
 import xlang.Trees.{Block => LeonBlock, _}
 import xlang.TreeOps._
 import real.Trees._
@@ -34,9 +41,13 @@ trait CodeExtraction extends ASTExtractors {
   import ExtractorHelpers._
   import scala.collection.immutable.Set
 
+  val reporter = self.ctx.reporter
+
   def annotationsOf(s: Symbol): Set[String] = {
-    (for(a <- s.annotations) yield {
-      val name = a.atp.safeToString
+    val actualSymbol = s.accessedOrSelf
+
+    (for(a <- actualSymbol.annotations ++ actualSymbol.owner.annotations) yield {
+      val name = a.atp.safeToString.replaceAll("\\.package\\.", ".")
       if (name startsWith "leon.annotation.") {
         Some(name.split("\\.", 3)(2))
       } else if (name startsWith "leon.real.annotations.") {
@@ -62,10 +73,13 @@ trait CodeExtraction extends ASTExtractors {
     }
   }
 
-  def leonPosToScalaPos(sf: SourceFile, p: LeonPosition): global.Position = {
-    p match {
-      case dp: DefinedPosition =>
-        new OffsetPosition(sf, dp.focusBegin.point)
+  def leonPosToScalaPos(spos: global.Position, p: LeonPosition): global.Position = {
+    (spos, p) match {
+      case (NoPosition, _) =>
+        NoPosition
+
+      case (p, dp: DefinedPosition) =>
+        new OffsetPosition(p.source, dp.focusBegin.point)
 
       case _ =>
         NoPosition
@@ -102,13 +116,25 @@ trait CodeExtraction extends ASTExtractors {
     throw new ImpureCodeEncounteredException(t.pos, msg, Some(t))
   }
 
+  // Simple case classes to capture the representation of units/modules after discovering them.
+  case class TempModule(name : Identifier, trees : List[Tree], isStandalone : Boolean)
+  case class TempUnit(
+    name : String, 
+    pack : PackageRef, 
+    modules : List[TempModule], 
+    imports : List[Import],
+    isPrintable : Boolean
+  ) 
+    
   class Extraction(units: List[CompilationUnit]) {
+        
     private var currentFunDef: FunDef = null
 
-    //This is a bit missleading, if an expr is not mapped then it has no owner, if it is mapped to None it means
+    //This is a bit misleading, if an expr is not mapped then it has no owner, if it is mapped to None it means
     //that it can have any owner
     private var owners: Map[Identifier, Option[FunDef]] = Map() 
 
+    
 
     def toPureScala(tree: Tree)(implicit dctx: DefContext): Option[LeonExpr] = {
       try {
@@ -121,7 +147,7 @@ trait CodeExtraction extends ASTExtractors {
     }
 
     // This one never fails, on error, it returns Untyped
-    def toPureScalaType(tpt: Type)(implicit dctx: DefContext): LeonType = {
+    def toPureScalaType(tpt: Type)(implicit dctx: DefContext, pos: Position): LeonType = {
       try {
         extractType(tpt)
       } catch {
@@ -135,14 +161,14 @@ trait CodeExtraction extends ASTExtractors {
         tparams: Map[Symbol, TypeParameter] = Map(),
         vars: Map[Symbol, () => LeonExpr] = Map(),
         mutableVars: Map[Symbol, () => LeonExpr] = Map(),
-        isProxy: Boolean = false
+        isExtern: Boolean = false
       ) {
 
       def union(that: DefContext) = {
         copy(this.tparams ++ that.tparams,
              this.vars ++ that.vars,
              this.mutableVars ++ that.mutableVars,
-             this.isProxy || that.isProxy)
+             this.isExtern || that.isExtern)
       }
 
       def isVariable(s: Symbol) = (vars contains s) || (mutableVars contains s)
@@ -160,19 +186,48 @@ trait CodeExtraction extends ASTExtractors {
       }
     }
 
-    def extractModules: List[LeonModuleDef] = {
+    def isIgnored(s: Symbol) = {
+      (annotationsOf(s) contains "ignore") || (s.fullName.toString.endsWith(".main"))
+    }
+
+    def isExtern(s: Symbol) = {
+      annotationsOf(s) contains "extern"
+    }
+    
+    def extractUnits: List[UnitDef] = {
       try {
-        val templates: List[(String, List[Tree])] = units.reverse.flatMap { u => u.body match {
-          case PackageDef(name, lst) =>
+        def isLib(u : CompilationUnit) = Build.libFiles contains u.source.file.absolute.path
+        
+        val templates: List[TempUnit] = units.reverse.map { u => u.body match {
+        
+          // Unit with a single package object
+          case PackageDef(refTree, List(PackageDef(inner, List(ExObjectDef(n, templ))))) if n == "package" =>
+            // File name without extension
+            val unitName = extractPackageRef(inner).mkString("$") + "$package"
+            val id = FreshIdentifier(unitName+ "$standalone")
+            TempUnit(unitName,
+              extractPackageRef(refTree) ++ extractPackageRef(inner),
+              List( TempModule(id, templ.body, true) ),
+              imports.getOrElse(refTree, Nil),
+              !isLib(u)
+            )
+   
+        
+          case pd @ PackageDef(refTree, lst) =>
+                         
             var standaloneDefs = List[Tree]()
-
-            val modules: List[(String, List[Tree])] = lst.flatMap { _ match {
-              case t if annotationsOf(t.symbol) contains "ignore" =>
+            
+            val modules = lst.flatMap { _ match {
+              
+              case t if isIgnored(t.symbol) =>
                 None
-
-              case ExObjectDef(n, templ) =>
-                Some((n.toString, templ.body))
-
+                
+              case po@ExObjectDef(n, templ) if n == "package" =>  
+                outOfSubsetError(po, "No other definitions are allowed in a file with a package object.")
+                
+              case ExObjectDef(n, templ) if n != "package" =>
+                Some(TempModule(FreshIdentifier(n), templ.body, false))
+  
               case d @ ExAbstractClass(_, _, _) =>
                 standaloneDefs ::= d
                 None
@@ -180,41 +235,81 @@ trait CodeExtraction extends ASTExtractors {
               case d @ ExCaseClass(_, _, _, _) =>
                 standaloneDefs ::= d
                 None
-
+                
               case d @ ExCaseClassSyntheticJunk() =>
                 None
 
               case other =>
                 outOfSubsetError(other, "Expected: top-level object/class.")
                 None
-            }}.toList
-
-            val extraModules: List[(String, List[Tree])] = if (standaloneDefs.isEmpty) {
-              Nil
-            } else {
-              List(("standalone", standaloneDefs.reverse))
-            }
-
-            modules ++ extraModules
+            }}
+            
+            // File name without extension
+            val unitName = u.source.file.name.replaceFirst("[.][^.]+$", "")
+            val finalModules = 
+              if (standaloneDefs.isEmpty) modules 
+              else {
+                val id = FreshIdentifier(unitName+ "$standalone")
+                ( TempModule(id , standaloneDefs, true) ) :: modules
+              }
+            
+            TempUnit(unitName,
+              extractPackageRef(refTree),
+              finalModules,
+              imports.getOrElse(refTree, Nil),
+              !isLib(u)
+            )
         }}
 
-        // Phase 1, we detect classes/types
-        templates.foreach{ case (name, templ) => collectClassSymbols(templ) }
-
+        // Phase 1, we detect objects/classes/types
+        for (temp <- templates; mod <- temp.modules) collectClassSymbols(mod.trees)
+                
         // Phase 2, we collect functions signatures
-        templates.foreach{ case (name, templ) => collectFunSigs(templ) }
+        for (temp <- templates; mod <- temp.modules) collectFunSigs(mod.trees)
 
         // Phase 3, we collect classes/types' definitions
-        templates.foreach{ case (name, templ) => extractClassDefs(templ) }
+        for (temp <- templates; mod <- temp.modules) extractClassDefs(mod.trees)
 
         // Phase 4, we collect methods' definitions
-        templates.foreach{ case (name, templ) => extractMethodDefs(templ) }
+        for (temp <- templates; mod <- temp.modules) extractMethodDefs(mod.trees)
 
         // Phase 5, we collect function definitions
-        templates.foreach{ case (name, templ) => extractFunDefs(templ) }
+        for (temp <- templates; mod <- temp.modules) extractFunDefs(mod.trees)
 
         // Phase 6, we create modules and extract bodies
-        templates.map{ case (name, templ) => extractObjectDef(name, templ) }
+        for (temp <- templates; mod <- temp.modules) extractObjectDef(mod.name, mod.trees, mod.isStandalone)
+        
+        // Phase 7, we wrap modules in units
+        // We first form the units without valid imports
+        val withoutImports = for (TempUnit(name,pack,mods,imps,isPrintable) <- templates) yield { 
+          ( UnitDef(
+              FreshIdentifier(name), 
+              for( TempModule(nm,_,_) <- mods) yield objects2Objects(nm), 
+              pack, Nil, isPrintable
+            )
+          , imps 
+          )
+        }
+        
+        // Just doing this so everything is in the same program and searches work properly
+        val _ = Program(FreshIdentifier("__program"), withoutImports map { _._1 })
+
+        // With the aid of formed units, we extract the correct imports
+        val objPerPack = objects2Objects map { _._2 } groupBy { inPackage(_)}
+        withoutImports map { case (u, imps) =>
+          u.copy(imports = {
+            // Extract imports from source
+            val extracted = imps flatMap { extractImport(_, u,withoutImports map { _._1}) }
+            // Add extra imports for contents of standalone objects
+            val packs = u.pack :: extracted. collect { case PackageImport(pack) => pack } 
+            val additional = objPerPack. collect { 
+              case (p,obs) if packs contains p =>
+                obs filter { _.isStandalone} map WildcardImport
+            }.flatten
+            extracted ++ additional
+          })
+        }
+
       } catch {
         case icee: ImpureCodeEncounteredException =>
           icee.emit()
@@ -222,13 +317,84 @@ trait CodeExtraction extends ASTExtractors {
       }
 
     }
+      
+    
+    
+    private def getSelectChain(e : Tree) : List[String] = {
+      def rec (e : Tree) : List[Name] = e match {
+        case Select(q, name) => name :: rec(q)
+        case Ident(name) => List(name)
+        case EmptyTree => List()
+        case _ => ctx.reporter.internalError("getSelectChain: unexpected Tree:\n" + e.toString)
+      } 
+      rec(e).reverse map { _.toString }
+    }
+    
+    private def extractPackageRef(refPath : RefTree) : PackageRef =       
+      (getSelectChain(refPath.qualifier) :+ refPath.name.toString) match {
+        // Make sure to drop "<empty>" package
+        case List("<empty>") => List()
+        case other => other
+      }
+    
+    private def extractImport(i : Import, current : UnitDef, units : List[UnitDef]) : Seq[ LeonImport ] = i match { case Import(expr, sels) => 
+      import DefOps._
+      
+      val prefix = getSelectChain(expr) 
+      val allSels = sels map { prefix :+ _.name.toString }
+      // Make a different import for each selector at the end of the chain
+      allSels flatMap { selectors => 
+        assert(!selectors.isEmpty)
+        val (thePath, isWild) = selectors.last match {
+          case "_" => (selectors.dropRight(1), true)
+          case _   => (selectors, false)
+        }
+          
+        val theDef = searchByFullNameRelative(thePath mkString ".", current, reliableVisibility = false)
+        
+        (isWild, theDef) match {
+          case (true, Some(df)) => Some(WildcardImport(df))
+          case (false,Some(df)) => Some(SingleImport(df))
+          case (true, None)     => Some(PackageImport(thePath))
+          case (false,None)     => None // import comes from a Scala library or something... 
+        }
+      }
+    }
 
-    private var seenClasses = Map[Symbol, (Seq[(String, Tree)], Template)]()
+    private var seenClasses = Map[Symbol, (Seq[(Symbol, ValDef)], Template)]()
     private var classesToClasses  = Map[Symbol, LeonClassDef]()
+
+    def oracleType(pos: Position, tpe: LeonType) = {
+      classesToClasses.find {
+        case (sym, cl) => (sym.fullName.toString == "leon.lang.synthesis.Oracle")
+      } match {
+        case Some((_, cd)) =>
+          classDefToClassType(cd, List(tpe))
+        case None =>
+          outOfSubsetError(pos, "Could not find class Oracle")
+      }
+    }
+
+    def libraryClass(pos: Position, className: String): LeonClassDef = {
+      classesToClasses.find{ case (s, c) => s.fullName == className }.map(_._2).getOrElse {
+        outOfSubsetError(pos, "Could not find class "+className)
+      }
+    }
+
+    def libraryCaseClass(pos: Position, className: String): CaseClassDef = {
+      libraryClass(pos, className) match {
+        case ccd: CaseClassDef => ccd
+        case _ =>
+          outOfSubsetError(pos, "Class "+className+" is not a case class")
+      }
+    }
 
     private def collectClassSymbols(defs: List[Tree]) {
       // We collect all defined classes
       for (t <- defs) t match {
+        case t if isIgnored(t.symbol) =>
+          // ignore
+
         case ExAbstractClass(o2, sym, tmpl) =>
           seenClasses += sym -> ((Nil, tmpl))
 
@@ -242,11 +408,14 @@ trait CodeExtraction extends ASTExtractors {
     private def extractClassDefs(defs: List[Tree]) {
       // We collect all defined classes
       for (t <- defs) t match {
+        case t if isIgnored(t.symbol) =>
+          // ignore
+
         case ExAbstractClass(o2, sym, _) =>
-          getClassDef(sym, NoPosition)
+          getClassDef(sym, t.pos)
 
         case ExCaseClass(o2, sym, args, _) =>
-          getClassDef(sym, NoPosition)
+          getClassDef(sym, t.pos)
 
         case _ =>
       }
@@ -261,7 +430,10 @@ trait CodeExtraction extends ASTExtractors {
 
             extractClassDef(sym, args, tmpl)
           } else {
-            outOfSubsetError(pos, "Class "+sym.name+" not defined?")
+            if (sym.name.toString == "synthesis") {
+              new Exception().printStackTrace()
+            }
+            outOfSubsetError(pos, "Class "+sym.fullName+" not defined?")
           }
       }
     }
@@ -277,9 +449,8 @@ trait CodeExtraction extends ASTExtractors {
     private var isMethod = Set[Symbol]()
     private var methodToClass = Map[FunDef, LeonClassDef]()
 
-    def extractClassDef(sym: Symbol, args: Seq[(String, Tree)], tmpl: Template): LeonClassDef = {
+    def extractClassDef(sym: Symbol, args: Seq[(Symbol, ValDef)], tmpl: Template): LeonClassDef = {
       val id = FreshIdentifier(sym.name.toString).setPos(sym.pos)
-
 
       val tparamsMap = sym.tpe match {
         case TypeRef(_, _, tps) =>
@@ -296,7 +467,7 @@ trait CodeExtraction extends ASTExtractors {
         case Some(TypeRef(_, parentSym, tps)) if seenClasses contains parentSym =>
           getClassDef(parentSym, sym.pos) match {
             case acd: AbstractClassDef =>
-              val newTps = tps.map(extractType(_)(defCtx))
+              val newTps = tps.map(extractType(_)(defCtx, sym.pos))
               Some(AbstractClassType(acd, newTps))
 
             case cd =>
@@ -321,9 +492,10 @@ trait CodeExtraction extends ASTExtractors {
 
         classesToClasses += sym -> ccd
 
-        val fields = args.map { case (name, t) =>
-          val tpe = toPureScalaType(t.tpe)(defCtx)
-          LeonValDef(FreshIdentifier(name).setType(tpe).setPos(t.pos), tpe).setPos(t.pos)
+        val fields = args.map { case (symbol, t) =>
+          val tpt = t.tpt
+          val tpe = toPureScalaType(tpt.tpe)(defCtx, sym.pos)
+          LeonValDef(FreshIdentifier(symbol.name.toString).setType(tpe).setPos(t.pos), tpe).setPos(t.pos)
         }
 
         ccd.setFields(fields)
@@ -351,9 +523,16 @@ trait CodeExtraction extends ASTExtractors {
         ccd
       }
 
-      // We collect the methods
+      // We collect the methods and fields 
       for (d <- tmpl.body) d match {
-        case t @ ExFunctionDef(fsym, _, _, _, _) if !fsym.isSynthetic && !fsym.isAccessor =>
+        case EmptyTree =>
+          // ignore
+
+        case t if isIgnored(t.symbol) =>
+          // ignore
+
+        // Normal methods
+        case t @ ExFunctionDef(fsym, _, _, _, _) =>
           if (parent.isDefined) {
             outOfSubsetError(t, "Only hierarchy roots can define methods")
           }
@@ -364,6 +543,31 @@ trait CodeExtraction extends ASTExtractors {
 
           cd.registerMethod(fd)
 
+        // Lazy fields
+        case t @ ExLazyAccessorFunction(fsym, _, _)  =>
+          if (parent.isDefined) {
+            outOfSubsetError(t, "Only hierarchy roots can define lazy fields") 
+          }
+          val fd = defineFieldFunDef(fsym, true)(defCtx)
+
+          isMethod += fsym
+          methodToClass += fd -> cd
+
+          cd.registerMethod(fd)
+        
+        // normal fields
+        case t @ ExFieldDef(fsym, _, _) => 
+          // we will be using the accessor method of this field everywhere 
+          val fsymAsMethod = fsym
+          if (parent.isDefined) {
+            outOfSubsetError(t, "Only hierarchy roots can define fields") 
+          }
+          val fd = defineFieldFunDef(fsymAsMethod, false)(defCtx)
+
+          isMethod += fsymAsMethod
+          methodToClass += fd -> cd
+
+          cd.registerMethod(fd)
         case _ =>
       }
 
@@ -376,12 +580,10 @@ trait CodeExtraction extends ASTExtractors {
       // Type params of the function itself
       val tparams = extractTypeParams(sym.typeParams.map(_.tpe))
 
-      val isProxy = annotationsOf(sym) contains "proxy"
-
-      val nctx = dctx.copy(tparams = dctx.tparams ++ tparams.toMap, isProxy = isProxy)
+      val nctx = dctx.copy(tparams = dctx.tparams ++ tparams.toMap, isExtern = isExtern(sym))
 
       val newParams = sym.info.paramss.flatten.map{ sym =>
-        val ptpe = toPureScalaType(sym.tpe)(nctx)
+        val ptpe = toPureScalaType(sym.tpe)(nctx, sym.pos)
         val newID = FreshIdentifier(sym.name.toString).setType(ptpe).setPos(sym.pos)
         owners += (newID -> None)
         LeonValDef(newID, ptpe).setPos(sym.pos)
@@ -389,11 +591,11 @@ trait CodeExtraction extends ASTExtractors {
 
       val tparamsDef = tparams.map(t => TypeParameterDef(t._2))
 
-      val returnType = toPureScalaType(sym.info.finalResultType)(nctx)
+      val returnType = toPureScalaType(sym.info.finalResultType)(nctx, sym.pos)
 
       val name = sym.name.toString
 
-      val fd = new FunDef(FreshIdentifier(name).setPos(sym.pos), tparamsDef, returnType, newParams)
+      val fd = new FunDef(FreshIdentifier(name).setPos(sym.pos), tparamsDef, returnType, newParams, DefType.MethodDef)
 
       fd.setPos(sym.pos)
 
@@ -404,15 +606,44 @@ trait CodeExtraction extends ASTExtractors {
       fd
     }
 
+    private def defineFieldFunDef(sym : Symbol, isLazy : Boolean)(implicit dctx : DefContext) : FunDef = {
+
+      val nctx = dctx.copy(tparams = dctx.tparams, isExtern = isExtern(sym))
+
+      val returnType = toPureScalaType(sym.info.finalResultType)(nctx, sym.pos)
+
+      val name = sym.name.toString
+
+      val fieldType = if (isLazy) DefType.LazyFieldDef else DefType.StrictFieldDef
+      
+      val fd = new FunDef(FreshIdentifier(name).setPos(sym.pos), Seq(), returnType, Seq(), fieldType)
+
+      fd.setPos(sym.pos)
+
+      fd.addAnnotation(annotationsOf(sym).toSeq : _*)
+      
+      defsToDefs += sym -> fd
+
+      fd
+    }
+    
+    
+    
     private def collectFunSigs(defs: List[Tree]) = {
       // We collect defined function bodies
       for (d <- defs) d match {
-        case ExMainFunctionDef() =>
-          // Ignoring...
+        case t if isIgnored(t.symbol) =>
+          //ignore
 
         case ExFunctionDef(sym, _, _, _, _) =>
           defineFunDef(sym)(DefContext())
 
+        case ExLazyAccessorFunction(sym, _, _)  =>
+          defineFieldFunDef(sym,true)(DefContext())
+          
+        case ExFieldDef(sym, _, _) =>
+          defineFieldFunDef(sym, false)(DefContext())
+          
         case _ =>
       }
     }
@@ -432,7 +663,7 @@ trait CodeExtraction extends ASTExtractors {
         val ctparamsMap = ctparams zip cd.tparams.map(_.tp)
 
         for (d <- tmpl.body) d match {
-          case ExFunctionDef(sym, tparams, params, _, body) if !sym.isSynthetic && !sym.isAccessor =>
+          case ExFunctionDef(sym, tparams, params, _, body) =>
             val fd = defsToDefs(sym)
 
             val tparamsMap = (tparams zip fd.tparams.map(_.tp)).toMap ++ ctparamsMap
@@ -440,12 +671,31 @@ trait CodeExtraction extends ASTExtractors {
             if(body != EmptyTree) {
               extractFunBody(fd, params, body)(DefContext(tparamsMap))
             }
-
+            
+          // Lazy fields
+          case t @ ExLazyAccessorFunction(sym, _, body) =>
+            val fd = defsToDefs(sym)
+            val tparamsMap = ctparamsMap
+            if(body != EmptyTree) {
+              extractFunBody(fd, Seq(), body)(DefContext(tparamsMap.toMap))
+            }          
+          
+          // normal fields
+          case t @ ExFieldDef(sym, _, body) => // if !sym.isSynthetic && !sym.isAccessor =>
+            val fd = defsToDefs(sym)
+            val tparamsMap = ctparamsMap
+            if(body != EmptyTree) {
+              extractFunBody(fd, Seq(), body)(DefContext(tparamsMap.toMap))
+            }
+            
           case _ =>
 
         }
       }
       for (d <- defs) d match {
+        case t if isIgnored(t.symbol) =>
+          // ignore
+
         case ExAbstractClass(_, csym, tmpl) =>
           extractFromClass(csym, tmpl)
 
@@ -459,16 +709,28 @@ trait CodeExtraction extends ASTExtractors {
     private def extractFunDefs(defs: List[Tree]) = {
       // We collect defined function bodies
       for (d <- defs) d match {
-        case ExMainFunctionDef() =>
-          // Ignoring...
+        case t if isIgnored(t.symbol) =>
+          // ignore
 
+         
         case ExFunctionDef(sym, tparams, params, _, body) =>
+          // Methods
           val fd = defsToDefs(sym)
 
           val tparamsMap = (tparams zip fd.tparams.map(_.tp)).toMap
 
-          extractFunBody(fd, params, body)(DefContext(tparamsMap))
+          extractFunBody(fd, params, body)(DefContext(tparamsMap, isExtern = isExtern(sym)))
 
+        case ExLazyAccessorFunction(sym, _, body)  =>
+          // Lazy vals
+          val fd = defsToDefs(sym)
+          extractFunBody(fd, Seq(), body)(DefContext())
+
+        case ExFieldDef(sym, tpe, body) =>
+          // Normal vals
+          val fd = defsToDefs(sym)
+          extractFunBody(fd, Seq(), body)(DefContext())
+          
         case _ =>
       }
     }
@@ -483,22 +745,28 @@ trait CodeExtraction extends ASTExtractors {
       }
     }
 
-    private def extractObjectDef(nameStr: String, defs: List[Tree]): LeonModuleDef = {
+    var objects2Objects = Map[Identifier, LeonModuleDef]()
+    
+    private def extractObjectDef(id : Identifier, defs: List[Tree], isStandalone : Boolean) {
 
       val newDefs = defs.flatMap{ t => t match {
+        case t if isIgnored(t.symbol) =>
+          None
+
         case ExAbstractClass(o2, sym, _) =>
           Some(classesToClasses(sym))
 
         case ExCaseClass(o2, sym, args, _) =>
           Some(classesToClasses(sym))
 
-        case ExMainFunctionDef() =>
-          // Ignoring...
-          None
-
+        // Taking accessor functions will duplicate work for strict fields, but we need them in case of lazy fields
         case ExFunctionDef(sym, tparams, params, _, body) =>
           Some(defsToDefs(sym))
-
+        case ExLazyAccessorFunction(sym, _, _) =>
+          Some(defsToDefs(sym))
+        case ExFieldDef(sym, _, _) =>
+          Some(defsToDefs(sym))
+          
         case _ =>
           None
       }}
@@ -509,20 +777,24 @@ trait CodeExtraction extends ASTExtractors {
         case ExAbstractClass(_,_,_) =>
         case ExCaseClass(_,_,_,_) =>
         case ExConstructorDef() =>
-        case ExMainFunctionDef() =>
         case ExFunctionDef(_, _, _, _, _) =>
-        case defn if annotationsOf(defn.symbol) contains "ignore" =>
+        case ExLazyAccessorFunction(_, _, _) =>
+        case ExFieldDef(_,_,_) =>
+        case ExLazyFieldDef() => 
+        case ExFieldAccessorFunction() => 
+        case d if isIgnored(d.symbol) =>
         case tree =>
           outOfSubsetError(tree, "Don't know what to do with this. Not purescala?");
       }
 
-      new LeonModuleDef(FreshIdentifier(nameStr), newDefs)
+      objects2Objects += id -> LeonModuleDef(id, newDefs, isStandalone)
     }
 
 
-    private def extractFunBody(funDef: FunDef, params: Seq[ValDef], body: Tree)(implicit dctx: DefContext): FunDef = {
+    private def extractFunBody(funDef: FunDef, params: Seq[ValDef], body0 : Tree)(implicit dctx: DefContext): FunDef = {
       currentFunDef = funDef
-
+      
+      
       val newVars = for ((s, vd) <- params zip funDef.params) yield {
         s.symbol -> (() => Variable(vd.id))
       }
@@ -530,32 +802,17 @@ trait CodeExtraction extends ASTExtractors {
 
       val fctx = dctx.withNewVars(newVars)
 
-
-      val (body2, ensuring) = body match {
-        case ExEnsuredExpression(body2, resSym, contract) =>
-          val resId = FreshIdentifier(resSym.name.toString).setType(funDef.returnType).setPos(resSym.pos)
-          val post = toPureScala(contract)(fctx.withNewVar(resSym -> (() => Variable(resId)))).map( r => (resId, r))
-
-          (body2, post)
-
-        case t @ ExHoldsExpression(body2) =>
-          val resId = FreshIdentifier("holds").setType(BooleanType).setPos(body.pos)
-          (body2, Some((resId, Variable(resId).setPos(body.pos))))
-
-        case _ =>
-          (body, None)
-      }
-
-      val (body3, require) = body2 match {
-        case ExRequiredExpression(body3, contract) =>
-          (body3, toPureScala(contract)(fctx))
-
-        case _ =>
-          (body2, None)
-      }
-
+      
+      // If this is a lazy field definition, drop the assignment/ accessing TODO
+      val body = 
+        if (funDef.defType == DefType.LazyFieldDef) { body0 match {
+          case Block(List(Assign(_, realBody)),_ ) => realBody
+          case _ => outOfSubsetError(body0, "Wrong form of lazy accessor")
+        }} else body0
+        
+     
       val finalBody = try {
-        Some(flattenBlocks(extractTree(body3)(fctx)) match {
+        flattenBlocks(extractTree(body)(fctx)) match {
           case e if e.getType.isInstanceOf[ArrayType] =>
             getOwner(e) match {
               case Some(Some(fd)) if fd == funDef =>
@@ -565,66 +822,61 @@ trait CodeExtraction extends ASTExtractors {
                 e
 
               case _ =>
-                outOfSubsetError(body3, "Function cannot return an array that is not locally defined")
+                outOfSubsetError(body, "Function cannot return an array that is not locally defined")
             }
           case e =>
             e
-        })
+        }
       } catch {
         case e: ImpureCodeEncounteredException =>
-        if (funDef.annotations contains "proxy") {
-          // We actually expect errors, no point reporting
-        } else {
+        if (!dctx.isExtern) {
           e.emit()
-          val pos = if (body.pos == NoPosition) NoPosition else leonPosToScalaPos(body.pos.source, funDef.getPos)
+          //val pos = if (body0.pos == NoPosition) NoPosition else leonPosToScalaPos(body0.pos.source, funDef.getPos)
           if (ctx.settings.strictCompilation) {
-            reporter.error(pos, "Function "+funDef.id.name+" could not be extracted. (Forgot @proxy ?)")
+            reporter.error(funDef.getPos, "Function "+funDef.id.name+" could not be extracted. (Forgot @extern ?)")
           } else {
-            reporter.warning(pos, "Function "+funDef.id.name+" is not fully unavailable to Leon.")
+            reporter.warning(funDef.getPos, "Function "+funDef.id.name+" is not fully unavailable to Leon.")
           }
         }
 
         funDef.addAnnotation("abstract")
-        None
+        NoTree(funDef.returnType)
       }
 
-      val finalRequire = require.filter{ e =>
+      funDef.fullBody = finalBody 
+
+      // Post-extraction sanity checks
+
+      funDef.precondition.foreach { case e =>
         if(containsLetDef(e)) {
-          reporter.warning(body3.pos, "Function precondtion should not contain nested function definition, ignoring.")
-          false
-        } else {
-          true
+          reporter.warning(e.getPos, "Function precondition should not contain nested function definition, ignoring.")
+          funDef.precondition = None
         }
       }
 
-      val finalEnsuring = ensuring.filter{ case (id, e) =>
+      funDef.postcondition.foreach { case (id, e) =>
         if(containsLetDef(e)) {
-          reporter.warning(body3.pos, "Function postcondition should not contain nested function definition, ignoring.")
-          false
-        } else {
-          true
+          reporter.warning(e.getPos, "Function postcondition should not contain nested function definition, ignoring.")
+          funDef.postcondition = None
         }
       }
 
-      funDef.body          = finalBody
-      funDef.precondition  = finalRequire
-      funDef.postcondition = finalEnsuring
       funDef
     }
 
     private def extractPattern(p: Tree, binder: Option[Identifier] = None)(implicit dctx: DefContext): (Pattern, DefContext) = p match {
-      case b @ Bind(name, t @ Typed(pat, tpe)) =>
-        val newID = FreshIdentifier(name.toString).setType(extractType(tpe.tpe)).setPos(b.pos)
+      case b @ Bind(name, t @ Typed(pat, tpt)) =>
+        val newID = FreshIdentifier(name.toString).setType(extractType(tpt)).setPos(b.pos).setOwner(currentFunDef)
         val pctx = dctx.withNewVar(b.symbol -> (() => Variable(newID)))
         extractPattern(t, Some(newID))(pctx)
 
       case b @ Bind(name, pat) =>
-        val newID = FreshIdentifier(name.toString).setType(extractType(b.symbol.tpe)).setPos(b.pos)
+        val newID = FreshIdentifier(name.toString).setType(extractType(b)).setPos(b.pos).setOwner(currentFunDef)
         val pctx = dctx.withNewVar(b.symbol -> (() => Variable(newID)))
         extractPattern(pat, Some(newID))(pctx)
 
       case t @ Typed(Ident(nme.WILDCARD), tpt) =>
-        extractType(tpt.tpe) match {
+        extractType(tpt) match {
           case ct: ClassType =>
             (InstanceOfPattern(binder, ct).setPos(p.pos), dctx)
 
@@ -637,7 +889,7 @@ trait CodeExtraction extends ASTExtractors {
 
       case s @ Select(_, b) if s.tpe.typeSymbol.isCase  =>
         // case Obj =>
-        extractType(s.tpe) match {
+        extractType(s) match {
           case ct: CaseClassType =>
             assert(ct.classDef.fields.size == 0)
             (CaseClassPattern(binder, ct, Seq()).setPos(p.pos), dctx)
@@ -647,7 +899,7 @@ trait CodeExtraction extends ASTExtractors {
 
       case a @ Apply(fn, args) =>
 
-        extractType(a.tpe) match {
+        extractType(a) match {
           case ct: CaseClassType =>
             assert(args.size == ct.classDef.fields.size)
             val (subPatterns, subDctx) = args.map(extractPattern(_)).unzip
@@ -664,6 +916,11 @@ trait CodeExtraction extends ASTExtractors {
           case _ =>
             outOfSubsetError(a, "Invalid type "+a.tpe+" for .isInstanceOf")
         }
+
+      case ExInt32Literal(i)   => (LiteralPattern(binder, IntLiteral(i)),     dctx)
+      case ExBooleanLiteral(b) => (LiteralPattern(binder, BooleanLiteral(b)), dctx)
+      case ExUnitLiteral()     => (LiteralPattern(binder, UnitLiteral()),     dctx)
+      case ExStringLiteral(s)  => (LiteralPattern(binder, StringLiteral(s)),  dctx)
 
       case _ =>
         outOfSubsetError(p, "Unsupported pattern: "+p.getClass)
@@ -701,8 +958,56 @@ trait CodeExtraction extends ASTExtractors {
       var rest = tmpRest
 
       val res = current match {
+        case ExEnsuredExpression(body, resVd, contract) =>
+          val resId = FreshIdentifier(resVd.symbol.name.toString).setType(extractType(current)).setPos(resVd.pos).setOwner(currentFunDef)
+          val post = extractTree(contract)(dctx.withNewVar(resVd.symbol -> (() => Variable(resId))))
+
+          val b = try {
+            extractTree(body)
+          } catch {
+            case (e: ImpureCodeEncounteredException) if dctx.isExtern =>
+              NoTree(toPureScalaType(current.tpe)(dctx, current.pos))
+          }
+
+          Ensuring(b, resId, post)
+
+        case t @ ExHoldsExpression(body) =>
+          val resId = FreshIdentifier("holds").setType(BooleanType).setPos(current.pos).setOwner(currentFunDef)
+          val post = Variable(resId).setPos(current.pos)
+
+          val b = try {
+            extractTree(body)
+          } catch {
+            case (e: ImpureCodeEncounteredException) if dctx.isExtern =>
+              NoTree(toPureScalaType(current.tpe)(dctx, current.pos))
+          }
+
+          Ensuring(b, resId, post)
+
+        case ExAssertExpression(contract, oerr) =>
+          val const = extractTree(contract)
+          val b     = rest.map(extractTree).getOrElse(UnitLiteral())
+
+          rest = None
+
+          Assert(const, oerr, b)
+
+        case ExRequiredExpression(contract) =>
+          val pre = extractTree(contract)
+
+          val b = try {
+            rest.map(extractTree).getOrElse(UnitLiteral())
+          } catch {
+            case (e: ImpureCodeEncounteredException) if dctx.isExtern =>
+              NoTree(toPureScalaType(current.tpe)(dctx, current.pos))
+          }
+
+          rest = None
+
+          Require(pre, b)
+
         case ExArrayLiteral(tpe, args) =>
-          FiniteArray(args.map(extractTree)).setType(ArrayType(extractType(tpe)))
+          FiniteArray(args.map(extractTree)).setType(ArrayType(extractType(tpe)(dctx, current.pos)))
 
         case ExCaseObject(sym) =>
           getClassDef(sym, current.pos) match {
@@ -717,8 +1022,8 @@ trait CodeExtraction extends ASTExtractors {
           val tupleType = TupleType(tupleExprs.map(expr => expr.getType))
           Tuple(tupleExprs)
 
-        case ExErrorExpression(str, tpe) =>
-          Error(str).setType(extractType(tpe))
+        case ExErrorExpression(str, tpt) =>
+          Error(str).setType(extractType(tpt))
 
         case ExTupleExtract(tuple, index) =>
           val tupleExpr = extractTree(tuple)
@@ -732,8 +1037,8 @@ trait CodeExtraction extends ASTExtractors {
           }
 
         case ExValDef(vs, tpt, bdy) =>
-          val binderTpe = extractType(tpt.tpe)
-          val newID = FreshIdentifier(vs.name.toString).setType(binderTpe)
+          val binderTpe = extractType(tpt)
+          val newID = FreshIdentifier(vs.name.toString).setType(binderTpe).setOwner(currentFunDef)
           val valTree = extractTree(bdy)
 
           if(valTree.getType.isInstanceOf[ArrayType]) {
@@ -764,11 +1069,11 @@ trait CodeExtraction extends ASTExtractors {
 
           fd.addAnnotation(annotationsOf(d.symbol).toSeq : _*)
 
-          val newDctx = dctx.copy(tparams = dctx.tparams ++ tparamsMap)
+          val newDctx = dctx.copy(tparams = dctx.tparams ++ tparamsMap, isExtern = isExtern(sym))
 
           val oldCurrentFunDef = currentFunDef
 
-          val funDefWithBody = extractFunBody(fd, params, b)(newDctx.copy(mutableVars = Map()))
+          val funDefWithBody = extractFunBody(fd, params, b)(newDctx.copy(mutableVars = Map())).setOwner(oldCurrentFunDef)
 
           currentFunDef = oldCurrentFunDef
 
@@ -784,8 +1089,8 @@ trait CodeExtraction extends ASTExtractors {
          */
 
         case ExVarDef(vs, tpt, bdy) => {
-          val binderTpe = extractType(tpt.tpe)
-          val newID = FreshIdentifier(vs.name.toString).setType(binderTpe)
+          val binderTpe = extractType(tpt)
+          val newID = FreshIdentifier(vs.name.toString).setType(binderTpe).setOwner(currentFunDef)
           val valTree = extractTree(bdy)
 
           if(valTree.getType.isInstanceOf[ArrayType]) {
@@ -838,8 +1143,8 @@ trait CodeExtraction extends ASTExtractors {
           w.invariant = Some(invTree)
           w
 
-        case epsi @ ExEpsilonExpression(tpe, varSym, predBody) =>
-          val pstpe = extractType(tpe)
+        case epsi @ ExEpsilonExpression(tpt, varSym, predBody) =>
+          val pstpe = extractType(tpt)
           val nctx = dctx.withNewVar(varSym -> (() => EpsilonVariable(epsi.pos).setType(pstpe)))
           val c1 = extractTree(predBody)(nctx)
           if(containsEpsilon(c1)) {
@@ -847,8 +1152,8 @@ trait CodeExtraction extends ASTExtractors {
           }
           Epsilon(c1).setType(pstpe)
 
-        case ExWaypointExpression(tpe, i, tree) =>
-          val pstpe = extractType(tpe)
+        case ExWaypointExpression(tpt, i, tree) =>
+          val pstpe = extractType(tpt)
           val IntLiteral(ri) = extractTree(i)
           Waypoint(ri, extractTree(tree)).setType(pstpe)
 
@@ -900,12 +1205,34 @@ trait CodeExtraction extends ASTExtractors {
               outOfSubsetError(tr, "Unidentified variable "+sym+" "+sym.id+".")
           }
 
-        case chs @ ExChooseExpression(args, tpe, body, select) =>
-          val cTpe  = extractType(tpe)
+        case hole @ ExHoleExpression(tpt, exprs) =>
+          val leonExprs = exprs.map(extractTree)
 
-          val vars = args map { case (tpe, sym) =>
-            val aTpe  = extractType(tpe)
-            val newID = FreshIdentifier(sym.name.toString).setType(aTpe)
+          Hole(extractType(tpt), exprs.map(extractTree))
+
+        case ops @ ExWithOracleExpression(oracles, body) =>
+          val newOracles = oracles map { case (tpt, sym) =>
+            val aTpe  = extractType(tpt)
+            val oTpe  = oracleType(ops.pos, aTpe)
+            val newID = FreshIdentifier(sym.name.toString).setType(oTpe).setOwner(currentFunDef)
+            owners += (newID -> None)
+            newID
+          }
+
+          val newVars = (oracles zip newOracles).map {
+            case ((_, sym), id) =>
+              sym -> (() => Variable(id))
+          }
+
+          val cBody = extractTree(body)(dctx.withNewVars(newVars))
+
+          WithOracle(newOracles, cBody)
+
+
+        case chs @ ExChooseExpression(args, body) =>
+          val vars = args map { case (tpt, sym) =>
+            val aTpe  = extractType(tpt)
+            val newID = FreshIdentifier(sym.name.toString).setType(aTpe).setOwner(currentFunDef)
             owners += (newID -> None)
             newID
           }
@@ -920,7 +1247,7 @@ trait CodeExtraction extends ASTExtractors {
           Choose(vars, cBody)
 
         case ExCaseClassConstruction(tpt, args) =>
-          extractType(tpt.tpe) match {
+          extractType(tpt) match {
             case cct: CaseClassType =>
               val nargs = args.map(extractTree(_))
               CaseClass(cct, nargs)
@@ -930,57 +1257,21 @@ trait CodeExtraction extends ASTExtractors {
 
           }
 
-        case ExAnd(l, r)           => And(extractTree(l), extractTree(r))
-        case ExOr(l, r)            => Or(extractTree(l), extractTree(r))
         case ExNot(e)              => Not(extractTree(e))
+
         case ExUMinus(e)           =>
           val re = extractTree(e)
-          assert(re.getType != RealType) // TODO: remove assert if always holds
           re.getType match {
             case RealType => UMinusR(re)
             case _ => UMinus(re)
           }
         case ExUMinusR(e)           =>
           val re = extractTree(e)
-          assert(re.getType == RealType)  // TODO: remove assert if always holds
           re.getType match {
             case RealType => UMinusR(re)
             case _ => UMinus(re)
           }
-        case ExPlus(l, r)          =>
-          val rl = extractTree(l)
-          val rr = extractTree(r)
-          (rl.getType, rr.getType) match {
-            case (RealType, _) | (_, RealType) => PlusR(rl, rr)
-            case _ => Plus(rl, rr)
-          }
-        case ExMinus(l, r)         =>
-          val rl = extractTree(l)
-          val rr = extractTree(r)
-          (rl.getType, rr.getType) match {
-            case (RealType, _) | (_, RealType) => MinusR(rl, rr)
-            case _ => Minus(rl, rr)
-          }
-        case ExTimes(l, r)         =>
-          val rl = extractTree(l)
-          val rr = extractTree(r)
-          (rl.getType, rr.getType) match {
-            case (RealType, _) | (_, RealType) => TimesR(rl, rr)
-            case _ => Times(rl, rr)
-          }
-        case ExDiv(l, r)           =>
-          val rl = extractTree(l)
-          val rr = extractTree(r)
-          (rl.getType, rr.getType) match {
-            case (RealType, _) | (_, RealType) => DivisionR(rl, rr)
-            case _ => Division(rl, rr)
-          }
-        case ExMod(l, r)           => Modulo(extractTree(l), extractTree(r))
-        case ExNotEquals(l, r)     => Not(Equals(extractTree(l), extractTree(r)))
-        case ExGreaterThan(l, r)   => GreaterThan(extractTree(l), extractTree(r))
-        case ExGreaterEqThan(l, r) => GreaterEquals(extractTree(l), extractTree(r))
-        case ExLessThan(l, r)      => LessThan(extractTree(l), extractTree(r))
-        case ExLessEqThan(l, r)    => LessEquals(extractTree(l), extractTree(r))
+
         case ExEquals(l, r) =>
           val rl = extractTree(l)
           val rr = extractTree(r)
@@ -1012,6 +1303,7 @@ trait CodeExtraction extends ASTExtractors {
           case None =>
             outOfSubsetError(tr, "Unidentified variable "+sym+" "+sym.id+".")
         }
+        case ExDummyReal() => new RealLiteral(0.0)
         case ExSqrt(e) => SqrtR(extractTree(e))
         case ExCircle(l, r) =>
           def raise(x: LeonExpr, to: Int, runningProduct: LeonExpr): LeonExpr = {
@@ -1124,31 +1416,31 @@ trait CodeExtraction extends ASTExtractors {
           //outOfSubsetError(tr, "blubb")
           
         case ExFiniteSet(tt, args)  =>
-          val underlying = extractType(tt.tpe)
-          FiniteSet(args.map(extractTree(_))).setType(SetType(underlying))
+          val underlying = extractType(tt)
+          FiniteSet(args.map(extractTree(_)).toSet).setType(SetType(underlying))
 
         case ExFiniteMultiset(tt, args) =>
-          val underlying = extractType(tt.tpe)
+          val underlying = extractType(tt)
           FiniteMultiset(args.map(extractTree(_))).setType(MultisetType(underlying))
 
         case ExEmptySet(tt) =>
-          val underlying = extractType(tt.tpe)
-          FiniteSet(Seq()).setType(SetType(underlying))
+          val underlying = extractType(tt)
+          FiniteSet(Set()).setType(SetType(underlying))
 
         case ExEmptyMultiset(tt) =>
-          val underlying = extractType(tt.tpe)
+          val underlying = extractType(tt)
           EmptyMultiset(underlying).setType(MultisetType(underlying))
 
         case ExEmptyMap(ft, tt) =>
-          val fromUnderlying = extractType(ft.tpe)
-          val toUnderlying   = extractType(tt.tpe)
+          val fromUnderlying = extractType(ft)
+          val toUnderlying   = extractType(tt)
           val tpe = MapType(fromUnderlying, toUnderlying)
 
           FiniteMap(Seq()).setType(tpe)
 
         case ExLiteralMap(ft, tt, elems) =>
-          val fromUnderlying = extractType(ft.tpe)
-          val toUnderlying   = extractType(tt.tpe)
+          val fromUnderlying = extractType(ft)
+          val toUnderlying   = extractType(tt)
           val tpe = MapType(fromUnderlying, toUnderlying)
 
           val singletons: Seq[(LeonExpr, LeonExpr)] = elems.collect {
@@ -1163,7 +1455,7 @@ trait CodeExtraction extends ASTExtractors {
           FiniteMap(singletons).setType(tpe)
 
         case ExArrayFill(baseType, length, defaultValue) =>
-          val underlying = extractType(baseType.tpe)
+          val underlying = extractType(baseType)
           val lengthRec = extractTree(length)
           val defaultValueRec = extractTree(defaultValue)
           ArrayFill(lengthRec, defaultValueRec).setType(ArrayType(underlying))
@@ -1186,7 +1478,7 @@ trait CodeExtraction extends ASTExtractors {
 
         case ExIsInstanceOf(tt, cc) => {
           val ccRec = extractTree(cc)
-          val checkType = extractType(tt.tpe)
+          val checkType = extractType(tt)
           checkType match {
             case cct @ CaseClassType(ccd, tps) => {
               val rootType: LeonClassDef  = if(ccd.parent != None) ccd.parent.get.classDef else ccd
@@ -1218,7 +1510,7 @@ trait CodeExtraction extends ASTExtractors {
           MatchExpr(rs, rc).setType(rt)
 
         case t: This =>
-          extractType(t.tpe) match {
+          extractType(t) match {
             case ct: ClassType =>
               LeonThis(ct)
             case _ =>
@@ -1232,6 +1524,30 @@ trait CodeExtraction extends ASTExtractors {
 
           ArrayUpdated(rar, rk, rv)
 
+        case l @ ExListLiteral(tpe, elems) =>
+          val rtpe = extractType(l)
+          val cons = CaseClassType(libraryCaseClass(l.pos, "leon.collection.Cons"), Seq(rtpe));
+          val nil  = CaseClassType(libraryCaseClass(l.pos, "leon.collection.Nil"),  Seq(rtpe));
+
+          elems.foldRight(CaseClass(nil, Seq())) {
+            case (e, ls) => CaseClass(cons, Seq(extractTree(e), ls))
+          }
+
+        case chr @ ExCharLiteral(c) =>
+          CharLiteral(c)
+
+        case str @ ExStringLiteral(s) =>
+          val chars = s.toList.map(CharLiteral(_))
+          
+          val consChar = CaseClassType(libraryCaseClass(str.pos, "leon.collection.Cons"), Seq(CharType));
+          val nilChar  = CaseClassType(libraryCaseClass(str.pos, "leon.collection.Nil"),  Seq(CharType));
+
+          val charList = chars.foldRight(CaseClass(nilChar, Seq())) {
+            case (c, s) => CaseClass(consChar, Seq(c, s))
+          }
+
+          CaseClass(CaseClassType(libraryCaseClass(str.pos, "leon.lang.string.String"), Seq()), Seq(charList))
+
         case c @ ExCall(rec, sym, tps, args) =>
           val rrec = rec match {
             case t if (defsToDefs contains sym) && !isMethod(sym) =>
@@ -1242,11 +1558,15 @@ trait CodeExtraction extends ASTExtractors {
 
           val rargs = args.map(extractTree)
 
+          //println(s"symbol $sym with id ${sym.id}")
+          //println(s"isMethod($sym) == ${isMethod(sym)}")
+          
+          
           (rrec, sym.name.decoded, rargs) match {
             case (null, _, args) =>
               val fd = getFunDef(sym, c.pos)
 
-              val newTps = tps.map(t => extractType(t.tpe))
+              val newTps = tps.map(t => extractType(t))
 
               FunctionInvocation(fd.typed(newTps), args).setType(fd.returnType)
 
@@ -1254,7 +1574,7 @@ trait CodeExtraction extends ASTExtractors {
               val fd = getFunDef(sym, c.pos)
               val cd = methodToClass(fd)
 
-              val newTps = tps.map(t => extractType(t.tpe))
+              val newTps = tps.map(t => extractType(t))
 
               MethodInvocation(rec, cd, fd.typed(newTps), args)
 
@@ -1263,6 +1583,88 @@ trait CodeExtraction extends ASTExtractors {
               val fieldID = cct.fields.find(_.id.name == name).get.id
 
               CaseClassSelector(cct, rec, fieldID)
+
+            case (a1, "!=", List(a2)) =>
+              Not(Equals(a1, a2))
+
+            // Int methods
+            case (IsTyped(a1, Int32Type), "+", List(IsTyped(a2, Int32Type))) =>
+              Plus(a1, a2)
+
+            case (IsTyped(a1, Int32Type), "-", List(IsTyped(a2, Int32Type))) =>
+              Minus(a1, a2)
+
+            case (IsTyped(a1, Int32Type), "*", List(IsTyped(a2, Int32Type))) =>
+              Times(a1, a2)
+
+            case (IsTyped(a1, Int32Type), "%", List(IsTyped(a2, Int32Type))) =>
+              Modulo(a1, a2)
+
+            case (IsTyped(a1, Int32Type), "/", List(IsTyped(a2, Int32Type))) =>
+              Division(a1, a2)
+
+            case (IsTyped(a1, Int32Type), ">", List(IsTyped(a2, Int32Type))) =>
+              GreaterThan(a1, a2)
+
+            case (IsTyped(a1, Int32Type), ">=", List(IsTyped(a2, Int32Type))) =>
+              GreaterEquals(a1, a2)
+
+            case (IsTyped(a1, Int32Type), "<", List(IsTyped(a2, Int32Type))) =>
+              LessThan(a1, a2)
+
+            case (IsTyped(a1, Int32Type), "<=", List(IsTyped(a2, Int32Type))) =>
+              LessEquals(a1, a2)
+
+            case (IsTyped(a1, Int32Type), "<=", List(IsTyped(a2, Int32Type))) =>
+              LessEquals(a1, a2)
+
+            // Real methods
+            case (IsTyped(a1, x), "+", List(IsTyped(a2, y))) if (x == RealType || y == RealType) =>
+              PlusR(a1, a2)
+
+            case (IsTyped(a1, Int32Type), "-", List(IsTyped(a2, RealType))) =>
+              MinusR(a1, a2)
+            
+            case (IsTyped(a1, RealType), "-", List(IsTyped(a2, RealType))) =>
+              MinusR(a1, a2)
+
+            case (IsTyped(a1, RealType), "*", List(IsTyped(a2, RealType))) =>
+              TimesR(a1, a2)
+
+            case (IsTyped(a1, RealType), "/", List(IsTyped(a2, RealType))) =>
+              DivisionR(a1, a2)
+
+            case (IsTyped(a1, RealType), "/", List(IsTyped(a2, Int32Type))) =>
+              DivisionR(a1, a2)
+
+            case (IsTyped(a1, RealType), ">", List(IsTyped(a2, RealType))) =>
+              GreaterThan(a1, a2)
+
+            case (IsTyped(a1, RealType), ">=", List(IsTyped(a2, RealType))) =>
+              GreaterEquals(a1, a2)
+
+            case (IsTyped(a1, RealType), "<", List(IsTyped(a2, RealType))) =>
+              LessThan(a1, a2)
+
+            case (IsTyped(a1, RealType), "<=", List(IsTyped(a2, RealType))) =>
+              LessEquals(a1, a2)
+
+            case (IsTyped(a1, RealType), "<=", List(IsTyped(a2, RealType))) =>
+              LessEquals(a1, a2)
+
+            case (IsTyped(a1, LoopCounterType), "<", List(IsTyped(a2, Int32Type))) =>
+              LessThan(a1, a2)
+
+            // end real methods
+
+            
+
+            // Boolean methods
+            case (IsTyped(a1, BooleanType), "&&", List(IsTyped(a2, BooleanType))) =>
+              And(a1, a2)
+
+            case (IsTyped(a1, BooleanType), "||", List(IsTyped(a2, BooleanType))) =>
+              Or(a1, a2)
 
             // Set methods
             case (IsTyped(a1, SetType(b1)), "min", Nil) =>
@@ -1333,8 +1735,15 @@ trait CodeExtraction extends ASTExtractors {
             case (IsTyped(x, LoopCounterType), "++", List()) =>
               PlusR(x, IntLiteral(1))
 
+            case (IsTyped(a1, mt1: MapType), "++", List(IsTyped(a2, mt2: MapType)))  if mt1 == mt2 =>
+              MapUnion(a1, a2).setType(mt1)
               
-            case (_, name, _) =>
+            case (x, name, y) =>
+              println(c)
+              println(x + "  " + x.getClass)
+              println(x.getType)
+              println(y + "  " + y.getClass)
+              println(y(0).getType)
               outOfSubsetError(tr, "Unknown call to "+name)
           }
 
@@ -1353,7 +1762,14 @@ trait CodeExtraction extends ASTExtractors {
       }
     }
 
-    private def extractType(tpt: Type)(implicit dctx: DefContext): LeonType = tpt match {
+    private def extractType(t: Tree)(implicit dctx: DefContext): LeonType = {
+      extractType(t.tpe)(dctx, t.pos)
+    }
+
+    private def extractType(tpt: Type)(implicit dctx: DefContext, pos: Position): LeonType = tpt match {
+      case tpe if tpe == CharClass.tpe =>
+        CharType
+
       case tpe if tpe == IntClass.tpe =>
         Int32Type
 
@@ -1364,7 +1780,7 @@ trait CodeExtraction extends ASTExtractors {
         UnitType
 
       case tpe if tpe == NothingClass.tpe =>
-        BottomType
+        Untyped
 
       case TypeRef(pkg, sym, Nil) if (isReal(sym)) =>
         RealType
@@ -1404,6 +1820,9 @@ trait CodeExtraction extends ASTExtractors {
       case TypeRef(_, sym, btt :: Nil) if isArrayClassSym(sym) =>
         ArrayType(extractType(btt))
 
+      case TypeRef(_, sym, tps) if isByNameSym(sym) =>
+        extractType(tps.head)
+
       case TypeRef(_, sym, tps) =>
         val leontps = tps.map(extractType)
 
@@ -1411,18 +1830,42 @@ trait CodeExtraction extends ASTExtractors {
           if(dctx.tparams contains sym) {
             dctx.tparams(sym)
           } else {
-            outOfSubsetError(NoPosition, "Unknown type parameter "+sym)
+            outOfSubsetError(pos, "Unknown type parameter "+sym)
           }
         } else {
           getClassType(sym, leontps)
         }
 
       case tt: ThisType =>
-        val cd = getClassDef(tt.sym, NoPosition)
+        val cd = getClassDef(tt.sym, pos)
         classDefToClassType(cd, cd.tparams.map(_.tp)) // Typed using own's type parameters
 
       case SingleType(_, sym) =>
         getClassType(sym.moduleClass, Nil)
+
+      case RefinedType(parents, defs) if defs.isEmpty =>
+        /**
+         * For cases like if(a) e1 else e2 where 
+         *   e1 <: C1,
+         *   e2 <: C2,
+         *   with C1,C2 <: C
+         * 
+         * Scala might infer a type for C such as: Product with Serializable with C
+         * we generalize to the first known type, e.g. C.
+         */
+        parents.flatMap { ptpe =>
+          try {
+            Some(extractType(ptpe))
+          } catch {
+            case e: ImpureCodeEncounteredException =>
+              None
+        }}.headOption match {
+          case Some(tpe) =>
+            tpe
+
+          case None =>
+            outOfSubsetError(tpt.typeSymbol.pos, "Could not extract refined type as PureScala: "+tpt+" ("+tpt.getClass+")")
+        }
 
       case _ =>
         outOfSubsetError(tpt.typeSymbol.pos, "Could not extract type as PureScala: "+tpt+" ("+tpt.getClass+")")
@@ -1434,14 +1877,14 @@ trait CodeExtraction extends ASTExtractors {
       if (seenClasses contains sym) {
         classDefToClassType(getClassDef(sym, NoPosition), tps)
       } else {
-        if (dctx.isProxy) {
+        if (dctx.isExtern) {
           unknownsToTP.getOrElse(sym, {
             val tp = TypeParameter(FreshIdentifier(sym.name.toString, true))
             unknownsToTP += sym -> tp
             tp
           })
         } else {
-          outOfSubsetError(NoPosition, "Unknown class "+sym.name)
+          outOfSubsetError(NoPosition, "Unknown class "+sym.fullName)
         }
       }
     }

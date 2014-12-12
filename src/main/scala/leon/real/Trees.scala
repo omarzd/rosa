@@ -9,9 +9,10 @@ import purescala.TypeTreeOps.leastUpperBound
 import purescala.Trees._
 import purescala.Definitions._
 import purescala.Extractors._
-import purescala.{PrettyPrinter, PrettyPrintable, ScalaPrinter}
+import purescala.{PrettyPrinter, PrettyPrintable, ScalaPrinter, PrinterContext}
 
 object Trees {
+  import purescala.PrinterHelpers._
 
   case class RealLiteral(value: Rational) extends Expr with Terminal with FixedType with PrettyPrintable {
     var floatType = false // for code generation of single-precision floating-point constants
@@ -19,9 +20,9 @@ object Trees {
     def this(d: Double) = this(Rational.rationalFromReal(d))
     def this(i: Int) = this(Rational(i))
 
-    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
-      if (floatType) printer.append(value.toString + "f")
-      else printer.append(value.toString)
+    def printWith(implicit pctx: PrinterContext) {
+      if (floatType) p"${value.toString}f"
+      else p"${value.toString}"
     }
   }
 
@@ -32,15 +33,15 @@ object Trees {
     def this(d: Double) = this(Rational.rationalFromReal(d))
     def this(i: Int) = this(Rational(i))
 
-    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
-      printer.append(value.toString + "f")
+    def printWith(implicit pctx: PrinterContext) {
+      p"${value.toString}f"
     }
   }
 
   case class LongLiteral(value: Long) extends Expr with Terminal with FixedType with PrettyPrintable {
     val fixedType = Int64Type
-    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
-      printer.append(value.toString + "l")
+    def printWith(implicit pctx: PrinterContext) {
+      p"${value.toString}l"
     }
   }
 
@@ -51,12 +52,8 @@ object Trees {
       Some((varr, error, (t1, t2) => Noise(t1, t2)))
     }
 
-    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
-      printer.append("(")
-      printer.pp(varr, Some(this))
-      printer.append(" +/- ")
-      printer.pp(error, Some(this))
-      printer.append(")")
+    def printWith(implicit pctx: PrinterContext) {
+      p"($varr +/- $error)"
     }
   }
 
@@ -66,10 +63,8 @@ object Trees {
     def extract: Option[(Expr, (Expr)=>Expr)] = {
       Some((expr, (e) => Roundoff(e)))
     }
-    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
-      printer.append("rndoof(")
-      printer.pp(expr, Some(this))
-      printer.append(")")
+    def printWith(implicit pctx: PrinterContext) {
+      p"rndoof($expr)"
     }
   }
 
@@ -79,9 +74,8 @@ object Trees {
     def extract: Option[(Expr, (Expr)=>Expr)] = {
       Some((expr, (e) => Actual(e)))
     }
-    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
-      printer.append("~")
-      printer.pp(expr, Some(this))
+    def printWith(implicit pctx: PrinterContext) {
+      p"~$expr"
     }
   }
 
@@ -92,13 +86,8 @@ object Trees {
     def extract: Option[(Expr, (Expr)=>Expr)] = {
       Some((varr, (e) => WithIn(e, lwrBnd, upBnd)))
     }
-    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
-      printer.pp(varr, Some(this))
-      printer.append(" \u2208 (")
-      printer.append(lwrBnd.toString)
-      printer.append(",")
-      printer.append(upBnd.toString)
-      printer.append(")")
+    def printWith(implicit pctx: PrinterContext) {
+      p"$varr \u2208 ($lwrBnd, $upBnd)"
     }
   }
 
@@ -108,13 +97,8 @@ object Trees {
     def extract: Option[(Expr, (Expr)=>Expr)] = {
       Some((varr, (e) => WithInEq(e, lwrBnd, upBnd)))
     }
-    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
-      printer.pp(varr, Some(this))
-      printer.append(" \u2208 [")
-      printer.append(lwrBnd.toString)
-      printer.append(",")
-      printer.append(upBnd.toString)
-      printer.append("]")
+    def printWith(implicit pctx: PrinterContext) {
+      p"$varr \u2208 [$lwrBnd, $upBnd]"
     }
   }
 
@@ -125,9 +109,8 @@ object Trees {
     def extract: Option[(Expr, (Expr)=>Expr)] = {
       Some((expr, (e) => InitialNoise(e)))
     }
-    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
-      printer.append("!")
-      printer.pp(expr, Some(this))
+    def printWith(implicit pctx: PrinterContext) {
+      p"!$expr"
     }
   }
 
@@ -142,12 +125,8 @@ object Trees {
       Some((expr, err, (t1, t2) => RelError(t1, t2)))
     }
 
-    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
-      printer.append("relError(")
-      printer.pp(expr, Some(this))
-      printer.append(", ")
-      printer.pp(err, Some(this))
-      printer.append(")")
+    def printWith(implicit pctx: PrinterContext) {
+      p"relError($expr, $err)"
     }
   }
 
@@ -156,10 +135,8 @@ object Trees {
     def extract: Option[(Expr, (Expr)=>Expr)] = {
       Some((expr, (e) => Assertion(e)))
     }
-    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
-      printer.append("assert(")
-      printer.pp(expr, Some(this))
-      printer.append(")")
+    def printWith(implicit pctx: PrinterContext) {
+      p"assert($expr)"
     }
   }
 
@@ -174,12 +151,8 @@ object Trees {
       Some((lhs, rhs, (t1, t2) => PlusR(t1, t2)))
     }
 
-    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
-      printer.append("(")
-      printer.pp(lhs, Some(this))
-      printer.append(" + ")
-      printer.pp(rhs, Some(this))
-      printer.append(")")
+    def printWith(implicit pctx: PrinterContext) {
+      p"($lhs + $rhs)"
     }
   }
   case class MinusR(lhs: Expr, rhs: Expr) extends Expr with FixedType with BinaryExtractable with PrettyPrintable with RealArithmetic {
@@ -187,12 +160,8 @@ object Trees {
     def extract: Option[(Expr, Expr, (Expr, Expr)=>Expr)] = {
       Some((lhs, rhs, (t1, t2) => MinusR(t1, t2)))
     }
-    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
-      printer.append("(")
-      printer.pp(lhs, Some(this))
-      printer.append(" - ")
-      printer.pp(rhs, Some(this))
-      printer.append(")")
+    def printWith(implicit pctx: PrinterContext) {
+      p"($lhs - $rhs)"
     }
   }
   case class UMinusR(expr: Expr) extends Expr with FixedType with UnaryExtractable with PrettyPrintable with RealArithmetic {
@@ -200,10 +169,8 @@ object Trees {
     def extract: Option[(Expr, (Expr)=>Expr)] = {
       Some((expr, (e) => UMinusR(e)))
     }
-    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
-      printer.append("(-")
-      printer.pp(expr, Some(this))
-      printer.append(")")
+    def printWith(implicit pctx: PrinterContext) {
+      p"(-$expr)"
     }
   }
   case class TimesR(lhs: Expr, rhs: Expr) extends Expr with FixedType with BinaryExtractable with PrettyPrintable with RealArithmetic {
@@ -211,12 +178,8 @@ object Trees {
     def extract: Option[(Expr, Expr, (Expr, Expr)=>Expr)] = {
       Some((lhs, rhs, (t1, t2) => TimesR(t1, t2)))
     }
-    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
-      printer.append("(")
-      printer.pp(lhs, Some(this))
-      printer.append(" * ")
-      printer.pp(rhs, Some(this))
-      printer.append(")")
+    def printWith(implicit pctx: PrinterContext) {
+      p"($lhs * $rhs)"
     }
   }
   case class DivisionR(lhs: Expr, rhs: Expr) extends Expr with FixedType with BinaryExtractable with PrettyPrintable with RealArithmetic {
@@ -224,12 +187,8 @@ object Trees {
     def extract: Option[(Expr, Expr, (Expr, Expr)=>Expr)] = {
       Some((lhs, rhs, (t1, t2) => DivisionR(t1, t2)))
     }
-    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
-      printer.append("(")
-      printer.pp(lhs, Some(this))
-      printer.append(" / ")
-      printer.pp(rhs, Some(this))
-      printer.append(")")
+    def printWith(implicit pctx: PrinterContext) {
+      p"($lhs / $rhs)"
     }
   }
   case class PowerR(lhs: Expr, rhs: Expr) extends Expr with FixedType with BinaryExtractable with PrettyPrintable with RealArithmetic {
@@ -240,12 +199,8 @@ object Trees {
     def extract: Option[(Expr, Expr, (Expr, Expr)=>Expr)] = {
       Some((lhs, rhs, (t1, t2) => PowerR(t1, t2)))
     }
-    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
-      printer.append("(")
-      printer.pp(lhs, Some(this))
-      printer.append(" ^ ")
-      printer.pp(rhs, Some(this))
-      printer.append(")")
+    def printWith(implicit pctx: PrinterContext) {
+      p"($lhs ^ $rhs)"
     }
   }
   case class SqrtR(expr: Expr) extends Expr with FixedType with UnaryExtractable with PrettyPrintable with RealArithmetic {
@@ -253,10 +208,8 @@ object Trees {
     def extract: Option[(Expr, (Expr)=>Expr)] = {
       Some((expr, (e) => SqrtR(e)))
     }
-    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
-      printer.append("sqrt(")
-      printer.pp(expr, Some(this))
-      printer.append(")")
+    def printWith(implicit pctx: PrinterContext) {
+      p"sqrt($expr)"
     }
   }
 
@@ -286,14 +239,8 @@ object Trees {
     def extract: Option[(Seq[Expr], (Seq[Expr])=>Expr)] = {
       Some((exprs, (es) => Product(es)))
     }
-    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
-      printer.append("(")
-      (exprs.init).foreach(e => {
-        printer.pp(e, Some(this))
-        printer.append(" * ")
-      })
-      printer.pp(exprs.last, Some(this))
-      printer.append(")")
+    def printWith(implicit pctx: PrinterContext) {
+      p"""(${exprs.mkString(" * ")})"""
     }
   }
 
@@ -306,12 +253,8 @@ object Trees {
       Some((lhs, rhs, (t1, t2) => PlusF(t1, t2)))
     }
 
-    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
-      printer.append("(")
-      printer.pp(lhs, Some(this))
-      printer.append(" \u2295 ")
-      printer.pp(rhs, Some(this))
-      printer.append(")")
+    def printWith(implicit pctx: PrinterContext) {
+      p"($lhs \u2295 $rhs)"
     }
   }
   case class MinusF(lhs: Expr, rhs: Expr) extends Expr with FixedType with BinaryExtractable with PrettyPrintable {
@@ -319,12 +262,8 @@ object Trees {
     def extract: Option[(Expr, Expr, (Expr, Expr)=>Expr)] = {
       Some((lhs, rhs, (t1, t2) => MinusF(t1, t2)))
     }
-    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
-      printer.append("(")
-      printer.pp(lhs, Some(this))
-      printer.append(" \u2296 ")
-      printer.pp(rhs, Some(this))
-      printer.append(")")
+    def printWith(implicit pctx: PrinterContext) {
+      p"($lhs \u2296 $rhs)"
     }
   }
   case class UMinusF(expr: Expr) extends Expr with FixedType with UnaryExtractable with PrettyPrintable {
@@ -332,10 +271,8 @@ object Trees {
     def extract: Option[(Expr, (Expr)=>Expr)] = {
       Some((expr, (e) => UMinusF(e)))
     }
-    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
-      printer.append("(\u2296")
-      printer.pp(expr, Some(this))
-      printer.append(")")
+    def printWith(implicit pctx: PrinterContext) {
+      p"(\u2296 $expr)"
     }
   }
   case class TimesF(lhs: Expr, rhs: Expr) extends Expr with FixedType with BinaryExtractable with PrettyPrintable {
@@ -343,12 +280,8 @@ object Trees {
     def extract: Option[(Expr, Expr, (Expr, Expr)=>Expr)] = {
       Some((lhs, rhs, (t1, t2) => TimesF(t1, t2)))
     }
-    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
-      printer.append("(")
-      printer.pp(lhs, Some(this))
-      printer.append(" \u2297 ")
-      printer.pp(rhs, Some(this))
-      printer.append(")")
+    def printWith(implicit pctx: PrinterContext) {
+      p"($lhs \u2297 $rhs)"
     }
   }
   case class DivisionF(lhs: Expr, rhs: Expr) extends Expr with FixedType with BinaryExtractable with PrettyPrintable {
@@ -356,12 +289,8 @@ object Trees {
     def extract: Option[(Expr, Expr, (Expr, Expr)=>Expr)] = {
       Some((lhs, rhs, (t1, t2) => DivisionF(t1, t2)))
     }
-    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
-      printer.append("(")
-      printer.pp(lhs, Some(this))
-      printer.append(" \u2298 ")
-      printer.pp(rhs, Some(this))
-      printer.append(")")
+    def printWith(implicit pctx: PrinterContext) {
+      p"($lhs \u2298 $rhs)"
     }
   }
   case class SqrtF(expr: Expr) extends Expr with FixedType with UnaryExtractable with PrettyPrintable {
@@ -369,10 +298,8 @@ object Trees {
     def extract: Option[(Expr, (Expr)=>Expr)] = {
       Some((expr, (e) => SqrtF(e)))
     }
-    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
-      printer.append("sqrtF(")
-      printer.pp(expr, Some(this))
-      printer.append(")")
+    def printWith(implicit pctx: PrinterContext) {
+      p"sqrtF($expr)"
     }
   }
 
@@ -384,10 +311,8 @@ object Trees {
     def extract: Option[(Expr, (Expr)=>Expr)] = {
       Some((specExpr, (e) => FncValue(spec, e, model, funDef, params)))
     }
-    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
-      printer.append("fncVal(" + spec.toString + "-")
-      printer.pp(specExpr, Some(this))
-      printer.append(model + ")")
+    def printWith(implicit pctx: PrinterContext) {
+      p"fncVal(${spec.toString}-$specExpr-$model)"
     }
   }
 
@@ -396,10 +321,8 @@ object Trees {
     def extract: Option[(Expr, (Expr)=>Expr)] = {
       Some((specExpr, (e) => FncValueF(spec, e, funDef, params)))
     }
-    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
-      printer.append("fncValF(" + spec.toString + ")(")
-      printer.pp(specExpr, Some(this))
-      printer.append(")")
+    def printWith(implicit pctx: PrinterContext) {
+      p"fncValF(${spec.toString})($specExpr)"
     }
   }
 
@@ -409,10 +332,8 @@ object Trees {
     def extract: Option[(Expr, (Expr)=>Expr)] = {
       Some((body, (e) => FncBody(name, e, funDef, params)))
     }
-    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
-      printer.append("fnc_" + name + "(")
-      printer.pp(body, Some(this))
-      printer.append(")")
+    def printWith(implicit pctx: PrinterContext) {
+      p"fnc_$name($body)"
     }
   }
 
@@ -421,10 +342,8 @@ object Trees {
     def extract: Option[(Expr, (Expr)=>Expr)] = {
       Some((body, (e) => FncBodyF(name, e, funDef, params)))
     }
-    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
-      printer.append("fnc_" + name + "_f(")
-      printer.pp(body, Some(this))
-      printer.append(")")
+    def printWith(implicit pctx: PrinterContext) {
+      p"fnc_${name}_f($body)"
     }
   }
 
@@ -432,31 +351,25 @@ object Trees {
   // approximates some other expression
   case class ApproxNode(xfloat: XReal) extends Expr with FixedType with Terminal with PrettyPrintable {
     val fixedType = RealType
-    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
-      printer.append("approx(")
-      printer.append(xfloat.toString)
-      printer.append(")")
+    def printWith(implicit pctx: PrinterContext) {
+      p"approx($xfloat)"
     }
   }
 
   case class FloatIfExpr(cond: Expr, thenn: Expr, elze: Expr) extends Expr with FixedType with NAryExtractable with PrettyPrintable {
-    val fixedType = leastUpperBound(thenn.getType, elze.getType).getOrElse(AnyType)
+    val fixedType = leastUpperBound(thenn.getType, elze.getType).getOrElse(Untyped)
 
     def extract: Option[(Seq[Expr], (Seq[Expr])=>Expr)] = {
       Some((Seq(cond, thenn, elze), (es) => FloatIfExpr(es(0), es(1), es(2))))
     }
 
-    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
-      printer.append("iff (")
-      printer.pp(cond, Some(this))
-      printer.append(")\n")
-      printer.ind(lvl + 1)
-      printer.pp(thenn, Some(this))(lvl + 1)
-      printer.append("\n")
-      printer.ind(lvl)
-      printer.append("elsse\n")
-      printer.ind(lvl + 1)
-      printer.pp(elze, Some(this))(lvl + 1)
+    def printWith(implicit pctx: PrinterContext) {
+      p"""|iff ($cond){
+          |  $thenn
+          |} elsse
+          |  $elze
+          |}
+          """
     }
   }
 
@@ -468,14 +381,8 @@ object Trees {
       Some((args, (es) => FncInvocationF(funDef, es)))
     }
 
-    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
-      printer.append(funDef.id.name + "_f(")
-      (args.init).foreach(e => {
-        printer.pp(e,  Some(this))
-        printer.append(", ")
-      })
-      printer.pp(args.last, Some(this))
-      printer.append(")")
+    def printWith(implicit pctx: PrinterContext) {
+      p"""${funDef.id.name}_f(${args.mkString(", ")})"""
     }
   }
 
@@ -492,12 +399,8 @@ object Trees {
     def extract: Option[(Expr, Expr, (Expr, Expr)=>Expr)] = {
       Some((left, right, (t1, t2) => EqualsF(t1, t2)))
     }
-    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
-      printer.append("(")
-      printer.pp(left, Some(this))
-      printer.append(" === ")
-      printer.pp(right, Some(this))
-      printer.append(")")
+    def printWith(implicit pctx: PrinterContext) {
+      p"($left === $right)"
     }
   }
 
@@ -506,12 +409,8 @@ object Trees {
     def extract: Option[(Expr, (Expr)=>Expr)] = {
       Some((expr, (e) => RightShift(e, bits)))
     }
-    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
-      printer.append("(")
-      printer.pp(expr, Some(this))
-      printer.append(" >> ")
-      printer.append(bits.toString)
-      printer.append(")")
+    def printWith(implicit pctx: PrinterContext) {
+      p"($expr >> $bits)"
     }
   }
 
@@ -520,12 +419,8 @@ object Trees {
     def extract: Option[(Expr, (Expr)=>Expr)] = {
       Some((expr, (e) => LeftShift(e, bits)))
     }
-    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
-      printer.append("(")
-      printer.pp(expr, Some(this))
-      printer.append(" << ")
-      printer.append(bits.toString)
-      printer.append(")")
+    def printWith(implicit pctx: PrinterContext) {
+      p"($expr << $bits)"
     }
   }
 
@@ -536,12 +431,8 @@ object Trees {
       Some((expr, ValAssignment(varId, _)))
     }
 
-    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
-      printer.append("val ")
-      printer.append(varId.name)
-      printer.append(" = ")
-      printer.pp(expr, Some(this))
-      printer.append("")
+    def printWith(implicit pctx: PrinterContext) {
+      p"val ${varId.name} = $expr"
     }
   }
 
@@ -551,12 +442,8 @@ object Trees {
     def extract: Option[(Expr, Expr, (Expr, Expr)=>Expr)] = {
       Some((lhs, rhs, (t1, t2) => UpdateFunction(t1, t2)))
     }
-    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
-      printer.append("(")
-      printer.pp(lhs, Some(this))
-      printer.append(" <== ")
-      printer.pp(rhs, Some(this))
-      printer.append(")")
+    def printWith(implicit pctx: PrinterContext) {
+      p"($lhs <== $rhs)"
     }
   }
 
@@ -567,10 +454,8 @@ object Trees {
       Some((expr, InitialErrors(_)))
     }
 
-    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
-      printer.append("initialErrors(")
-      printer.pp(expr, Some(this))
-      printer.append(")")
+    def printWith(implicit pctx: PrinterContext) {
+      p"initialErrors($expr)"
     }
   }
 
@@ -596,9 +481,8 @@ object Trees {
       Some((expr, DocLine(tag, _)))
     }
 
-    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
-      printer.append("@" + tag + " ")
-      printer.pp(expr, Some(this))
+    def printWith(implicit pctx: PrinterContext) {
+      p"@$tag $expr"
     }
   }
 
@@ -609,18 +493,8 @@ object Trees {
       Some((Seq(body) ++ updateFncs, (es) => Iteration(ids, es(0), es.tail)))
     }
 
-    def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
-      printer.append("iterate (")
-      printer.append(ids.mkString(", "))
-      printer.append(") {\n")
-      printer.pp(body, Some(this))(lvl + 1)
-      printer.append("\n")
-      (updateFncs.init).foreach(e => {
-        printer.pp(e,  Some(this))(lvl + 1)
-        printer.append("\n")
-      })
-      printer.pp(updateFncs.last, Some(this))
-      printer.append("}")
+    def printWith(implicit pctx: PrinterContext) {
+      p"""iterate (${ids.mkString(", ")})\n ${body} \n ${updateFncs.mkString("\n")} }"""
     }
   }
 

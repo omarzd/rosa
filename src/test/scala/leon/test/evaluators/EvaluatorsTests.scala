@@ -1,21 +1,20 @@
-/* Copyright 2009-2013 EPFL, Lausanne */
+/* Copyright 2009-2014 EPFL, Lausanne */
 
-package leon.test
-package evaluators
+package leon.test.evaluators
 
 import leon._
+import leon.evaluators._ 
 
-import leon.evaluators._
-
-import leon.utils.TemporaryInputPhase
+import leon.utils.{TemporaryInputPhase, PreprocessingPhase}
 import leon.frontends.scalac.ExtractionPhase
 
 import leon.purescala.Common._
 import leon.purescala.Definitions._
 import leon.purescala.Trees._
+import leon.purescala.DefOps._
 import leon.purescala.TypeTrees._
 
-class EvaluatorsTests extends LeonTestSuite {
+class EvaluatorsTests extends leon.test.LeonTestSuite {
   private implicit lazy val leonContext = testContext
 
   private val evaluatorConstructors : List[(LeonContext,Program)=>Evaluator] = List(
@@ -26,7 +25,7 @@ class EvaluatorsTests extends LeonTestSuite {
   private def prepareEvaluators(implicit ctx : LeonContext, prog : Program) : List[Evaluator] = evaluatorConstructors.map(c => c(leonContext, prog))
 
   private def parseString(str : String) : Program = {
-    val pipeline = TemporaryInputPhase andThen ExtractionPhase
+    val pipeline = TemporaryInputPhase andThen ExtractionPhase andThen PreprocessingPhase
 
     val errorsBefore   = leonContext.reporter.errorCount
     val warningsBefore = leonContext.reporter.warningCount
@@ -34,22 +33,28 @@ class EvaluatorsTests extends LeonTestSuite {
     val program = pipeline.run(leonContext)((str, Nil))
 
     assert(leonContext.reporter.errorCount   === errorsBefore)
-    assert(leonContext.reporter.warningCount === warningsBefore)
 
     program
   }
 
   private def mkCall(name : String, args : Expr*)(implicit p : Program) = {
-    val fDef = p.definedFunctions.find(_.id.name == name) getOrElse {
-      throw new AssertionError("No function named '%s' defined in program.".format(name))
-    }
+    val fn = s"Program.$name"
 
-    FunctionInvocation(fDef.typed, args.toSeq)
+    searchByFullName(fn, p) match {
+      case Some(fd: FunDef) =>
+        FunctionInvocation(fd.typed, args.toSeq)
+      case _ =>
+        throw new AssertionError("No function named '%s' defined in program.".format(fn))
+    }
   }
 
   private def mkCaseClass(name : String, args : Expr*)(implicit p : Program) = {
-    val ccDef = p.caseClassDef(name)
-    CaseClass(CaseClassType(ccDef, Nil), args.toSeq)
+    searchByFullName("Program."+name, p) match {
+      case Some(ccd: CaseClassDef) =>
+        CaseClass(CaseClassType(ccd, Nil), args.toSeq)
+      case _ =>
+        throw new AssertionError("No case class named '%s' defined in program.".format(name))
+    }
   }
 
   private def checkCompSuccess(evaluator : Evaluator, in : Expr) : Expr = {
@@ -317,9 +322,9 @@ class EvaluatorsTests extends LeonTestSuite {
     val nil = mkCaseClass("Nil")
     val cons12 = mkCaseClass("Cons", IL(1), mkCaseClass("Cons", IL(2), mkCaseClass("Nil")))
 
-    val semp = FiniteSet(Seq.empty).setType(SetType(Int32Type))
-    val s123 = FiniteSet(Seq(IL(1), IL(2), IL(3))).setType(SetType(Int32Type))
-    val s246 = FiniteSet(Seq(IL(2), IL(4), IL(6))).setType(SetType(Int32Type))
+    val semp = FiniteSet(Set()).setType(SetType(Int32Type))
+    val s123 = FiniteSet(Set(IL(1), IL(2), IL(3))).setType(SetType(Int32Type))
+    val s246 = FiniteSet(Set(IL(2), IL(4), IL(6))).setType(SetType(Int32Type))
 
     for(e <- evaluators) {
       checkSetComp(e, mkCall("finite"), Set(1, 2, 3))
@@ -431,6 +436,7 @@ class EvaluatorsTests extends LeonTestSuite {
   test("Executing Chooses") {
     val p = """|object Program {
                |  import leon.lang._
+               |  import leon.lang.synthesis._
                |
                |  def c(i : Int) : Int = choose { (j : Int) => j > i && j < i + 2 }
                |}
@@ -445,7 +451,7 @@ class EvaluatorsTests extends LeonTestSuite {
   }
 
   test("Infinite Recursion") {
-    import codegen._
+    import leon.codegen._
 
     val p = """|object Program {
                |  import leon.lang._
@@ -461,7 +467,7 @@ class EvaluatorsTests extends LeonTestSuite {
   }
 
   test("Wrong Contracts") {
-    import codegen._
+    import leon.codegen._
 
     val p = """|object Program {
                |  import leon.lang._
@@ -477,5 +483,55 @@ class EvaluatorsTests extends LeonTestSuite {
 
     val e = new CodeGenEvaluator(leonContext, prog, CodeGenParams(checkContracts = true))
     checkError(e, mkCall("c", IL(-42)))
+  }
+
+  test("Pattern Matching") {
+    val p = """|object Program {
+               |  abstract class List;
+               |  case class Cons(h: Int, t: List) extends List;
+               |  case object Nil extends List;
+               |
+               |  def f1: Int = (Cons(1, Nil): List) match {
+               |    case Cons(h, t) => h
+               |    case Nil => 0
+               |  }
+               |
+               |  def f2: Int = (Cons(1, Nil): List) match {
+               |    case Cons(h, _) => h
+               |    case Nil => 0
+               |  }
+               |
+               |  def f3: Int = (Nil: List) match {
+               |    case _ => 1
+               |  }
+               |
+               |  def f4: Int = (Cons(1, Cons(2, Nil)): List) match {
+               |    case a: Cons => 1
+               |    case _ => 0
+               |  }
+               |
+               |  def f5: Int = ((Cons(1, Nil), Nil): (List, List)) match {
+               |    case (a: Cons, _) => 1
+               |    case _ => 0
+               |  }
+               |
+               |  def f6: Int = (Cons(2, Nil): List) match {
+               |    case Cons(h, t) if h > 0 => 1
+               |    case _ => 0
+               |  }
+               |}""".stripMargin
+
+    implicit val prog = parseString(p)
+    val evaluators = prepareEvaluators
+
+    for(e <- evaluators) {
+      // Some simple math.
+      checkComp(e, mkCall("f1"), IL(1))
+      checkComp(e, mkCall("f2"), IL(1))
+      checkComp(e, mkCall("f3"), IL(1))
+      checkComp(e, mkCall("f4"), IL(1))
+      checkComp(e, mkCall("f5"), IL(1))
+      checkComp(e, mkCall("f6"), IL(1))
+    }
   }
 }

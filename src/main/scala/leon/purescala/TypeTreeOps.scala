@@ -1,3 +1,5 @@
+/* Copyright 2009-2014 EPFL, Lausanne */
+
 package leon
 package purescala
 
@@ -9,29 +11,80 @@ import Trees._
 import Extractors._
 
 object TypeTreeOps {
-  def canBeSubtypeOf(tpe: TypeTree, freeParams: Seq[TypeParameterDef], stpe: TypeTree): Option[Seq[TypeParameter]] = {
+  def canBeSubtypeOf(tpe: TypeTree, freeParams: Seq[TypeParameter], stpe: TypeTree): Option[Map[TypeParameter, TypeTree]] = {
+
+    def unify(res: Seq[Option[Map[TypeParameter, TypeTree]]]): Option[Map[TypeParameter, TypeTree]] = {
+      if (res.forall(_.isDefined)) {
+        var result = Map[TypeParameter, TypeTree]()
+
+        for (Some(m) <- res) {
+          result ++= m
+        }
+
+        Some(result)
+      } else {
+        None
+      }
+    }
+
     if (freeParams.isEmpty) {
       if (isSubtypeOf(tpe, stpe)) {
-        Some(Nil)
+        Some(Map())
       } else {
         None
       }
     } else {
-      // TODO
-      None
+      (tpe, stpe) match {
+        case (tp1: TypeParameter, t) =>
+          if (freeParams contains tp1) {
+            Some(Map(tp1 -> t))
+          } else if (tp1 == t) {
+            Some(Map())
+          } else {
+            None
+          }
+
+        case (ct1: ClassType, ct2: ClassType) =>
+          val rt1 = ct1.root
+          val rt2 = ct2.root
+
+
+          if (rt1.classDef == rt2.classDef) {
+            unify((rt1.tps zip rt2.tps).map { case (tp1, tp2) =>
+              canBeSubtypeOf(tp1, freeParams, tp2)
+            })
+          } else {
+            None
+          }
+
+        case (_: TupleType, _: TupleType) |
+             (_: SetType, _: SetType) |
+             (_: MapType, _: MapType) |
+             (_: FunctionType, _: FunctionType) =>
+
+          val NAryType(ts1, _) = tpe
+          val NAryType(ts2, _) = stpe
+
+          if (ts1.size == ts2.size) {
+            unify((ts1 zip ts2).map { case (tp1, tp2) =>
+              canBeSubtypeOf(tp1, freeParams, tp2)
+            })
+          } else {
+            None
+          }
+
+        case (t1, t2) =>
+          if (t1 == t2) {
+            Some(Map())
+          } else {
+            None
+          }
+      }
     }
   }
 
   def bestRealType(t: TypeTree) : TypeTree = t match {
-    case c: CaseClassType =>
-      c.classDef.parent match {
-        case None    =>
-          c
-
-        case Some(p) =>
-          instantiateType(p, (c.classDef.tparams zip c.tps).toMap)
-      }
-
+    case (c: CaseClassType) => c.root
     case NAryType(tps, builder) => builder(tps.map(bestRealType))
   }
 
@@ -58,11 +111,6 @@ object TypeTreeOps {
       val args = (args1 zip args2).map(p => leastUpperBound(p._1, p._2))
       if (args.forall(_.isDefined)) Some(TupleType(args.map(_.get))) else None
     case (o1, o2) if (o1 == o2) => Some(o1)
-    case (o1,BottomType) => Some(o1)
-    case (BottomType,o2) => Some(o2)
-    case (o1,AnyType) => Some(AnyType)
-    case (AnyType,o2) => Some(AnyType)
-
     case _ => None
   }
 
@@ -197,6 +245,10 @@ object TypeTreeOps {
 
                 (WildcardPattern(newOb), (ob zip newOb).toMap)
 
+              case (LiteralPattern(ob, lit), expType) => 
+                val newOb = ob.map(id => freshId(id, expType))
+                (LiteralPattern(newOb,lit), (ob zip newOb).toMap)
+
               case _ =>
                 sys.error("woot!?")
             }
@@ -207,7 +259,7 @@ object TypeTreeOps {
             Error(desc).setType(tpeSub(e.getType)).copiedFrom(e)
 
           case s @ FiniteSet(elements) if elements.isEmpty =>
-            FiniteSet(Nil).setType(tpeSub(s.getType)).copiedFrom(s)
+            FiniteSet(Set()).setType(tpeSub(s.getType)).copiedFrom(s)
 
           case v @ Variable(id) if idsMap contains id =>
             Variable(idsMap(id)).copiedFrom(v)

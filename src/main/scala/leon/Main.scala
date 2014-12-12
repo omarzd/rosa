@@ -1,15 +1,19 @@
-/* Copyright 2009-2013 EPFL, Lausanne */
+/* Copyright 2009-2014 EPFL, Lausanne */
 
 package leon
 
 import leon.utils._
+import solvers.SolverFactory
 
 object Main {
 
   lazy val allPhases: List[LeonPhase[_, _]] = {
     List(
       frontends.scalac.ExtractionPhase,
-      SubtypingPhase,
+      utils.TypingPhase,
+      FileOutputPhase,
+      ScopingPhase,
+      purescala.RestoreMethods,
       xlang.ArrayTransformation,
       xlang.EpsilonElimination,
       xlang.ImperativeCodeElimination,
@@ -31,10 +35,11 @@ object Main {
       LeonFlagOptionDef ("termination", "--termination",        "Check program termination"),
       LeonFlagOptionDef ("synthesis",   "--synthesis",          "Partial synthesis of choose() constructs"),
       LeonFlagOptionDef ("xlang",       "--xlang",              "Support for extra program constructs (imperative,...)"),
-      LeonFlagOptionDef ("library",     "--library",            "Inject Leon standard library"),
+      LeonValueOptionDef("solvers",     "--solvers=s1,s2",      "Use solvers s1 and s2 (fairz3,enum,smt)"),
       LeonValueOptionDef("debug",       "--debug=<sections..>", "Enables specific messages"),
-      LeonFlagOptionDef ("help",        "--help",               "Show help"),
-      LeonFlagOptionDef ("real",        "--real",               "Compilation of programs over reals")
+      LeonFlagOptionDef ("real",        "--real",               "Compilation of programs over reals"),
+      LeonFlagOptionDef ("noop",        "--noop",               "No operation performed, just output program"),
+      LeonFlagOptionDef ("help",        "--help",               "Show help")
     )
 
   lazy val allOptions = allComponents.flatMap(_.definedOptions) ++ topLevelOptions
@@ -141,10 +146,16 @@ object Main {
         settings = settings.copy(termination = value)
       case LeonFlagOption("synthesis", value) =>
         settings = settings.copy(synthesis = value)
-      case LeonFlagOption("library", value) =>
-        settings = settings.copy(injectLibrary = value)
       case LeonFlagOption("xlang", value) =>
         settings = settings.copy(xlang = value)
+      case LeonValueOption("solvers", ListValue(ss)) =>
+        val available = SolverFactory.definedSolvers
+        val unknown = ss.toSet -- available
+        if (unknown.nonEmpty) {
+          initReporter.error("Unknown solver(s): "+unknown.mkString(", ")+" (Available: "+available.mkString(", ")+")")
+        }
+        settings = settings.copy(selectedSolvers = ss.toSet)
+
       case LeonValueOption("debug", ListValue(sections)) =>
         val debugSections = sections.flatMap { s =>
           if (s == "all") {
@@ -160,6 +171,8 @@ object Main {
           }
         }
         settings = settings.copy(debugSections = debugSections.toSet)
+      case LeonFlagOption("noop", true) =>
+        settings = settings.copy(verify = false)
       case LeonFlagOption("help", true) =>
         displayHelp(initReporter)
       case LeonFlagOption("real", value) =>
@@ -168,7 +181,7 @@ object Main {
     }
 
     // Create a new reporter taking settings into account
-    val reporter = new DefaultReporter(settings)
+    val reporter = new PlainTextReporter(settings)
 
     reporter.whenDebug(DebugSectionOptions) { debug =>
 
@@ -193,57 +206,66 @@ object Main {
 
   def computePipeline(settings: Settings): Pipeline[List[String], Any] = {
     import purescala.Definitions.Program
+    import frontends.scalac.ExtractionPhase
+    import synthesis.SynthesisPhase
+    import termination.TerminationPhase
+    import xlang.XlangAnalysisPhase
+    import verification.AnalysisPhase
 
     val pipeBegin : Pipeline[List[String],Program] =
-      frontends.scalac.ExtractionPhase andThen
-      purescala.MethodLifting andThen
-      utils.SubtypingPhase andThen
-      purescala.CompleteAbstractDefinitions
+      ExtractionPhase andThen
+      PreprocessingPhase
 
-    val pipeProcess: Pipeline[Program, Any] =
+    val pipeProcess: Pipeline[Program, Any] = {
       if (settings.synthesis) {
-        synthesis.SynthesisPhase
+        SynthesisPhase
       } else if (settings.termination) {
-        termination.TerminationPhase
+        TerminationPhase
       } else if (settings.xlang) {
-        xlang.XlangAnalysisPhase
+        XlangAnalysisPhase
       } else if (settings.verify) {
-        verification.AnalysisPhase
+        purescala.FunctionClosure andThen AnalysisPhase
       } else if (settings.real) {
         real.CompilationPhase
       } else {
-        NoopPhase()
+        purescala.RestoreMethods andThen utils.FileOutputPhase
       }
+    }
 
     pipeBegin andThen
     pipeProcess
   }
 
-  def main(args : Array[String]) {
-    val timer     = new Timer().start
-
+  def main(args: Array[String]) {
     val argsl = args.toList
 
-    val realArgs = argsl
-    /*// By default we add --library from Main
-    val realArgs = if (!args.exists(_.contains("--library"))) {
-      "--library" :: argsl
-    } else {
-      argsl
-    }*/
-
     // Process options
-    val ctx = processOptions(realArgs)
+    val ctx = try {
+      processOptions(argsl)
+    } catch {
+      case LeonFatalError(None) =>
+        sys.exit(1)
+
+      case LeonFatalError(Some(msg)) =>
+        // For the special case of fatal errors not sent though Reporter, we
+        // send them through reporter one time
+        try {
+          new DefaultReporter(Settings()).fatalError(msg)
+        } catch {
+          case _: LeonFatalError =>
+        }
+
+        sys.exit(1)
+    }
+
 
     try {
       ctx.interruptManager.registerSignalHandler()
 
-      ctx.timers.get("Leon Opts") += timer
-
       // Compute leon pipeline
       val pipeline = computePipeline(ctx.settings)
 
-      timer.restart
+      val timer = ctx.timers.total.start()
 
       // Run pipeline
       pipeline.run(ctx)(args.toList) match {
@@ -259,18 +281,11 @@ object Main {
         case _ =>
       }
 
-      ctx.timers.get("Leon Run") += timer
+      timer.stop()
 
       ctx.reporter.whenDebug(DebugSectionTimers) { debug =>
-        debug("-"*80)
-        debug("Times:")
-        debug("-"*80)
-        for ((name, swc) <- ctx.timers.getAll.toSeq.sortBy(_._1)) {
-          debug(swc.toString)
-        }
-        debug("-"*80)
+        ctx.timers.outputTable(debug)
       }
-
     } catch {
       case LeonFatalError(None) =>
         sys.exit(1)

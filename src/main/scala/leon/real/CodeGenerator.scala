@@ -58,7 +58,7 @@ class CodeGenerator(val reporter: Reporter, ctx: LeonContext, options: RealOptio
       // function arguments 
       val (args, returnType) = getArgs(funDef)
 
-      val fD = new FunDef(funDef.id, Seq.empty, returnType, args)
+      val fD = new FunDef(funDef.id, Seq.empty, returnType, args, DefType.MethodDef)
 
       // generate function body
       fD.body = precision match {
@@ -103,8 +103,9 @@ class CodeGenerator(val reporter: Reporter, ctx: LeonContext, options: RealOptio
       fD
     }).toSeq
 
-
-    val newProgram = Program(programId, List(ModuleDef(objectId, defs ++ models)))
+    val units = List(UnitDef(programId, Seq(ModuleDef(objectId, defs ++ models, false)),
+      List(), Seq(), true))
+    val newProgram = Program(programId, units)
     newProgram
   }
 

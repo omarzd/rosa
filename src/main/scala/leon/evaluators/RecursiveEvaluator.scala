@@ -1,4 +1,4 @@
-/* Copyright 2009-2013 EPFL, Lausanne */
+/* Copyright 2009-2014 EPFL, Lausanne */
 
 package leon
 package evaluators
@@ -12,27 +12,38 @@ import purescala.TypeTrees._
 import solvers.TimeoutSolver
 
 import xlang.Trees._
+import solvers.SolverFactory
 
-abstract class RecursiveEvaluator(ctx: LeonContext, prog: Program) extends Evaluator(ctx, prog) {
+abstract class RecursiveEvaluator(ctx: LeonContext, prog: Program, maxSteps: Int) extends Evaluator(ctx, prog) {
   val name = "evaluator"
   val description = "Recursive interpreter for PureScala expressions"
 
   type RC <: RecContext
   type GC <: GlobalContext
 
+  var lastGC: Option[GC] = None
+
   case class EvalError(msg : String) extends Exception
   case class RuntimeError(msg : String) extends Exception
 
-  abstract class RecContext {
-    val mappings: Map[Identifier, Expr]
-
-    def withNewVar(id: Identifier, v: Expr): RC;
+  trait RecContext {
+    def mappings: Map[Identifier, Expr]
 
     def withVars(news: Map[Identifier, Expr]): RC;
+
+    def withNewVar(id: Identifier, v: Expr): RC = {
+      withVars(mappings + (id -> v))
+    }
+
+    def withNewVars(news: Map[Identifier, Expr]): RC = {
+      withVars(mappings ++ news)
+    }
   }
 
-  class GlobalContext(var stepsLeft: Int) {
-    val maxSteps = stepsLeft
+  class GlobalContext {
+    def maxSteps = RecursiveEvaluator.this.maxSteps
+
+    var stepsLeft = maxSteps
   }
 
   def initRC(mappings: Map[Identifier, Expr]): RC
@@ -40,26 +51,30 @@ abstract class RecursiveEvaluator(ctx: LeonContext, prog: Program) extends Evalu
 
   def eval(ex: Expr, mappings: Map[Identifier, Expr]) = {
     try {
-      EvaluationResults.Successful(e(ex)(initRC(mappings), initGC))
+      lastGC = Some(initGC)
+      ctx.timers.evaluators.recursive.runtime.start()
+      EvaluationResults.Successful(e(ex)(initRC(mappings), lastGC.get))
     } catch {
       case so: StackOverflowError =>
         EvaluationResults.EvaluatorError("Stack overflow")
       case EvalError(msg) =>
         EvaluationResults.EvaluatorError(msg)
-      case RuntimeError(msg) =>
+      case e @ RuntimeError(msg) =>
         EvaluationResults.RuntimeError(msg)
+      case jre: java.lang.RuntimeException =>
+        EvaluationResults.RuntimeError(jre.getMessage)
+    } finally {
+      ctx.timers.evaluators.recursive.runtime.stop()
     }
   }
 
   def e(expr: Expr)(implicit rctx: RC, gctx: GC): Expr = expr match {
     case Variable(id) =>
       rctx.mappings.get(id) match {
+        case Some(v) if (v != expr) =>
+          e(v)
         case Some(v) =>
-          if(!isGround(v)) {
-            throw EvalError("Substitution for identifier " + id.name + " is not ground.")
-          } else {
-            v
-          }
+          v
         case None =>
           throw EvalError("No value for identifier " + id.name + " in mapping.")
       }
@@ -75,6 +90,12 @@ abstract class RecursiveEvaluator(ctx: LeonContext, prog: Program) extends Evalu
     case Let(i,ex,b) =>
       val first = e(ex)
       e(b)(rctx.withNewVar(i, first), gctx)
+
+    case Assert(cond, oerr, body) =>
+      e(IfExpr(Not(cond), Error(oerr.getOrElse("Assertion failed @"+expr.getPos)), body))
+
+    case Ensuring(body, id, post) =>
+      e(Let(id, body, Assert(post, Some("Ensuring failed"), Variable(id))))
 
     case Error(desc) =>
       throw RuntimeError("Error reached in evaluation: " + desc)
@@ -99,11 +120,12 @@ abstract class RecursiveEvaluator(ctx: LeonContext, prog: Program) extends Evalu
       val frame = rctx.withVars((tfd.params.map(_.id) zip evArgs).toMap)
       
       if(tfd.hasPrecondition) {
-        e(matchToIfThenElse(tfd.precondition.get))(frame, gctx) match {
+        e(tfd.precondition.get)(frame, gctx) match {
           case BooleanLiteral(true) =>
           case BooleanLiteral(false) =>
             throw RuntimeError("Precondition violation for " + tfd.id.name + " reached in evaluation.: " + tfd.precondition.get)
-          case other => throw RuntimeError(typeErrorMsg(other, BooleanType))
+          case other =>
+            throw RuntimeError(typeErrorMsg(other, BooleanType))
         }
       }
 
@@ -112,15 +134,12 @@ abstract class RecursiveEvaluator(ctx: LeonContext, prog: Program) extends Evalu
       }
 
       val body = tfd.body.getOrElse(rctx.mappings(tfd.id))
-      val callResult = e(matchToIfThenElse(body))(frame, gctx)
+      val callResult = e(body)(frame, gctx)
 
       if(tfd.hasPostcondition) {
         val (id, post) = tfd.postcondition.get
 
-        val freshResID = FreshIdentifier("result").setType(tfd.returnType)
-        val postBody = replace(Map(Variable(id) -> Variable(freshResID)), matchToIfThenElse(post))
-
-        e(matchToIfThenElse(post))(frame.withNewVar(id, callResult), gctx) match {
+        e(post)(frame.withNewVar(id, callResult), gctx) match {
           case BooleanLiteral(true) =>
           case BooleanLiteral(false) => throw RuntimeError("Postcondition violation for " + tfd.id.name + " reached in evaluation.")
           case other => throw EvalError(typeErrorMsg(other, BooleanType))
@@ -254,14 +273,14 @@ abstract class RecursiveEvaluator(ctx: LeonContext, prog: Program) extends Evalu
 
     case SetUnion(s1,s2) =>
       (e(s1), e(s2)) match {
-        case (f@FiniteSet(els1),FiniteSet(els2)) => FiniteSet((els1 ++ els2).distinct).setType(f.getType)
+        case (f@FiniteSet(els1),FiniteSet(els2)) => FiniteSet(els1 ++ els2).setType(f.getType)
         case (le,re) => throw EvalError(typeErrorMsg(le, s1.getType))
       }
 
     case SetIntersection(s1,s2) =>
       (e(s1), e(s2)) match {
         case (f @ FiniteSet(els1), FiniteSet(els2)) => {
-          val newElems = (els1.toSet intersect els2.toSet).toSeq
+          val newElems = (els1 intersect els2)
           val baseType = f.getType.asInstanceOf[SetType].base
           FiniteSet(newElems).setType(f.getType)
         }
@@ -271,7 +290,7 @@ abstract class RecursiveEvaluator(ctx: LeonContext, prog: Program) extends Evalu
     case SetDifference(s1,s2) =>
       (e(s1), e(s2)) match {
         case (f @ FiniteSet(els1),FiniteSet(els2)) => {
-          val newElems = (els1.toSet -- els2.toSet).toSeq
+          val newElems = els1 -- els2
           val baseType = f.getType.asInstanceOf[SetType].base
           FiniteSet(newElems).setType(f.getType)
         }
@@ -290,10 +309,10 @@ abstract class RecursiveEvaluator(ctx: LeonContext, prog: Program) extends Evalu
       val sr = e(s)
       sr match {
         case FiniteSet(els) => IntLiteral(els.size)
-        case _ => throw EvalError(typeErrorMsg(sr, SetType(AnyType)))
+        case _ => throw EvalError(typeErrorMsg(sr, SetType(Untyped)))
       }
 
-    case f @ FiniteSet(els) => FiniteSet(els.map(e(_)).distinct).setType(f.getType)
+    case f @ FiniteSet(els) => FiniteSet(els.map(e(_))).setType(f.getType)
     case i @ IntLiteral(_) => i
     case b @ BooleanLiteral(_) => b
     case u @ UnitLiteral() => u
@@ -359,7 +378,6 @@ abstract class RecursiveEvaluator(ctx: LeonContext, prog: Program) extends Evalu
       gv
 
     case choose: Choose =>
-      import solvers.z3.FairZ3Solver
       import purescala.TreeOps.simplestValue
 
       implicit val debugSection = utils.DebugSectionSynthesis
@@ -370,14 +388,15 @@ abstract class RecursiveEvaluator(ctx: LeonContext, prog: Program) extends Evalu
 
       val tStart = System.currentTimeMillis;
 
-      val solver = (new FairZ3Solver(ctx, program) with TimeoutSolver).setTimeout(10000L)
+      val solver = SolverFactory.getFromSettings(ctx, program).getNewSolver
 
-      val inputsMap = p.as.map {
+      val eqs = p.as.map {
         case id =>
           Equals(Variable(id), rctx.mappings(id))
       }
 
-      solver.assertCnstr(And(Seq(p.pc, p.phi) ++ inputsMap))
+      val cnstr = And(eqs ::: p.pc :: p.phi :: Nil)
+      solver.assertCnstr(cnstr)
 
       try {
         solver.check match {
@@ -408,15 +427,84 @@ abstract class RecursiveEvaluator(ctx: LeonContext, prog: Program) extends Evalu
         solver.free()
       }
 
+    case MatchExpr(scrut, cases) =>
+      val rscrut = e(scrut)
+
+      cases.toStream.map(c => matchesCase(rscrut, c)).find(_.nonEmpty) match {
+        case Some(Some((c, mappings))) =>
+          e(c.rhs)(rctx.withNewVars(mappings), gctx)
+        case _ =>
+          throw RuntimeError("MatchError: "+rscrut+" did not match any of the cases")
+      }
+
     case other =>
-      context.reporter.error("Error: don't know how to handle " + other + " in Evaluator.")
+      context.reporter.error(other.getPos, "Error: don't know how to handle " + other + " in Evaluator.")
       throw EvalError("Unhandled case in Evaluator : " + other) 
+  }
+
+  def matchesCase(scrut: Expr, caze: MatchCase)(implicit rctx: RC, gctx: GC): Option[(MatchCase, Map[Identifier, Expr])] = {
+    import purescala.TypeTreeOps.isSubtypeOf
+
+    def matchesPattern(pat: Pattern, e: Expr): Option[Map[Identifier, Expr]] = (pat, e) match {
+      case (InstanceOfPattern(ob, pct), CaseClass(ct, _)) =>
+        if (isSubtypeOf(ct, pct)) {
+          Some(obind(ob, e))
+        } else {
+          None
+        }
+      case (WildcardPattern(ob), e) =>
+        Some(obind(ob, e))
+
+      case (CaseClassPattern(ob, pct, subs), CaseClass(ct, args)) =>
+        if (pct == ct) {
+          val res = (subs zip args).map{ case (s, a) => matchesPattern(s, a) }
+          if (res.forall(_.isDefined)) {
+            Some(obind(ob, e) ++ res.flatten.flatten)
+          } else {
+            None
+          }
+        } else {
+          None
+        }
+      case (TuplePattern(ob, subs), Tuple(args)) =>
+        if (subs.size == args.size) {
+          val res = (subs zip args).map{ case (s, a) => matchesPattern(s, a) }
+          if (res.forall(_.isDefined)) {
+            Some(obind(ob, e) ++ res.flatten.flatten)
+          } else {
+            None
+          }
+        } else {
+          None
+        }
+      case (LiteralPattern(ob, l1) , l2 : Literal[_]) if l1 == l2 =>
+        Some(obind(ob,l1))
+      case _ => None
+    }
+
+    def obind(ob: Option[Identifier], e: Expr): Map[Identifier, Expr] = {
+      Map[Identifier, Expr]() ++ ob.map(id => id -> e)
+    }
+
+    caze match {
+      case SimpleCase(p, rhs) =>
+        matchesPattern(p, scrut).map( r =>
+          (caze, r)
+        )
+
+
+      case GuardedCase(p, g, rhs) =>
+        matchesPattern(p, scrut).flatMap( r =>
+          e(g)(rctx.withNewVars(r), gctx) match {
+            case BooleanLiteral(true) =>
+              Some((caze, r))
+            case _ =>
+              None
+          }
+        )
+    }
   }
 
   def typeErrorMsg(tree : Expr, expected : TypeTree) : String = "Type error : expected %s, found %s.".format(expected, tree)
 
-  // quick and dirty.. don't overuse.
-  private def isGround(expr: Expr) : Boolean = {
-    variablesOf(expr) == Set.empty
-  }
 }

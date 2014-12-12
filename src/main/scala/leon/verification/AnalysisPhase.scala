@@ -1,4 +1,4 @@
-/* Copyright 2009-2013 EPFL, Lausanne */
+/* Copyright 2009-2014 EPFL, Lausanne */
 
 package leon
 package verification
@@ -15,6 +15,8 @@ import solvers.combinators._
 
 import scala.collection.mutable.{Set => MutableSet}
 
+import _root_.smtlib.interpreters.Z3Interpreter
+
 object AnalysisPhase extends LeonPhase[Program,VerificationReport] {
   val name = "Analysis"
   val description = "Leon Verification"
@@ -23,41 +25,33 @@ object AnalysisPhase extends LeonPhase[Program,VerificationReport] {
 
   override val definedOptions : Set[LeonOptionDef] = Set(
     LeonValueOptionDef("functions", "--functions=f1:f2", "Limit verification to f1,f2,..."),
-    LeonValueOptionDef("solvers",   "--solvers=s1,s2",   "Use solvers s1 and s2 (fairz3,enum)", default = Some("fairz3")),
     LeonValueOptionDef("timeout",   "--timeout=T",       "Timeout after T seconds when trying to prove a verification condition.")
   )
 
-  def generateVerificationConditions(vctx: VerificationContext, functionsToAnalyse: Set[String]): Map[FunDef, List[VerificationCondition]] = {
+  def generateVerificationConditions(vctx: VerificationContext, filterFuns: Option[Seq[String]]): Map[FunDef, List[VerificationCondition]] = {
 
     import vctx.reporter
     import vctx.program
 
-    val defaultTactic = new DefaultTactic(reporter)
-    defaultTactic.setProgram(program)
-    val inductionTactic = new InductionTactic(reporter)
-    inductionTactic.setProgram(program)
+    val defaultTactic = new DefaultTactic(vctx)
+    val inductionTactic = new InductionTactic(vctx)
 
     var allVCs = Map[FunDef, List[VerificationCondition]]()
 
-    val patterns = functionsToAnalyse.map{ s =>
-      import java.util.regex.Pattern
-
-      val p = s.replaceAll("\\.", "\\\\.").replaceAll("_", ".+")
-      Pattern.compile(p)
+    def excludeByDefault(fd: FunDef): Boolean = {
+      (fd.annotations contains "verified") || (fd.annotations contains "library")
     }
 
-    def markedForVerification(name: String): Boolean = {
-      patterns.exists(p => p.matcher(name).matches())
+    val fdFilter = {
+      import OptionsHelpers._
+
+      filterInclusive(filterFuns.map(fdMatcher), Some(excludeByDefault _))
     }
 
-    val toVerify = program.definedFunctions.toList.sortWith((fd1, fd2) => fd1.getPos < fd2.getPos).filter {
-      fd =>
-        (functionsToAnalyse.isEmpty && !(fd.annotations contains "verified")) || 
-        (markedForVerification(fd.id.name))
-    }
+    val toVerify = program.definedFunctions.toList.sortWith((fd1, fd2) => fd1.getPos < fd2.getPos).filter(fdFilter)
 
     for(funDef <- toVerify) {
-      if (funDef.annotations contains "verified") {
+      if (excludeByDefault(funDef)) {
         reporter.warning("Forcing verification of "+funDef.id.name+" which was assumed verified")
       }
 
@@ -69,11 +63,7 @@ object AnalysisPhase extends LeonPhase[Program,VerificationReport] {
         }
 
       if(funDef.body.isDefined) {
-        val funVCs = tactic.generatePreconditions(funDef) ++
-                     tactic.generatePatternMatchingExhaustivenessChecks(funDef) ++
-                     tactic.generatePostconditions(funDef) ++
-                     tactic.generateMiscCorrectnessConditions(funDef) ++
-                     tactic.generateArrayAccessChecks(funDef)
+        val funVCs = tactic.generateVCs(funDef)
 
         allVCs += funDef -> funVCs.toList
       }
@@ -156,27 +146,15 @@ object AnalysisPhase extends LeonPhase[Program,VerificationReport] {
   }
 
   def run(ctx: LeonContext)(program: Program) : VerificationReport = {
-    var functionsToAnalyse   = Set[String]()
-    var timeout: Option[Int] = None
-    var selectedSolvers      = Set[String]("fairz3")
-
-    val allSolvers = Map(
-      "fairz3" -> SolverFactory(() => new FairZ3Solver(ctx, program) with TimeoutSolver),
-      "enum"   -> SolverFactory(() => new EnumerationSolver(ctx, program) with TimeoutSolver)
-    )
+    var filterFuns: Option[Seq[String]] = None
+    var timeout: Option[Int]             = None
 
     val reporter = ctx.reporter
 
     for(opt <- ctx.options) opt match {
       case LeonValueOption("functions", ListValue(fs)) =>
-        functionsToAnalyse = Set() ++ fs
+        filterFuns = Some(fs)
 
-      case LeonValueOption("solvers", ListValue(ss)) =>
-        val unknownSolvers = ss.toSet -- allSolvers.keySet
-        if (unknownSolvers.nonEmpty) {
-          reporter.error("Unknown solver(s): "+unknownSolvers.mkString(", ")+" (Available: "+allSolvers.keys.mkString(", ")+")")
-        }
-        selectedSolvers = Set() ++ ss
 
       case v @ LeonValueOption("timeout", _) =>
         timeout = v.asInt(ctx)
@@ -185,16 +163,7 @@ object AnalysisPhase extends LeonPhase[Program,VerificationReport] {
     }
 
     // Solvers selection and validation
-    val solversToUse = allSolvers.filterKeys(selectedSolvers)
-
-    val entrySolver = if (solversToUse.isEmpty) {
-      reporter.fatalError("No solver selected. Aborting")
-    } else if (solversToUse.size == 1) {
-      solversToUse.values.head
-    } else {
-      SolverFactory( () => new PortfolioSolver(ctx, solversToUse.values.toSeq) with TimeoutSolver)
-    }
-
+    val entrySolver = SolverFactory.getFromSettings(ctx, program)
 
     val mainSolver = timeout match {
       case Some(sec) =>
@@ -206,7 +175,7 @@ object AnalysisPhase extends LeonPhase[Program,VerificationReport] {
     val vctx = VerificationContext(ctx, program, mainSolver, reporter)
 
     reporter.debug("Running verification condition generation...")
-    val vcs = generateVerificationConditions(vctx, functionsToAnalyse)
+    val vcs = generateVerificationConditions(vctx, filterFuns)
     checkVerificationConditions(vctx, vcs)
   }
 }

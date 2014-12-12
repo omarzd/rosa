@@ -1,4 +1,4 @@
-/* Copyright 2009-2013 EPFL, Lausanne */
+/* Copyright 2009-2014 EPFL, Lausanne */
 
 package leon
 package purescala
@@ -49,59 +49,9 @@ object TypeTrees {
   }
     
 
-  sealed abstract class TypeTree extends Tree
-
-  // returns the number of distinct values that inhabit a type
-  sealed abstract class TypeSize extends Serializable
-  case class FiniteSize(size: Int) extends TypeSize
-  case object InfiniteSize extends TypeSize
-
-  def domainSize(typeTree: TypeTree) : TypeSize = typeTree match {
-    case Untyped => FiniteSize(0)
-    case AnyType => InfiniteSize
-    case BottomType => FiniteSize(0)
-    case BooleanType => FiniteSize(2)
-    case UnitType => FiniteSize(1)
-    case Int32Type => InfiniteSize
-    case Int64Type => InfiniteSize
-    case RealType => InfiniteSize
-    
-    case ListType(_) => InfiniteSize
-    case ArrayType(_) => InfiniteSize
-    case TypeParameter(_) => InfiniteSize
-    case TupleType(bases) => {
-      val baseSizes = bases.map(domainSize(_))
-      baseSizes.find(_ == InfiniteSize) match {
-        case Some(_) => InfiniteSize
-        case None => FiniteSize(baseSizes.map(_.asInstanceOf[FiniteSize].size).reduceLeft(_ * _))
-      }
-    }
-    case SetType(base) => domainSize(base) match {
-      case InfiniteSize => InfiniteSize
-      case FiniteSize(n) => FiniteSize(scala.math.pow(2, n).toInt)
-    }
-    case MultisetType(_) => InfiniteSize
-    case MapType(from,to) => (domainSize(from),domainSize(to)) match {
-      case (InfiniteSize,_) => InfiniteSize
-      case (_,InfiniteSize) => InfiniteSize
-      case (FiniteSize(n),FiniteSize(m)) => FiniteSize(scala.math.pow(m+1, n).toInt)
-    }
-    case FunctionType(fts, tt) => {
-      val fromSizes = fts map domainSize
-      val toSize = domainSize(tt)
-      if (fromSizes.exists(_ == InfiniteSize) || toSize == InfiniteSize)
-        InfiniteSize
-      else {
-        val n = toSize.asInstanceOf[FiniteSize].size
-        FiniteSize(scala.math.pow(n, fromSizes.foldLeft(1)((acc, s) => acc * s.asInstanceOf[FiniteSize].size)).toInt)
-      }
-    }
-    case c: ClassType => InfiniteSize
-  }
+  abstract class TypeTree extends Tree
 
   case object Untyped extends TypeTree
-  case object AnyType extends TypeTree
-  case object BottomType extends TypeTree // This type is useful when we need an underlying type for None, Set.empty, etc. It should always be removed after parsing, though.
   case object BooleanType extends TypeTree
   case object Int32Type extends TypeTree
   case object Int64Type extends TypeTree
@@ -114,6 +64,7 @@ object TypeTrees {
   case object FloatQDType extends TypeTree
 
   case object UnitType extends TypeTree
+  case object CharType extends TypeTree
 
   case class TypeParameter(id: Identifier) extends TypeTree
 
@@ -166,6 +117,8 @@ object TypeTrees {
     def knownCCDescendents = classDef.knownCCDescendents.map(CaseClassType(_, tps))
 
     lazy val fieldsTypes = fields.map(_.tpe)
+
+    lazy val root = parent.getOrElse(this)
 
     lazy val parent = classDef.parent.map {
       pct => instantiateType(pct, (classDef.tparams zip tps).toMap) match {

@@ -1,10 +1,16 @@
-/* Copyright 2009-2013 EPFL, Lausanne */
+/* Copyright 2009-2014 EPFL, Lausanne */
 
-package leon
-package test
-package verification
+package leon.test.verification
+
+import leon._
+import leon.test._
 
 import leon.verification.{AnalysisPhase,VerificationReport}
+
+import leon.frontends.scalac.ExtractionPhase
+import leon.utils.PreprocessingPhase
+
+import _root_.smtlib.interpreters._
 
 import java.io.File
 
@@ -16,10 +22,12 @@ class PureScalaVerificationRegression extends LeonTestSuite {
   }
   private case class Output(report : VerificationReport, reporter : Reporter)
 
-  private def mkPipeline : Pipeline[List[String],VerificationReport] =
-    leon.frontends.scalac.ExtractionPhase andThen leon.utils.SubtypingPhase andThen leon.verification.AnalysisPhase
+  private def mkPipeline : Pipeline[List[String], VerificationReport] =
+    ExtractionPhase     andThen
+    PreprocessingPhase  andThen
+    AnalysisPhase
 
-  private def mkTest(file : File, leonOptions : Seq[LeonOption], forError: Boolean)(block: Output=>Unit) = {
+  private def mkTest(file : File, leonOptions : Seq[String], forError: Boolean)(block: Output=>Unit) = {
     val fullName = file.getPath()
     val start = fullName.indexOf("regression")
 
@@ -33,10 +41,7 @@ class PureScalaVerificationRegression extends LeonTestSuite {
       assert(file.exists && file.isFile && file.canRead,
              "Benchmark %s is not a readable file".format(displayName))
 
-      val ctx = testContext.copy(
-        options = leonOptions.toList,
-        files   = List(file)
-      )
+      val ctx = createLeonContext((file.getPath +: leonOptions) :_*)
 
       val pipeline = mkPipeline
 
@@ -45,7 +50,6 @@ class PureScalaVerificationRegression extends LeonTestSuite {
           pipeline.run(ctx)(file.getPath :: Nil)
         }
       } else {
-
         val report = pipeline.run(ctx)(file.getPath :: Nil)
 
         block(Output(report, ctx.reporter))
@@ -58,10 +62,33 @@ class PureScalaVerificationRegression extends LeonTestSuite {
       "regression/verification/purescala/" + cat,
       _.endsWith(".scala"))
 
+    val isZ3Available = try {
+      new Z3Interpreter()
+      true
+    } catch {
+      case e: java.io.IOException =>
+        false
+    }
+
+    val isCVC4Available = try {
+      new CVC4Interpreter()
+      // @EK: CVC4 works on most testcases already, but not all and thus cannot be used in regression.
+      true
+    } catch {
+      case e: java.io.IOException =>
+        false
+    }
+
     for(f <- fs) {
-      mkTest(f, List(LeonFlagOption("feelinglucky", true)), forError)(block)
-      mkTest(f, List(LeonFlagOption("codegen", true), LeonFlagOption("evalground", true), LeonFlagOption("feelinglucky", true)), forError)(block)
-      mkTest(f, List(LeonValueOption("solvers", "fairz3,enum"), LeonFlagOption("codegen", true), LeonFlagOption("evalground", true), LeonFlagOption("feelinglucky", true)), forError)(block)
+      mkTest(f, List("--feelinglucky"), forError)(block)
+      mkTest(f, List("--codegen", "--evalground", "--feelinglucky"), forError)(block)
+      mkTest(f, List("--solvers=fairz3,enum", "--codegen", "--evalground", "--feelinglucky"), forError)(block)
+      if (isZ3Available) {
+        mkTest(f, List("--solvers=smt-z3", "--feelinglucky"), forError)(block)
+      }
+      if (isCVC4Available) {
+        mkTest(f, List("--solvers=smt-cvc4", "--feelinglucky"), forError)(block)
+      }
     }
   }
   

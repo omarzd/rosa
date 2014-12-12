@@ -34,7 +34,8 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
     //LeonFlagOptionDef("simplify", "--noSimplify", "Simplify constraint before passing to Z3."),
     //LeonFlagOptionDef("remRedundant", "--remRedundant", "Remove redundant constraints before passing to Z3"),
     LeonFlagOptionDef("noMassageArith", "--noMassageArith", "Massage arithmetic before passing to Z3"),
-    LeonFlagOptionDef("lipschitz", "--lipschitz", "compute lipschitz constants")
+    LeonFlagOptionDef("lipschitz", "--lipschitz", "compute lipschitz constants"),
+    LeonFlagOptionDef("silent", "--silent", "only print the results")
   )
 
   def run(ctx: LeonContext)(program: Program): CompilationReport = {
@@ -51,6 +52,7 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
       case LeonFlagOption("simulation", v) => options = options.copy(simulation = v)
       case LeonFlagOption("z3Only", v) => options = options.copy(z3Only = v)
       case LeonFlagOption("specGen", v) => options = options.copy(specGen = v)
+      case LeonFlagOption("silent", v) => options = options.copy(silent = v)
       //case LeonFlagOption("simplify", v) => options = options.copy(simplifyCnstr = v)
       //case LeonFlagOption("remRedundant", v) => options = options.copy(removeRedundant = v)
       case LeonFlagOption("noMassageArith", v) => options = options.copy(massageArithmetic = !v)
@@ -67,14 +69,19 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
       case _ =>
     }
 
+    def excludeByDefault(fd: FunDef): Boolean = {
+      (fd.annotations contains "verified") || (fd.annotations contains "library") ||
+      (fd.annotations contains "ignore")
+    }
+
     // TODO: these are not sorted correctly, e.g. for InitialExample
     // the main functions are treated first, so that the computed postcondition cannot be used...
     val fncsToAnalyse  =
-      if(fncNamesToAnalyse.isEmpty) program.definedFunctions.filter(f =>
-        !f.annotations.contains("proxy"))
+      if(fncNamesToAnalyse.isEmpty) program.definedFunctions.filter(f => !excludeByDefault(f))
+  
       else {
         val toAnalyze = program.definedFunctions.filter(f => {
-          !f.annotations.contains("proxy") && fncNamesToAnalyse.contains(f.id.name)})
+          !excludeByDefault(f) && fncNamesToAnalyse.contains(f.id.name)})
         val notFound = fncNamesToAnalyse -- toAnalyze.map(fncDef => fncDef.id.name).toSet
         notFound.foreach(fn => reporter.error("Did not find function \"" + fn + "\" though it was marked for analysis."))
         toAnalyze

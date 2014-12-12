@@ -1,4 +1,4 @@
-/* Copyright 2009-2013 EPFL, Lausanne */
+/* Copyright 2009-2014 EPFL, Lausanne */
 
 package leon
 package datagen
@@ -10,6 +10,8 @@ import utils._
 import java.util.concurrent.atomic.AtomicBoolean
 
 trait DataGenerator extends Interruptible {
+  implicit val debugSection = DebugSectionDataGen
+
   def generateFor(ins: Seq[Identifier], satisfying: Expr, maxValid: Int, maxEnumerated: Int): Iterator[Seq[Expr]];
 
   protected val interrupted: AtomicBoolean = new AtomicBoolean(false)

@@ -1,4 +1,4 @@
-/* Copyright 2009-2013 EPFL, Lausanne */
+/* Copyright 2009-2014 EPFL, Lausanne */
 
 package leon
 package purescala
@@ -19,8 +19,6 @@ object Extractors {
       case SetCardinality(t) => Some((t,SetCardinality))
       case MultisetCardinality(t) => Some((t,MultisetCardinality))
       case MultisetToSet(t) => Some((t,MultisetToSet))
-      case Car(t) => Some((t,Car))
-      case Cdr(t) => Some((t,Cdr))
       case SetMin(s) => Some((s,SetMin))
       case SetMax(s) => Some((s,SetMax))
       case CaseClassSelector(cd, e, sel) => Some((e, CaseClassSelector(cd, _, sel)))
@@ -69,10 +67,11 @@ object Extractors {
       case MapIsDefinedAt(t1,t2) => Some((t1,t2, MapIsDefinedAt))
       case ArrayFill(t1, t2) => Some((t1, t2, ArrayFill))
       case ArraySelect(t1, t2) => Some((t1, t2, ArraySelect))
-      case Concat(t1,t2) => Some((t1,t2,Concat))
-      case ListAt(t1,t2) => Some((t1,t2,ListAt))
       case Let(binders, e, body) => Some((e, body, (e: Expr, b: Expr) => Let(binders, e, b)))
       case LetTuple(binders, e, body) => Some((e, body, (e: Expr, b: Expr) => LetTuple(binders, e, b)))
+      case Require(pre, body) => Some((pre, body, Require))
+      case Ensuring(body, id, post) => Some((body, post, (b: Expr, p: Expr) => Ensuring(b, id, p)))
+      case Assert(const, oerr, body) => Some((const, body, (c: Expr, b: Expr) => Assert(c, oerr, b)))
       case (ex: BinaryExtractable) => ex.extract
       case _ => None
     }
@@ -90,12 +89,12 @@ object Extractors {
       case And(args) => Some((args, And.apply))
       case Or(args) => Some((args, Or.apply))
       case FiniteSet(args) =>
-        Some((args,
+        Some((args.toSeq,
               { newargs =>
                 if (newargs.isEmpty) {
-                  FiniteSet(Seq()).setType(expr.getType)
+                  FiniteSet(Set()).setType(expr.getType)
                 } else {
-                  FiniteSet(newargs)
+                  FiniteSet(newargs.toSet)
                 }
               }
             ))

@@ -1,16 +1,16 @@
-name := "Rosa"
+name := "Leon"
 
-version := "0.1"
+version := "2.3"
 
 organization := "ch.epfl.lara"
 
-scalaVersion := "2.10.2"
+scalaVersion := "2.11.2"
 
-scalacOptions += "-deprecation"
-
-scalacOptions += "-unchecked"
-
-scalacOptions += "-feature"
+scalacOptions ++= Seq(
+    "-deprecation",
+    "-unchecked",
+    "-feature"
+)
 
 javacOptions += "-Xlint:unchecked"
 
@@ -23,42 +23,21 @@ if(System.getProperty("sun.arch.data.model") == "64") {
 resolvers += "Typesafe Repository" at "http://repo.typesafe.com/typesafe/releases/"
 
 libraryDependencies ++= Seq(
-    "org.scala-lang" % "scala-compiler" % "2.10.2",
-    "org.scalatest" % "scalatest_2.10" % "2.0.M5b" % "test" excludeAll(ExclusionRule(organization="org.scala-lang")),
-    "junit" % "junit" % "4.8" % "test",
-    "com.typesafe.akka" %% "akka-actor" % "2.2.0" excludeAll(ExclusionRule(organization="org.scala-lang"))
+    "org.scala-lang" % "scala-compiler" % "2.11.2",
+    "org.scalatest" %% "scalatest" % "2.2.0" % "test",
+    "com.typesafe.akka" %% "akka-actor" % "2.3.4"
 )
 
-javaOptions += "-Xmx1G"
+Keys.fork in run := true
 
-javaOptions += "-Xms512M"
-
-javaOptions += "-Xss1M"
-
-fork in run := true
-
-fork in test := true
-
-mainClass in (Compile, run) := Some("leon.Main")
+Keys.fork in Test := true
 
 logBuffered in Test := false
 
-testOptions in Test += Tests.Argument("-oD")
+testOptions in Test += Tests.Argument("-oDF")
 
-javaOptions in test += "-Xss32M"
+javaOptions in (Test,run) += "-Xss32M"
 
-//parallelExecution in Test := false
+parallelExecution in test := false
 
 sourcesInBase in Compile := false
-
-// do not skip parent Eclipse project definition
-//EclipseKeys.skipParents in ThisBuild := false
-
-cleanFiles <+= baseDirectory { base => base / "generated" }
-
-cleanFiles <+= baseDirectory { base => base / "vcs" }
-
-cleanKeepFiles <+= baseDirectory { base => base / "generated" / "README" }
-
-cleanKeepFiles <+= baseDirectory { base => base / "vcs" / "README" }
-

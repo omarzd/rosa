@@ -1,16 +1,23 @@
-package leon
-package test
+/* Copyright 2009-2014 EPFL, Lausanne */
 
+package leon.test
+
+import leon._
+import leon.{LeonContext,Settings}
 import leon.utils._
 
 import scala.io.Source
 import org.scalatest._
 import org.scalatest.concurrent._
 import org.scalatest.time.SpanSugar._
+import org.scalatest.exceptions.TestFailedException
 
 import java.io.File
 
-trait LeonTestSuite extends FunSuite with Timeouts {
+trait LeonTestSuite extends FunSuite with Timeouts with BeforeAndAfterEach {
+  // Hard-code resource directory, for Eclipse purposes
+  val resourceDirHard = "src/test/resources/regression/"
+  
   def now() = {
     System.currentTimeMillis
   }
@@ -33,17 +40,17 @@ trait LeonTestSuite extends FunSuite with Timeouts {
   }
 
 
-  var testContext = generateContext
-
-  def generateContext = {
+  def createLeonContext(opts: String*): LeonContext = {
     val reporter = new TestSilentReporter
 
-    LeonContext(
-      settings = Settings(),
-      files = List(),
-      reporter = reporter,
-      interruptManager = new InterruptManager(reporter)
-    )
+    Main.processOptions(opts.toList).copy(reporter = reporter, interruptManager = new InterruptManager(reporter))
+  }
+
+  var testContext: LeonContext = null
+
+  override def beforeEach() = {
+    testContext = createLeonContext()
+    super.beforeEach()
   }
 
   def testIdentifier(name: String): String = {
@@ -102,10 +109,16 @@ trait LeonTestSuite extends FunSuite with Timeouts {
 
       val ts = now()
 
-      testContext = generateContext
-
       failAfter(5.minutes) {
-        body
+        try {
+          body
+        } catch {
+          case fe: LeonFatalError =>
+          testContext.reporter match {
+            case sr: TestSilentReporter =>
+              throw new TestFailedException(sr.lastErrors.mkString("\n"), fe, 5)
+          }
+        }
       }
 
       val total = now()-ts
@@ -120,18 +133,35 @@ trait LeonTestSuite extends FunSuite with Timeouts {
     }
   }
 
-  private val all : String=>Boolean = (s : String) => true
+  protected val all : String=>Boolean = (s : String) => true
 
-  def filesInResourceDir(dir : String, filter : String=>Boolean = all) : Iterable[File] = {
+ 
+  def resourceDir(dir : String) : File = {
     import scala.collection.JavaConversions._
 
     val d = this.getClass.getClassLoader.getResource(dir)
 
     if(d == null || d.getProtocol != "file") {
-      assert(false, "Tests have to be run from within `sbt`, for otherwise the test files will be harder to access (and we dislike that).")
+      // We are in Eclipse. The only way we are saved is by hard-coding the path
+      new File(resourceDirHard + dir)
     }
+    else {
+      new File(d.toURI())
+    }
+  }
 
-    val asFile = new File(d.toURI())
+
+  
+  
+  def filesInResourceDir(dir : String, filter : String=>Boolean = all) : Iterable[File] = {
+    import scala.collection.JavaConversions._
+
+    val d = this.getClass.getClassLoader.getResource(dir)
+
+    val asFile = if(d == null || d.getProtocol != "file") {
+      // We are in Eclipse. The only way we are saved is by hard-coding the path
+      new File(resourceDirHard + dir)
+    } else new File(d.toURI())
 
     asFile.listFiles().filter(f => filter(f.getPath()))
   }

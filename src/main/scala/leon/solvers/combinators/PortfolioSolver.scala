@@ -1,4 +1,4 @@
-/* Copyright 2009-2013 EPFL, Lausanne */
+/* Copyright 2009-2014 EPFL, Lausanne */
 
 package leon
 package solvers
@@ -18,31 +18,24 @@ import scala.collection.mutable.{Map=>MutableMap}
 
 import ExecutionContext.Implicits.global
 
-class PortfolioSolver(val context: LeonContext, solvers: Seq[SolverFactory[Solver with Interruptible]])
+class PortfolioSolver[S <: Solver with Interruptible](val context: LeonContext, solvers: Seq[SolverFactory[S]])
         extends Solver with Interruptible {
 
   val name = "Pfolio"
 
   var constraints = List[Expr]()
 
-  def assertCnstr(expression: Expr): Unit = {
-    constraints ::= expression
-  }
+  protected var modelMap = Map[Identifier, Expr]()
+  protected var solversInsts: Seq[S] = solvers.map(_.getNewSolver)
 
-  private var modelMap = Map[Identifier, Expr]()
-  private var solversInsts = Seq[Solver with Interruptible]()
+  def assertCnstr(expression: Expr): Unit = {
+    solversInsts.foreach(_.assertCnstr(expression))
+  }
 
   def check: Option[Boolean] = {
     modelMap = Map()
 
-    // create fresh solvers
-    solversInsts = solvers.map(_.getNewSolver)
-
-    // assert
-    solversInsts.foreach { s =>
-      s.assertCnstr(And(constraints.reverse))
-    }
-
+    context.reporter.debug("Running portfolio check")
     // solving
     val fs = solversInsts.map { s =>
       Future {
@@ -65,17 +58,18 @@ class PortfolioSolver(val context: LeonContext, solvers: Seq[SolverFactory[Solve
     // Block until all solvers finished
     Await.result(Future.fold(fs)(0){ (i, r) => i+1 }, 10.days);
 
-    solversInsts.foreach(_.free)
-
     res
+  }
+
+  def free() = {
+    solversInsts.foreach(_.free)
+    solversInsts = Nil
+    modelMap = Map()
+    constraints = Nil
   }
 
   def getModel: Map[Identifier, Expr] = {
     modelMap
-  }
-
-  def free() = {
-    constraints = Nil
   }
 
   def interrupt(): Unit = {
@@ -84,5 +78,17 @@ class PortfolioSolver(val context: LeonContext, solvers: Seq[SolverFactory[Solve
 
   def recoverInterrupt(): Unit = {
     solversInsts.foreach(_.recoverInterrupt())
+  }
+}
+
+class PortfolioSolverSynth(context: LeonContext, solvers: Seq[SolverFactory[AssumptionSolver with IncrementalSolver with Interruptible]])
+        extends PortfolioSolver[AssumptionSolver with IncrementalSolver with Interruptible](context, solvers) with IncrementalSolver with Interruptible with NaiveAssumptionSolver {
+
+  def push(): Unit = {
+    solversInsts.foreach(_.push())
+  }
+
+  def pop(lvl: Int): Unit = {
+    solversInsts.foreach(_.pop(lvl))
   }
 }

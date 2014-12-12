@@ -1,4 +1,4 @@
-/* Copyright 2009-2013 EPFL, Lausanne */
+/* Copyright 2009-2014 EPFL, Lausanne */
 
 package leon
 package purescala
@@ -24,7 +24,7 @@ object FunctionClosure extends TransformationPhase {
 
   def apply(ctx: LeonContext, program: Program): Program = {
 
-    val newModules = program.modules.map { m =>
+    val newUnits = program.units.map { u => u.copy(modules = u.modules map { m =>
       pathConstraints = Nil
       enclosingLets  = Nil
       newFunDefs  = Map()
@@ -38,9 +38,9 @@ object FunctionClosure extends TransformationPhase {
         fd.body = fd.body.map(b => functionClosure(b, fd.params.map(_.id).toSet, Map(), Map()))
       })
 
-      ModuleDef(m.id, m.defs ++ topLevelFuns)
-    }
-    val res = Program(program.id, newModules)
+      ModuleDef(m.id, m.defs ++ topLevelFuns, m.isStandalone )
+    })}
+    val res = Program(program.id, newUnits)
     res
   }
 
@@ -59,12 +59,12 @@ object FunctionClosure extends TransformationPhase {
       val newBindedVars: Set[Identifier] = bindedVars ++ fd.params.map(_.id)
       val newFunId = FreshIdentifier(fd.id.uniqueName) //since we hoist this at the top level, we need to make it a unique name
 
-      val newFunDef = new FunDef(newFunId, fd.tparams, fd.returnType, newValDefs).copiedFrom(fd)
+      val newFunDef = new FunDef(newFunId, fd.tparams, fd.returnType, newValDefs, fd.defType).copiedFrom(fd)
       topLevelFuns += newFunDef
       newFunDef.addAnnotation(fd.annotations.toSeq:_*) //TODO: this is still some dangerous side effects
-      newFunDef.parent = Some(parent)
-      fd.parent        = Some(parent)
-      newFunDef.orig   = Some(fd)
+      newFunDef.setOwner(parent)
+      fd       .setOwner(parent)
+      newFunDef.orig = Some(fd)
 
       def introduceLets(expr: Expr, fd2FreshFd: Map[FunDef, (FunDef, Seq[Variable])]): Expr = {
         val (newExpr, _) = enclosingLets.foldLeft((expr, Map[Identifier, Identifier]()))((acc, p) => {
@@ -177,6 +177,7 @@ object FunctionClosure extends TransformationPhase {
     case WildcardPattern(binder) => WildcardPattern(binder.map(id2freshId(_)))
     case CaseClassPattern(binder, caseClassDef, subPatterns) => CaseClassPattern(binder.map(id2freshId(_)), caseClassDef, subPatterns.map(freshIdInPat(_, id2freshId)))
     case TuplePattern(binder, subPatterns) => TuplePattern(binder.map(id2freshId(_)), subPatterns.map(freshIdInPat(_, id2freshId)))
+    case LiteralPattern(binder, lit) => LiteralPattern(binder.map(id2freshId(_)), lit)
   }
 
   //filter the list of constraints, only keeping those relevant to the set of variables

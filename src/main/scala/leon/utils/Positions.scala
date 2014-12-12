@@ -1,22 +1,42 @@
+/* Copyright 2009-2014 EPFL, Lausanne */
+
 package leon
 package utils
 
 import java.io.File
 
-abstract class Position {
+abstract class Position extends Ordered[Position] {
   val line: Int
   val col: Int
   val file: File
 
-  def < (that: Position) = {
-    (this.file == that.file) && (this.line < that.line || this.col < that.col)
+  def compare(that: Position) = {
+    if (this.file == that.file) {
+      val ld = this.line - that.line
+      if (ld == 0) {
+        this.col - that.col
+      } else {
+        ld
+      }
+    } else {
+      if (this.file eq null) {
+        -1
+      } else if (that.file eq null) {
+        +1
+      } else {
+        this.file.getPath.compare(that.file.getPath)
+      }
+    }
   }
+
+  def fullString: String
 
   def isDefined: Boolean
 }
 
 abstract class DefinedPosition extends Position {
   override def toString = line+":"+col
+  override def fullString = file.getPath+":"+line+":"+col
   override def isDefined = true
 
   def focusBegin: OffsetPosition
@@ -45,6 +65,7 @@ case object NoPosition extends Position {
   val file = null
 
   override def toString = "?:?"
+  override def fullString = "?:?:?"
   override def isDefined = false
 }
 

@@ -18,7 +18,7 @@ import Precision._
 
 
 // Manages the approximation
-class AAApproximator(val reporter: Reporter, val solver: RangeSolver, precision: Precision, checkPathError: Boolean = true,
+class AAApproximator(val reporter: Reporter, val solver: RangeSolver, precision: Precision, val silent: Boolean, checkPathError: Boolean = true,
   useLipschitz: Boolean = false, collectIntervals: Boolean = false) extends Lipschitz {
 
   implicit override val debugSection = utils.DebugSectionAffine

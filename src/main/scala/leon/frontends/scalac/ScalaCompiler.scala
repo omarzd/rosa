@@ -1,12 +1,12 @@
-/* Copyright 2009-2013 EPFL, Lausanne */
+/* Copyright 2009-2014 EPFL, Lausanne */
 
 package leon
 package frontends.scalac
 
 import scala.tools.nsc.{Global,Settings=>NSCSettings}
-import scala.tools.nsc.interactive.RangePositions
+import scala.reflect.internal.Positions
 
-class ScalaCompiler(settings : NSCSettings, ctx: LeonContext) extends Global(settings, new SimpleReporter(settings, ctx.reporter)) with RangePositions {
+class ScalaCompiler(settings : NSCSettings, ctx: LeonContext) extends Global(settings, new SimpleReporter(settings, ctx.reporter)) with Positions {
 
   object leonExtraction extends {
     val global: ScalaCompiler.this.type = ScalaCompiler.this
@@ -15,6 +15,13 @@ class ScalaCompiler(settings : NSCSettings, ctx: LeonContext) extends Global(set
     val ctx = ScalaCompiler.this.ctx
   } with LeonExtraction
 
+  object saveImports extends {
+    val global: ScalaCompiler.this.type = ScalaCompiler.this
+    val runsAfter = List[String]("pickler")
+    val runsRightAfter = None
+    val ctx = ScalaCompiler.this.ctx
+  } with SaveImports
+  
   override protected def computeInternalPhases() : Unit = {
     val phs = List(
       syntaxAnalyzer          -> "parse source into ASTs, perform simple desugaring",
@@ -25,9 +32,16 @@ class ScalaCompiler(settings : NSCSettings, ctx: LeonContext) extends Global(set
       superAccessors          -> "add super accessors in traits and nested classes",
       extensionMethods        -> "add extension methods for inline classes",
       pickler                 -> "serialize symbol tables",
+      saveImports             -> "save imports to pass to leonExtraction",
       refChecks               -> "reference/override checking, translate nested objects",
       leonExtraction          -> "extracts leon trees out of scala trees"
     )
     phs foreach { phasesSet += _._1 }
+  }
+
+  class Run extends super.Run {
+    override def progress(current: Int, total: Int) {
+      ctx.reporter.onCompilerProgress(current, total)
+    }
   }
 }

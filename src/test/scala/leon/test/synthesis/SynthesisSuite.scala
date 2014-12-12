@@ -1,8 +1,7 @@
-/* Copyright 2009-2013 EPFL, Lausanne */
+/* Copyright 2009-2014 EPFL, Lausanne */
 
-package leon.test
-package synthesis
-
+package leon.test.synthesis
+import leon.test._
 import leon._
 import leon.purescala.Definitions._
 import leon.purescala.Trees._
@@ -11,6 +10,7 @@ import leon.solvers.z3._
 import leon.solvers.Solver
 import leon.synthesis._
 import leon.synthesis.utils._
+import leon.utils.PreprocessingPhase
 
 import org.scalatest.matchers.ShouldMatchers._
 
@@ -23,44 +23,37 @@ class SynthesisSuite extends LeonTestSuite {
     counter
   }
 
-  def forProgram(title: String)(content: String)(block: (SynthesisContext, FunDef, Problem) => Unit) {
+  def forProgram(title: String, opts: SynthesisOptions = SynthesisOptions())(content: String)(block: (SynthesisContext, FunDef, Problem) => Unit) {
 
-    val ctx = testContext.copy(settings = Settings(
-        synthesis = true,
-        xlang     = false,
-        verify    = false
-      ))
+      test("Synthesizing %3d: [%s]".format(nextInt(), title)) {
+        val ctx = testContext.copy(settings = Settings(
+            synthesis = true,
+            xlang     = false,
+            verify    = false
+          ))
 
-    val opts = SynthesisOptions()
+        val pipeline = leon.utils.TemporaryInputPhase andThen leon.frontends.scalac.ExtractionPhase andThen PreprocessingPhase andThen SynthesisProblemExtractionPhase
 
-    val pipeline = leon.utils.TemporaryInputPhase andThen leon.frontends.scalac.ExtractionPhase andThen SynthesisProblemExtractionPhase
+        val (program, results) = pipeline.run(ctx)((content, Nil))
 
-    val (program, results) = pipeline.run(ctx)((content, Nil))
+        for ((f, ps) <- results; p <- ps) {
+          info("%-20s".format(f.id.toString))
 
-    for ((f, ps) <- results; p <- ps) {
-      test("Synthesizing %3d: %-20s [%s]".format(nextInt(), f.id.toString, title)) {
-        val sctx = SynthesisContext(ctx,
-                                    opts,
-                                    Some(f),
-                                    program,
-                                    ctx.reporter)
+          val sctx = SynthesisContext(ctx,
+                                      opts,
+                                      f,
+                                      program,
+                                      ctx.reporter)
 
-        block(sctx, f, p)
+          block(sctx, f, p)
+        }
       }
-    }
   }
 
   case class Apply(desc: String, andThen: List[Apply] = Nil)
 
   def synthesizeWith(sctx: SynthesisContext, p: Problem, ss: Apply): Solution = {
-    val (normRules, otherRules) = sctx.options.rules.partition(_.isInstanceOf[NormalizingRule])
-    val normApplications = normRules.flatMap(_.instantiateOn(sctx, p))
-
-    val apps = if (!normApplications.isEmpty) {
-      normApplications
-    } else {
-      otherRules.flatMap { r => r.instantiateOn(sctx, p) }
-    }
+    val apps = Rules.getInstantiations(sctx, p)
 
     def matchingDesc(app: RuleInstantiation, ss: Apply): Boolean = {
       import java.util.regex.Pattern;
@@ -71,16 +64,14 @@ class SynthesisSuite extends LeonTestSuite {
     apps.filter(matchingDesc(_, ss)) match {
       case app :: Nil =>
         app.apply(sctx) match {
-          case RuleSuccess(sol, trusted) =>
+          case RuleClosed(sols) =>
+            assert(sols.nonEmpty)
             assert(ss.andThen.isEmpty)
-            sol
+            sols.head
 
-          case RuleDecomposed(sub) =>
+          case RuleExpanded(sub) =>
             val subSols = (sub zip ss.andThen) map { case (p, ss) => synthesizeWith(sctx, p, ss) }
             app.onSuccess(subSols).get
-
-          case _ =>
-            throw new AssertionError("Failed to apply "+app+" on "+p)
         }
 
       case Nil =>
@@ -115,19 +106,44 @@ class SynthesisSuite extends LeonTestSuite {
 
   def assertRuleSuccess(sctx: SynthesisContext, rr: RuleInstantiation): Option[Solution] = {
     rr.apply(sctx) match {
-      case RuleSuccess(sol, trusted) =>
-        Some(sol)
+      case RuleClosed(sols) if sols.nonEmpty =>
+        sols.headOption
       case _ =>
         assert(false, "Rule did not succeed")
         None
     }
   }
 
-  forProgram("Cegis 1")(
+  forProgram("Ground Enum", SynthesisOptions(selectedSolvers = Set("enum")))(
     """
-import scala.collection.immutable.Set
 import leon.annotation._
 import leon.lang._
+import leon.lang.synthesis._
+
+object Injection {
+  sealed abstract class List
+  case class Cons(tail: List) extends List
+  case class Nil() extends List
+
+  // proved with unrolling=0
+  def size(l: List) : Int = (l match {
+      case Nil() => 0
+      case Cons(t) => 1 + size(t)
+  }) ensuring(res => res >= 0)
+
+  def simple() = choose{out: List => size(out) == 2 }
+}
+    """
+  ) {
+    case (sctx, fd, p) =>
+      assertAllAlternativesSucceed(sctx, rules.Ground.instantiateOn(sctx, p))
+  }
+
+  forProgram("Cegis 1")(
+    """
+import leon.annotation._
+import leon.lang._
+import leon.lang.synthesis._
 
 object Injection {
   sealed abstract class List
@@ -150,9 +166,9 @@ object Injection {
 
   forProgram("Cegis 2")(
     """
-import scala.collection.immutable.Set
 import leon.annotation._
 import leon.lang._
+import leon.lang.synthesis._
 
 object Injection {
   sealed abstract class List
@@ -171,13 +187,13 @@ object Injection {
   ) {
     case (sctx, fd, p) =>
       rules.CEGIS.instantiateOn(sctx, p).head.apply(sctx) match {
-        case RuleSuccess(sol, trusted) =>
-          assert(false, "CEGIS should have failed, but found : %s".format(sol))
+        case RuleClosed(sols) if sols.nonEmpty =>
+          assert(false, "CEGIS should have failed, but found : %s".format(sols.head))
         case _ =>
       }
 
       rules.ADTSplit.instantiateOn(sctx, p).head.apply(sctx) match {
-        case RuleDecomposed(subs) =>
+        case RuleExpanded(subs) =>
           for (sub <- subs; alt <- rules.CEGIS.instantiateOn(sctx, sub)) {
             assertRuleSuccess(sctx, alt)
           }
@@ -189,6 +205,7 @@ object Injection {
 
   synthesize("Lists")("""
 import leon.lang._
+import leon.lang.synthesis._
 
 object SortedList {
   sealed abstract class List
@@ -254,6 +271,8 @@ object SortedList {
 
   synthesize("Church")("""
 import leon.lang._
+import leon.lang.synthesis._
+
 object ChurchNumerals {
   sealed abstract class Num
   case object Z extends Num
@@ -287,6 +306,8 @@ object ChurchNumerals {
 
   synthesize("Church")("""
 import leon.lang._
+import leon.lang.synthesis._
+
 object ChurchNumerals {
   sealed abstract class Num
   case object Z extends Num

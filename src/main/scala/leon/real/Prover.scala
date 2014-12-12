@@ -41,7 +41,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
       if (lowerBnd > upperBnd) (precisions.last, false)
       else {
         val mid = lowerBnd + (upperBnd - lowerBnd) / 2// ceiling int division
-        reporter.info("Checking precision: " + precisions(mid))
+        if (!options.silent) reporter.info("Checking precision: " + precisions(mid))
         if (checkVCsInPrecision(vcs, precisions(mid), approximations)) {
           if (lowerBnd == mid) (precisions(lowerBnd), true)
           else {
@@ -70,7 +70,8 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
     //println("checking vcs: ")
 
     for (vc <- vcs if (options.specGen || vc.kind != VCKind.SpecGen)) {
-      reporter.info("Verification condition  ==== %s (%s) ====".format(vc.fncId, vc.kind))
+      if (!options.silent) reporter.info("Verification condition  ==== %s (%s) ====".format(vc.fncId, vc.kind))
+      else reporter.info(vc.fncId)
       reporter.debug("pre: " + vc.pre)
       reporter.debug("body: " + vc.body)
       reporter.debug("post: " + vc.post)
@@ -82,12 +83,12 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
 
       // TODO: can we re-use some of the approximation work across precision?
       approx.kinds.find(aKind => {
-        reporter.info("approx: " + aKind)
+        if (!options.silent) reporter.info("approx: " + aKind)
 
         try {
           rangeSolver.clearCounts
           val currentApprox = approx.getApproximation(aKind, precision, postMap)
-          reporter.info(rangeSolver.getCounts)
+          if (!options.silent) reporter.info(rangeSolver.getCounts)
           spec = Spec.mergeSpecs(spec, currentApprox.spec)
           postMap += (vc.funDef -> currentApprox.spec)
 
@@ -113,13 +114,13 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
             }
         } catch {
           case PostconditionInliningFailedException(msg) =>
-            reporter.info("failed to compute approximation: " + msg)
+            if (!options.silent) reporter.info("failed to compute approximation: " + msg)
             false
           case RealArithmeticException(msg) =>
-            reporter.warning("Failed to compute approximation: " + msg)
+            if (!options.silent) reporter.warning("Failed to compute approximation: " + msg)
             false
           case FixedPointOverflowException(msg) =>
-            reporter.warning("Insufficient bitwidth: " + msg)
+            if (!options.silent) reporter.warning("Insufficient bitwidth: " + msg)
             false
           case SqrtNotImplementedException(msg) =>
             reporter.warning(msg)
@@ -134,12 +135,11 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
         case None =>
         case _ =>
       }
-      // TODO: there is a bug where not the correct spec is printed, see the InitialExample
       vc.spec += (precision -> spec)
 
       val end = System.currentTimeMillis
       vc.time = Some(end - start)
-      reporter.info("generated spec: ")
+      if (!options.silent) reporter.info("generated spec: ")
       spec.foreach { sp =>
         reporter.info(sp + "(" + sp.getActualRange + ")")
       }
@@ -200,7 +200,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
       if (reporter.errorCount == 0 && sanityCheck(sanityExpr, name + "-" +app.kind.toString)) {
         solver.checkSat(z3constraint) match {
           case (UNSAT, _) =>
-            reporter.info(s"Constraint $index is valid.")
+            if (!options.silent) reporter.info(s"Constraint $index is valid.")
             validCount += 1
           case (SAT, model) =>
             // TODO: this needs to be re-checked, seems to have a bug with pathError/Fluctuat/simpleInterpolator
@@ -210,7 +210,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
               val realOnlyPost = removeErrorsAndActual(cnstr.postcondition)
 
               if (realOnlyPost == True) { // i.e. if the constraint is trivially true
-                reporter.info("Nothing to prove for real-only part.")
+                if (!options.silent) reporter.info("Nothing to prove for real-only part.")
               } else {
                 var realOnlyConstraint = And(removeErrorsAndActual(And(cnstr.precondition, realCnstr)), negate(realOnlyPost))
                 //println("realOnlyConstraint: " + realOnlyConstraint)         
@@ -222,16 +222,16 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
                 solver.checkSat(transformer.getZ3Expr(realOnlyConstraint)) match {
                   case (SAT, model) =>
                     // TODO: pretty-print the models
-                    reporter.info(s"Constraint with $index, counterexample: " + model)
+                    if (!options.silent) reporter.info(s"Constraint with $index, counterexample: " + model)
                     invalidCount += 1
                   case (UNSAT, _) =>
                   case _ =>
                 }
               }
             } else {
-              reporter.info(s"Constraint $index is unknown.")
+              if (!options.silent) reporter.info(s"Constraint $index is unknown.")
             }
-            reporter.info(s"Constraint with $index is unknown.")
+            if (!options.silent) reporter.info(s"Constraint with $index is unknown.")
 
           case _ =>;
         }

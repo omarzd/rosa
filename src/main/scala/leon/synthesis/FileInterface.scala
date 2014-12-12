@@ -1,13 +1,14 @@
-/* Copyright 2009-2013 EPFL, Lausanne */
+/* Copyright 2009-2014 EPFL, Lausanne */
 
 package leon
 package synthesis
 
 import purescala.Trees._
 import purescala.Common.Tree
-import purescala.Definitions.FunDef
+import purescala.Definitions.{Definition,FunDef}
 import purescala.ScalaPrinter
 import purescala.PrinterOptions
+import purescala.PrinterContext
 
 import leon.utils.RangePosition
 
@@ -34,7 +35,7 @@ class FileInterface(reporter: Reporter) {
 
         var newCode = origCode
         for ( (ci, e) <- solutions) {
-          newCode = substitute(newCode, ci.ch, e)
+          newCode = substitute(newCode, ci.ch, e, ci.fd )
         }
 
         val out = new BufferedWriter(new FileWriter(newFile))
@@ -45,8 +46,7 @@ class FileInterface(reporter: Reporter) {
     }
   }
 
-  def substitute(str: String, fromTree: Tree, toTree: Tree): String = {
-
+  def substitute(str: String, fromTree: Tree, printer: (Int) => String): String = {
     fromTree.getPos match {
       case rp: RangePosition =>
         val from = rp.pointFrom
@@ -60,14 +60,22 @@ class FileInterface(reporter: Reporter) {
 
         val indent = lineChars.takeWhile(_ == ' ').size
 
-        val p = new ScalaPrinter(PrinterOptions())
-        p.pp(toTree, Some(fromTree))(indent/2)
+        val res = printer(indent/2)
 
-        before + p.toString + after
+        before + res + after
 
       case p =>
         sys.error("Substitution requires RangePos on the input tree: "+fromTree +": "+fromTree.getClass+" GOT" +p)
     }
+  }
+
+
+  def substitute(str: String, fromTree: Tree, toTree: Tree, scope : Definition): String = {
+    substitute(str, fromTree, (indent: Int) => {
+      val p = new ScalaPrinter(PrinterOptions())
+      p.pp(toTree)(PrinterContext(toTree, None, Some(scope), indent, p))
+      p.toString
+    })
   }
 
   def readFile(file: File): String = {

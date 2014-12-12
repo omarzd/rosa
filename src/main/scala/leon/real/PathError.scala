@@ -18,7 +18,7 @@ class PathError(reporter: Reporter, solver: RangeSolver, precision: Precision, i
   precondition: Expr, vars: Map[Expr, XReal], verbose: Boolean = false) {
 
   implicit val debugSection = utils.DebugSectionAffine
-  val approximator = new AAApproximator(reporter, solver, precision, checkPathError = true)
+  val approximator = new AAApproximator(reporter, solver, precision, true, checkPathError = true)
 
   var variables = vars
   val leonToZ3 = new LeonToZ3Transformer(inputs, precision)

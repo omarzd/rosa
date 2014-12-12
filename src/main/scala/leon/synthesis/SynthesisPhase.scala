@@ -1,4 +1,3 @@
-/* Copyright 2009-2013 EPFL, Lausanne */
 
 package leon
 package synthesis
@@ -10,6 +9,9 @@ import purescala.Trees._
 import purescala.Common._
 import purescala.ScalaPrinter
 import purescala.Definitions.{Program, FunDef}
+import leon.utils.ASCIIHelpers
+
+import graph._
 
 object SynthesisPhase extends LeonPhase[Program, Program] {
   val name        = "Synthesis"
@@ -17,6 +19,7 @@ object SynthesisPhase extends LeonPhase[Program, Program] {
 
   override val definedOptions : Set[LeonOptionDef] = Set(
     LeonFlagOptionDef( "inplace",         "--inplace",         "Debug level"),
+    LeonFlagOptionDef( "allseeing",       "--allseeing",       "Also synthesize functions using holes"),
     LeonValueOptionDef("parallel",        "--parallel[=N]",    "Parallel synthesis search using N workers", Some("5")),
     LeonFlagOptionDef( "manual",          "--manual",          "Manual search"),
     LeonFlagOptionDef( "derivtrees",      "--derivtrees",      "Generate derivation trees"),
@@ -30,7 +33,8 @@ object SynthesisPhase extends LeonPhase[Program, Program] {
     LeonFlagOptionDef( "cegis:bssfilter",  "--cegis:bssfilter",     "Filter non-det programs when tests pruning works well", true),
     LeonFlagOptionDef( "cegis:unsatcores", "--cegis:unsatcores",    "Use UNSAT-cores in pruning", true),
     LeonFlagOptionDef( "cegis:opttimeout", "--cegis:opttimeout",    "Consider a time-out of CE-search as untrusted solution", true),
-    LeonFlagOptionDef( "cegis:vanuatoo",   "--cegis:vanuatoo",      "Generate inputs using new korat-style generator", false)
+    LeonFlagOptionDef( "cegis:vanuatoo",   "--cegis:vanuatoo",      "Generate inputs using new korat-style generator", false),
+    LeonFlagOptionDef( "holes:discrete",   "--holes:discrete",      "Oracles get split", false)
   )
 
   def processOptions(ctx: LeonContext): SynthesisOptions = {
@@ -39,6 +43,9 @@ object SynthesisPhase extends LeonPhase[Program, Program] {
     for(opt <- ctx.options) opt match {
       case LeonFlagOption("manual", v) =>
         options = options.copy(manualSearch = v)
+
+      case LeonFlagOption("allseeing", v) =>
+        options = options.copy(allSeeing = v)
 
       case LeonFlagOption("inplace", v) =>
         options = options.copy(inPlace = v)
@@ -96,13 +103,15 @@ object SynthesisPhase extends LeonPhase[Program, Program] {
       case LeonFlagOption("cegis:vanuatoo", v) =>
         options = options.copy(cegisUseVanuatoo = v)
 
+      case LeonFlagOption("holes:discrete", v) =>
+        options = options.copy(distreteHoles = v)
+
       case _ =>
     }
 
     if (options.manualSearch) {
       options = options.copy(
         rules = rules.AsChoose +:
-                condabd.rules.ConditionAbductionSynthesisTwoPhase +:
                 options.rules
       )
     }
@@ -110,43 +119,44 @@ object SynthesisPhase extends LeonPhase[Program, Program] {
     options
   }
 
+
   def run(ctx: LeonContext)(p: Program): Program = {
     val options = processOptions(ctx)
 
-    def toProcess(ci: ChooseInfo) = {
-      options.filterFuns.isEmpty || options.filterFuns.get.contains(ci.fd.id.toString)
+    def excludeByDefault(fd: FunDef): Boolean = (fd.annotations contains "library")
+
+    val fdFilter = {
+      import OptionsHelpers._
+      val ciTofd = { (ci: ChooseInfo) => ci.fd }
+
+      filterInclusive(options.filterFuns.map(fdMatcher), Some(excludeByDefault _)) compose ciTofd
     }
 
-    var chooses = ChooseInfo.extractFromProgram(ctx, p, options).filter(toProcess)
+    var chooses = ChooseInfo.extractFromProgram(ctx, p, options).filter(fdFilter)
 
     var functions = Set[FunDef]()
 
-    val results = chooses.map { ci =>
-      val (sol, isComplete) = ci.synthesizer.synthesize()
+    chooses.foreach { ci =>
+      val (search, solutions) = ci.synthesizer.validate(ci.synthesizer.synthesize())
 
       val fd = ci.fd
 
+      if (ci.synthesizer.options.generateDerivationTrees) {
+        val dot = new DotGenerator(search.g)
+        dot.writeFile("derivation"+DotGenerator.nextId()+".dot")
+      }
+
+      val (sol, _) = solutions.head
+
       val expr = sol.toSimplifiedExpr(ctx, p)
-      fd.body = fd.body.map(b => replace(Map(ci.ch -> expr), b))
-
+      fd.body = fd.body.map(b => replace(Map(ci.source -> expr), b))
       functions += fd
+    }
 
-      ci -> expr
-    }.toMap
-
-    if (options.inPlace) {
-      for (file <- ctx.files) {
-        new FileInterface(ctx.reporter).updateFile(file, results)
-      }
-    } else {
-      for (fd <- functions) {
-        val middle = " "+fd.id.name+" "
-        val remSize = (80-middle.length)
-        ctx.reporter.info("-"*math.floor(remSize/2).toInt+middle+"-"*math.ceil(remSize/2).toInt)
-
-        ctx.reporter.info(ScalaPrinter(fd))
-        ctx.reporter.info("")
-      }
+    for (fd <- functions) {
+      ctx.reporter.info(ASCIIHelpers.title(fd.id.name))
+      ctx.reporter.info(ScalaPrinter(fd))
+      ctx.reporter.info("")
     }
 
     p

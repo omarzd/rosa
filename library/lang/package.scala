@@ -1,10 +1,12 @@
+/* Copyright 2009-2014 EPFL, Lausanne */
+
 package leon
 
 import leon.annotation._
 import scala.language.implicitConversions
 
-@ignore
-object lang {
+package object lang {
+  @ignore
   sealed class IsValid(val property : Boolean) {
     def holds : Boolean = {
       assert(property)
@@ -12,25 +14,26 @@ object lang {
     }
   }
 
+  @ignore
   implicit def any2IsValid(x: Boolean) : IsValid = new IsValid(x)
 
-  def epsilon[A](pred: (A) => Boolean): A = throw new RuntimeException("Implementation not supported")
-
+  @ignore
   object InvariantFunction {
     def invariant(x: Boolean): Unit = ()
   }
 
+  @ignore
   implicit def while2Invariant(u: Unit) = InvariantFunction
 
-  def waypoint[A](i: Int, expr: A): A = expr
+  @ignore
+  def error[T](reason: java.lang.String): T = sys.error(reason)
 
-  private def noChoose = throw new RuntimeException("Implementation not supported")
-
-  def choose[A](predicate: A => Boolean): A = noChoose
-  def choose[A, B](predicate: (A, B) => Boolean): (A, B) = noChoose
-  def choose[A, B, C](predicate: (A, B, C) => Boolean): (A, B, C) = noChoose
-  def choose[A, B, C, D](predicate: (A, B, C, D) => Boolean): (A, B, C, D) = noChoose
-  def choose[A, B, C, D, E](predicate: (A, B, C, D, E) => Boolean): (A, B, C, D, E) = noChoose
-
-  def error[T](reason: String): T = sys.error(reason)
+  @library
+  def passes[A, B](in: A, out: B)(tests: Map[A,B]): Boolean = {
+    if (tests contains in) {
+      tests(in) == out
+    } else {
+      true
+    }
+  }
 }

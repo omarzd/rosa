@@ -1,10 +1,11 @@
-/* Copyright 2009-2013 EPFL, Lausanne */
+/* Copyright 2009-2014 EPFL, Lausanne */
 
 package leon
 package synthesis
 
 case class SynthesisOptions(
   inPlace: Boolean                    = false,
+  allSeeing: Boolean                  = false,
   generateDerivationTrees: Boolean    = false,
   filterFuns: Option[Set[String]]     = None,
   searchWorkers: Int                  = 1,
@@ -14,6 +15,7 @@ case class SynthesisOptions(
   rules: Seq[Rule]                    = Rules.all ++ Heuristics.all,
   manualSearch: Boolean               = false,
   searchBound: Option[Int]            = None,
+  selectedSolvers: Set[String]        = Set("fairz3"),
 
   // Cegis related options
   cegisUseUninterpretedProbe: Boolean = false,
@@ -24,5 +26,8 @@ case class SynthesisOptions(
   cegisUseCETests: Boolean            = true,
   cegisUseCEPruning: Boolean          = true,
   cegisUseBPaths: Boolean             = true,
-  cegisUseVanuatoo: Boolean           = false
+  cegisUseVanuatoo: Boolean           = false,
+
+  // Oracles and holes
+  distreteHoles: Boolean              = false
 )

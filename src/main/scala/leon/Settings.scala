@@ -1,4 +1,4 @@
-/* Copyright 2009-2013 EPFL, Lausanne */
+/* Copyright 2009-2014 EPFL, Lausanne */
 
 package leon
 
@@ -11,34 +11,6 @@ case class Settings(
   val synthesis: Boolean               = false,
   val xlang: Boolean                   = false,
   val verify: Boolean                  = true,
-  val injectLibrary: Boolean           = false,
   val real: Boolean                    = false,
-  val classPath: List[String]          = Settings.defaultClassPath()
+  val selectedSolvers: Set[String]     = Set("fairz3")
 )
-
-object Settings {
-  // This is a list of directories that is passed as class-path of the inner-compiler.
-  // It needs to contain at least a directory containing scala-library.jar, and
-  // one for the leon runtime library.
-
-  private def defaultClassPath() = {
-    val scalaHome = System.getenv("SCALA_HOME")
-    val scalaCPs = if (scalaHome != "") {
-      val f = new java.io.File(scalaHome+"/lib")
-
-      f.listFiles().collect {
-        case f if f.getPath().endsWith(".jar") => f.getAbsolutePath()
-      }.toList
-
-    } else {
-      Nil
-    }
-
-    scalaCPs
-  }
-
-  private[leon] def defaultLibFiles() = {
-    Option(System.getenv("LEON_LIBFILES")).map(_.split(" ").toList).getOrElse(Nil)
-  }
-
-}

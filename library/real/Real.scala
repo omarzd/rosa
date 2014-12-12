@@ -14,20 +14,21 @@ object annotations {
   class robust extends StaticAnnotation
 }
 
+@ignore
 object RealOps {
-    @proxy
+    @ignore
     implicit def double2real(d: Double): Real = Real(d)
 
-    @proxy
+    @ignore
     implicit def int2real(i: Int): Real = Real(i.toDouble)
 
-    @proxy
+    @ignore
     def sqrt(x: Real): Real = ???
 
-    @proxy
+    @ignore
     def initialErrors(x: Boolean): Boolean = ???
 
-    @ignore
+    /*@ignore
     def iterate(x: Real)(updateFnc: Boolean): Real = ???
 
     @ignore
@@ -46,7 +47,7 @@ object RealOps {
     def iterate(x1: Real, x2: Real, x3: Real, x4: Real, x5: Real, x6: Real)(
         updateFnc: Boolean): (Real, Real, Real, Real, Real, Real) = ???
     
-    /*def iterate(x1: Real, x2: Real, x3: Real, x4: Real, x5: Real, x6: Real, x7: Real)(
+    def iterate(x1: Real, x2: Real, x3: Real, x4: Real, x5: Real, x6: Real, x7: Real)(
         updateFnc: Boolean): (Real, Real, Real, Real, Real, Real, Real) = ???
     def iterate(x1: Real, x2: Real, x3: Real, x4: Real, x5: Real, x6: Real, x7: Real, x8: Real)(
         updateFnc: Boolean): (Real, Real, Real, Real, Real, Real, Real, Real) = ???
@@ -59,12 +60,12 @@ object RealOps {
     */
     
     // dummy value when we need to return something
-    @proxy
+    @ignore
     def ????(): Real = ???
 }
 
 @ignore
-case class LoopCounter {
+class LoopCounter {
 
   def <(i: Int): Boolean = ???
   def ++(): LoopCounter = ???
@@ -73,8 +74,8 @@ case class LoopCounter {
 
 @ignore
 case class Real private[real](v: Double) extends ScalaNumber with ScalaNumericConversions with Ordered[Real] {
-    import Real._
 
+    
     def unary_-(): Real = ???
     def +(other: Real): Real = ???
     def -(other: Real): Real = ???

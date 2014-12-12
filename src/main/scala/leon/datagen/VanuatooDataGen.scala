@@ -1,4 +1,4 @@
-/* Copyright 2009-2013 EPFL, Lausanne */
+/* Copyright 2009-2014 EPFL, Lausanne */
 
 package leon
 package datagen
@@ -11,6 +11,7 @@ import purescala.TypeTrees._
 import purescala.Extractors.TopLevelAnds
 
 import codegen.CompilationUnit
+import codegen.runtime.LeonCodeGenRuntimeMonitor
 import vanuatoo.{Pattern => VPattern, _}
 
 import evaluators._
@@ -109,6 +110,7 @@ class VanuatooDataGen(ctx: LeonContext, p: Program) extends DataGenerator {
       Nil
   }
 
+  // Returns the pattern and whether it is fully precise
   private def valueToPattern(v: AnyRef, expType: TypeTree): (VPattern[Expr, TypeTree], Boolean) = (v, expType) match {
     case (i: Integer, Int32Type) =>
       (cPattern(intConstructor(i), List()), true)
@@ -143,7 +145,8 @@ class VanuatooDataGen(ctx: LeonContext, p: Program) extends DataGenerator {
           (ConstructorPattern(c, elems.map(_._1)), elems.forall(_._2))
 
         case _ =>
-          sys.error("Could not retreive type for :"+cc.getClass.getName)
+          ctx.reporter.error("Could not retreive type for :"+cc.getClass.getName)
+          (AnyPattern[Expr, TypeTree](), false)
       }
 
     case (t: codegen.runtime.Tuple, tt @ TupleType(parts)) =>
@@ -165,7 +168,8 @@ class VanuatooDataGen(ctx: LeonContext, p: Program) extends DataGenerator {
     case (gv: GenericValue, t: TypeParameter) =>
       (cPattern(getConstructors(t)(gv.id-1), List()), true)
     case (v, t) =>
-      sys.error("Unsupported value, can't paternify : "+v+" ("+v.getClass+") : "+t)
+      ctx.reporter.debug("Unsupported value, can't paternify : "+v+" ("+v.getClass+") : "+t)
+      (AnyPattern[Expr, TypeTree](), false)
   }
 
   type InstrumentedResult = (EvaluationResults.Result, Option[vanuatoo.Pattern[Expr, TypeTree]])
@@ -186,15 +190,19 @@ class VanuatooDataGen(ctx: LeonContext, p: Program) extends DataGenerator {
 
       Some((args : Tuple) => {
         try {
-          val jvmArgs = ce.argsToJVM(Seq(args))
+          val monitor = new LeonCodeGenRuntimeMonitor(unit.params.maxFunctionInvocations)
+          val jvmArgs = ce.argsToJVM(Seq(args), monitor )
 
-          val result  = ce.evalFromJVM(jvmArgs)
+          val result  = ce.evalFromJVM(jvmArgs, monitor)
 
           // jvmArgs is getting updated by evaluating
           val pattern = valueToPattern(jvmArgs(0), ttype)
 
           (EvaluationResults.Successful(result), if (!pattern._2) Some(pattern._1) else None)
         } catch {
+          case e : StackOverflowError  =>
+            (EvaluationResults.RuntimeError(e.getMessage), None)
+
           case e : ClassCastException  =>
             (EvaluationResults.RuntimeError(e.getMessage), None)
 

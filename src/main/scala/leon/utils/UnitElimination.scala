@@ -1,4 +1,4 @@
-/* Copyright 2009-2013 EPFL, Lausanne */
+/* Copyright 2009-2014 EPFL, Lausanne */
 
 package leon
 package utils
@@ -19,14 +19,14 @@ object UnitElimination extends TransformationPhase {
   private var id2FreshId: Map[Identifier, Identifier] = Map()
 
   def apply(ctx: LeonContext, pgm: Program): Program = {
-    val newModules = pgm.modules.map { m =>
+    val newUnits = pgm.units map { u => u.copy(modules = u.modules.map { m =>
       fun2FreshFun = Map()
       val allFuns = m.definedFunctions
 
       //first introduce new signatures without Unit parameters
       allFuns.foreach(fd => {
         if(fd.returnType != UnitType && fd.params.exists(vd => vd.tpe == UnitType)) {
-          val freshFunDef = new FunDef(FreshIdentifier(fd.id.name), fd.tparams, fd.returnType, fd.params.filterNot(vd => vd.tpe == UnitType)).setPos(fd)
+          val freshFunDef = new FunDef(FreshIdentifier(fd.id.name), fd.tparams, fd.returnType, fd.params.filterNot(vd => vd.tpe == UnitType), fd.defType).setPos(fd)
           freshFunDef.precondition = fd.precondition //TODO: maybe removing unit from the conditions as well..
           freshFunDef.postcondition = fd.postcondition//TODO: maybe removing unit from the conditions as well..
           freshFunDef.addAnnotation(fd.annotations.toSeq:_*)
@@ -44,11 +44,11 @@ object UnitElimination extends TransformationPhase {
         Seq(newFd)
       })
 
-      ModuleDef(m.id, m.definedClasses ++ newFuns)
-    }
+      ModuleDef(m.id, m.definedClasses ++ newFuns, m.isStandalone )
+    })}
 
 
-    Program(pgm.id, newModules)
+    Program(pgm.id, newUnits)
   }
 
   private def simplifyType(tpe: TypeTree): TypeTree = tpe match {
@@ -104,7 +104,7 @@ object UnitElimination extends TransformationPhase {
           removeUnit(b)
         else {
           val (newFd, rest) = if(fd.params.exists(vd => vd.tpe == UnitType)) {
-            val freshFunDef = new FunDef(FreshIdentifier(fd.id.name), fd.tparams, fd.returnType, fd.params.filterNot(vd => vd.tpe == UnitType)).setPos(fd)
+            val freshFunDef = new FunDef(FreshIdentifier(fd.id.name), fd.tparams, fd.returnType, fd.params.filterNot(vd => vd.tpe == UnitType), fd.defType).setPos(fd)
             freshFunDef.addAnnotation(fd.annotations.toSeq:_*)
             freshFunDef.precondition = fd.precondition //TODO: maybe removing unit from the conditions as well..
             freshFunDef.postcondition = fd.postcondition//TODO: maybe removing unit from the conditions as well..

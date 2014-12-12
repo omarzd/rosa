@@ -1,4 +1,4 @@
-/* Copyright 2009-2013 EPFL, Lausanne */
+/* Copyright 2009-2014 EPFL, Lausanne */
 
 package leon
 package solvers
@@ -10,152 +10,254 @@ import purescala.Trees._
 import purescala.TreeOps._
 import purescala.TypeTrees._
 
+import solvers.templates._
 import utils.Interruptible
+import evaluators._
 
-import scala.collection.mutable.{Map=>MutableMap}
+class UnrollingSolver(val context: LeonContext, program: Program, underlying: IncrementalSolver) extends Solver with Interruptible {
 
-class UnrollingSolver(val context: LeonContext, underlyings: SolverFactory[IncrementalSolver]) 
-        extends Solver with Interruptible {
+  val (feelingLucky, useCodeGen) = locally {
+    var lucky            = false
+    var codegen          = false
 
-  private var theConstraint : Option[Expr] = None
-  private var theModel : Option[Map[Identifier,Expr]] = None
+    for(opt <- context.options) opt match {
+      case LeonFlagOption("feelinglucky", v)       => lucky   = v
+      case LeonFlagOption("codegen", v)            => codegen = v
+      case _ =>
+    }
 
-  private var stop: Boolean = false
+    (lucky, codegen)
+  }
 
-  def name = "Unr("+underlyings.name+")"
+  private val evaluator : Evaluator = {
+    if(useCodeGen) {
+      new CodeGenEvaluator(context, program)
+    } else {
+      new DefaultEvaluator(context, program)
+    }
+  }
+
+  private var lastCheckResult: (Boolean, Option[Boolean], Option[Map[Identifier,Expr]]) = (false, None, None)
+  private var varsInVC       = List[Set[Identifier]](Set())
+  private var constraints    = List[List[Expr]](Nil)
+  private var interrupted: Boolean = false
+
+  val reporter = context.reporter
+
+  def name = "U:"+underlying.name
 
   def free {}
 
-  import context.reporter._
 
-  def assertCnstr(expression : Expr) {
-    if(!theConstraint.isEmpty) {
-      fatalError("Multiple assertCnstr(...).")
+  val templateGenerator = new TemplateGenerator(new TemplateEncoder[Expr] {
+    def encodeId(id: Identifier): Expr= {
+      Variable(id.freshen)
     }
-    theConstraint = Some(expression)
+
+    def encodeExpr(bindings: Map[Identifier, Expr])(e: Expr): Expr = {
+      replaceFromIDs(bindings, e)
+    }
+
+    def substitute(substMap: Map[Expr, Expr]): Expr => Expr = {
+      (e: Expr) => replace(substMap, e)
+    }
+
+    def not(e: Expr) = Not(e)
+    def implies(l: Expr, r: Expr) = Implies(l, r)
+  })
+
+  val unrollingBank = new UnrollingBank(reporter, templateGenerator)
+
+  val solver = underlying
+
+  def assertCnstr(expression: Expr) {
+    val freeIds = variablesOf(expression)
+
+    val freeVars = freeIds.map(_.toVariable: Expr)
+
+    val bindings = freeVars.zip(freeVars).toMap
+
+    val newClauses = unrollingBank.getClauses(expression, bindings)
+
+    for (cl <- newClauses) {
+      solver.assertCnstr(cl)
+    }
+
+    varsInVC    = (varsInVC.head ++ freeIds) :: varsInVC.tail
+    constraints = (constraints.head ++ newClauses) :: constraints.tail
   }
 
-  def check : Option[Boolean] = theConstraint.map { expr =>
-    val solver = underlyings.getNewSolver//SimpleSolverAPI(underlyings)
 
-    debugS("Check called on " + expr.asString + "...")
+  def push() {
+    unrollingBank.push()
+    solver.push()
+    varsInVC = Set[Identifier]() :: varsInVC
+    constraints = Nil :: constraints
+  }
 
-    val template = getTemplate(expr)
+  def pop(lvl: Int = 1) {
+    unrollingBank.pop(lvl)
+    solver.pop(lvl)
+    varsInVC = varsInVC.drop(lvl)
+    constraints = constraints.drop(lvl)
+  }
 
-    val aVar : Identifier = template.activatingBool
-    var allClauses : Seq[Expr] = Nil
-    var allBlockers : Map[Identifier,Set[FunctionInvocation]] = Map.empty
+  def check: Option[Boolean] = {
+    genericCheck(Set())
+  }
 
-    def unrollOneStep() : List[Expr] = {
-      val blockersBefore = allBlockers
+  def hasFoundAnswer = lastCheckResult._1
 
-      var newClauses : List[Seq[Expr]] = Nil
-      var newBlockers : Map[Identifier,Set[FunctionInvocation]] = Map.empty
+  def foundAnswer(res: Option[Boolean], model: Option[Map[Identifier, Expr]] = None) = {
+    lastCheckResult = (true, res, model)
+  }
 
-      for(blocker <- allBlockers.keySet; FunctionInvocation(tfd, args) <- allBlockers(blocker)) {
-        val (nc, nb) = getTemplate(tfd).instantiate(blocker, args)
-        newClauses = nc :: newClauses
-        newBlockers = newBlockers ++ nb
-      }
+  def isValidModel(model: Map[Identifier, Expr], silenceErrors: Boolean = false): Boolean = {
+    import EvaluationResults._
 
-      allClauses = newClauses.flatten ++ allClauses
-      allBlockers = newBlockers
-      newClauses.flatten
+    val expr = And(constraints.flatten)
+
+    val fullModel = variablesOf(expr).map(v => v -> model.getOrElse(v, simplestValue(v.getType))).toMap
+
+    evaluator.eval(expr, fullModel) match {
+      case Successful(BooleanLiteral(true)) =>
+        reporter.debug("- Model validated.")
+        true
+
+      case Successful(BooleanLiteral(false)) =>
+        reporter.debug("- Invalid model.")
+        false
+
+      case Successful(e) =>
+        reporter.warning("- Model leads unexpected result: "+e)
+        false
+
+      case RuntimeError(msg) =>
+        reporter.debug("- Model leads to runtime error.")
+        false
+
+      case EvaluatorError(msg) => 
+        if (silenceErrors) {
+          reporter.debug("- Model leads to evaluator error: " + msg)
+        } else {
+          reporter.warning("- Model leads to evaluator error: " + msg)
+        }
+        false
     }
+  }
 
-    val (nc, nb) = template.instantiate(aVar, template.tfd.params.map(a => Variable(a.id)))
+  def genericCheck(assumptions: Set[Expr]): Option[Boolean] = {
+    lastCheckResult = (false, None, None)
 
-    allClauses = nc.reverse
-    allBlockers = nb
-
-    var unrollingCount : Int = 0
-    var done : Boolean = false
-    var result : Option[Boolean] = None
-
-    solver.assertCnstr(Variable(aVar))
-    solver.assertCnstr(And(allClauses))
-    // We're now past the initial step.
-    while(!done && !stop) {
-      debugS("At lvl : " + unrollingCount)
+    while(!hasFoundAnswer && !interrupted) {
+      reporter.debug(" - Running search...")
 
       solver.push()
-      //val closed : Expr = fullClosedExpr
-      solver.assertCnstr(And(allBlockers.keySet.toSeq.map(id => Not(id.toVariable))))
+      solver.assertCnstr(And((assumptions ++ unrollingBank.currentBlockers).toSeq))
+      val res = solver.check
 
-      debugS("Going for SAT with this:\n")
+      reporter.debug(" - Finished search with blocked literals")
 
-      solver.check match {
+      res match {
+        case None =>
+          solver.pop()
+
+          reporter.ifDebug { debug =>
+            reporter.debug("Solver returned unknown!?")
+          }
+          foundAnswer(None)
+
+        case Some(true) => // SAT
+          val model = solver.getModel
+          solver.pop()
+
+          foundAnswer(Some(true), Some(model))
+
+        case Some(false) if !unrollingBank.canUnroll =>
+          solver.pop()
+          foundAnswer(Some(false))
 
         case Some(false) =>
-          solver.pop(1)
-          //val open = fullOpenExpr
-          debugS("Was UNSAT... Going for UNSAT with this:\n")
-          solver.check match {
-            case Some(false) =>
-              debugS("Was UNSAT... Done !")
-              done = true
-              result = Some(false)
+          //debug("UNSAT BECAUSE: "+solver.getUnsatCore.mkString("\n  AND  \n"))
+          //debug("UNSAT BECAUSE: "+core.mkString("  AND  "))
+          solver.pop()
 
-            case _ =>
-              debugS("Was SAT or UNKNOWN. Let's unroll !")
-              unrollingCount += 1
-              val newClauses = unrollOneStep()
-              solver.assertCnstr(And(newClauses))
+          if (!interrupted) {
+            if (feelingLucky) {
+              reporter.debug(" - Running search without blocked literals (w/ lucky test)")
+            } else {
+              reporter.debug(" - Running search without blocked literals (w/o lucky test)")
+            }
+
+            solver.push()
+            solver.assertCnstr(And(assumptions.toSeq))
+            val res2 = solver.check
+
+            res2 match {
+              case Some(false) =>
+                //reporter.debug("UNSAT WITHOUT Blockers")
+                foundAnswer(Some(false))
+
+              case Some(true) =>
+                if (feelingLucky && !interrupted) {
+                  val model = solver.getModel
+
+                  // we might have been lucky :D
+                  if (isValidModel(model, silenceErrors = true)) {
+                    foundAnswer(Some(true), Some(model))
+                  }
+                }
+
+              case None =>
+                foundAnswer(None)
+            }
+            solver.pop()
           }
 
-        case Some(true) =>
-          val model = solver.getModel
-          debugS("WAS SAT ! We're DONE !")
-          done = true
-          result = Some(true)
-          theModel = Some(model)
+          if(interrupted) {
+            foundAnswer(None)
+          }
 
-        case None =>
-          val model = solver.getModel
-          debugS("WAS UNKNOWN ! We're DONE !")
-          done = true
-          result = Some(true)
-          theModel = Some(model)
+          if(!hasFoundAnswer) {
+            reporter.debug("- We need to keep going.")
+
+            val toRelease = unrollingBank.getBlockersToUnlock
+
+            reporter.debug(" - more unrollings")
+
+            val newClauses = unrollingBank.unrollBehind(toRelease)
+
+            for(ncl <- newClauses) {
+              solver.assertCnstr(ncl)
+            }
+
+            reporter.debug(" - finished unrolling")
+          }
       }
     }
-    result
 
-  } getOrElse {
-    Some(true)
+    if(interrupted) {
+      None
+    } else {
+      lastCheckResult._2
+    }
   }
 
-  def getModel : Map[Identifier,Expr] = {
-    val vs : Set[Identifier] = theConstraint.map(variablesOf(_)).getOrElse(Set.empty)
-    theModel.getOrElse(Map.empty).filter(p => vs(p._1))
+  def getModel: Map[Identifier,Expr] = {
+    val allVars = varsInVC.flatten.toSet
+    lastCheckResult match {
+      case (true, Some(true), Some(m)) =>
+        m.filterKeys(allVars)
+      case _ =>
+        Map()
+    }
   }
 
   override def interrupt(): Unit = {
-    stop = true
+    interrupted = true
   }
 
   override def recoverInterrupt(): Unit = {
-    stop = false
-  }
-
-  private val tfdTemplateCache : MutableMap[TypedFunDef, FunctionTemplate] = MutableMap.empty
-  private val exprTemplateCache : MutableMap[Expr, FunctionTemplate] = MutableMap.empty
-
-  private def getTemplate(tfd: TypedFunDef): FunctionTemplate = {
-    tfdTemplateCache.getOrElse(tfd, {
-      val res = FunctionTemplate.mkTemplate(tfd, true)
-      tfdTemplateCache += tfd -> res
-      res
-    })
-  }
-
-  private def getTemplate(body: Expr): FunctionTemplate = {
-    exprTemplateCache.getOrElse(body, {
-      val fakeFunDef = new FunDef(FreshIdentifier("fake", true), Nil, body.getType, variablesOf(body).toSeq.map(id => ValDef(id, id.getType)))
-      fakeFunDef.body = Some(body)
-
-      val res = FunctionTemplate.mkTemplate(fakeFunDef.typed, false)
-      exprTemplateCache += body -> res
-      res
-    })
+    interrupted = false
   }
 }

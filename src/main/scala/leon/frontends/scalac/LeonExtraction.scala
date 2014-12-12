@@ -1,4 +1,4 @@
-/* Copyright 2009-2013 EPFL, Lausanne */
+/* Copyright 2009-2014 EPFL, Lausanne */
 
 package leon
 package frontends.scalac
@@ -15,12 +15,17 @@ trait LeonExtraction extends SubComponent with CodeExtraction {
   val phaseName = "leon"
 
   var units: List[CompilationUnit] = Nil
-
+  
   val ctx: LeonContext
 
-
-  def modules = {
-    new Extraction(units).extractModules
+  var imports : Map[RefTree,List[Import]] = Map()
+  
+  def setImports( imports : Map[RefTree,List[Import]] ) {  
+    this.imports = imports
+  }
+  
+  def compiledUnits = {
+    new Extraction(units).extractUnits
   }
 
   def newPhase(prev: scala.tools.nsc.Phase): StdPhase = new Phase(prev)

@@ -260,7 +260,7 @@ object Analyser {
       case Assertion(toProve) =>
         val pathToAssertion = And(path)
         val allFncCalls = functionCallsOf(pathToAssertion).map(invc => invc.tfd.id.toString)
-        vcs :+= new VerificationCondition(outerFunDef, Assert, precondition, pathToAssertion, toProve, allFncCalls, variables, precisions)
+        vcs :+= new VerificationCondition(outerFunDef, VCKind.Assert, precondition, pathToAssertion, toProve, allFncCalls, variables, precisions)
         e
       case _ =>
         super.rec(e, path)

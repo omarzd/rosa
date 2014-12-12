@@ -1,4 +1,4 @@
-/* Copyright 2009-2013 EPFL, Lausanne */
+/* Copyright 2009-2014 EPFL, Lausanne */
 
 package leon
 package codegen
@@ -7,6 +7,7 @@ import purescala.Common._
 import purescala.Definitions._
 import purescala.Trees._
 import purescala.TypeTrees._
+import codegen.runtime.LeonCodeGenRuntimeMonitor
 
 import cafebabe._
 import cafebabe.AbstractByteCodes._
@@ -18,6 +19,7 @@ import scala.collection.JavaConverters._
 
 import java.lang.reflect.Constructor
 
+
 class CompilationUnit(val ctx: LeonContext,
                       val program: Program,
                       val params: CodeGenParams = CodeGenParams()) extends CodeGeneration {
@@ -25,8 +27,8 @@ class CompilationUnit(val ctx: LeonContext,
   val loader = new CafebabeClassLoader(classOf[CompilationUnit].getClassLoader)
 
   var classes     = Map[Definition, ClassFile]()
-  var defToModule = Map[Definition, ModuleDef]()
-
+  var defToModuleOrClass = Map[Definition, Definition]()
+  
   def defineClass(df: Definition) {
     val cName = defToJVMName(df)
 
@@ -55,7 +57,8 @@ class CompilationUnit(val ctx: LeonContext,
   def leonClassToJVMInfo(cd: ClassDef): Option[(String, String)] = {
     classes.get(cd) match {
       case Some(cf) =>
-        val sig = "(" + cd.fields.map(f => typeToJVM(f.tpe)).mkString("") + ")V"
+        val monitorType = if (params.requireMonitor) "L"+MonitorClass+";" else ""
+        val sig = "(" + monitorType + cd.fields.map(f => typeToJVM(f.tpe)).mkString("") + ")V"
         Some((cf.className, sig))
       case _ => None
     }
@@ -64,13 +67,20 @@ class CompilationUnit(val ctx: LeonContext,
   // Returns className, methodName, methodSignature
   private[this] var funDefInfo = Map[FunDef, (String, String, String)]()
 
+  
+  /**
+   * Returns (cn, mn, sig) where 
+   *  cn is the module name
+   *  mn is the safe method name
+   *  sig is the method signature
+   */
   def leonFunDefToJVMInfo(fd: FunDef): Option[(String, String, String)] = {
     funDefInfo.get(fd).orElse {
       val monitorType = if (params.requireMonitor) "L"+MonitorClass+";" else ""
 
       val sig = "(" + monitorType + fd.params.map(a => typeToJVM(a.tpe)).mkString("") + ")" + typeToJVM(fd.returnType)
 
-      defToModule.get(fd).flatMap(m => classes.get(m)) match {
+      defToModuleOrClass.get(fd).flatMap(m => classes.get(m)) match {
         case Some(cf) =>
           val res = (cf.className, idToSafeJVMName(fd.id), sig)
           funDefInfo += fd -> res
@@ -112,7 +122,7 @@ class CompilationUnit(val ctx: LeonContext,
   // Currently, this method is only used to prepare arguments to reflective calls.
   // This means it is safe to return AnyRef (as opposed to primitive types), because
   // reflection needs this anyway.
-  private[codegen] def exprToJVM(e: Expr): AnyRef = e match {
+  def exprToJVM(e: Expr)(implicit monitor : LeonCodeGenRuntimeMonitor): AnyRef = e match {
     case IntLiteral(v) =>
       new java.lang.Integer(v)
 
@@ -123,12 +133,13 @@ class CompilationUnit(val ctx: LeonContext,
       e
 
     case Tuple(elems) =>
-      tupleConstructor.newInstance(elems.map(exprToJVM).toArray).asInstanceOf[AnyRef]
+      tupleConstructor.newInstance(elems.map(exprToJVM _).toArray).asInstanceOf[AnyRef]
 
     case CaseClass(cct, args) =>
       caseClassConstructor(cct.classDef) match {
         case Some(cons) =>
-          cons.newInstance(args.map(exprToJVM).toArray : _*).asInstanceOf[AnyRef]
+          val realArgs = if (params.requireMonitor) monitor +: args.map(exprToJVM _) else  args.map(exprToJVM _)
+          cons.newInstance(realArgs.toArray : _*).asInstanceOf[AnyRef]
         case None =>
           ctx.reporter.fatalError("Case class constructor not found?!?")
       }
@@ -138,57 +149,84 @@ class CompilationUnit(val ctx: LeonContext,
     case f @ FiniteArray(exprs) if f.getType == ArrayType(BooleanType) =>
       exprs.map(e => exprToJVM(e).asInstanceOf[java.lang.Boolean].booleanValue).toArray
 
+    case s @ FiniteSet(els) =>
+      val s = new leon.codegen.runtime.Set()
+      for (e <- els) {
+        s.add(exprToJVM(e))
+      }
+      s
+
+    case m @ FiniteMap(els) =>
+      val m = new leon.codegen.runtime.Map()
+      for ((k,v) <- els) {
+        m.add(exprToJVM(k), exprToJVM(v))
+      }
+      m
+
     // Just slightly overkill...
     case _ =>
-      compileExpression(e, Seq()).evalToJVM(Seq())
+      compileExpression(e, Seq()).evalToJVM(Seq(),monitor)
   }
 
   // Note that this may produce untyped expressions! (typically: sets, maps)
-  private[codegen] def jvmToExpr(e: AnyRef): Expr = e match {
-    case i: Integer =>
+  def jvmToExpr(e: AnyRef, tpe: TypeTree): Expr = (e, tpe) match {
+    case (i: Integer, Int32Type) =>
       IntLiteral(i.toInt)
 
-    case b: java.lang.Boolean =>
+    case (b: java.lang.Boolean, BooleanType) =>
       BooleanLiteral(b.booleanValue)
 
-    case cc: runtime.CaseClass =>
+    case (cc: runtime.CaseClass, ct: ClassType) =>
       val fields = cc.productElements()
 
-      jvmClassToLeonClass(e.getClass.getName) match {
-        case Some(cc: CaseClassDef) =>
-          CaseClass(CaseClassType(cc, Nil), fields.map(jvmToExpr))
+      // identify case class type of ct
+      val cct = ct match {
+        case cc: CaseClassType =>
+          cc
+
         case _ =>
-          throw CompilationException("Unsupported return value : " + e)
+          jvmClassToLeonClass(cc.getClass.getName) match {
+            case Some(cc: CaseClassDef) =>
+              CaseClassType(cc, ct.tps)
+            case _ =>
+              throw CompilationException("Unable to identify class "+cc.getClass.getName+" to descendent of "+ct)
+        }
       }
 
-    case tpl: runtime.Tuple =>
-      val elems = for (i <- 0 until tpl.getArity) yield {
-        jvmToExpr(tpl.get(i))
+      CaseClass(cct, (fields zip cct.fieldsTypes).map { case (e, tpe) => jvmToExpr(e, tpe) })
+
+    case (tpl: runtime.Tuple, TupleType(stpe)) =>
+      val elems = stpe.zipWithIndex.map { case (tpe, i) => 
+        jvmToExpr(tpl.get(i), tpe)
       }
       Tuple(elems)
 
-    case gv : GenericValue =>
+    case (gv : GenericValue, _: TypeParameter) =>
       gv
 
-    case set : runtime.Set =>
-      FiniteSet(set.getElements().asScala.map(jvmToExpr).toSeq)
+    case (set : runtime.Set, SetType(b)) =>
+      FiniteSet(set.getElements().asScala.map(jvmToExpr(_, b)).toSet).setType(SetType(b))
 
-    case map : runtime.Map =>
+    case (map : runtime.Map, MapType(from, to)) =>
       val pairs = map.getElements().asScala.map { entry =>
-        val k = jvmToExpr(entry.getKey())
-        val v = jvmToExpr(entry.getValue())
+        val k = jvmToExpr(entry.getKey(), from)
+        val v = jvmToExpr(entry.getValue(), to)
         (k, v)
       }
       FiniteMap(pairs.toSeq)
 
     case _ =>
-      throw CompilationException("Unsupported return value : " + e.getClass)
+      throw CompilationException("Unsupported return value : " + e.getClass +" while expecting "+tpe)
   }
+
+  var compiledN = 0;
 
   def compileExpression(e: Expr, args: Seq[Identifier]): CompiledExpression = {
     if(e.getType == Untyped) {
       throw new IllegalArgumentException("Cannot compile untyped expression [%s].".format(e))
     }
+
+    compiledN += 1
 
     val id = CompilationUnit.nextExprId
 
@@ -232,7 +270,7 @@ class CompilationUnit(val ctx: LeonContext,
 
     val exprToCompile = purescala.TreeOps.matchToIfThenElse(e)
 
-    mkExpr(e, ch)(Locals(newMapping))
+    mkExpr(e, ch)(Locals(newMapping, true))
 
     e.getType match {
       case Int32Type | BooleanType =>
@@ -254,66 +292,99 @@ class CompilationUnit(val ctx: LeonContext,
 
   def compileModule(module: ModuleDef) {
     val cf = classes(module)
-
-    cf.addDefaultConstructor
-
     cf.setFlags((
       CLASS_ACC_SUPER |
       CLASS_ACC_PUBLIC |
       CLASS_ACC_FINAL
     ).asInstanceOf[U2])
-
-    for(funDef <- module.definedFunctions;
-        (_,mn,_) <- leonFunDefToJVMInfo(funDef)) {
-
-      val paramsTypes = funDef.params.map(a => typeToJVM(a.tpe))
-
-      val realParams = if (params.requireMonitor) {
-        ("L" + MonitorClass + ";") +: paramsTypes
-      } else {
-        paramsTypes
+    
+    /*if (false) {
+      // currently we do not handle object fields 
+      // this treats all fields as functions
+      for (fun <- module.definedFunctions) {
+        compileFunDef(fun, module)
       }
-
-      val m = cf.addMethod(
-        typeToJVM(funDef.returnType),
-        mn,
-        realParams : _*
-      )
-      m.setFlags((
-        METHOD_ACC_PUBLIC |
-        METHOD_ACC_FINAL |
-        METHOD_ACC_STATIC
-      ).asInstanceOf[U2])
-
-      compileFunDef(funDef, m.codeHandler)
+    } else {*/
+    
+    val (fields, functions) = module.definedFunctions partition { _.canBeField }
+    val (strictFields, lazyFields) = fields partition { _.canBeStrictField }
+    
+    // Compile methods
+    for (function <- functions) {
+      compileFunDef(function,module)
     }
+    
+    // Compile lazy fields
+    for (lzy <- lazyFields) {
+      compileLazyField(lzy, module)
+    }
+    
+    // Compile strict fields
+    for (field <- strictFields) {
+      compileStrictField(field, module)
+    }
+ 
+    // Constructor
+    cf.addDefaultConstructor
+    
+    val cName = defToJVMName(module)
+    
+    // Add class initializer method
+    locally{ 
+      val mh = cf.addMethod("V", "<clinit>")
+      mh.setFlags((
+        METHOD_ACC_STATIC | 
+        METHOD_ACC_PUBLIC
+      ).asInstanceOf[U2])
+      
+      val ch = mh.codeHandler
+      /*
+       * FIXME :
+       * Dirty hack to make this compatible with monitoring of method invocations.
+       * Because we don't have access to the monitor object here, we initialize a new one 
+       * that will get lost when this method returns, so we can't hope to count 
+       * method invocations here :( 
+       */
+      ch << New(MonitorClass) << DUP
+      ch << Ldc(Int.MaxValue) // Allow "infinite" method calls
+      ch << InvokeSpecial(MonitorClass, cafebabe.Defaults.constructorName, "(I)V")
+      ch << AStore(ch.getFreshVar) // position 0
+      for (lzy <- lazyFields) { initLazyField(ch, cName, lzy, true)}  
+      for (field <- strictFields) { initStrictField(ch, cName , field, true)}
+      ch  << RETURN
+      ch.freeze
+    }
+      
+    
+
+  
   }
 
-
+  /** Traverses the program to find all definitions, and stores those in global variables */
   def init() {
-    // First define all classes
-    for (m <- program.modules) {
-      for ((parent, children) <- m.algebraicDataTypes) {
-        defineClass(parent)
-
-        for (c <- children) {
-          defineClass(c)
+    // First define all classes/ methods/ functions
+    for (u <- program.units; m <- u.modules) {
+      val (parents, children) = m.algebraicDataTypes.toSeq.unzip
+      for ( cls <- parents ++ children.flatten ++ m.singleCaseClasses) {
+        defineClass(cls)
+        for (meth <- cls.methods) {
+          defToModuleOrClass += meth -> cls
         }
       }
-
-
-      for(single <- m.singleCaseClasses) {
-        defineClass(single)
-      }
-
       defineClass(m)
+      for(funDef <- m.definedFunctions) {
+        defToModuleOrClass += funDef -> m
+      }
+      
     }
   }
 
+  /** Compiles the program. Uses information provided by $init */
   def compile() {
     // Compile everything
-    for (m <- program.modules) {
-      for ((parent, children) <- m.algebraicDataTypes) {
+    for (u <- program.units) {
+      
+      for ((parent, children) <- u.algebraicDataTypes) {
         compileAbstractClassDef(parent)
 
         for (c <- children) {
@@ -321,17 +392,12 @@ class CompilationUnit(val ctx: LeonContext,
         }
       }
 
-      for(single <- m.singleCaseClasses) {
+      for(single <- u.singleCaseClasses) {
         compileCaseClassDef(single)
       }
 
-      for(funDef <- m.definedFunctions) {
-        defToModule += funDef -> m
-      }
-    }
-
-    for (m <- program.modules) {
-      compileModule(m)
+      for (m <- u.modules) compileModule(m)
+      
     }
 
     classes.values.foreach(loader.register _)

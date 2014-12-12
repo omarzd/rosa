@@ -166,7 +166,7 @@ class VariablePool(val inputs: Map[Expr, Record], val resIds: Seq[Identifier],
 }
 
 case class Record(idealId: Identifier, lo: Rational, up: Rational, absUncert: Option[Rational],
-  actualId: Identifier, relUncert: Option[Rational] = None) {
+  actualId: Identifier, relUncert: Option[Rational]) {
 
   def this(i: Identifier, l: Rational, u: Rational, abs: Option[Rational],
     relUncert: Option[Rational] = None) = {

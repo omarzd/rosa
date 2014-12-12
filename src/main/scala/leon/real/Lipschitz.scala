@@ -17,6 +17,7 @@ import Rational._
 trait Lipschitz {
   val reporter: Reporter
   val solver: RangeSolver
+  val silent: Boolean
   var leonToZ3: LeonToZ3Transformer
 
   implicit val debugSection: utils.DebugSection
@@ -32,7 +33,7 @@ trait Lipschitz {
       
       val lipschitzConsts: RMatrix = _getLipschitzMatrix(completePre, es, ids,
         vars.map(x => (x._1, x._2.interval)))
-      reporter.info("K: (" + ids.mkString(", ") + ")" + lipschitzConsts)
+      if (!silent) reporter.info("K: (" + ids.mkString(", ") + ")" + lipschitzConsts)
 
       val initErrors: Map[Identifier, Rational] = vars.map({
         case (Variable(id), xreal) => (id, xreal.maxError)
@@ -45,7 +46,7 @@ trait Lipschitz {
             case (sum, (id, k)) => sum + k*initErrors(id) 
           }
         })
-      reporter.info("lipschitz errors: " + lipschitzErrors)
+      if (!silent) reporter.info("lipschitz errors: " + lipschitzErrors)
       Some(lipschitzErrors)
     }
   }
@@ -106,7 +107,7 @@ trait Lipschitz {
   def getLipschitzMatrix(body: Expr, ids: Seq[Identifier], updateFncs: Seq[Expr], vars: Map[Expr, RationalInterval],
     additionalConstraints: Expr, precision: Precision): RMatrix = {
 
-    reporter.info("computing loop error")
+    if (!silent) reporter.info("computing loop error")
     //println("vars: " + vars)
     reporter.debug("body: " + body)
     reporter.debug("updateFncs: " + updateFncs)
@@ -151,7 +152,7 @@ trait Lipschitz {
     
     val mK = _getLipschitzMatrix(precondition, inlinedFncs, ids, allVars)    
     //reporter.info("sigmas: " + sigmas)
-    reporter.info("K: " + mK)
+    if (!silent) reporter.info("K: " + mK)
     mK
   }
 
@@ -166,16 +167,16 @@ trait Lipschitz {
       None
     } else {
       reporter.debug("initial errors: " + initErrors)
-      println("initial errors: " + initErrors)
+      //println("initial errors: " + initErrors)
 
       val pre = And(rangeConstraintFromIntervals(vars), additionalConstraints)
       val (jacobian, lipschitzConsts, hessianConsts) = getSigmaJacobianHessian(
         pre, expr, ids, precision, vars)
       assert(sigmas.length == 1 && lipschitzConsts.rows.length == 1)
 
-      println("jacobian: " + jacobian + "   * (sigma: "+sigmas(0)+")")
+      //println("jacobian: " + jacobian + "   * (sigma: "+sigmas(0)+")")
       
-      println("hessian: " + hessianConsts)
+      //println("hessian: " + hessianConsts)
       
       val h: Seq[Seq[Rational]] = hessianConsts.map(hc => hc.rows.zipWithIndex.flatMap({
         case (row, i) =>
@@ -191,7 +192,7 @@ trait Lipschitz {
             case (sum, elem) => sum + elem
           }
 
-      println("taylorRemainder: " + taylorRemainder)
+      //println("taylorRemainder: " + taylorRemainder)
 
 
       reporter.debug("K: " + lipschitzConsts)
@@ -250,7 +251,7 @@ trait Lipschitz {
       reporter.debug("computed range for: " + e + "  --> " + maxAbs(Seq(rangeDerivative.xlo, rangeDerivative.xhi)))
       maxAbs(Seq(rangeDerivative.xlo, rangeDerivative.xhi))
     })
-    reporter.info("Bound ranges solver counts: " + solver.getCounts)
+    if (!silent) reporter.info("Bound ranges solver counts: " + solver.getCounts)
     res
   }
 

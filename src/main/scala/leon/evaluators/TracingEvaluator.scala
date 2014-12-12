@@ -1,4 +1,4 @@
-/* Copyright 2009-2013 EPFL, Lausanne */
+/* Copyright 2009-2014 EPFL, Lausanne */
 
 package leon
 package evaluators
@@ -9,27 +9,17 @@ import purescala.Definitions._
 import purescala.TreeOps._
 import purescala.TypeTrees._
 
-class TracingEvaluator(ctx: LeonContext, prog: Program, maxSteps: Int = 1000) extends RecursiveEvaluator(ctx, prog) {
+class TracingEvaluator(ctx: LeonContext, prog: Program, maxSteps: Int = 1000) extends RecursiveEvaluator(ctx, prog, maxSteps) {
   type RC = TracingRecContext
   type GC = TracingGlobalContext
 
-  var lastGlobalContext: Option[GC] = None
+  def initRC(mappings: Map[Identifier, Expr]) = TracingRecContext(mappings, 2)
 
-  def initRC(mappings: Map[Identifier, Expr]) = {
-    TracingRecContext(mappings, 2)
-  }
+  def initGC = new TracingGlobalContext(Nil)
 
-  def initGC = {
-    val gc = new TracingGlobalContext(stepsLeft = maxSteps, Nil)
-    lastGlobalContext = Some(gc)
-    gc
-  }
-
-  class TracingGlobalContext(stepsLeft: Int, var values: List[(Expr, Expr)]) extends GlobalContext(stepsLeft)
+  class TracingGlobalContext(var values: List[(Tree, Expr)]) extends GlobalContext
 
   case class TracingRecContext(mappings: Map[Identifier, Expr], tracingFrames: Int) extends RecContext {
-    def withNewVar(id: Identifier, v: Expr) = copy(mappings = mappings + (id -> v))
-
     def withVars(news: Map[Identifier, Expr]) = copy(mappings = news)
   }
 
@@ -41,6 +31,20 @@ class TracingEvaluator(ctx: LeonContext, prog: Program, maxSteps: Int = 1000) ex
           val first = e(ex)
           val res = e(b)(rctx.withNewVar(i, first), gctx)
           (res, first)
+
+        case MatchExpr(scrut, cases) =>
+          val rscrut = e(scrut)
+
+          val r = cases.toStream.map(c => matchesCase(rscrut, c)).find(_.nonEmpty) match {
+            case Some(Some((c, mappings))) =>
+              gctx.values ++= (Map(c.pattern -> rscrut) ++ mappings.map { case (id, v) => id.toVariable.setPos(id) -> v })
+
+              e(c.rhs)(rctx.withNewVars(mappings), gctx)
+            case _ =>
+              throw RuntimeError("MatchError: "+rscrut+" did not match any of the cases")
+          }
+
+          (r, r)
 
         case fi @ FunctionInvocation(tfd, args) =>
           if (gctx.stepsLeft < 0) {
@@ -54,7 +58,7 @@ class TracingEvaluator(ctx: LeonContext, prog: Program, maxSteps: Int = 1000) ex
           val frame = new TracingRecContext((tfd.params.map(_.id) zip evArgs).toMap, rctx.tracingFrames-1)
 
           if(tfd.hasPrecondition) {
-            e(matchToIfThenElse(tfd.precondition.get))(frame, gctx) match {
+            e(tfd.precondition.get)(frame, gctx) match {
               case BooleanLiteral(true) =>
               case BooleanLiteral(false) =>
                 throw RuntimeError("Precondition violation for " + tfd.id.name + " reached in evaluation.: " + tfd.precondition.get)
@@ -67,15 +71,14 @@ class TracingEvaluator(ctx: LeonContext, prog: Program, maxSteps: Int = 1000) ex
           }
 
           val body = tfd.body.getOrElse(rctx.mappings(tfd.id))
-          val callResult = e(matchToIfThenElse(body))(frame, gctx)
+          val callResult = e(body)(frame, gctx)
 
           if(tfd.hasPostcondition) {
             val (id, post) = tfd.postcondition.get
 
-            val freshResID = FreshIdentifier("result").setType(tfd.returnType)
-            val postBody = replace(Map(Variable(id) -> Variable(freshResID)), matchToIfThenElse(post))
+            gctx.values ::= id.toVariable.setPos(id) -> callResult
 
-            e(matchToIfThenElse(post))(frame.withNewVar(id, callResult), gctx) match {
+            e(post)(frame.withNewVar(id, callResult), gctx) match {
               case BooleanLiteral(true) =>
               case BooleanLiteral(false) => throw RuntimeError("Postcondition violation for " + tfd.id.name + " reached in evaluation.")
               case other => throw EvalError(typeErrorMsg(other, BooleanType))

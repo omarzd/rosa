@@ -1,4 +1,4 @@
-/* Copyright 2009-2013 EPFL, Lausanne */
+/* Copyright 2009-2014 EPFL, Lausanne */
 
 package leon
 package purescala
@@ -46,7 +46,7 @@ class ScopeSimplifier extends Transformer {
         ValDef(newArg, tpe)
       }
 
-      val newFd = new FunDef(newId, fd.tparams, fd.returnType, newArgs)
+      val newFd = new FunDef(newId, fd.tparams, fd.returnType, newArgs, fd.defType)
 
       newScope = newScope.registerFunDef(fd -> newFd)
 
@@ -103,6 +103,8 @@ class ScopeSimplifier extends Transformer {
             CaseClassPattern(newBinder, ccd, newSubPatterns)
           case TuplePattern(b, sub) =>
             TuplePattern(newBinder, newSubPatterns)
+          case LiteralPattern(_, lit) => 
+            LiteralPattern(newBinder, lit)
         }
 
 

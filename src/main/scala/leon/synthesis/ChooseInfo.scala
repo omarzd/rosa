@@ -1,21 +1,23 @@
-/* Copyright 2009-2013 EPFL, Lausanne */
+/* Copyright 2009-2014 EPFL, Lausanne */
 
 package leon
 package synthesis
 
+import purescala.Common._
 import purescala.Definitions._
 import purescala.Trees._
-import purescala.TreeOps.ChooseCollectorWithPaths
+import purescala.TreeOps._
 
 case class ChooseInfo(ctx: LeonContext,
                       prog: Program,
                       fd: FunDef,
                       pc: Expr,
+                      source: Expr,
                       ch: Choose,
                       options: SynthesisOptions) {
 
   val problem     = Problem.fromChoose(ch, pc)
-  val synthesizer = new Synthesizer(ctx, Some(fd), prog, problem, options)
+  val synthesizer = new Synthesizer(ctx, fd, prog, problem, options)
 }
 
 object ChooseInfo {
@@ -25,14 +27,14 @@ object ChooseInfo {
     var results = List[ChooseInfo]()
 
     // Look for choose()
-    for (f <- prog.definedFunctions.sortBy(_.id.toString) if f.body.isDefined) {
+    for (f <- prog.definedFunctions if f.body.isDefined) {
       val actualBody = And(f.precondition.getOrElse(BooleanLiteral(true)), f.body.get)
 
       for ((ch, path) <- new ChooseCollectorWithPaths().traverse(actualBody)) {
-        results = ChooseInfo(ctx, prog, f, path, ch, options) :: results
+        results = ChooseInfo(ctx, prog, f, path, ch, ch, options) :: results
       }
     }
 
-    results.reverse
+    results.sortBy(_.source.getPos)
   }
 }

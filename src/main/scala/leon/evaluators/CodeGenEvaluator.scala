@@ -1,4 +1,4 @@
-/* Copyright 2009-2013 EPFL, Lausanne */
+/* Copyright 2009-2014 EPFL, Lausanne */
 
 package leon
 package evaluators
@@ -23,13 +23,20 @@ class CodeGenEvaluator(ctx : LeonContext, val unit : CompilationUnit) extends Ev
 
   def eval(expression : Expr, mapping : Map[Identifier,Expr]) : EvaluationResult = {
     val toPairs = mapping.toSeq
-    compile(expression, toPairs.map(_._1)).map(e => e(toPairs.map(_._2))).getOrElse(EvaluationResults.EvaluatorError("Couldn't compile expression."))
+    compile(expression, toPairs.map(_._1)).map { e => 
+
+      ctx.timers.evaluators.codegen.runtime.start()
+      val res = e(toPairs.map(_._2))
+      ctx.timers.evaluators.codegen.runtime.stop()
+      res
+    }.getOrElse(EvaluationResults.EvaluatorError("Couldn't compile expression."))
   }
 
   override def compile(expression : Expr, argorder : Seq[Identifier]) : Option[Seq[Expr]=>EvaluationResult] = {
     import leon.codegen.runtime.LeonCodeGenRuntimeException
     import leon.codegen.runtime.LeonCodeGenEvaluationException
 
+    ctx.timers.evaluators.codegen.compilation.start()
     try {
       val ce = unit.compileExpression(expression, argorder)
 
@@ -52,8 +59,10 @@ class CodeGenEvaluator(ctx : LeonContext, val unit : CompilationUnit) extends Ev
       })
     } catch {
       case t: Throwable =>
-        ctx.reporter.warning("Error while compiling expression: "+t.getMessage)
+        ctx.reporter.warning(expression.getPos, "Error while compiling expression: "+t.getMessage)
         None
+    } finally {
+      ctx.timers.evaluators.codegen.compilation.stop()
     }
   }
 }

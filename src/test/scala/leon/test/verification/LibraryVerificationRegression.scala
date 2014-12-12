@@ -1,20 +1,24 @@
-/* Copyright 2009-2013 EPFL, Lausanne */
+/* Copyright 2009-2014 EPFL, Lausanne */
 
-package leon
-package test
-package verification
+package leon.test.verification
+
+import leon._
+import leon.test._
+
 
 import java.io.File
 
+import leon.frontends.scalac.ExtractionPhase
+import leon.utils.PreprocessingPhase
+import leon.verification.AnalysisPhase
+
 class LibraryVerificationRegression extends LeonTestSuite {
   test("Verify the library") {
-      val pipeline = leon.frontends.scalac.ExtractionPhase andThen
-                     leon.purescala.MethodLifting andThen
-                     leon.utils.SubtypingPhase andThen
-                     leon.purescala.CompleteAbstractDefinitions andThen
-                     leon.verification.AnalysisPhase
+      val pipeline = ExtractionPhase    andThen
+                     PreprocessingPhase andThen
+                     AnalysisPhase
 
-      val ctx = Main.processOptions(Seq("--library", "--functions=_")).copy(reporter = new TestSilentReporter())
+      val ctx = Main.processOptions(Seq("--functions=_")).copy(reporter = new TestSilentReporter())
 
       val report = pipeline.run(ctx)(Nil)
 

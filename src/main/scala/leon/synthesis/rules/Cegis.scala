@@ -1,4 +1,4 @@
-/* Copyright 2009-2013 EPFL, Lausanne */
+/* Copyright 2009-2014 EPFL, Lausanne */
 
 package leon
 package synthesis
@@ -12,6 +12,7 @@ import purescala.Common._
 import purescala.Definitions._
 import purescala.TypeTrees._
 import purescala.TreeOps._
+import purescala.DefOps._
 import purescala.TypeTreeOps._
 import purescala.Extractors._
 import purescala.ScalaPrinter
@@ -20,6 +21,7 @@ import scala.collection.mutable.{Map=>MutableMap}
 
 import evaluators._
 import datagen._
+import codegen.CodeGenParams
 
 
 case object CEGIS extends Rule("CEGIS") {
@@ -38,7 +40,8 @@ case object CEGIS extends Rule("CEGIS") {
     val testUpTo              = 5
     val useBssFiltering       = sctx.options.cegisUseBssFiltering
     val filterThreshold       = 1.0/2
-    val evaluator             = new CodeGenEvaluator(sctx.context, sctx.program)
+    val evalParams            = CodeGenParams(maxFunctionInvocations = 2000)
+    val evaluator             = new CodeGenEvaluator(sctx.context, sctx.program, evalParams)
 
     val interruptManager      = sctx.context.interruptManager
 
@@ -53,7 +56,19 @@ case object CEGIS extends Rule("CEGIS") {
             { () => List((BooleanLiteral(true), Set()), (BooleanLiteral(false), Set())) }
 
           case Int32Type =>
-            { () => List((IntLiteral(0), Set()), (IntLiteral(1), Set())) }
+            { () =>
+              val ground = List((IntLiteral(0), Set[Identifier]()), (IntLiteral(1), Set[Identifier]()))
+              val ops    = List[Function2[Expr, Expr, Expr]](
+                (a,b) => Plus(a,b),
+                (a,b) => Minus(a,b),
+                (a,b) => Times(a,b)
+              )
+
+              ops.map{f =>
+                val ids = List(FreshIdentifier("a", true).setType(Int32Type), FreshIdentifier("b", true).setType(Int32Type))
+                (f(ids(0).toVariable, ids(1).toVariable), ids.toSet)
+              } ++ ground
+            }
 
           case TupleType(tps) =>
             { () =>
@@ -71,7 +86,7 @@ case object CEGIS extends Rule("CEGIS") {
             { () =>
               val alts: Seq[(Expr, Set[Identifier])] = cd.knownDescendents.flatMap(i => i match {
                   case acd: AbstractClassDef =>
-                    sctx.reporter.error("Unnexpected abstract class in descendants!")
+                    sctx.reporter.error(acd.getPos, "Unnexpected abstract class in descendants!")
                     None
                   case cd: CaseClassDef =>
                     val cct = CaseClassType(cd, tpes)
@@ -100,13 +115,9 @@ case object CEGIS extends Rule("CEGIS") {
       if (useFunGenerators) {
         def isCandidate(fd: FunDef): Option[TypedFunDef] = {
           // Prevents recursive calls
-          val isRecursiveCall = sctx.functionContext match {
-            case Some(cfd) =>
-              (sctx.program.callGraph.transitiveCallers(cfd) + cfd) contains fd
 
-            case None =>
-              false
-          }
+          val cfd             = sctx.functionContext
+          val isRecursiveCall = (sctx.program.callGraph.transitiveCallers(cfd) + cfd) contains fd
 
           val isNotSynthesizable = fd.body match {
             case Some(b) =>
@@ -116,10 +127,12 @@ case object CEGIS extends Rule("CEGIS") {
               false
           }
 
+
           if (!isRecursiveCall && isNotSynthesizable) {
-            canBeSubtypeOf(fd.returnType, fd.tparams, t) match {
-              case Some(tps) =>
-                Some(fd.typed(tps))
+            val free = fd.tparams.map(_.tp)
+            canBeSubtypeOf(fd.returnType, free, t) match {
+              case Some(tpsMap) =>
+                Some(fd.typed(free.map(tp => tpsMap.getOrElse(tp, tp))))
               case None =>
                 None
             }
@@ -132,7 +145,7 @@ case object CEGIS extends Rule("CEGIS") {
           case Some(alts) =>
             alts
           case None =>
-            val alts = sctx.program.definedFunctions.flatMap(isCandidate)
+            val alts = visibleFunDefsFrom(sctx.functionContext).toSeq.flatMap(isCandidate)
             funcCache += t -> alts
             alts
         }
@@ -437,9 +450,9 @@ case object CEGIS extends Rule("CEGIS") {
       def css : Set[Identifier] = mappings.values.map(_._1).toSet ++ guardedTerms.flatMap(_._2)
     }
 
-    List(new RuleInstantiation(p, this, SolutionBuilder.none, "CEGIS") {
-      def apply(sctx: SynthesisContext): RuleApplicationResult = {
-        var result: Option[RuleApplicationResult]   = None
+    List(new RuleInstantiation(p, this, SolutionBuilder.none, this.name, this.priority) {
+      def apply(sctx: SynthesisContext): RuleApplication = {
+        var result: Option[RuleApplication]   = None
 
         var ass = p.as.toSet
         var xss = p.xs.toSet
@@ -450,13 +463,15 @@ case object CEGIS extends Rule("CEGIS") {
         var unrolings = 0
         val maxUnrolings = 3
 
-        val exSolverTo  = 3000L
-        val cexSolverTo = 3000L
+        val exSolverTo  = 2000L
+        val cexSolverTo = 2000L
 
         var baseExampleInputs: Seq[Seq[Expr]] = Seq()
 
         // We populate the list of examples with a predefined one
         sctx.reporter.debug("Acquiring list of examples")
+
+        baseExampleInputs ++= p.getTests(sctx).map(_.ins).toSet
 
         if (p.pc == BooleanLiteral(true)) {
           baseExampleInputs = p.as.map(a => simplestValue(a.getType)) +: baseExampleInputs
@@ -472,14 +487,20 @@ case object CEGIS extends Rule("CEGIS") {
                 baseExampleInputs = p.as.map(a => model.getOrElse(a, simplestValue(a.getType))) +: baseExampleInputs
 
               case Some(false) =>
-                return RuleApplicationImpossible
+                return RuleFailed()
 
               case None =>
                 sctx.reporter.warning("Solver could not solve path-condition")
-                return RuleApplicationImpossible // This is not necessary though, but probably wanted
+                return RuleFailed() // This is not necessary though, but probably wanted
             }
           } finally {
             solver.free()
+          }
+        }
+
+        sctx.reporter.ifDebug { debug =>
+          baseExampleInputs.foreach { in =>
+            debug("  - "+in.mkString(", "))
           }
         }
 
@@ -503,19 +524,20 @@ case object CEGIS extends Rule("CEGIS") {
 
         def allInputExamples() = baseExampleInputs.iterator ++ cachedInputIterator
 
-        def checkForPrograms(programs: Set[Set[Identifier]]): RuleApplicationResult = {
+        def checkForPrograms(programs: Set[Set[Identifier]]): RuleApplication = {
           for (prog <- programs) {
             val expr = ndProgram.determinize(prog)
             val res = Equals(Tuple(p.xs.map(Variable(_))), expr)
+
             val solver3 = sctx.newSolver.setTimeout(cexSolverTo)
             solver3.assertCnstr(And(p.pc :: res :: Not(p.phi) :: Nil))
 
             try {
               solver3.check match {
                 case Some(false) =>
-                  return RuleSuccess(Solution(BooleanLiteral(true), Set(), expr), isTrusted = true)
+                  return RuleClosed(Solution(BooleanLiteral(true), Set(), expr, isTrusted = true))
                 case None =>
-                  return RuleSuccess(Solution(BooleanLiteral(true), Set(), expr), isTrusted = false)
+                  return RuleClosed(Solution(BooleanLiteral(true), Set(), expr, isTrusted = false))
                 case Some(true) =>
                   // invalid program, we skip
               }
@@ -524,7 +546,7 @@ case object CEGIS extends Rule("CEGIS") {
             }
           }
 
-          RuleApplicationImpossible
+          RuleFailed()
         }
 
         // Keep track of collected cores to filter programs to test
@@ -607,7 +629,11 @@ case object CEGIS extends Rule("CEGIS") {
               needMoreUnrolling = true;
             } else if (nPassing <= testUpTo) {
               // Immediate Test
-              result = Some(checkForPrograms(prunedPrograms))
+              checkForPrograms(prunedPrograms) match {
+                case rs: RuleClosed =>
+                  result = Some(rs)
+                case _ =>
+              }
             } else if (((nPassing < allPrograms*filterThreshold) || didFilterAlready) && useBssFiltering) {
               // We filter the Bss so that the formula we give to z3 is much smalled
               val bssToKeep = prunedPrograms.foldLeft(Set[Identifier]())(_ ++ _)
@@ -699,7 +725,7 @@ case object CEGIS extends Rule("CEGIS") {
                               bssAssumptions
 
                             case None =>
-                              return RuleApplicationImpossible
+                              return RuleFailed()
                           }
 
                           solver1.pop()
@@ -721,16 +747,16 @@ case object CEGIS extends Rule("CEGIS") {
 
                         val expr = ndProgram.determinize(satModel.filter(_._2 == BooleanLiteral(true)).keySet)
 
-                        result = Some(RuleSuccess(Solution(BooleanLiteral(true), Set(), expr)))
+                        result = Some(RuleClosed(Solution(BooleanLiteral(true), Set(), expr)))
 
                       case _ =>
                         if (useOptTimeout) {
                           // Interpret timeout in CE search as "the candidate is valid"
                           sctx.reporter.info("CEGIS could not prove the validity of the resulting expression")
                           val expr = ndProgram.determinize(satModel.filter(_._2 == BooleanLiteral(true)).keySet)
-                          result = Some(RuleSuccess(Solution(BooleanLiteral(true), Set(), expr), isTrusted = false))
+                          result = Some(RuleClosed(Solution(BooleanLiteral(true), Set(), expr, isTrusted = false)))
                         } else {
-                          return RuleApplicationImpossible
+                          return RuleFailed()
                         }
                     }
                   }
@@ -741,7 +767,7 @@ case object CEGIS extends Rule("CEGIS") {
                     solver1.check match {
                       case Some(false) =>
                         // Unsat even without blockers (under which fcalls are then uninterpreted)
-                        return RuleApplicationImpossible
+                        return RuleFailed()
 
                       case _ =>
                     }
@@ -758,13 +784,13 @@ case object CEGIS extends Rule("CEGIS") {
             unrolings += 1
           } while(unrolings < maxUnrolings && result.isEmpty && !interruptManager.isInterrupted())
 
-          result.getOrElse(RuleApplicationImpossible)
+          result.getOrElse(RuleFailed())
 
         } catch {
           case e: Throwable =>
             sctx.reporter.warning("CEGIS crashed: "+e.getMessage)
             e.printStackTrace
-            RuleApplicationImpossible
+            RuleFailed()
         } finally {
           solver1.free()
           solver2.free()

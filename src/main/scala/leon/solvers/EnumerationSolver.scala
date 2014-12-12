@@ -1,4 +1,4 @@
-/* Copyright 2009-2013 EPFL, Lausanne */
+/* Copyright 2009-2014 EPFL, Lausanne */
 
 package leon
 package solvers
@@ -14,7 +14,7 @@ import purescala.TypeTrees._
 import datagen._
 
 
-class EnumerationSolver(val context: LeonContext, val program: Program) extends Solver with Interruptible {
+class EnumerationSolver(val context: LeonContext, val program: Program) extends Solver with Interruptible with IncrementalSolver with NaiveAssumptionSolver {
   def name = "Enum"
 
   val maxTried = 10000;
@@ -23,31 +23,45 @@ class EnumerationSolver(val context: LeonContext, val program: Program) extends 
 
   private var interrupted = false;
 
-  var freeVars    = List[Identifier]()
-  var constraints = List[Expr]()
+  var freeVars    = List[List[Identifier]](Nil)
+  var constraints = List[List[Expr]](Nil)
 
   def assertCnstr(expression: Expr): Unit = {
-    constraints = constraints :+ expression
+    constraints = (constraints.head :+ expression) :: constraints.tail
 
-    val newFreeVars = (variablesOf(expression) -- freeVars).toList
-    freeVars = freeVars ::: newFreeVars
+    val newFreeVars = (variablesOf(expression) -- freeVars.flatten).toList
+
+    freeVars = (freeVars.head ::: newFreeVars) :: freeVars.tail
+  }
+
+  def push() = {
+    freeVars = Nil :: freeVars
+    constraints = Nil :: constraints
+  }
+
+  def pop(lvl: Int) = {
+    freeVars = freeVars.drop(lvl)
+    constraints = constraints.drop(lvl)
   }
 
   private var modelMap = Map[Identifier, Expr]()
 
   def check: Option[Boolean] = {
+    val timer = context.timers.solvers.enum.check.start()
     val res = try {
       datagen = Some(new VanuatooDataGen(context, program))
       if (interrupted) {
         None
       } else {
         modelMap = Map()
+        val allFreeVars = freeVars.reverse.flatten
+        val allConstraints = constraints.reverse.flatten
 
-        val it = datagen.get.generateFor(freeVars, And(constraints), 1, maxTried)
+        val it = datagen.get.generateFor(allFreeVars, And(allConstraints), 1, maxTried)
 
         if (it.hasNext) {
           val model = it.next
-          modelMap = (freeVars zip model).toMap
+          modelMap = (allFreeVars zip model).toMap
           Some(true)
         } else {
           None
@@ -58,6 +72,7 @@ class EnumerationSolver(val context: LeonContext, val program: Program) extends 
         None
     }
     datagen = None
+    timer.stop()
     res
   }
 

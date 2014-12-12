@@ -1,8 +1,10 @@
-/* Copyright 2009-2013 EPFL, Lausanne */
+/* Copyright 2009-2014 EPFL, Lausanne */
+
 package leon
 package purescala
 
 import utils._
+import Definitions.Definition
 
 object Common {
   import Trees.Variable
@@ -28,7 +30,7 @@ object Common {
   }
 
   // the type is left blank (Untyped) for Identifiers that are not variables
-  class Identifier private[Common](val name: String, private val globalId: Int, val id: Int, alwaysShowUniqueID: Boolean = false) extends Tree with Typed {
+  class Identifier private[Common](val name: String, val globalId: Int, val id: Int, alwaysShowUniqueID: Boolean = false) extends Tree with Typed {
     self : Serializable =>
 
     override def equals(other: Any): Boolean = {
@@ -52,11 +54,19 @@ object Common {
 
     def toVariable : Variable = Variable(this)
 
-    private var _islb: Boolean = false
-    def markAsLetBinder : Identifier = { _islb = true; this }
-    def isLetBinder : Boolean = _islb
-
     def freshen: Identifier = FreshIdentifier(name, alwaysShowUniqueID).copiedFrom(this)
+    
+    var owner : Option[Definition] = None
+    
+    def setOwner(df : Definition) : Identifier = { this.owner = Some(df); this }
+    
+    def ownerChain : List[Identifier] = owner match { 
+      case None => List(this)
+      case Some(ow) => ow.id :: ow.id.ownerChain
+    }
+
+    def fullName: String = ownerChain.map(_.name).mkString(".")
+
   }
 
   private object UniqueCounter {

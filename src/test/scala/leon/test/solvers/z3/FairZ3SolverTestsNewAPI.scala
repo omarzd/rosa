@@ -1,8 +1,8 @@
-/* Copyright 2009-2013 EPFL, Lausanne */
+/* Copyright 2009-2014 EPFL, Lausanne */
 
-package leon.test
-package solvers.z3
+package leon.test.solvers.z3
 
+import leon.test._
 import leon.purescala.Common._
 import leon.purescala.Definitions._
 import leon.purescala.Trees._
@@ -47,13 +47,14 @@ class FairZ3SolverTestsNewAPI extends LeonTestSuite {
 
   // def f(fx : Int) : Int = fx + 1
   private val fx   : Identifier = FreshIdentifier("x").setType(Int32Type)
-  private val fDef : FunDef = new FunDef(FreshIdentifier("f"), Nil, Int32Type, ValDef(fx, Int32Type) :: Nil)
+  private val fDef : FunDef = new FunDef(FreshIdentifier("f"), Nil, Int32Type, ValDef(fx, Int32Type) :: Nil, DefType.MethodDef)
   fDef.body = Some(Plus(Variable(fx), IntLiteral(1)))
 
   private val minimalProgram = Program(
     FreshIdentifier("Minimal"), 
-    List(ModuleDef(FreshIdentifier("Minimal"), Seq(
-      fDef
+    List(UnitDef(
+        FreshIdentifier("Minimal"),
+        List(ModuleDef(FreshIdentifier("Minimal"), Seq(fDef), false)
     )))
   )
 

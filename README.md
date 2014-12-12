@@ -1,6 +1,5 @@
 rosa
 ====
-
 The Real compiler
 
 Rosa let's you write your code in `Real`s like this (note the specification!):
@@ -80,3 +79,4 @@ To compile on Linux:
       -c ceres_common_QuadDoubleInterface.cpp
 
     g++ -shared -o libQuadDouble.so ceres_common_QuadDoubleInterface.o ~/share/qd/src/*.o
+

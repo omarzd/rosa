@@ -1,4 +1,4 @@
-/* Copyright 2009-2013 EPFL, Lausanne */
+/* Copyright 2009-2014 EPFL, Lausanne */
 
 package leon
 package purescala
@@ -24,18 +24,14 @@ object MethodLifting extends TransformationPhase {
         // We import class type params
         val ctParams = cd.tparams
 
-        val id = FreshIdentifier(cd.id.name+"."+fd.id.name).setPos(fd.id)
+        val id = FreshIdentifier(cd.id.name+"$"+fd.id.name).setPos(fd.id)
         val recType = classDefToClassType(cd, ctParams.map(_.tp))
 
-        val receiver = FreshIdentifier("this").setType(recType).setPos(cd.id)
+        val receiver = FreshIdentifier("$this").setType(recType).setPos(cd.id)
 
-        val nfd = new FunDef(id, ctParams ++ fd.tparams, fd.returnType, ValDef(receiver, recType) +: fd.params)
-        nfd.postcondition = fd.postcondition
-        nfd.precondition  = fd.precondition
-        nfd.body          = fd.body
-
+        val nfd = new FunDef(id, ctParams ++ fd.tparams, fd.returnType, ValDef(receiver, recType) +: fd.params, fd.defType)
+        nfd.copyContentFrom(fd)
         nfd.setPos(fd)
-        nfd.addAnnotation(fd.annotations.toSeq : _*)
 
         mdToFds += fd -> nfd
       }
@@ -79,7 +75,10 @@ object MethodLifting extends TransformationPhase {
       }(e)
     }
 
-    val newModules = program.modules map { m =>
+    val modsToMods = ( for {
+      u <- program.units
+      m <- u.modules
+    } yield (m, {
       // We remove methods from class definitions and add corresponding functions
       val newDefs = m.defs.flatMap {
         case acd: AbstractClassDef if acd.methods.nonEmpty =>
@@ -101,11 +100,26 @@ object MethodLifting extends TransformationPhase {
           cd.clearMethods()
         case _ =>
       }
+      ModuleDef(m.id, newDefs, m.isStandalone )
+    })).toMap
 
-      ModuleDef(m.id, newDefs)
-    }
+    val newUnits = program.units map { u => u.copy(
+      
+      imports = u.imports flatMap {
+        case s@SingleImport(c : ClassDef) =>
+          // If a class is imported, also add the "methods" of this class
+          s :: ( c.methods map { md => SingleImport(mdToFds(md))})
+        // If importing a ModuleDef, update to new ModuleDef
+        case SingleImport(m : ModuleDef) => List(SingleImport(modsToMods(m)))
+        case WildcardImport(m : ModuleDef) => List(WildcardImport(modsToMods(m)))
+        case other => List(other)
+      },
 
-    Program(program.id, newModules)
+      modules = u.modules map modsToMods
+
+    )}
+
+    Program(program.id, newUnits)
   }
 
 }

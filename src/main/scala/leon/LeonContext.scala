@@ -1,4 +1,4 @@
-/* Copyright 2009-2013 EPFL, Lausanne */
+/* Copyright 2009-2014 EPFL, Lausanne */
 
 package leon
 
@@ -16,5 +16,5 @@ case class LeonContext(
   settings: Settings = Settings(),
   options: Seq[LeonOption] = Seq(),
   files: Seq[File] = Seq(),
-  timers: TimerCollections = new TimerCollections
+  timers: TimerStorage = new TimerStorage
 )
