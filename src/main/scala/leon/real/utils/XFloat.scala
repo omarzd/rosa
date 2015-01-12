@@ -176,7 +176,7 @@ object XFloat {
 
 
 class XFloat(val tr: Expr, val appInt: RationalInterval, val err: XRationalForm,
-  val cnfg: XConfig, val precision: Precision) extends XReal(tr, appInt, err, cnfg) {
+  val cnfg: XConfig, val precision: Precision, val Z3tmOut: Int = 0) extends XReal(tr, appInt, err, cnfg, Z3tmOut) {
   import XFloat._
 
   /*def errorString(variables: Iterable[Int]): String = {
@@ -195,28 +195,28 @@ class XFloat(val tr: Expr, val appInt: RationalInterval, val err: XRationalForm,
   }
 
   override def unary_-(): XReal = {
-    var (newTree, newRealRange, newError, newConfig) = super.negate
-    new XFloat(newTree, newRealRange, newError, newConfig, precision)
+    var (newTree, newRealRange, newError, newConfig, tmOut) = super.negate
+    new XFloat(newTree, newRealRange, newError, newConfig, precision, tmOut)
   }
 
   override def +(y: XReal): XReal = {
     assert(y.getClass == this.getClass)
     assert(this.precision == y.asInstanceOf[XFloat].precision)
     if (verbose) println("+fl " + this + " to " + y)
-    var (newTree, newRealRange, newError, newConfig) = super.add(y)
+    var (newTree, newRealRange, newError, newConfig, tmOut) = super.add(y)
     val rndoff = roundoff(newRealRange + newError.interval, precision)
     newError = addNoise(newError, rndoff)
-    new XFloat(newTree, newRealRange, newError, newConfig, precision)
+    new XFloat(newTree, newRealRange, newError, newConfig, precision, tmOut)
   }
 
   override def -(y: XReal): XReal = {
     assert(y.getClass == this.getClass)
     assert(this.precision == y.asInstanceOf[XFloat].precision)
     if (verbose) println("-fl " + this + " from " + y)
-    var (newTree, newRealRange, newError, newConfig) = super.subtract(y)
+    var (newTree, newRealRange, newError, newConfig, tmOut) = super.subtract(y)
     val rndoff = roundoff(newRealRange + newError.interval, precision)
     newError = addNoise(newError, rndoff)
-    new XFloat(newTree, newRealRange, newError, newConfig, precision)
+    new XFloat(newTree, newRealRange, newError, newConfig, precision, tmOut)
   }
 
   override def *(y: XReal): XReal = {
@@ -225,27 +225,27 @@ class XFloat(val tr: Expr, val appInt: RationalInterval, val err: XRationalForm,
     if (verbose) println("*fl " + this.tree + " with " + y.tree)
     if (verbose) println("x.error: " + this.error.longString)
     if (verbose) println("y.error: " + y.error.longString)
-    var (newTree, newRealRange, newError, newConfig) = super.multiply(y)
+    var (newTree, newRealRange, newError, newConfig, tmOut) = super.multiply(y)
     val rndoff = roundoff(newRealRange + newError.interval, precision)
     newError = addNoise(newError, rndoff)
-    new XFloat(newTree, newRealRange, newError, newConfig, precision)
+    new XFloat(newTree, newRealRange, newError, newConfig, precision, tmOut)
   }
 
   override def /(y: XReal): XReal = {
     assert(y.getClass == this.getClass)
     assert(this.precision == y.asInstanceOf[XFloat].precision)
     if (verbose) println("/fl " + this.tree + " with " + y.tree)
-    var (newTree, newRealRange, newError, newConfig) = super.divide(y)
+    var (newTree, newRealRange, newError, newConfig, tmOut) = super.divide(y)
     val rndoff = roundoff(newRealRange + newError.interval, precision)
     newError = addNoise(newError, rndoff)
-    new XFloat(newTree, newRealRange, newError, newConfig, precision)
+    new XFloat(newTree, newRealRange, newError, newConfig, precision, tmOut)
   }
 
   override def squareRoot: XReal = {
-    var (newTree, newRealRange, newError, newConfig) = super.takeSqrtRoot
+    var (newTree, newRealRange, newError, newConfig, tmOut) = super.takeSqrtRoot
     val rndoff = roundoff(newRealRange + newError.interval, precision)
     newError = addNoise(newError, rndoff)
-    new XFloat(newTree, newRealRange, newError, newConfig, precision)
+    new XFloat(newTree, newRealRange, newError, newConfig, precision, tmOut)
   }
 
   override def toString: String =

@@ -138,7 +138,7 @@ object XFixed {
 */
 // TODO: make consistent with XFloat and put format at the end of the parameter list
 class XFixed(val format: FixedPointFormat, val tr: Expr, val appInt: RationalInterval, val err: XRationalForm,
-  val cnfg: XConfig) extends XReal(tr, appInt, err, cnfg) {
+  val cnfg: XConfig, val Z3tmOut: Int = 0) extends XReal(tr, appInt, err, cnfg, Z3tmOut) {
 
   override def cleanConfig: XReal = {
     new XFixed(format, tree, approxInterval, error, getCleanConfig)
@@ -149,36 +149,36 @@ class XFixed(val format: FixedPointFormat, val tr: Expr, val appInt: RationalInt
     if (!format.signed)
       throw IncompatibleFixedPointFormatsException("Unary minus not supported with unsigned format!")
 
-    var (newTree, newRealRange, newError, newConfig) = super.negate
-    new XFixed(format, newTree, newRealRange, newError, newConfig)
+    var (newTree, newRealRange, newError, newConfig, tmOut) = super.negate
+    new XFixed(format, newTree, newRealRange, newError, newConfig, tmOut)
   }
 
   override def +(y: XReal): XReal = {
     assert(y.getClass == this.getClass)
     assert(this.format.bits == y.asInstanceOf[XFixed].format.bits)
     if (verbose) println("+fix " + this.tree + " to " + y.tree)
-    var (newTree, newRealRange, newError, newConfig) = super.add(y)
+    var (newTree, newRealRange, newError, newConfig, tmOut) = super.add(y)
 
     val newFormat = getFormat(newRealRange + newError.interval, format.bits)
     if (newFormat.f < math.max(this.format.f, y.asInstanceOf[XFixed].format.f)) { // we're loosing precision
       newError = addNoise(newError, newFormat.quantError)
     }
 
-    new XFixed(newFormat, newTree, newRealRange, newError, newConfig)
+    new XFixed(newFormat, newTree, newRealRange, newError, newConfig, tmOut)
   }
 
   override def -(y: XReal): XReal = {
     assert(y.getClass == this.getClass)
     assert(this.format.bits == y.asInstanceOf[XFixed].format.bits)
     if (verbose) println("-fl " + this + " from " + y)
-    var (newTree, newRealRange, newError, newConfig) = super.subtract(y)
+    var (newTree, newRealRange, newError, newConfig, tmOut) = super.subtract(y)
 
     val newFormat = getFormat(newRealRange + newError.interval, format.bits)
     if (newFormat.f < math.max(this.format.f, y.asInstanceOf[XFixed].format.f)) { // we're loosing precision
       newError = addNoise(newError, newFormat.quantError)
     }
 
-    new XFixed(newFormat, newTree, newRealRange, newError, newConfig)
+    new XFixed(newFormat, newTree, newRealRange, newError, newConfig, tmOut)
   }
 
 
@@ -188,28 +188,28 @@ class XFixed(val format: FixedPointFormat, val tr: Expr, val appInt: RationalInt
     if (verbose) println("*fl " + this.tree + " with " + y.tree)
     if (verbose) println("x.error: " + this.error.longString)
     if (verbose) println("y.error: " + y.error.longString)
-    var (newTree, newRealRange, newError, newConfig) = super.multiply(y)
+    var (newTree, newRealRange, newError, newConfig, tmOut) = super.multiply(y)
 
     val newFormat = getFormat(newRealRange + newError.interval, format.bits)
     if (newFormat.f < this.format.f + y.asInstanceOf[XFixed].format.f) { //loosing precision
       // TODO: if (!exactConstantMultiplication || (this.qRadius != 0.0 && y.qRadius != 0.0))
       newError = addNoise(newError, newFormat.quantError)
     }    
-    new XFixed(newFormat, newTree, newRealRange, newError, newConfig)
+    new XFixed(newFormat, newTree, newRealRange, newError, newConfig, tmOut)
   }
 
 
   override def /(y: XReal): XReal = {
     assert(y.getClass == this.getClass)
     if (verbose) println("/fl " + this.tree + " with " + y.tree)
-    var (newTree, newRealRange, newError, newConfig) = super.divide(y)
+    var (newTree, newRealRange, newError, newConfig, tmOut) = super.divide(y)
 
     val newFormat = getFormat(newRealRange + newError.interval, format.bits)
     assert(newFormat.bits == this.format.bits,
       "New format has wrong number of bits %d (vs %d)".format(newFormat.bits, this.format.bits))
 
     newError = addNoise(newError, newFormat.quantError)
-    new XFixed(newFormat, newTree, newRealRange, newError, newConfig)
+    new XFixed(newFormat, newTree, newRealRange, newError, newConfig, tmOut)
   }
 
   override def squareRoot: XReal = {

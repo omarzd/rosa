@@ -322,44 +322,67 @@ class RangeSolver(timeout: Long) {
 
     val leonToZ3Necessary = containsSqrt(expr)
 
-    def inIntervalsWithZ3(e: Expr): RationalInterval = {
-      val tmp = e match {
-        case RealLiteral(r) => RationalInterval(r, r)
-        case v @ Variable(_) => vars(v)
-        case UMinusR(t) => - inIntervalsWithZ3(t)
-        case PlusR(l, r) => inIntervalsWithZ3(l) + inIntervalsWithZ3(r)
-        case MinusR(l, r) => inIntervalsWithZ3(l) - inIntervalsWithZ3(r)
-        case TimesR(l, r) => inIntervalsWithZ3(l) * inIntervalsWithZ3(r)
-        case DivisionR(l, r) => inIntervalsWithZ3(l) / inIntervalsWithZ3(r)
+    // @ return (tightened interval, whether Z3 failed)
+    def inIntervalsWithZ3(e: Expr): (RationalInterval, Int) = {
+      val (tmp, timeout): (RationalInterval, Int) = e match {
+        case RealLiteral(r) => (RationalInterval(r, r), 0)
+        case v @ Variable(_) => (vars(v), 0)
+        case UMinusR(t) => 
+          val (res, tmOut) = inIntervalsWithZ3(t)
+          (- res, tmOut)
+        case PlusR(l, r) => 
+          val (left, ltmOut) = inIntervalsWithZ3(l)
+          val (right, rtmOut) = inIntervalsWithZ3(r)
+          (left + right, ltmOut + rtmOut)
+        case MinusR(l, r) =>
+          val (left, ltmOut) = inIntervalsWithZ3(l)
+          val (right, rtmOut) = inIntervalsWithZ3(r)
+          (left - right, ltmOut + rtmOut)
+         
+        case TimesR(l, r) =>
+          val (left, ltmOut) = inIntervalsWithZ3(l)
+          val (right, rtmOut) = inIntervalsWithZ3(r)
+          (left * right, ltmOut + rtmOut)
+         
+        case DivisionR(l, r) =>
+          val (left, ltmOut) = inIntervalsWithZ3(l)
+          val (right, rtmOut) = inIntervalsWithZ3(r)
+          (left / right, ltmOut + rtmOut)
+        
         case SqrtR(t) =>
-          val tt = inIntervalsWithZ3(t)
-          RationalInterval(sqrtDown(tt.xlo), sqrtUp(tt.xhi))
+          val (tt, tmOut) = inIntervalsWithZ3(t)
+          (RationalInterval(sqrtDown(tt.xlo), sqrtUp(tt.xhi)), tmOut)
+
         case PowerR(lhs, IntLiteral(p)) =>
           assert(p > 1, "p is " + p + " in " + e)
-          val lhsInIntervals = inIntervalsWithZ3(lhs)
+          val (lhsInIntervals, tmOut) = inIntervalsWithZ3(lhs)
           var x = lhsInIntervals
           for (i <- 1 until p ){
             x = x * lhsInIntervals
           }
-          x
+          (x, tmOut)
       }
       //print(".");// flush
       //val mExpr = massageArithmetic( e )
       
-      if (leonToZ3Necessary) {
+      if (timeout > 1) {
+        //println("skipping due to timeouts")
+        (tmp, timeout)
+      } else if (leonToZ3Necessary) {
         // needed for sqrt, and doing quite the duplicate work, but this is clean
         val (z3Expr, addCnstr) = leonToZ3.getZ3ExprWithCondition(e)
         val additionalConstraints = And(precond, addCnstr)
-        tightenRange(z3Expr, additionalConstraints, tmp, maxIter, prec)
+        val (res, tmOut) = tightenRange(z3Expr, additionalConstraints, tmp, maxIter, prec)
+        (res, if (tmOut) timeout + 1 else timeout)
       } else {
-        tightenRange(e, precond, tmp, maxIter, prec)
+        val (res, tmOut) = tightenRange(e, precond, tmp, maxIter, prec)
+        (res, if (tmOut) timeout + 1 else timeout)
       }
 
-    }
-    //print("Getting range for: " + expr)
-    //println("with precondition: " + precond)
-    val res = inIntervalsWithZ3(expr)
-    //print("\n")
+    }// end inIntervalsWithZ3
+
+
+    val res = inIntervalsWithZ3(expr)._1
     res
   }
 
@@ -391,16 +414,21 @@ class RangeSolver(timeout: Long) {
     val approx = inIntervals(expr, variables)
     if(countTimeouts != 0)
       println("\n ******** \nSolver timed out during getRangeSimple computation")
-    tightenRange(massageArithmetic(expr), precond, approx, maxIter, prec)
+    tightenRange(massageArithmetic(expr), precond, approx, maxIter, prec)._1
   }
 
+  /*
+    @return (tightened interval, whether Z3 failed)
+
+  */
   def tightenRange(tree: Expr, precondition: Expr, initialBound: RationalInterval, maxIter: Int, prec: Rational):
-    RationalInterval = tree match {
-    case IntLiteral(v) => initialBound
-    case RealLiteral(v) => initialBound
+    (RationalInterval, Boolean) = tree match {
+    case IntLiteral(v) => (initialBound, false)
+    case RealLiteral(v) => (initialBound, false)
     //case Variable(id) => initialBound
     case _ =>
       //println("maxIter: " + maxIter + "    precision: " + prec)
+      val timeoutCount = countTimeouts
       assert(solver.getNumScopes == 0)
       solver.push
       assertCnstr(precondition)
@@ -435,7 +463,7 @@ class RangeSolver(timeout: Long) {
       printBoundsResult(checkBounds(exprInZ3, newLowerBound, newUpperBound), "final")
 
       solver.pop()
-      RationalInterval(newLowerBound, newUpperBound)
+      (RationalInterval(newLowerBound, newUpperBound), timeoutCount < countTimeouts)
   }
 
   private def checkBounds(tree: Z3AST, lowBound: Rational, upBound: Rational): (Sat, Sat, String) = {

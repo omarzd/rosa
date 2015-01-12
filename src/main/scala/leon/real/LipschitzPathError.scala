@@ -267,7 +267,7 @@ class LipschitzPathError(reporter: Reporter, solver: RangeSolver, precision: Pre
       if (solver.isFeasible(fullConstraint, reporter)) {        
         val cMap: Map[Expr, RationalInterval] = initialRanges.map({
           case (v, r) =>
-            val interval = solver.tightenRange(v, fullConstraint, r,
+            val (interval, tmOut) = solver.tightenRange(v, fullConstraint, r,
               solverMaxIterHigh, solverPrecisionHigh)
             (v, interval)
         })

@@ -33,16 +33,17 @@ Rosa is written as part of the [Leon verification framework](https://github.com/
 this is why this repository contains more than just Rosa code.
 
 
-### Running rosa ###
-
-    $ sbt script
-    $ source setupenv
-    $ sbt package
-    $ rosa --real --functions=doppler1 testcases/real-testcases/popl2014/ApproximationBenchmarks.scala
-
 For command-line options,
     
     $ rosa --help
+
+### Running testcases ###
+
+To run the most recent benchmarks:
+
+> run --silent --specGen --lipschitz testcases/real/techreport/Straightline.scala
+> run --silent --specGen testcases/real/techreport/Discontinuity.scala
+
 
 ### Native library functions ###
 Rosa itself uses two native libraries. They come pre-compiled for Mac and Linux, but in case you need re-compiling,
