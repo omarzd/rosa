@@ -1,4 +1,4 @@
-/* Copyright 2013 EPFL, Lausanne */
+/* Copyright 2009-2015 EPFL, Lausanne */
 
 package leon
 package real
@@ -265,7 +265,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
     case body =>
       solver.clearCounts
       //start = System.currentTimeMillis
-      val approximatorNew = new AAApproximator(reporter, solver, precision, options.silent, checkPathError, options.lipschitz)
+      val approximatorNew = new AAApproximator(reporter, solver, precision, options.silent, checkPathError, false)
       val approxs: Map[Expr, XReal] = approximatorNew.approximateEquations(body,
         And(vc.pre, path.condition), vc.variables, exactInputs = false)
       //println("new:     " + approxNew)
@@ -290,7 +290,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
       val (ids: Seq[Identifier], updateFncs) = vc.updateFunctions.unzip
 
       // this is trying to show that this thing is inductive
-      val approximatorNew = new AAApproximator(reporter, solver, precision, options.silent, checkPathError, options.lipschitz)
+      val approximatorNew = new AAApproximator(reporter, solver, precision, options.silent, checkPathError, false)
       val approxs = approximatorNew.approximateEquations(body,
         And(vc.pre, path.condition), vc.variables, exactInputs = false)
       

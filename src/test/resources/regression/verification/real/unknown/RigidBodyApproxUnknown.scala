@@ -1,5 +1,5 @@
-/* Copyright 2009-2014 EPFL, Lausanne */
-import leon.real._
+/* Copyright 2009-2015 EPFL, Lausanne */
+
 import RealOps._
 
 object RigidBodyApproxUnknown {

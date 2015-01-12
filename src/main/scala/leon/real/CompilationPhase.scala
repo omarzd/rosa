@@ -1,4 +1,4 @@
-/* Copyright 2013 EPFL, Lausanne */
+/* Copyright 2009-2015 EPFL, Lausanne */
 
 package leon
 package real
@@ -30,12 +30,9 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
     LeonValueOptionDef("z3Timeout", "--z3Timeout=1000", "Timeout for Z3 in milliseconds."),
     LeonValueOptionDef("precision", "--precision=single", "Which precision to assume of the underlying"+
       "floating-point arithmetic: single, double, doubledouble, quaddouble or all (sorted from smallest)."),
-    LeonFlagOptionDef("specGen", "--specGen", "Generate specs also for functions without postconditions"),
-    //LeonFlagOptionDef("simplify", "--noSimplify", "Simplify constraint before passing to Z3."),
-    //LeonFlagOptionDef("remRedundant", "--remRedundant", "Remove redundant constraints before passing to Z3"),
     LeonFlagOptionDef("noMassageArith", "--noMassageArith", "Massage arithmetic before passing to Z3"),
-    LeonFlagOptionDef("lipschitz", "--lipschitz", "compute lipschitz constants"),
-    LeonFlagOptionDef("silent", "--silent", "only print the results")
+    LeonFlagOptionDef("noLipschitz", "--noLipschitz", "do not use lipschitz"),
+    LeonFlagOptionDef("loud", "--loud", "print a little more than just end-results")
   )
 
   def run(ctx: LeonContext)(program: Program): CompilationReport = {
@@ -51,12 +48,9 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
       case LeonValueOption("functions", ListValue(fs)) => fncNamesToAnalyse = Set() ++ fs
       case LeonFlagOption("simulation", v) => options = options.copy(simulation = v)
       case LeonFlagOption("z3Only", v) => options = options.copy(z3Only = v)
-      case LeonFlagOption("specGen", v) => options = options.copy(specGen = v)
-      case LeonFlagOption("silent", v) => options = options.copy(silent = v)
-      //case LeonFlagOption("simplify", v) => options = options.copy(simplifyCnstr = v)
-      //case LeonFlagOption("remRedundant", v) => options = options.copy(removeRedundant = v)
+      case LeonFlagOption("loud", v) => options = options.copy(silent = !v)
       case LeonFlagOption("noMassageArith", v) => options = options.copy(massageArithmetic = !v)
-      case LeonFlagOption("lipschitz", v) => options = options.copy(lipschitz = v)
+      case LeonFlagOption("noLipschitz", v) => options = options.copy(lipschitz = !v, lipschitzPathError = !v)
       case LeonValueOption("z3Timeout", ListValue(tm)) => options = options.copy(z3Timeout = tm.head.toLong)
       case LeonValueOption("precision", ListValue(ps)) => options = options.copy(precision = ps.flatMap {
         case "single" => List(Float32)
@@ -74,7 +68,6 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
       (fd.annotations contains "ignore")
     }
 
-    // TODO: these are not sorted correctly, e.g. for InitialExample
     // the main functions are treated first, so that the computed postcondition cannot be used...
     val fncsToAnalyse  =
       if(fncNamesToAnalyse.isEmpty) program.definedFunctions.filter(f => !excludeByDefault(f))
@@ -89,9 +82,6 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
 
     val (vcs, fncs) = Analyser.analyzeThis(fncsToAnalyse, options.precision, reporter)
     if (reporter.errorCount > 0) throw LeonFatalError(None)
-
-    //println("vcs: " + vcs)
-    //fncs.foreach(f => println(f.fncId))
 
     reporter.info("--- Analysis complete ---")
     reporter.info("")

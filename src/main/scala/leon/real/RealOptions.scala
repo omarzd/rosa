@@ -1,9 +1,7 @@
-/* Copyright 2013 EPFL, Lausanne */
+/* Copyright 2009-2015 EPFL, Lausanne */
 
 package leon
 package real
-
-//import Precision._
 
 case class RealOptions(
   simulation: Boolean           = false,        // determine ranges and errors with simulation
@@ -12,19 +10,19 @@ case class RealOptions(
   z3Only: Boolean               = false,        // also try the un-approximated constraint on Z3
   solverMaxIter: Int            = solverMaxIterMedium,
   solverPrecision: Rational     = solverPrecisionMedium,
-  specGen: Boolean              = false,        // generate specs for functions without postconditions?
+  //specGen: Boolean              = false,        // generate specs for functions without postconditions?
   loopUnrolling: Boolean        = false,         // whether to (also) unroll loops up to max given by loopBound annotation
   simplifyCnstr: Boolean        = true,         // simplify constraint before passing to Z3
   massageArithmetic: Boolean    = true,         // whether to massage arithmetic before passing to Z3
   removeRedundant: Boolean      = true,         // remove redundant constraints before passing to Z3
-  lipschitz: Boolean            = false,        // compute Lipschitz constants
+  lipschitz: Boolean            = true,        // compute Lipschitz constants
   lipschitzPathError: Boolean   = true,         // compute path error with new lipschitz-based procedure
-  silent: Boolean               = false
+  silent: Boolean               = true
 ) {
   override def toString: String = 
     "simulation: %b, z3Timeout: %d, precision: %s, z3Only: %b, solverMaxIter: %d, solverPrecision: %s,".format(
       simulation, z3Timeout, precision.toString, z3Only, solverMaxIter, solverPrecision.toString) +
-    " specGen: %b, loopUnrolling: %b, simplifyCnstr: %b, massageArithmetic: %b, ".format(
-       specGen, loopUnrolling, simplifyCnstr, massageArithmetic) +
+    " loopUnrolling: %b, simplifyCnstr: %b, massageArithmetic: %b, ".format(
+      loopUnrolling, simplifyCnstr, massageArithmetic) +
     "removeRedundant: %s, lipschitz: %s, lipschitzPathError: %s".format(removeRedundant, lipschitz, lipschitzPathError)
 }

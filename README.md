@@ -39,10 +39,11 @@ For command-line options,
 
 ### Running testcases ###
 
-To run the most recent benchmarks:
+To run the most recent benchmarks (for example):
 
-> run --silent --specGen --lipschitz testcases/real/techreport/Straightline.scala
-> run --silent --specGen testcases/real/techreport/Discontinuity.scala
+> run testcases/real/techreport/Straightline.scala
+> run testcases/real/techreport/Discontinuity.scala
+> run testcases/real/techreport/Pendulum.scala
 
 
 ### Native library functions ###

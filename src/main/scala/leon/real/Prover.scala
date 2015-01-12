@@ -1,4 +1,4 @@
-/* Copyright 2013-2014 EPFL, Lausanne */
+/* Copyright 2009-2015 EPFL, Lausanne */
 
 package leon
 package real
@@ -69,7 +69,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
 
     //println("checking vcs: ")
 
-    for (vc <- vcs if (options.specGen || vc.kind != VCKind.SpecGen)) {
+    for (vc <- vcs ) {
       if (!options.silent) reporter.info("Verification condition  ==== %s (%s) ====".format(vc.fncId, vc.kind))
       else reporter.info(vc.fncId)
       reporter.debug("pre: " + vc.pre)
@@ -139,11 +139,13 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
 
       val end = System.currentTimeMillis
       vc.time = Some(end - start)
-      if (!options.silent) reporter.info("generated spec: ")
-      spec.foreach { sp =>
-        reporter.info(sp + "(" + sp.getActualRange + ")")
+      if (!options.silent) {
+        reporter.info("generated spec: ")
+        spec.foreach { sp =>
+          reporter.info(sp + "(" + sp.getActualRange + ")")
+        }
+        reporter.info("in " + (vc.time.get / 1000.0))
       }
-      reporter.info("in " + (vc.time.get / 1000.0))
     }
 
     vcs.forall( vc => vc.kind == VCKind.SpecGen || vc.value(precision) != UNKNOWN )
