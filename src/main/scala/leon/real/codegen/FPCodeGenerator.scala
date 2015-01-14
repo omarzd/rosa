@@ -103,7 +103,16 @@ trait FixedpointCodeGenerator {
           (Seq[Expr]() :+ Equals(Tuple(tmpVars), expr), Tuple(tmpVars))
         }
 
+      /*case FunctionInvocation(funDef, args) =>
+        val argsToSSA: Seq[(Seq[Expr], Expr)] = args.map( arithToSSA(_) )
 
+        println("argsToSSA: " + argsToSSA)
+        val (ssa, newArgs) = argsToSSA.unzip
+        //val arguments: Map[Expr, Expr] = funDef.fd.params.map(decl => decl.toVariable).zip(newArgs).toMap
+
+        val tmpVar = getFreshValidTmp
+        (ssa.flatten :+ Equals(tmpVar, FunctionInvocation(funDef, newArgs)), tmpVar)
+      */
       case FunctionInvocation(funDef, args) =>
         val argsToSSA: Seq[(Seq[Expr], Expr)] = args.map( arithToSSA(_) )
 
@@ -111,6 +120,8 @@ trait FixedpointCodeGenerator {
         val (ssa, newArgs) = argsToSSA.unzip
 
         val arguments: Map[Expr, Expr] = funDef.fd.params.map(decl => decl.toVariable).zip(newArgs).toMap
+      //  println("functions: " + fncs)
+      //  println("exprs: " + expr)
         val fncBody = fncs(funDef.fd).body
 
 
@@ -118,7 +129,7 @@ trait FixedpointCodeGenerator {
         
         val tmpVar = getFreshValidTmp
         (ssa.flatten :+ Equals(tmpVar, FncBody(funDef.id.name, newBody, funDef.fd, newArgs)), tmpVar)
-
+      
     }
 
     def register(e: Expr, path: C) = path :+ e

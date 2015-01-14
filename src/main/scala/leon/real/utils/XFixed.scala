@@ -183,7 +183,7 @@ class XFixed(val format: FixedPointFormat, val tr: Expr, val appInt: RationalInt
 
 
   override def *(y: XReal): XReal = {
-    assert(y.getClass == this.getClass)
+    assert(y.getClass == this.getClass, y.getClass + " vs " + this.getClass)
     assert(this.format.bits == y.asInstanceOf[XFixed].format.bits, "bits do not match: " + this.format.bits + "  " + y.asInstanceOf[XFixed].format.bits)
     if (verbose) println("*fl " + this.tree + " with " + y.tree)
     if (verbose) println("x.error: " + this.error.longString)

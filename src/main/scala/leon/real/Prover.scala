@@ -139,11 +139,10 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
 
       val end = System.currentTimeMillis
       vc.time = Some(end - start)
+      spec.foreach { sp => 
+        reporter.info(sp)
+      }
       if (!options.silent) {
-        reporter.info("generated spec: ")
-        spec.foreach { sp =>
-          reporter.info(sp + "(" + sp.getActualRange + ")")
-        }
         reporter.info("in " + (vc.time.get / 1000.0))
       }
     }

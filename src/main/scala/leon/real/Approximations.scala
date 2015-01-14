@@ -134,7 +134,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
         // do not filter paths according to feasibility here
         // TODO: path error with tuples
         val lipschitzPathError: Rational =
-          if (options.lipschitzPathError && checkPathError) {
+          if (options.lipschitzPathError && checkPathError && !containsFncs) {
             val res = getLipschitzPathError(paths.toSeq, precision)
             if (!options.silent) reporter.info("--> lipschitzPathError: " + res)
             res
@@ -211,19 +211,12 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
     (Expr, Seq[Spec]) = path.bodyFinite match {
     case body =>
       solver.clearCounts
-      //var start = System.currentTimeMillis
-      //val approximator = new Approximator(reporter, solver, precision, And(vc.pre, path.condition),
-      //                                          vc.variables, options.pathError)
-      //val approx = approximator.getXRealForResult(body)
-      //println("current: " + approx)
-      //println((System.currentTimeMillis - start) + "ms")
+      
+      val lipschitz = options.lipschitz && !containsFncs 
 
-      //start = System.currentTimeMillis
-      val approximatorNew = new AAApproximator(reporter, solver, precision, options.silent, checkPathError, options.lipschitz)
+      val approximatorNew = new AAApproximator(reporter, solver, precision, options.silent, checkPathError, lipschitz)
       val approx = approximatorNew.approximate(body, And(vc.pre, path.condition), vc.variables, exactInputs = false)
-      //println("new:     " + approxNew)
-      //println((System.currentTimeMillis - start) + "ms")
-
+      
       if (!options.silent) reporter.info("solver counts: " + solver.getCounts)
       val zipped = vc.variables.resultVars.zip(approx)
 

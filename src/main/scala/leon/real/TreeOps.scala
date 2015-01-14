@@ -378,7 +378,7 @@ object TreeOps {
     case And(ands) => And(ands.map( addResultsF(_, variables)))
     case Or(ors) => Or(ors.map(addResultsF(_, variables)))
 
-    case UMinusF(_) | PlusF(_, _) | MinusF(_, _) | TimesF(_, _) | DivisionF(_, _) | SqrtF(_) | Variable(_) =>
+    case UMinusF(_) | PlusF(_, _) | MinusF(_, _) | TimesF(_, _) | DivisionF(_, _) | SqrtF(_) | Variable(_) | FloatLiteral(_) =>
       EqualsF(variables.head, expr)
 
     case BooleanLiteral(_) => expr
