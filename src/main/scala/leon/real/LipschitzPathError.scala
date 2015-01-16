@@ -76,19 +76,23 @@ class LipschitzPathError(reporter: Reporter, solver: RangeSolver, precision: Pre
             val diffError = computeDifference(rPath.bodyReal, fPath.bodyReal, floatIntervals,
               And(And(otherConstraints1, otherConstraints2), preAdditionalConstraints))
             if (!silent) reporter.info("diff error: " + diffError)
+            else reporter.debug("diff error: " + diffError)
             
 
             val lipschitzError = getLipschitzError(rPath.bodyReal, criticalIntervals,
               And(otherConstraints1, preAdditionalConstraints))
             if (!silent) reporter.info("lipschitz error: " + lipschitzError)
+            else reporter.debug("lipschitz error: " + lipschitzError)
 
             
             val roundoffError = computeRoundoffError(fPath.bodyFinite, floatIntervals,
               And(otherConstraints1, preAdditionalConstraints))
             if (!silent) reporter.info("roundoff error: " + roundoffError)
+            else reporter.debug("roundoff error: " + roundoffError)
 
             val totalError = lipschitzError + diffError + roundoffError
             if (!silent) reporter.info("total error: " + totalError)
+            else reporter.debug("total error: " + totalError)
             Some(totalError)
         }
     }
