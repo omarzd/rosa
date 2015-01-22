@@ -39,7 +39,7 @@ class Simulator(ctx: LeonContext, options: RealOptions, prog: Program, val repor
       case Float32 => runFloatSimulation(inputs, body, vc.variables.resIds.head)
       case Float64 => runDoubleSimulation(inputs, body, vc.variables.resIds.head)
       case FPPrecision(bits) => runFixedpointSimulation(inputs, vc, precision)
-      case QuadDouble | DoubleDouble=> runHigherDoubleSimulation(inputs, body, vc.variables.resIds.head)
+      //case QuadDouble | DoubleDouble=> runHigherDoubleSimulation(inputs, body, vc.variables.resIds.head)
       case _=> reporter.warning("Cannot handle this precision: " + precision)
     }
     //val (maxRoundoff, resInterval) = (0.0, Interval(0.0) )
