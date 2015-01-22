@@ -40,7 +40,7 @@ trait FixedpointCodeGenerator {
     val formats = tmpIntervals.map {
       case (v, i) => (v, FPFormat.getFormat(i.xlo, i.xhi, bitlength))
     }
-    //println("formats: " + formats); println("ssaBody: " + ssaBody)
+    //println("formats: " + formats); //println("ssaBody: " + ssaBody)
     val fpBody = translateToFP(ssaBody, formats, bitlength,
        if (bitlength <= 16) constConstructorInt else constConstructorLong)
 

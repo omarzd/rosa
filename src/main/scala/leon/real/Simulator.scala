@@ -8,6 +8,7 @@ import purescala.Definitions._
 import purescala.Common._
 
 import ceres.common.{Interval, EmptyInterval, NormalInterval}
+import ceres.common.{QuadDouble => QD, DoubleDouble => DD}
 
 import real.Trees._
 import real.TreeOps._
@@ -38,6 +39,7 @@ class Simulator(ctx: LeonContext, options: RealOptions, prog: Program, val repor
       case Float32 => runFloatSimulation(inputs, body, vc.variables.resIds.head)
       case Float64 => runDoubleSimulation(inputs, body, vc.variables.resIds.head)
       case FPPrecision(bits) => runFixedpointSimulation(inputs, vc, precision)
+      case QuadDouble | DoubleDouble=> runHigherDoubleSimulation(inputs, body, vc.variables.resIds.head)
       case _=> reporter.warning("Cannot handle this precision: " + precision)
     }
     //val (maxRoundoff, resInterval) = (0.0, Interval(0.0) )
@@ -65,7 +67,7 @@ class Simulator(ctx: LeonContext, options: RealOptions, prog: Program, val repor
     // first generate the comparison code
     val solver = new RangeSolver(options.z3Timeout)
     val (fixedBody, resFracBits) = getFPCode(vc, solver, bitlength, fncs)
-    val realBody = vc.body
+    val realBody = addResults(vc.body, Seq(Variable(vc.variables.resIds.head)))//vc.body
 
     // Now do the actual simulation
     val r = new scala.util.Random(System.currentTimeMillis)
@@ -170,6 +172,61 @@ class Simulator(ctx: LeonContext, options: RealOptions, prog: Program, val repor
     (maxRoundoff, resInterval)
   }
 
+  /*private def runHigherDoubleSimulation(inputs: Map[Variable, (RationalInterval, Rational)], body: Expr, resId: Identifier): (Double, Interval) = {
+    def rationalFromQD(qd: QD): Rational = {
+      val (n, d) = Rational.real2Fraction(qd.toLongString())
+      Rational(n, d)
+    }
+
+    val r = new scala.util.Random(System.currentTimeMillis)
+    var counter = 0
+    var resInterval: Interval = EmptyInterval
+    var maxRoundoffQD: Double = 0.0
+    var maxRoundoffDD: Double = 0.0
+
+    while(counter < simSize) {
+      var randomInputsRational = new collection.immutable.HashMap[Expr, Rational]()
+      var randomInputsQD = new collection.immutable.HashMap[Expr, QD]()
+      var randomInputsDD = new collection.immutable.HashMap[Expr, DD]()
+
+      for ((k, ((i, n))) <- inputs) {
+        // this is a little cheating
+        val ideal: Double = i.xlo.toDouble + r.nextDouble * (i.xhi - i.xlo).toDouble
+        val actual: Double =
+          if (n == 0.0) ideal // only roundoff
+          else if (r.nextBoolean) ideal - r.nextDouble * n.toDouble
+          else ideal + r.nextDouble * n.toDouble
+
+        assert(math.abs(ideal - actual) <= n.toDouble)
+
+        val inputQD = QD(ideal)
+        val inputDD = DD(ideal)
+        val inputRational = Rational(ideal)
+
+        randomInputsRational += ((k, inputRational))
+        randomInputsQD += ((k, inputQD))
+        randomInputsDD += ((k, inputDD))
+      }
+      try {
+        val resRat = evaluateRational(resId, body, randomInputsRational)
+        val resQD = evaluateQD(resId, body, randomInputsQD)
+        val resDD = evaluateDD(resId, body, randomInputsDD)
+
+        
+        maxRoundoffQD = math.max(maxRoundoffQD, math.abs( (rationalFromQD(resQD) - resRat).toDouble ))
+        maxRoundoffDD = math.max(maxRoundoffDD, math.abs( (resDD - DD(resRat.toDouble)).toDouble ))
+
+        resInterval = extendInterval(resInterval, resQD.toDouble)
+      } catch {
+        case e: Exception =>;
+        case _: Throwable =>;
+      }
+      counter += 1
+    }
+    println("Max roundoff double double: " + maxRoundoffDD)
+    (maxRoundoffQD, resInterval)
+  }
+  */
 
 
   private def evaluateFixedpoint(resId: Identifier, expr: Expr, vars: Map[Expr, Long]): Long = {
@@ -181,7 +238,7 @@ class Simulator(ctx: LeonContext, options: RealOptions, prog: Program, val repor
     for (e <- exprs) e match {
       case Equals(variable, value) => currentVars = currentVars + (variable -> evalFixed(value, currentVars))
       case BooleanLiteral(true) => ;
-      case _ => reporter.error("Simulation cannot handle: " + expr)
+      case _ => reporter.error("FP Simulation cannot handle: " + expr)
     }
     currentVars(Variable(resId))
   }
@@ -195,10 +252,39 @@ class Simulator(ctx: LeonContext, options: RealOptions, prog: Program, val repor
     for (e <- exprs) e match {
       case Equals(variable, value) => currentVars = currentVars + (variable -> evalRational(value, currentVars))
       case BooleanLiteral(true) => ;
-      case _ => reporter.error("Simulation cannot handle: " + expr)
+      case _ => reporter.error("Rational Simulation cannot handle: " + expr)
     }
     currentVars(Variable(resId))
   }
+
+  private def evaluateQD(resId: Identifier, expr: Expr, vars: Map[Expr, QD]): QD = {
+    val exprs: Seq[Expr] = expr match {
+      case And(args) => args
+      case _ => Seq(expr)
+    }
+    var currentVars: Map[Expr, QD] = vars
+    for (e <- exprs) e match {
+      case Equals(variable, value) => currentVars = currentVars + (variable -> evalQD(value, currentVars))
+      case BooleanLiteral(true) => ;
+      case _ => reporter.error("QD Simulation cannot handle: " + expr)
+    }
+    currentVars(Variable(resId))
+  }
+
+  private def evaluateDD(resId: Identifier, expr: Expr, vars: Map[Expr, DD]): DD = {
+    val exprs: Seq[Expr] = expr match {
+      case And(args) => args
+      case _ => Seq(expr)
+    }
+    var currentVars: Map[Expr, DD] = vars
+    for (e <- exprs) e match {
+      case Equals(variable, value) => currentVars = currentVars + (variable -> evalDD(value, currentVars))
+      case BooleanLiteral(true) => ;
+      case _ => reporter.error("DD Simulation cannot handle: " + expr)
+    }
+    currentVars(Variable(resId))
+  }
+
 
   // Returns the double value and range of the ResultVariable
   private def evaluate(resId: Identifier, expr: Expr, vars: Map[Expr, (Double, Rational)]): (Double, Rational) = {
@@ -210,7 +296,7 @@ class Simulator(ctx: LeonContext, options: RealOptions, prog: Program, val repor
     for (e <- exprs) e match {
       case Equals(variable, value) => currentVars = currentVars + (variable -> eval(value, currentVars))
       case BooleanLiteral(true) => ;
-      case _ => reporter.error("Simulation cannot handle: " + expr)
+      case _ => reporter.error("Double Simulation cannot handle: " + expr)
     }
     currentVars(Variable(resId))
   }
@@ -224,7 +310,7 @@ class Simulator(ctx: LeonContext, options: RealOptions, prog: Program, val repor
     for (e <- exprs) e match {
       case Equals(variable, value) => currentVars = currentVars + (variable -> evalSingle(value, currentVars))
       case BooleanLiteral(true) => ;
-      case _ => reporter.error("Simulation cannot handle: " + expr)
+      case _ => reporter.error("Float Simulation cannot handle: " + expr)
     }
     currentVars(Variable(resId))
   }
@@ -238,7 +324,7 @@ class Simulator(ctx: LeonContext, options: RealOptions, prog: Program, val repor
     for (e <- exprs) e match {
       case Equals(variable, value) => currentVars = currentVars + (variable -> evalInterval(value, currentVars))
       case BooleanLiteral(true) => ;
-      case _ => reporter.error("Simulation cannot handle: " + expr)
+      case _ => reporter.error("Interval Simulation cannot handle: " + expr)
     }
     currentVars(Variable(resId))
   }
@@ -299,6 +385,28 @@ class Simulator(ctx: LeonContext, options: RealOptions, prog: Program, val repor
     case MinusR(lhs, rhs) => evalRational(lhs, vars) - evalRational(rhs, vars)
     case TimesR(lhs, rhs) => evalRational(lhs, vars) * evalRational(rhs, vars)
     case DivisionR(lhs, rhs) => evalRational(lhs, vars) / evalRational(rhs, vars)
+    //case SqrtR(e) => Rational(math.sqrt(evalRational(e, vars).toDouble)))
+  }
+
+  private def evalQD(tree: Expr, vars: Map[Expr, QD]): QD = tree match {
+    case v @ Variable(id) =>  vars(v)
+    case RealLiteral(v) => QD(v.toDouble)
+    case UMinusR(e) => - evalQD(e, vars)
+    case PlusR(lhs, rhs) => evalQD(lhs, vars) + evalQD(rhs, vars)
+    case MinusR(lhs, rhs) => evalQD(lhs, vars) - evalQD(rhs, vars)
+    case TimesR(lhs, rhs) => evalQD(lhs, vars) * evalQD(rhs, vars)
+    case DivisionR(lhs, rhs) => evalQD(lhs, vars) / evalQD(rhs, vars)
+    //case SqrtR(e) => Rational(math.sqrt(evalRational(e, vars).toDouble)))
+  }
+
+  private def evalDD(tree: Expr, vars: Map[Expr, DD]): DD = tree match {
+    case v @ Variable(id) =>  vars(v)
+    case RealLiteral(v) => DD(v.toDouble)
+    case UMinusR(e) => - evalDD(e, vars)
+    case PlusR(lhs, rhs) => evalDD(lhs, vars) + evalDD(rhs, vars)
+    case MinusR(lhs, rhs) => evalDD(lhs, vars) - evalDD(rhs, vars)
+    case TimesR(lhs, rhs) => evalDD(lhs, vars) * evalDD(rhs, vars)
+    case DivisionR(lhs, rhs) => evalDD(lhs, vars) / evalDD(rhs, vars)
     //case SqrtR(e) => Rational(math.sqrt(evalRational(e, vars).toDouble)))
   }
 

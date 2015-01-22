@@ -115,7 +115,6 @@ class JetEngineBenchmark extends SimpleScalaBenchmark with Utils {
     3*((3*x1*x1 + 2*x2 -x1)/(x1*x1 + 1)))
   }
 
-  //u -> <1,32,24>v -> <1,32,16>#T -> <1,32,25>
   def jetFixedLong(x1: Long, x2: Long) : Long = {
     val tmp1 = (1610612736 * x1) >> 30
     val tmp2 = (tmp1 * x1) >> 31
