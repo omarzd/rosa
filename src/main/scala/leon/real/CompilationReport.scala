@@ -58,7 +58,7 @@ object CompilationReport {
       case None => ""
     }
 
-    "║ xx%-25s %-15s %3s %-8s %-10s %-7s %7s ║".format(
+    "║ %-25s %-15s %3s %-8s %-10s %-7s %7s ║".format(
       fit(vc.funDef.id.toString, 25),
       vc.kind,
       "",

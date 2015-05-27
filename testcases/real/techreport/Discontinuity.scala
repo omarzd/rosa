@@ -33,7 +33,7 @@ object Discontinuity {
     else
       1 + (i - 1) * (0.5 + (i-1) * (-0.125 + (i - 1) * 0.0625))
   
-  } ensuring (res => 1 <= res && res <= 1.4531 && res +/- 0.03941)
+  }// ensuring (res => 1 <= res && res <= 1.4531 && res +/- 0.03941)
 
 
   def cubicSpline(x: Real): Real = {
@@ -62,7 +62,7 @@ object Discontinuity {
     require(0 < x && x < 10 && x +/- 1e-10 )
     if (x < 1e-4) 1 + 0.5 * x
     else sqrt(1 + x)
-  } ensuring( res => res +/- 1e-10) //invalid
+  }// ensuring( res => res +/- 1e-10) //invalid
 
  
 
