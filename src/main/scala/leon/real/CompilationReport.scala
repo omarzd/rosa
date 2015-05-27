@@ -22,7 +22,7 @@ class CompilationReport(val allVCs: Seq[VerificationCondition], precision: Preci
   def summaryString : String = if(totalConditions >= 0) {
     CompilationReport.infoHeader +
     realVCs.map(CompilationReport.infoLine(precision)).mkString("\n", "\n", "\n") +
-    specGen.map(CompilationReport.timeLine).mkString("\n", "\n", "\n") +
+    specGen.map(CompilationReport.timeLine(precision)).mkString("\n", "\n", "\n") +
     CompilationReport.infoSep +
     ("║ total: %-4d   valid: %-4d   invalid: %-4d   unknown %-4d " +
       (" " * 16) +
@@ -58,7 +58,7 @@ object CompilationReport {
       case None => ""
     }
 
-    "║ %-25s %-15s %3s %-8s %-10s %-7s %7s ║".format(
+    "║ xx%-25s %-15s %3s %-8s %-10s %-7s %7s ║".format(
       fit(vc.funDef.id.toString, 25),
       vc.kind,
       "",
@@ -68,7 +68,7 @@ object CompilationReport {
       timeStr)
   }
 
-  private def timeLine(vc : VerificationCondition) : String = {
+  private def timeLine(precision: Precision)(vc : VerificationCondition) : String = {
     val timeStr = vc.time match {
       case Some(t) => "%-3.3f".format(t / 1000)
       case None => ""
@@ -76,7 +76,7 @@ object CompilationReport {
 
     "║ %-25s %-47s %7s ║".format(
       fit(vc.funDef.id.toString, 25),
-      "",
+      fit(vc.spec(precision).head.absError.getOrElse(Rational.zero).toString, 47),
       timeStr)
   }
 }
