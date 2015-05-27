@@ -82,3 +82,22 @@ To compile on Linux:
 
     g++ -shared -o libQuadDouble.so ceres_common_QuadDoubleInterface.o ~/share/qd/src/*.o
 
+
+Installation instructions for Windows
+-------------------------------------
+1. install gcc
+2. install java development kit (JDK)
+   http://www.oracle.com/technetwork/java/javase/downloads/index.html
+3. add javac to the system path:
+   C:\Program Files\Java\jdk1.8.0\bin
+4. install sbt
+   http://www.scala-sbt.org/download.html
+5. fork+clone rosa from github
+6. fork+clone ScalaZ3 from github  (only the lib-bin folder is needed)
+7. start the Git Shell
+8. go to the rosa folder
+9. type "cmd" to start a windows shell with the correct paths.
+   - type "build" to build the libs for windows (using build.bat)
+   - type "exit" to leave the windows shell
+10. type "sbt". this will start the sbt console.
+11. type "run"
