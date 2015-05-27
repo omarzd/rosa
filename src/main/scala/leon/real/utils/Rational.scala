@@ -28,6 +28,7 @@ object Rational {
 
   val zero = Rational(zeroBigInt, oneBigInt)
   val one = Rational(oneBigInt, oneBigInt)
+  val two = Rational(twoBigInt, oneBigInt)
 
   def sqrtUp(x: Rational): Rational = {
     //println("scaled: " + Rational.scaleToIntsUp(x).doubleValue)

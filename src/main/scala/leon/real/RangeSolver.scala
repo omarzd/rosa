@@ -80,6 +80,17 @@ class RangeSolver(timeout: Long) {
 
   val solver = z3.mkSolver
 
+  /* Check if we are using nlsat
+  val x = Variable(FreshIdentifier("x").setType(RealType))
+  val e = Equals(TimesR(x, x), RealLiteral(Rational.two))
+  println(e)
+  
+  solver.push
+  solver.assertCnstr(toZ3Formula(e).get)
+  println("are we using nlsat: "  + solver.check)
+  solver.pop()
+  */
+
   def assertCnstr(expression: leon.purescala.Trees.Expr): Unit = {
     solver.assertCnstr(toZ3Formula(expression).get)
   }

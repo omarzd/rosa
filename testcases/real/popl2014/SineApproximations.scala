@@ -19,7 +19,7 @@ object SineApproximations {
   } ensuring(res => res <= 0.01 && res +/- 5e-14) // counterexample: 1.875
   
   def sineTaylor(x: Real): Real = {
-    require(-2.0 < x && x < 2.0)
+    require(-1.57079632679 < x && x < 1.57079632679)
 
     x - (x*x*x)/6.0 + (x*x*x*x*x)/120.0 - (x*x*x*x*x*x*x)/5040.0 
   } ensuring(res => -1.0 < ~res && ~res < 1.0 && res +/- 1e-14)
