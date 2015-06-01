@@ -11,6 +11,12 @@ import VariableShop._
 import RationalAffineUtils._
 
 
+object XReal {
+
+  var solverTime = 0l
+
+}
+
 class XReal(val tree: Expr, val approxInterval: RationalInterval, val error: RationalForm, val config: XConfig, 
   val z3Timeout: Int) {
   val verbose = false
@@ -163,7 +169,10 @@ class XReal(val tree: Expr, val approxInterval: RationalInterval, val error: Rat
       val massagedTree = TreeOps.massageArithmetic(tree)
     
       try {
+        val start = System.currentTimeMillis
         val (res, timeout) = config.solver.tightenRange(massagedTree, condition, approx, config.solverMaxIter, config.solverPrecision)
+        XReal.solverTime += (System.currentTimeMillis - start)
+
         //println("after tightening: " + res)
         (res, if(timeout) 1 else 0)
       } catch {

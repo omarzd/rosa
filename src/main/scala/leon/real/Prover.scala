@@ -83,6 +83,11 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
 
       // TODO: can we re-use some of the approximation work across precision?
       approx.kinds.find(aKind => {
+        val internalStart = System.currentTimeMillis
+        XReal.solverTime = 0l
+        RangeSolver.solverTime = 0l
+        RangeSolver.waitingTime = 0l
+        RangeSolver.timeoutTime = 0l
         if (!options.silent) reporter.info("approx: " + aKind)
 
         try {
@@ -92,6 +97,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
           spec = Spec.mergeSpecs(spec, currentApprox.spec)
           postMap += (vc.funDef -> currentApprox.spec)
 
+          reporter.info("internal time: " + (System.currentTimeMillis - start))
           if (vc.kind == VCKind.SpecGen) true  // specGen, no need to check, only uses first approximation
           else
             checkValid(currentApprox, vc.variables, precision, vc.toString) match {
@@ -138,6 +144,11 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
       vc.spec += (precision -> spec)
 
       val end = System.currentTimeMillis
+      reporter.info("XReal solver time: " + XReal.solverTime)
+      reporter.info("RangeSolver time: " + RangeSolver.solverTime)
+      reporter.info("RangeSolver waiting: " + RangeSolver.waitingTime)
+      reporter.info("RangeSolver timeout time: " + RangeSolver.timeoutTime)
+      reporter.info("Total time: " + (end - start))
       vc.time = Some(end - start)
       spec.foreach { sp => 
         reporter.info(sp)

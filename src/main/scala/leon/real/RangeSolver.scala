@@ -17,6 +17,13 @@ import Sat._
 import real.TreeOps._
 import real.Rational.{sqrtDown, sqrtUp}
 
+object RangeSolver {
+  var solverTime = 0l
+  var waitingTime = 0l
+  var timeoutTime = 0l
+}
+
+
 // We don't want this to depend on anything Leon internal such as context
 class RangeSolver(timeout: Long) {
   var verbose = false
@@ -331,6 +338,7 @@ class RangeSolver(timeout: Long) {
   def getRange(precond: Expr, expr: Expr, vars: Map[Expr, RationalInterval],
     leonToZ3: LeonToZ3Transformer, maxIter: Int, prec: Rational): RationalInterval = {
 
+    val start = System.currentTimeMillis
     val leonToZ3Necessary = containsSqrt(expr)
 
     // @ return (tightened interval, whether Z3 failed)
@@ -383,7 +391,9 @@ class RangeSolver(timeout: Long) {
         // needed for sqrt, and doing quite the duplicate work, but this is clean
         val (z3Expr, addCnstr) = leonToZ3.getZ3ExprWithCondition(e)
         val additionalConstraints = And(precond, addCnstr)
+        val start = System.currentTimeMillis
         val (res, tmOut) = tightenRange(z3Expr, additionalConstraints, tmp, maxIter, prec)
+        println("interm. tighten: " + (System.currentTimeMillis - start))
         (res, if (tmOut) timeout + 1 else timeout)
       } else {
         val (res, tmOut) = tightenRange(e, precond, tmp, maxIter, prec)
@@ -394,6 +404,7 @@ class RangeSolver(timeout: Long) {
 
 
     val res = inIntervalsWithZ3(expr)._1
+    RangeSolver.solverTime += (System.currentTimeMillis - start)
     res
   }
 
@@ -401,6 +412,7 @@ class RangeSolver(timeout: Long) {
  
 
   def getRangeSimple(precond: Expr, expr: Expr, variables: VariablePool, maxIter: Int, prec: Rational) = {
+    val start = System.currentTimeMillis
     def inIntervals(expr: Expr, vars: VariablePool): RationalInterval = expr match {
       case RealLiteral(r) => RationalInterval(r, r)
       case v @ Variable(_) => vars.getIdealInterval(v)
@@ -425,6 +437,8 @@ class RangeSolver(timeout: Long) {
     val approx = inIntervals(expr, variables)
     if(countTimeouts != 0)
       println("\n ******** \nSolver timed out during getRangeSimple computation")
+
+    RangeSolver.solverTime += (System.currentTimeMillis - start)
     tightenRange(massageArithmetic(expr), precond, approx, maxIter, prec)._1
   }
 
@@ -532,7 +546,11 @@ class RangeSolver(timeout: Long) {
   }
 
   private def checkConstraint: Sat = {
-    solver.check match {
+    val start = System.currentTimeMillis
+    val result = solver.check 
+    val time = (System.currentTimeMillis - start)
+    RangeSolver.waitingTime += time
+    result match {
       case Some(true) =>
         if (verbose) println("--> bound: SAT")
         SAT
@@ -541,6 +559,7 @@ class RangeSolver(timeout: Long) {
         UNSAT
       case None =>
         if (printWarnings) println("!!! WARNING: Z3 SOLVER FAILED")
+        RangeSolver.timeoutTime += time
         countTimeouts += 1
         Unknown
     }

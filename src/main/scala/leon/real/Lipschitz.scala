@@ -204,7 +204,7 @@ trait Lipschitz {
 
 
   /*
-    In order for this computation to be sounds, the intervals need to include all
+    In order for this computation to be sound, the intervals need to include all
     the values from the ideal and actual ranges
   */
   private def _getLipschitzMatrix(preReal: Expr, fncs: Seq[Expr], ids: Seq[Identifier],
@@ -246,8 +246,10 @@ trait Lipschitz {
     val res = m.map(e => {
       val expr = massageArithmetic( e )
       //val expr = e
+      val start = System.currentTimeMillis
       val rangeDerivative = solver.getRange(pre, expr, vars, leonToZ3,
                 solverMaxIterMedium, solverPrecisionMedium)
+      reporter.info("Range bound one deriv: " + (System.currentTimeMillis - start))
       reporter.debug("computed range for: " + e + "  --> " + maxAbs(Seq(rangeDerivative.xlo, rangeDerivative.xhi)))
       maxAbs(Seq(rangeDerivative.xlo, rangeDerivative.xhi))
     })

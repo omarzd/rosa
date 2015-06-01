@@ -78,6 +78,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
     val postcondition = vc.post
 
     /* --------------  Functions -------------- */
+    val start = System.currentTimeMillis
     var body = kind.fncHandling match {
       case Uninterpreted => vc.body
       case Postcondition =>
@@ -116,7 +117,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
       case (_, Merging) =>  Set(Path(True, filterOutActualInFncVal(body), idealToActual(body, vc.variables)))
     }
     reporter.debug("after PATH handling:\nbody: %s".format(paths.mkString("\n")))
-
+    reporter.info("time for fnc and path handling: " + (System.currentTimeMillis - start))
     
     kind.arithmApprox match {
       case NoApprox =>
@@ -144,6 +145,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
 
         for ( path <- paths if (isFeasible(And(precondition, path.condition))) ) {
           reporter.debug("Computing approximation for path ...")
+          val startPath = System.currentTimeMillis
           //solver.clearCounts          
           if (vc.kind == VCKind.Precondition) {
             val bodyApprox = getApproximationAndSpec_AllVars(path, precision)
@@ -172,6 +174,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
             constraints :+= Constraint(And(precondition, path.condition), path.bodyReal, bodyApprox, postcondition)
             
           }
+          reporter.info("time per path (total): " + (System.currentTimeMillis - startPath))
         }
 
         // this is not clean, but loops currently do not support path errors
