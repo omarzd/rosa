@@ -17,7 +17,7 @@ class RealRegression extends LeonTestSuite {
   private case class Output(name: String, report : CompilationReport, reporter : Reporter)
 
   private def mkPipeline : Pipeline[List[String],CompilationReport] =
-    leon.frontends.scalac.ExtractionPhase andThen leon.utils.SubtypingPhase andThen leon.real.CompilationPhase
+    leon.frontends.scalac.ExtractionPhase andThen leon.real.CompilationPhase
 
   // for now one, but who knows
   //val realLibraryFiles = filesInResourceDir(

@@ -86,9 +86,9 @@ class PathError(reporter: Reporter, solver: RangeSolver, precision: Precision, i
   def computePathError(currentPathCondition: Expr, branchCondition: Expr, f1: Expr, f2: Expr): Seq[Rational] = {
     def rmErrors(xf: XReal): XReal = xf match {
       case xff: XFloat =>
-        new XFloat(xff.tree, xff.approxInterval, new XRationalForm(Rational.zero), xff.config, xff.precision)
+        new XFloat(xff.tree, xff.approxInterval, new RationalForm(Rational.zero), xff.config, xff.precision)
       case xfp: XFixed =>
-        new XFixed(xfp.format, xfp.tree, xfp.approxInterval, new XRationalForm(Rational.zero), xfp.config)
+        new XFixed(xfp.format, xfp.tree, xfp.approxInterval, new RationalForm(Rational.zero), xfp.config)
     }
     def removeErrors(xfs: XRealTuple): XRealTuple = xfs.map(x => rmErrors(x))
 
@@ -222,13 +222,13 @@ class PathError(reporter: Reporter, solver: RangeSolver, precision: Precision, i
         // TODO: add condition before to improve the approx interval?
         precision match {
           case FPPrecision(bits) =>
-            (fresh, new XFixed(xf.asInstanceOf[XFixed].format, replace(buddyFreshMap, xf.tree), xf.approxInterval, new XRationalForm(Rational.zero),
+            (fresh, new XFixed(xf.asInstanceOf[XFixed].format, replace(buddyFreshMap, xf.tree), xf.approxInterval, new RationalForm(Rational.zero),
               xf.config.addCondition(cond).freshenUp(buddyFreshMap).updatePrecision(solverMaxIterHigh, solverPrecisionHigh)))
 
           case _ =>
             //println("new tree: " + replace(buddyFreshMap, xf.tree))
             //println("xconfig: " + xf.config.addCondition(cond).freshenUp(buddyFreshMap).getCondition)
-            (fresh, new XFloat(replace(buddyFreshMap, xf.tree), xf.approxInterval, new XRationalForm(Rational.zero),
+            (fresh, new XFloat(replace(buddyFreshMap, xf.tree), xf.approxInterval, new RationalForm(Rational.zero),
               xf.config.addCondition(cond).freshenUp(buddyFreshMap).updatePrecision(solverMaxIterHigh, solverPrecisionHigh), precision))
         }
     }

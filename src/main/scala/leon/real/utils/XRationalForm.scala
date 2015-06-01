@@ -50,7 +50,7 @@ object XRationalForm {
       newTerms += iter.next
     }
     val index = newIndex
-    newTerms += Deviation(index, List(index), n)
+    newTerms += Deviation(index, n)
     (new XRationalForm(x.x0, newTerms), index)
   }
 

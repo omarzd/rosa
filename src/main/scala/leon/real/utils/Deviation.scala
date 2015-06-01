@@ -8,19 +8,7 @@ import purescala.Trees._
 
 import real.Trees._
 
-case class MismatchedException(msg: String) extends Exception(msg)
-
-// the history may have to be sorted for comparisons
-case class Index(val freshIndex: Int, val history: List[Int])
-
-// Simplification of trees? There is some function in TreeOps already...
-case class Magnitude(val value: Rational, val expr: Expr) {
-  def unary_-(): Magnitude = Magnitude(-value, UMinus(expr))
-  def *(factor: Rational): Magnitude = Magnitude(value * factor, Times(expr, RealLiteral(factor)))
-  def +(y: Magnitude): Magnitude = Magnitude(this.value + y.value, Plus(expr, y.expr))
-  def -(y: Magnitude): Magnitude = Magnitude(this.value - y.value, Minus(expr, y.expr))
-  def *(y: Magnitude): Magnitude = Magnitude(this.value * y.value, Times(expr, y.expr))
-}
+//case class MismatchedException(msg: String) extends Exception(msg)
 
 
 object Deviation {
@@ -33,7 +21,7 @@ object Deviation {
     currIndex
   }
 
-  def apply(i: Int, v: Rational): Deviation = {
+  /*def apply(i: Int, v: Rational): Deviation = {
     /*if (v.n.bitLength > bitLimit || v.d.bitLength > bitLimit) {
       //println("scaling")
       val scaled = if (v.n < 0) - scaleToLongUp(abs(v))
@@ -42,60 +30,35 @@ object Deviation {
 
     } else {
     */
-      Deviation(Index(i, List.empty), Magnitude(v, RealLiteral(v)))
+      //Deviation(Index(i, List.empty), Magnitude(v, RealLiteral(v)))
+      Deviation(i, v) //Magnitude(v, RealLiteral(v)))
     //}
-  }
+  }*/
 
-  def apply(i: Int, hist: List[Int], v: Rational) : Deviation =
-    /*if (v.n.bitLength > bitLimit || v.d.bitLength > bitLimit) {
-      //println("scaling")
-      val scaled = if (v.n < 0) - scaleToLongUp(abs(v))
-                   else scaleToLongUp(v)
-      Deviation(Index(i, hist), Magnitude(scaled, RealLiteral(scaled)))
-    } else {
-    */
-      Deviation(Index(i, hist), Magnitude(v, RealLiteral(v)))
-    //}
-
-  def apply(i: Int, hist: List[Int], v: Rational, variable: Variable) : Deviation =
-    /*if (v.n.bitLength > bitLimit || v.d.bitLength > bitLimit) {
-      //println("scaling")
-      val scaled = if (v.n < 0) - scaleToLongUp(abs(v))
-                   else scaleToLongUp(v)
-      Deviation(Index(i, hist), Magnitude(scaled, variable))
-    } else {
-    */
-      Deviation(Index(i, hist), Magnitude(v, variable))
-    //}
-  
-
-  val dummyDev = Deviation(Index(Int.MaxValue, List.empty),
-    Magnitude(Rational.zero, RealLiteral(Rational.zero)))
-
+  val dummyDev = Deviation(Int.MaxValue, Rational.zero)
+    
   var verbose = false
 }
 
 import Deviation._
 
-case class Deviation(indx: Index, mgnt: Magnitude) {
-  def unary_-(): Deviation = Deviation(indx, -mgnt)
-  def *(factor: Rational): Deviation = Deviation(indx, mgnt * factor)
+case class Deviation(index: Int, mgnt: Rational) {
+  def unary_-(): Deviation = Deviation(index, -mgnt)
+  def *(factor: Rational): Deviation = Deviation(index, mgnt * factor)
   def +(y: Deviation): Deviation = {
-    assert(y.indx == this.indx) // will check both fresh and history
-    Deviation(indx, this.mgnt + y.mgnt)
+    assert(y.index == this.index)
+    Deviation(index, this.mgnt + y.mgnt)
   }
   def -(y: Deviation): Deviation = {
-    assert(y.indx == this.indx) // will check both fresh and history
-    Deviation(indx, this.mgnt - y.mgnt)
+    assert(y.index == this.index) 
+    Deviation(index, this.mgnt - y.mgnt)
   }
   def *(y: Deviation): Deviation = {
-    Deviation(Index(newIndex, this.indx.history ++ y.indx.history),
-              this.mgnt * y.mgnt)
+    Deviation(newIndex, this.mgnt * y.mgnt)
   }
 
-  override def toString: String = "%se%d".format(value.toString, index)
+  override def toString: String = "%s(%d)".format(value.toString, index)
 
-  def value: Rational = mgnt.value
-  def index: Int = indx.freshIndex
-  def isZero: Boolean = (mgnt.value == Rational.zero)
+  def value: Rational = mgnt
+  def isZero: Boolean = (mgnt == Rational.zero)
 }

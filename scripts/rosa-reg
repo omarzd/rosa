@@ -1,10 +1,14 @@
 #!/bin/bash
 
-#echo "straightline"
-#./leon --functions=doppler:dopplerRefactored:rigidBody2:rigidBody2Refactored:jetEngine:jetEngineRefactored:turbine1:turbine1Refactored:turbine2:turbine2Refactored:turbine3:turbine3Refactored:sine:sqroot:sineOrder3 testcases/real/techreport/Straightline.scala 
+sbt package
+sbt script
 
-#echo "straightline with errors"
-#./leon --functions=dopplerRefactoredWithError:jetEngineRefactoredWithError:turbine1RefactoredWithError:turbine2RefactoredWithError:turbine3RefactoredWithError testcases/real/techreport/StraightlineWithError.scala
+echo "straightline"
+#./leon --functions=doppler:dopplerRefactored:rigidBody2:rigidBody2Refactored:jetEngine:jetEngineRefactored:turbine1:turbine1Refactored:turbine2:turbine2Refactored:turbine3:turbine3Refactored:sine:sqroot:sineOrder3 testcases/real/techreport/Straightline.scala 
+./leon --functions=doppler:dopplerRefactored:rigidBody2:rigidBody2Refactored:jetEngine:jetEngineRefactored:turbine1:turbine1Refactored:turbine2:turbine2Refactored:turbine3:turbine3Refactored:sine:sqroot:sineOrder3 testcases/real/techreport/Straightline.scala 
+
+echo "straightline with errors"
+./leon --functions=dopplerRefactoredWithError:jetEngineRefactoredWithError:turbine1RefactoredWithError:turbine2RefactoredWithError:turbine3RefactoredWithError testcases/real/techreport/StraightlineWithError.scala
 
 echo "loops"
 ./leon --functions=nextItem:mean1000:mean4000:sine:pendulum50:pendulum1000 testcases/real/techreport/RunningAvrg.scala testcases/real/techreport/Pendulum.scala 
