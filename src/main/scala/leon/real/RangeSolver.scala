@@ -446,7 +446,8 @@ class RangeSolver(timeout: Long) {
     @return (tightened interval, whether Z3 failed)
 
   */
-  def tightenRange(tree: Expr, precondition: Expr, initialBound: RationalInterval, maxIter: Int, prec: Rational):
+  def tightenRange(tree: Expr, precondition: Expr, initialBound: RationalInterval, 
+    maxIter: Int = solverMaxIterMedium, prec: Rational = solverPrecisionMedium):
     (RationalInterval, Boolean) = tree match {
     case IntLiteral(v) => (initialBound, false)
     case RealLiteral(v) => (initialBound, false)

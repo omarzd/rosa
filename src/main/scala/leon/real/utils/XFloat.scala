@@ -102,7 +102,7 @@ object XFloat {
 
   // constant
   def apply(r: Rational, config: XConfig, precision: Precision): XFloat = {
-    val newError =  if (Precision.isExactInFloats(r)) {
+    val newError =  if (Precision.isExactInFloats(r, precision)) {
       new RationalForm(Rational.zero)
     } else {
       new RationalForm(Rational.zero) :+ roundoff(r, precision)
@@ -118,7 +118,7 @@ object XFloat {
   **/
   def xFloatWithRoundoff(v: Variable, range: RationalInterval, config: XConfig, precision: Precision): XFloat = {
     // For when the specs say 3 <= x && x <= 3
-    if (range.isPointRange && isExactInFloats(range.xlo)) {
+    if (range.isPointRange && isExactInFloats(range.xlo, precision)) {
       new XFloat(v, range, new RationalForm(Rational.zero), config, precision)
     } else {
       val rndoff = roundoff(range, precision)

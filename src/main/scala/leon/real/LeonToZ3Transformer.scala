@@ -145,7 +145,7 @@ class LeonToZ3Transformer(variables: VariablePool, precision: Precision) extends
 
       case r @ FloatLiteral(v) =>
         assert(precision.getClass != FPPrecision)
-        if (isExactInFloats(v)) RealLiteral(v)
+        if (isExactInFloats(v, precision)) RealLiteral(v)
         else {
           val (mult, dlt) = getFreshRndoffMultiplier
           addExtra(constrainDelta(dlt))
