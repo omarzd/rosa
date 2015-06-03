@@ -126,10 +126,13 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
             if (!options.silent) reporter.warning("Failed to compute approximation: " + msg)
             false
           case FixedPointOverflowException(msg) =>
-            if (!options.silent) reporter.warning("Insufficient bitwidth: " + msg)
+            reporter.warning("Insufficient bitwidth: " + msg)
             false
           case SqrtNotImplementedException(msg) =>
             reporter.warning(msg)
+            false
+          case i: java.lang.ArithmeticException =>
+            reporter.warning("Something went wrong, probably insufficient accuracy during the analysis:\n")
             false
           //case UnsoundBoundsException(msg) =>
           //  reporter.error(msg)

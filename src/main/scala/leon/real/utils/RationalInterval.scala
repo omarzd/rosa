@@ -24,6 +24,8 @@ case class RationalInterval(xlo: Rational, xhi: Rational) {
 
   def isPointRange: Boolean = xlo == xhi
 
+  //def subdivide(n: Int): Seq[RationalInterval]
+
   def unary_-(): RationalInterval = RationalInterval(-xhi, -xlo)
 
   def +(other: RationalInterval): RationalInterval = {

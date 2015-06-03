@@ -10,6 +10,7 @@ import purescala.Definitions._
 import purescala.Trees._
 import purescala.TreeOps._
 import purescala.ScalaPrinter
+import Rational.rationalFromString
 
 
 object CompilationPhase extends LeonPhase[Program,CompilationReport] {
@@ -32,7 +33,9 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
       "floating-point arithmetic: single, double, doubledouble, quaddouble or all (sorted from smallest)."),
     LeonFlagOptionDef("noMassageArith", "--noMassageArith", "Massage arithmetic before passing to Z3"),
     LeonFlagOptionDef("noLipschitz", "--noLipschitz", "do not use lipschitz"),
-    LeonFlagOptionDef("loud", "--loud", "print a little more than just end-results")
+    LeonFlagOptionDef("loud", "--loud", "print a little more than just end-results"),
+    LeonValueOptionDef("solverIterations", "--solverIter=10:30", "# iterations (low and high) of range bounding with Z3."),
+    LeonValueOptionDef("solverPrecision", "--solverPrecision=1e-5:1e-10", "Threshold to stop ietrating Z3 range bounding.")
   )
 
   def run(ctx: LeonContext)(program: Program): CompilationReport = {
@@ -52,6 +55,23 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
       case LeonFlagOption("noMassageArith", v) => options = options.copy(massageArithmetic = !v)
       case LeonFlagOption("noLipschitz", v) => options = options.copy(lipschitz = !v, lipschitzPathError = !v)
       case LeonValueOption("z3Timeout", ListValue(tm)) => options = options.copy(z3Timeout = tm.head.toLong)
+      case LeonValueOption("solverIterations", ListValue(iter)) => 
+        if (iter.length == 1) {
+          RangeSolver.solverMaxIterLow = iter(0).toInt
+        } else if (iter.length == 2) {
+          RangeSolver.solverMaxIterLow = iter(0).toInt
+          RangeSolver.solverMaxIterHigh = iter(1).toInt
+        }
+        else reporter.warning("solverIterations should be one or two values only")
+      case LeonValueOption("solverPrecision", ListValue(iter)) => 
+        if (iter.length == 1) {
+          RangeSolver.solverPrecisionLow = rationalFromString(iter(0))
+        } else if (iter.length == 2) {
+          RangeSolver.solverPrecisionLow = rationalFromString(iter(0))
+          RangeSolver.solverPrecisionHigh = rationalFromString(iter(1))
+        }
+        else reporter.warning("solverPrecision should be one or two values only")
+        
       case LeonValueOption("precision", ListValue(ps)) => options = options.copy(precision = ps.flatMap {
         case "single" => List(Float32)
         case "double" => List(Float64)

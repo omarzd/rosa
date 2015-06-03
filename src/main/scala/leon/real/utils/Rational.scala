@@ -78,13 +78,17 @@ object Rational {
     Rational(n, d)
   }
 
+  def rationalFromString(dbl: String): Rational = {
+    val (n, d) = real2Fraction(dbl)
+    Rational(n, d)
+  }  
+
   //Takes a string representing a real value and returns a fraction equal to it.
   // We assume this string comes directly from variable.toString, so it does not
   // have trailing zeroes, always has one decimal point, etc.
   // This works because of a property of the IEEE 754 standard that requires that
   // one can recover the exact string by going to double and back.
   def real2Fraction(value: String): (BigInt, BigInt) = {
-
     // scientific notation
     if (value.contains("e") || value.contains("E")) {
       val splitExponent = value.split(Array('e', 'E'))

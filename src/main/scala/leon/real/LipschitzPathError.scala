@@ -154,7 +154,7 @@ class LipschitzPathError(reporter: Reporter, solver: RangeSolver, precision: Pre
     val diff = massageArithmetic( MinusR(inlineBody(f1), inlineBody(f2)) ) 
     
     val rangeDiff = solver.getRange(z3Constraint, diff, inputs, leonToZ3,
-      solverMaxIterHigh, solverPrecisionHigh)
+      RangeSolver.solverMaxIterHigh, RangeSolver.solverPrecisionHigh)
     max(abs(rangeDiff.xlo), abs(rangeDiff.xhi))
   }
 
@@ -168,8 +168,7 @@ class LipschitzPathError(reporter: Reporter, solver: RangeSolver, precision: Pre
 
     val lipschitzConstants = derivs.map(der => {
       reporter.debug("computing range of derivative: " + der)
-      val derMax = solver.getRange(z3Constraint, der, ranges, leonToZ3,
-        solverMaxIterMedium, solverPrecisionMedium) 
+      val derMax = solver.getRange(z3Constraint, der, ranges, leonToZ3) 
       max(abs(derMax.xlo), abs(derMax.xhi))
       })
 
@@ -266,7 +265,7 @@ class LipschitzPathError(reporter: Reporter, solver: RangeSolver, precision: Pre
         val cMap: Map[Expr, RationalInterval] = initialRanges.map({
           case (v, r) =>
             val (interval, tmOut) = solver.tightenRange(v, fullConstraint, r,
-              solverMaxIterHigh, solverPrecisionHigh)
+              RangeSolver.solverMaxIterHigh, RangeSolver.solverPrecisionHigh)
             (v, interval)
         })
 

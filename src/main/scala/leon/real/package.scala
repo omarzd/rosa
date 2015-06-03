@@ -50,14 +50,12 @@ package object real {
   //import Precision._
 
 
-  val solverPrecisionHigh = Rational.rationalFromReal(1e-16)
-  val solverPrecisionMedium = Rational.rationalFromReal(1e-10)
-  val solverPrecisionLow = Rational.rationalFromReal(1e-5)
-
-  val solverMaxIterHigh = 70
-  val solverMaxIterMedium = 50
-  val solverMaxIterLow = 20
-
+  val defaultSolverPrecisionHigh = Rational.rationalFromReal(1e-16)
+  val defaultSolverPrecisionLow = Rational.rationalFromReal(1e-5)
+  
+  val defaultSolverMaxIterHigh = 70
+  val defaultSolverMaxIterLow = 10
+  
 
   object Sat extends Enumeration {
     type Sat = Value
