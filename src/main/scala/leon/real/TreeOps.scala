@@ -55,6 +55,14 @@ object TreeOps {
     And(clauses)
   }
 
+  def realRangeConstraint(vars: Map[Expr, XNum]): Expr = {
+    val clauses: Seq[Expr] = vars.flatMap({
+      case (v, xreal) => Seq(LessEquals(RealLiteral(xreal.realRange.interval.xlo), v),
+                              LessEquals(v, RealLiteral(xreal.realRange.interval.xhi)))
+      }).toSeq
+    And(clauses)
+  }
+
 
 
   def rangeConstraintFromIntervals(vars: Map[Expr, RationalInterval]): Expr = {

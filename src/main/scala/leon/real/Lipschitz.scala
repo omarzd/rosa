@@ -29,6 +29,7 @@ trait Lipschitz {
       reporter.warning("If or fnc call found, cannot apply Lipschitz.")
       None
     } else {
+      println("## vars: " + vars)
       val completePre = And(rangeConstraint(vars), additionalConstraints)
       
       val lipschitzConsts: RMatrix = _getLipschitzMatrix(completePre, es, ids,
@@ -212,6 +213,9 @@ trait Lipschitz {
   
     reporter.debug("preReal: " + preReal)
     reporter.debug("ids: " + ids)
+
+    println("preReal: " + preReal)
+    println("vars: " + vars)
 
     val jacobian = EMatrix.fromSeqs(fncs.map(fnc => ids.map(id => d(inlineBody(fnc), id))))
     reporter.debug("jacobian: " + jacobian)

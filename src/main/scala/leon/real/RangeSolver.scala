@@ -340,9 +340,10 @@ class RangeSolver(timeout: Long) {
 
     val start = System.currentTimeMillis
     val leonToZ3Necessary = containsSqrt(expr)
+    println("precond: " + precond)
 
     // @ return (tightened interval, whether Z3 failed)
-    def inIntervalsWithZ3(e: Expr): (RationalInterval, Int) = {
+    /*def inIntervalsWithZ3(e: Expr): (RationalInterval, Int) = {
       val (tmp, timeout): (RationalInterval, Int) = e match {
         case RealLiteral(r) => (RationalInterval(r, r), 0)
         case v @ Variable(_) => (vars(v), 0)
@@ -384,7 +385,7 @@ class RangeSolver(timeout: Long) {
       //print(".");// flush
       //val mExpr = massageArithmetic( e )
       
-      if (timeout > 1) {
+      /*if (timeout > 1) {
         //println("skipping due to timeouts")
         (tmp, timeout)
       } else if (leonToZ3Necessary) {
@@ -398,11 +399,82 @@ class RangeSolver(timeout: Long) {
       } else {
         val (res, tmOut) = tightenRange(e, precond, tmp, maxIter, prec)
         (res, if (tmOut) timeout + 1 else timeout)
-      }
-
+      }*/
+      (tmp, 0)
     }// end inIntervalsWithZ3
+    */
 
-    val res = inIntervalsWithZ3(expr)._1
+    def inAffineWithZ3(e: Expr): (RationalForm, Int) = {
+      val (tmp, timeout): (RationalForm, Int) = e match {
+        case RealLiteral(r) => (new RationalForm(r), 0)
+        case v @ Variable(_) => 
+          (RationalForm(vars(v)), 0)
+        case UMinusR(t) => 
+          val (res, tmOut) = inAffineWithZ3(t)
+          (- res, tmOut)
+        case PlusR(l, r) => 
+          val (left, ltmOut) = inAffineWithZ3(l)
+          val (right, rtmOut) = inAffineWithZ3(r)
+          (left + right, ltmOut + rtmOut)
+        case MinusR(l, r) =>
+          val (left, ltmOut) = inAffineWithZ3(l)
+          val (right, rtmOut) = inAffineWithZ3(r)
+          (left - right, ltmOut + rtmOut)
+         
+        case TimesR(l, r) =>
+          val (left, ltmOut) = inAffineWithZ3(l)
+          val (right, rtmOut) = inAffineWithZ3(r)
+          (left * right, ltmOut + rtmOut)
+         
+        case DivisionR(l, r) =>
+          val (left, ltmOut) = inAffineWithZ3(l)
+          val (right, rtmOut) = inAffineWithZ3(r)
+          (left / right, ltmOut + rtmOut)
+        
+        case SqrtR(t) =>
+          val (tt, tmOut) = inAffineWithZ3(t)
+          (RationalForm(RationalInterval(sqrtDown(tt.interval.xlo), sqrtUp(tt.interval.xhi))), tmOut)
+
+        case PowerR(lhs, IntLiteral(p)) =>
+          assert(p > 1, "p is " + p + " in " + e)
+          val (lhsInIntervals, tmOut) = inAffineWithZ3(lhs)
+          var x = lhsInIntervals
+          for (i <- 1 until p ){
+            x = x * lhsInIntervals
+          }
+          (x, tmOut)
+      }
+      //print(".");// flush
+      //val mExpr = massageArithmetic( e )
+      println("\nexpr: " + e)
+      println(tmp.longString)
+      
+      if (timeout > 1) {
+        //println("skipping due to timeouts")
+        (tmp, timeout)
+      } else if (leonToZ3Necessary) {
+        // needed for sqrt, and doing quite the duplicate work, but this is clean
+        val (z3Expr, addCnstr) = leonToZ3.getZ3ExprWithCondition(e)
+        val additionalConstraints = And(precond, addCnstr)
+        val start2 = System.currentTimeMillis
+        //println("z3Expr: " + z3Expr)
+        //println("additionalConstraints: " + additionalConstraints)
+        val (res, tmOut) = tightenRange(z3Expr, additionalConstraints, tmp.interval, maxIter, prec)
+        println("interm. tighten: " + (System.currentTimeMillis - start2))
+        (RationalForm(res), if (tmOut) timeout + 1 else timeout)
+      } else {
+        //println("expr: " + e)
+        //println(e.getClass)
+        //println("precond: " + precond)
+        //println(tmp.interval)
+        val (res, tmOut) = tightenRange(e, precond, tmp.interval, maxIter, prec)
+        (RationalForm(res), if (tmOut) timeout + 1 else timeout)
+      }
+      
+    }// end inAffineWithZ3
+    
+
+    val res = inAffineWithZ3(expr)._1.interval
     RangeSolver.solverTime += (System.currentTimeMillis - start)
     res
   }

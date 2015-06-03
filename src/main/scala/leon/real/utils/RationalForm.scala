@@ -132,6 +132,10 @@ case class RationalForm(val x0: Rational, var noise: Array[Deviation]) {
   def *(that: RationalForm): RationalForm = {
     var z0 = this.x0 * that.x0
 
+    //println("multiplying")
+    //println(this.longString)
+    //println(that.longString)
+
     // multiply queues by central values (linear part)
     val buf = scala.collection.mutable.ArrayBuffer.empty[Deviation]
     val iterX = this.noise.iterator.buffered
@@ -150,6 +154,7 @@ case class RationalForm(val x0: Rational, var noise: Array[Deviation]) {
         if(!sum.isZero) buf += sum 
       }
     }
+    println(buf)
 
     // only one can be non empty at this point
     if(iterX.hasNext) {
@@ -159,6 +164,7 @@ case class RationalForm(val x0: Rational, var noise: Array[Deviation]) {
     if(iterY.hasNext) {
       buf ++= iterY.map( _ * this.x0).filter(x => !x.isZero)
     }
+    println(buf)
 
     // multiply queues (nonlinear part) TODO-when-bored: make this more efficient, please
     val set = getIndices(this.noise) ++ getIndices(that.noise)
@@ -196,6 +202,8 @@ case class RationalForm(val x0: Rational, var noise: Array[Deviation]) {
 
     z0 += z0Addition
     if(zqueue != 0) buf += Deviation(newIndex, zqueue)
+
+    //println("final: " + z0 + " - " + buf.mkString(", "))
     RationalForm(z0, buf.toArray)
   }
 
@@ -207,8 +215,10 @@ case class RationalForm(val x0: Rational, var noise: Array[Deviation]) {
   def inverse: RationalForm = {
     val (xlo, xhi) = (interval.xlo, interval.xhi)
 
-    //if (xlo <= Rational(0.0) && xhi >= Rational(0.0))
-    //  throw OutOfDomainException("Possible division by zero: " + toString)
+    println("computing inverse" )
+
+    if (xlo <= Rational(0.0) && xhi >= Rational(0.0))
+      throw new Exception("Possible division by zero: " + toString)
 
     if(noise.size == 0) { //exact
       val inv = Rational(1.0)/x0
@@ -230,7 +240,10 @@ case class RationalForm(val x0: Rational, var noise: Array[Deviation]) {
 
       val z0 = alpha * this.x0 + zeta
 
+      println("alpha: " + alpha)
+      println("noise: " + noise.mkString(", "))
       var newTerms: Array[Deviation] = noise.map( _ * alpha).filter(! _.isZero)
+      println("newTerms: " + newTerms.mkString(", "))
        //multiplyQueue(noise, alpha)
       if(delta != 0.0) newTerms :+ Deviation(newIndex, delta)
       RationalForm(z0, newTerms)
