@@ -84,7 +84,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
       // TODO: can we re-use some of the approximation work across precision?
       approx.kinds.find(aKind => {
         val internalStart = System.currentTimeMillis
-        XReal.solverTime = 0l
+        RealRange.solverTime = 0l
         RangeSolver.solverTime = 0l
         RangeSolver.waitingTime = 0l
         RangeSolver.timeoutTime = 0l
@@ -144,7 +144,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
       vc.spec += (precision -> spec)
 
       val end = System.currentTimeMillis
-      reporter.info("XReal solver time: " + XReal.solverTime)
+      reporter.info("XNum solver time: " + RealRange.solverTime)
       reporter.info("RangeSolver time: " + RangeSolver.solverTime)
       reporter.info("RangeSolver waiting: " + RangeSolver.waitingTime)
       reporter.info("RangeSolver timeout time: " + RangeSolver.timeoutTime)

@@ -348,14 +348,6 @@ object Trees {
   }
 
 
-  // approximates some other expression
-  case class ApproxNode(xfloat: XReal) extends Expr with FixedType with Terminal with PrettyPrintable {
-    val fixedType = RealType
-    def printWith(implicit pctx: PrinterContext) {
-      p"approx($xfloat)"
-    }
-  }
-
   case class FloatIfExpr(cond: Expr, thenn: Expr, elze: Expr) extends Expr with FixedType with NAryExtractable with PrettyPrintable {
     val fixedType = leastUpperBound(thenn.getType, elze.getType).getOrElse(Untyped)
 

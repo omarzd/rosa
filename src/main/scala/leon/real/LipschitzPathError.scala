@@ -21,12 +21,6 @@ class LipschitzPathError(reporter: Reporter, solver: RangeSolver, precision: Pre
   val approximator = new AAApproximator(reporter, solver, precision, silent, checkPathError = true)
   val leonToZ3 = new LeonToZ3Transformer(variables, precision)
 
-  /*val machineEps = precision match {
-    case FPPrecision(bts) =>
-      throw new Exception("Path error doesn't work yet with fixedpoints")
-      zero
-    case _ => getUnitRoundoff(precision)
-  }*/
   
   /*
     @param rPath path taken by real values

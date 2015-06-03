@@ -14,6 +14,7 @@ import purescala.TreeOps.{replace => replaceOps}
 object RealRange {
 
   val solver = new RangeSolver(1000l)
+  var solverTime = 0l
 
 }
 
@@ -46,7 +47,7 @@ case class RealRange(tree: Expr, rangeApprox: RationalInterval, precond: Set[Exp
     try {
       val start = System.currentTimeMillis
       val (res, timeout) = RealRange.solver.tightenRange(massagedTree, condition, rangeApprox)
-      XReal.solverTime += (System.currentTimeMillis - start)
+      RealRange.solverTime += (System.currentTimeMillis - start)
 
       //println("after tightening: " + res)
       res //, if(timeout) 1 else 0)

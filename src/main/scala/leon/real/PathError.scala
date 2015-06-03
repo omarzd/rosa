@@ -85,23 +85,8 @@ class PathError(reporter: Reporter, solver: RangeSolver, prec: Precision, inputs
   //@param f1 path to be taken by ideal execution
   //@param f2 path to be taken by floating-point execution
   def computePathError(currentPathCondition: Expr, branchCondition: Expr, f1: Expr, f2: Expr): Seq[Rational] = {
-    /*def rmErrors(xf: XNum): XReal = xf match {
-      case xff: XFloat =>
-        new XFloat(xff.tree, xff.approxInterval, new RationalForm(Rational.zero), xff.config, xff.precision)
-      case xfp: XFixed =>
-        new XFixed(xfp.format, xfp.tree, xfp.approxInterval, new RationalForm(Rational.zero), xfp.config)
-    }*/
+    
     def removeErrors(xfs: XRealTuple): XRealTuple = xfs.map(x => XNum.removeErrors(x))
-
-    /*def addCondToXReal(xf: XNum, condition: Expr): XNum = {
-      xf.addCondition(condition)
-
-      xf match {
-      case xff: XFloat =>
-        new XFloat(xff.tree, xff.approxInterval, xff.error, xff.config.addCondition(condition), xff.precision)
-      case xfp: XFixed =>
-        new XFixed(xfp.format, xfp.tree, xfp.approxInterval, xfp.error, xfp.config.addCondition(condition))
-    }*/
 
     def addConditionToXReal(xfs: XRealTuple, condition: Expr): XRealTuple =
       xfs.map(x => x.addCondition(condition))
@@ -227,19 +212,6 @@ class PathError(reporter: Reporter, solver: RangeSolver, prec: Precision, inputs
         // TODO: add condition before to improve the approx interval?
         // TODO: fix the solverPrecision
         (fresh, XNum.removeErrors(xf.addCondition(cond).replace(buddyFreshMap)))
-
-
-        /*precision match {
-          case FPPrecision(bits) =>
-            (fresh, new XFixed(xf.asInstanceOf[XFixed].format, replace(buddyFreshMap, xf.tree), xf.approxInterval, new RationalForm(Rational.zero),
-              xf.config.addCondition(cond).freshenUp(buddyFreshMap).updatePrecision(solverMaxIterHigh, solverPrecisionHigh)))
-
-          case _ =>
-            //println("new tree: " + replace(buddyFreshMap, xf.tree))
-            //println("xconfig: " + xf.config.addCondition(cond).freshenUp(buddyFreshMap).getCondition)
-            (fresh, new XFloat(replace(buddyFreshMap, xf.tree), xf.approxInterval, new RationalForm(Rational.zero),
-              xf.config.addCondition(cond).freshenUp(buddyFreshMap).updatePrecision(solverMaxIterHigh, solverPrecisionHigh), precision))
-        }*/
     }
     (freshMap, newInputs)
   }

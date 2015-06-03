@@ -12,7 +12,6 @@ import purescala.TypeTrees._
 
 import xlang.Trees._
 import real.Trees._
-import real.RationalAffineUtils._
 import VCKind._
 import VariableShop._
 import real.{FixedPointFormat => FPFormat}

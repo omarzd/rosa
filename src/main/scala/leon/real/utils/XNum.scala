@@ -9,8 +9,6 @@ import Rational._
 
 object XNum {
 
-
-
   def records2xnums(records: Iterable[Record], precondition: Expr, additionalConstr: Set[Expr],
     withRoundoff: Boolean)(implicit precision: Precision): Map[Expr, XNum] = {
 

@@ -10,8 +10,6 @@ import purescala.Common._
 
 import real.Trees._
 import real.TreeOps._
-//import XFloat._
-//import XFixed._
 import VariableShop._
 import Rational.{max, zero}
 import Precision._
@@ -26,13 +24,10 @@ class AAApproximator(val reporter: Reporter, val solver: RangeSolver, prec: Prec
 
   implicit val precision: Precision = prec
 
-  //var variables: Map[Expr, XReal] = Map.empty
-
   var leonToZ3: LeonToZ3Transformer = null
   var inputVariables: VariablePool = null
   var initialCondition: Expr = True  //precondition
   var additionalConstraints: Set[Expr] = Set()
-  val config: XConfig = null
   var precondition: Expr = True
   var fpIntervals: Map[Expr, RationalInterval] = Map()
 
@@ -41,16 +36,12 @@ class AAApproximator(val reporter: Reporter, val solver: RangeSolver, prec: Prec
     precondition = precond
     leonToZ3 = new LeonToZ3Transformer(inputs, precision)
     initialCondition = leonToZ3.getZ3Expr(removeErrors(precondition))
-    //config = XConfig(solver, initialCondition, solverMaxIterMedium, solverPrecisionMedium)
     fpIntervals = Map()
   }
 
   val (minVal, maxVal) = precision.range
   val (maxNegNormal, minPosNormal) = (-precision.minNormal, precision.minNormal)
-  /*val (machineEps, bits) = precision match {
-    case FPPrecision(bts) => (Rational.zero, bts)
-    case _ => (getUnitRoundoff(precision), 0)
-  }*/
+  
 
   // @param exactInputs: do not add initial errors
   private def getInitialVariables(in: VariablePool, exactInputs: Boolean,
@@ -66,37 +57,6 @@ class AAApproximator(val reporter: Reporter, val solver: RangeSolver, prec: Prec
     }
   
   }
- 
-    /*case Float32 | Float64 | DoubleDouble | QuadDouble =>
-      if (actualRanges && exactInputs) variables2xfloatsActualExact(in.getValidInputRecords, config, precision)
-      else if (exactInputs) {
-        // Only the method inputs are exact
-        val inputVars: Map[Expr, XReal] = variables2xfloatsExact(in.getValidInputRecords, config, precision)
-        val tmpVars: Map[Expr, XReal] = variables2xfloats(in.getValidTmpRecords, config, precision)
-        inputVars ++ tmpVars
-      }
-      /*else if (in.integers.nonEmpty) {
-        val (intRecords, rest) = in.getValidRecords.partition(
-          rec => in.integers.contains(rec.idealId)
-          )
-        variables2xfloatsExact(intRecords, config, precision) ++
-          variables2xfloats(rest, config, precision)._1
-      }*/ else {
-        variables2xfloats(in.getValidRecords, config, precision)
-      }
-
-    case FPPrecision(bits) =>
-      if (actualRanges && exactInputs) variables2xfixedActualExact(in.getValidInputRecords, config, bits)
-      else if (exactInputs) {
-        // Only the method inputs are exact
-        val inputVars: Map[Expr, XReal] = variables2xfixedExact(in.getValidInputRecords, config, bits)
-        val tmpVars: Map[Expr, XReal] = variables2xfixed(in.getValidTmpRecords, config, bits)
-        inputVars ++ tmpVars 
-      } else 
-        variables2xfixed(in.getValidInputRecords, config, bits)
-    */
-  
-
 
 
   /* Expects the expression to be open, i.e. to return a value
@@ -107,7 +67,6 @@ class AAApproximator(val reporter: Reporter, val solver: RangeSolver, prec: Prec
     exactInputs: Boolean = false): Seq[XNum] = {
     init(inputs, precond)
     val vars = getInitialVariables(inputs, exactInputs)
-    //println("vars: " + vars)
     process(e, vars, True)._3
   }
 
@@ -122,10 +81,6 @@ class AAApproximator(val reporter: Reporter, val solver: RangeSolver, prec: Prec
     exactInputs: Boolean = false): Map[Expr, XNum] = {
     init(inputs, precond)
     val vars = getInitialVariables(inputs, exactInputs)
-
-    //println("vars: " + vars)
-    //println("valid inputs: " + inputs.getValidInputRecords)
-    //println("inputs: " + inputs.inputs)
 
     val start = System.currentTimeMillis
     val (newVars, path, res) = process(e, vars, True)
@@ -151,14 +106,10 @@ class AAApproximator(val reporter: Reporter, val solver: RangeSolver, prec: Prec
     assert(res.length == 0, "computing xreals for equations but open expression found")
 
     val sigmas = updateFncs.map(upfnc => {
-      //println("trying to process: " + upfnc)
-      //println("newVars: " + newVars)
       val res = process(upfnc, newVars, path)._3
       assert(res.length == 1)
       res(0).maxError
       })
-    //println("sigmas: " + sigmas)
-    // TODO: remove input vars?
     (newVars, sigmas)
   }
 
@@ -297,17 +248,6 @@ class AAApproximator(val reporter: Reporter, val solver: RangeSolver, prec: Prec
               leonToZ3.getZ3Condition(And(removeErrors(specExpr), spec.toRealExpr)))
 
         XNum(fresh, interval, initialCondition, Set(newCondition), error, false)
-
-        /*precision match {
-          case FPPrecision(bts) => xFixedWithUncertain(fresh, interval,
-            config.addCondition(replace(Map(Variable(resId) -> fresh),
-              leonToZ3.getZ3Condition(And(removeErrors(specExpr), spec.toRealExpr)))),
-            error, false, bts)
-        case _ => xFloatWithUncertain(fresh, interval,
-          config.addCondition(replace(Map(Variable(resId) -> fresh),
-            leonToZ3.getZ3Condition(And(removeErrors(specExpr), spec.toRealExpr)))),
-          error, false, precision)
-        }*/
       })
       (vars, path, res)
 
@@ -387,35 +327,6 @@ class AAApproximator(val reporter: Reporter, val solver: RangeSolver, prec: Prec
             Set(leonToZ3.getZ3Condition(cond)), zero, false)
 
       }
-
-
-      /*v match {
-        case v: Variable if (!vars.contains(v) && inputVariables.isLoopCounter(inputVariables.getIdeal(v))) =>
-          precision match {
-            // should only happen with fixed-points during codegen
-            case FPPrecision(bits) => 
-              new XFixed(FixedPointFormat(bits, 0), v, RationalInterval(zero, zero),
-                new RationalForm(Rational.zero), config.addCondition(leonToZ3.getZ3Condition(
-                  And(cond, Equals(v, RealLiteral(zero))))))
-          }
-
-        case v: Variable =>
-          vars(v) match {
-            case xfl: XFloat => new XFloat(xfl.tree, xfl.approxInterval, xfl.error, xfl.config.addCondition(leonToZ3.getZ3Condition(cond)), precision)
-            case xfx: XFixed => new XFixed(xfx.format, xfx.tree, xfx.approxInterval, xfx.error, xfx.config.addCondition(leonToZ3.getZ3Condition(cond)))
-          }
-
-        case FloatLiteral(r) =>
-          precision match {
-            case FPPrecision(bits) => XFixed(r, config.addCondition(leonToZ3.getZ3Condition(cond)), bits)
-            case _ => XFloat(r, config.addCondition(leonToZ3.getZ3Condition(cond)), precision) // TODO: save machineEps somewhere?
-          }
-
-        case IntLiteral(i) =>
-          precision match {  // only for codegen in fixed-points
-            case FPPrecision(bits) => XFixed(i, config.addCondition(leonToZ3.getZ3Condition(cond)), bits)
-          }
-      }*/
     }
 
     val tmp: XNum = e match {
@@ -449,18 +360,6 @@ class AAApproximator(val reporter: Reporter, val solver: RangeSolver, prec: Prec
           val addCond = replace(Map(Variable(resId) -> fresh),
                 leonToZ3.getZ3Condition(And(removeErrors(specExpr), spec.toRealExpr)))
           XNum(fresh, interval, initialCondition, Set(addCond), error, false)
-
-
-          /*precision match {
-            case FPPrecision(bts) => xFixedWithUncertain(fresh, interval,
-              config.addCondition(replace(Map(Variable(resId) -> fresh),
-                leonToZ3.getZ3Condition(And(removeErrors(specExpr), spec.toRealExpr)))),
-              error, false, bts)
-          case _ => xFloatWithUncertain(fresh, interval,
-            config.addCondition(replace(Map(Variable(resId) -> fresh),
-              leonToZ3.getZ3Condition(And(removeErrors(specExpr), spec.toRealExpr)))),
-            error, false, precision)
-          }*/
         })
         assert(res.length == 1)
         res(0)
@@ -515,11 +414,6 @@ class AAApproximator(val reporter: Reporter, val solver: RangeSolver, prec: Prec
             val addCond = leonToZ3.getZ3Condition(And(condition, rangeConstraint(fresh, newInt)))
             
             XNum(fresh, newInt, initialCondition, Set(addCond), newError, false)
-
-            /*precision match {
-              case FPPrecision(bts) => xFixedWithUncertain(fresh, newInt, newConfig, newError, false, bts)
-              case _ => xFloatWithUncertain(fresh, newInt, newConfig, newError, false, precision)
-            }*/
         })
       } else {
         seq1
@@ -534,11 +428,6 @@ class AAApproximator(val reporter: Reporter, val solver: RangeSolver, prec: Prec
             val addCond = leonToZ3.getZ3Condition(And(condition, rangeConstraint(fresh, newInt)))
             
             XNum(fresh, newInt, initialCondition, Set(addCond), newError, false)
-
-            /*precision match {
-              case FPPrecision(bts) => xFixedWithUncertain(fresh, newInt, newConfig, newError, false, bts)
-              case _ => xFloatWithUncertain(fresh, newInt, newConfig, newError, false, precision)
-            }*/
         })
       } else {
         seq2
@@ -554,10 +443,6 @@ class AAApproximator(val reporter: Reporter, val solver: RangeSolver, prec: Prec
 
           val addCond = leonToZ3.getZ3Condition(And(condition, rangeConstraint(fresh, newInt)))
           XNum(fresh, newInt, initialCondition, Set(addCond), newError, false)
-          /*precision match {
-            case FPPrecision(bts) => xFixedWithUncertain(fresh, newInt, newConfig, newError, false, bts)
-            case _ => xFloatWithUncertain(fresh, newInt, newConfig, newError, false, precision)
-          }*/
       })
   }
 
@@ -579,13 +464,6 @@ class AAApproximator(val reporter: Reporter, val solver: RangeSolver, prec: Prec
       xreal.realRange.additionalConstr + rangeConstraint(newTree, xreal.realRange.interval),
       xreal.maxError, false
       )
-    /*val newXReal = xreal match {
-      case xf: XFloat =>
-        xFloatWithUncertain(newTree, xreal.approxInterval, newConfig, xreal.maxError, false, xf.precision)
-      case xfp: XFixed =>
-        xFixedWithUncertain(newTree, xreal.approxInterval, newConfig, xreal.maxError, false, xfp.format.bits)
-    }
-    newXReal*/
   }
 
   private def actualToIdealArithmetic(expr: Expr): Expr = {
@@ -601,20 +479,5 @@ class AAApproximator(val reporter: Reporter, val solver: RangeSolver, prec: Prec
       
     }(expr)
   }
-
-  // TODO: already exists in PathError
-  /*private def rmErrors(xf: XNum): XNum = xf match {
-    case xff: XFloat =>
-      new XFloat(xff.tree, xff.approxInterval, new RationalForm(Rational.zero), xff.config, xff.precision)
-    case xfp: XFixed =>
-      new XFixed(xfp.format, xfp.tree, xfp.approxInterval, new RationalForm(Rational.zero), xfp.config)
-  }*/
-
-  /*private def replaceError(xf: XNum, newError: Rational): XNum = xf match {
-    case xff: XFloat =>
-      new XFloat(xff.tree, xff.approxInterval, new RationalForm(newError), xff.config, xff.precision)
-    case xfp: XFixed =>
-      new XFixed(xfp.format, xfp.tree, xfp.approxInterval, new RationalForm(newError), xfp.config)
-  }*/
 
 }

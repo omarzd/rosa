@@ -391,9 +391,9 @@ class RangeSolver(timeout: Long) {
         // needed for sqrt, and doing quite the duplicate work, but this is clean
         val (z3Expr, addCnstr) = leonToZ3.getZ3ExprWithCondition(e)
         val additionalConstraints = And(precond, addCnstr)
-        val start = System.currentTimeMillis
+        val start2 = System.currentTimeMillis
         val (res, tmOut) = tightenRange(z3Expr, additionalConstraints, tmp, maxIter, prec)
-        println("interm. tighten: " + (System.currentTimeMillis - start))
+        println("interm. tighten: " + (System.currentTimeMillis - start2))
         (res, if (tmOut) timeout + 1 else timeout)
       } else {
         val (res, tmOut) = tightenRange(e, precond, tmp, maxIter, prec)
@@ -401,7 +401,6 @@ class RangeSolver(timeout: Long) {
       }
 
     }// end inIntervalsWithZ3
-
 
     val res = inIntervalsWithZ3(expr)._1
     RangeSolver.solverTime += (System.currentTimeMillis - start)

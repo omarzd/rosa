@@ -45,15 +45,15 @@ class Simulator(ctx: LeonContext, options: RealOptions, prog: Program, val repor
     //val (maxRoundoff, resInterval) = (0.0, Interval(0.0) )
 
     val intInputs: Map[Expr, RationalInterval] = inputs.map( x => (x._1 -> RationalInterval(x._2._1.xlo, x._2._1.xhi) ))
-    val xratInputs: Map[Expr, XRationalForm] = inputs.map ( x => (x._1 -> XRationalForm(x._2._1) ) )
+    val xratInputs: Map[Expr, RationalForm] = inputs.map ( x => (x._1 -> RationalForm(x._2._1) ) )
 
-    //vc.affineRange = Some(evaluateXRationalForm(body, xratInputs).interval)
+    //vc.affineRange = Some(evaluateRationalForm(body, xratInputs).interval)
     try {
       reporter.info("Interval range: " + evaluateInterval(vc.variables.resIds.head, body, intInputs))
     } catch {
       case e: Exception => reporter.info("Failed to compute interval due to " + e.getClass)
     }
-    //reporter.info("Affine range:   " + evaluateXRationalForm(body, xratInputs).interval)
+    //reporter.info("Affine range:   " + evaluateRationalForm(body, xratInputs).interval)
     reporter.info("Simulated interval: " + resInterval)
     reporter.info("Max error: " + maxRoundoff)
   }
@@ -330,14 +330,14 @@ class Simulator(ctx: LeonContext, options: RealOptions, prog: Program, val repor
   }
 
   // Run with QuadDouble so that it works also with sqrt and later with sine etc.
-  private def evaluateXRationalForm(resId: Identifier, expr: Expr, vars: Map[Expr, XRationalForm]): XRationalForm = {
+  private def evaluateRationalForm(resId: Identifier, expr: Expr, vars: Map[Expr, RationalForm]): RationalForm = {
     val exprs: Seq[Expr] = expr match {
       case And(args) => args
       case _ => Seq(expr)
     }
-    var currentVars: Map[Expr, XRationalForm] = vars
+    var currentVars: Map[Expr, RationalForm] = vars
     for (e <- exprs) e match {
-      case Equals(variable, value) => currentVars = currentVars + (variable -> evalXRationalForm(value, currentVars))
+      case Equals(variable, value) => currentVars = currentVars + (variable -> evalRationalForm(value, currentVars))
       case BooleanLiteral(true) => ;
       case _ => reporter.error("Simulation cannot handle: " + expr)
     }
@@ -465,15 +465,15 @@ class Simulator(ctx: LeonContext, options: RealOptions, prog: Program, val repor
       null
   }
 
-  private def evalXRationalForm(tree: Expr, vars: Map[Expr, XRationalForm]): XRationalForm = tree match {
+  private def evalRationalForm(tree: Expr, vars: Map[Expr, RationalForm]): RationalForm = tree match {
     case v @ Variable(id) => vars(v)
-    case RealLiteral(v) => new XRationalForm(v)
-    //case IntLiteral(v) => new XRationalForm(Rational(v))
-    case UMinusR(e) => - evalXRationalForm(e, vars)
-    case PlusR(lhs, rhs) => evalXRationalForm(lhs, vars) + evalXRationalForm(rhs, vars)
-    case MinusR(lhs, rhs) => evalXRationalForm(lhs, vars) - evalXRationalForm(rhs, vars)
-    case TimesR(lhs, rhs) => evalXRationalForm(lhs, vars) * evalXRationalForm(rhs, vars)
-    case DivisionR(lhs, rhs) => evalXRationalForm(lhs, vars) / evalXRationalForm(rhs, vars)
+    case RealLiteral(v) => new RationalForm(v)
+    //case IntLiteral(v) => new RationalForm(Rational(v))
+    case UMinusR(e) => - evalRationalForm(e, vars)
+    case PlusR(lhs, rhs) => evalRationalForm(lhs, vars) + evalRationalForm(rhs, vars)
+    case MinusR(lhs, rhs) => evalRationalForm(lhs, vars) - evalRationalForm(rhs, vars)
+    case TimesR(lhs, rhs) => evalRationalForm(lhs, vars) * evalRationalForm(rhs, vars)
+    case DivisionR(lhs, rhs) => evalRationalForm(lhs, vars) / evalRationalForm(rhs, vars)
     case _ =>
       throw UnsupportedRealFragmentException("Can't handle: " + tree.getClass)
       null

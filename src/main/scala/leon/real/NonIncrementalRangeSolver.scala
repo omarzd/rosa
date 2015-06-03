@@ -15,7 +15,6 @@ import purescala.TreeOps._
 import real.Trees._
 import Sat._
 import real.TreeOps._
-import real.RationalAffineUtils._
 
 // We don't want this to depend on anything Leon internal such as context
 class NonIncrementalRangeSolver(timeout: Long) {
