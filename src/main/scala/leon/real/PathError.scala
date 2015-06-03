@@ -14,16 +14,17 @@ import real.TreeOps.{idealToActual}
 import Rational.{max, abs}
 
 // Computes the path error
-class PathError(reporter: Reporter, solver: RangeSolver, precision: Precision, inputs: VariablePool,
-  precondition: Expr, vars: Map[Expr, XReal], verbose: Boolean = false) {
+class PathError(reporter: Reporter, solver: RangeSolver, prec: Precision, inputs: VariablePool,
+  precondition: Expr, vars: Map[Expr, XNum], verbose: Boolean = false) {
 
+  implicit val precision: Precision = prec
   implicit val debugSection = utils.DebugSectionAffine
   val approximator = new AAApproximator(reporter, solver, precision, true, checkPathError = true)
 
   var variables = vars
   val leonToZ3 = new LeonToZ3Transformer(inputs, precision)
 
-  type XRealTuple = Seq[XReal]
+  type XRealTuple = Seq[XNum]
 
   def computePathErrors(currentPathCondition: Expr, branchCond: Expr, thenn: Expr, elze: Expr): Seq[Rational] = {
 //    approximator.init(inputs, precondition)
@@ -84,22 +85,26 @@ class PathError(reporter: Reporter, solver: RangeSolver, precision: Precision, i
   //@param f1 path to be taken by ideal execution
   //@param f2 path to be taken by floating-point execution
   def computePathError(currentPathCondition: Expr, branchCondition: Expr, f1: Expr, f2: Expr): Seq[Rational] = {
-    def rmErrors(xf: XReal): XReal = xf match {
+    /*def rmErrors(xf: XNum): XReal = xf match {
       case xff: XFloat =>
         new XFloat(xff.tree, xff.approxInterval, new RationalForm(Rational.zero), xff.config, xff.precision)
       case xfp: XFixed =>
         new XFixed(xfp.format, xfp.tree, xfp.approxInterval, new RationalForm(Rational.zero), xfp.config)
-    }
-    def removeErrors(xfs: XRealTuple): XRealTuple = xfs.map(x => rmErrors(x))
+    }*/
+    def removeErrors(xfs: XRealTuple): XRealTuple = xfs.map(x => XNum.removeErrors(x))
 
-    def addCondToXReal(xf: XReal, condition: Expr): XReal = xf match {
+    /*def addCondToXReal(xf: XNum, condition: Expr): XNum = {
+      xf.addCondition(condition)
+
+      xf match {
       case xff: XFloat =>
         new XFloat(xff.tree, xff.approxInterval, xff.error, xff.config.addCondition(condition), xff.precision)
       case xfp: XFixed =>
         new XFixed(xfp.format, xfp.tree, xfp.approxInterval, xfp.error, xfp.config.addCondition(condition))
-    }
+    }*/
+
     def addConditionToXReal(xfs: XRealTuple, condition: Expr): XRealTuple =
-      xfs.map(x => addCondToXReal(x, condition))
+      xfs.map(x => x.addCondition(condition))
 
     if (verbose) println("--------\n\n computing path error for condition: " + branchCondition)
     if (verbose) println("real path: "+ f1)
@@ -119,7 +124,7 @@ class PathError(reporter: Reporter, solver: RangeSolver, precision: Precision, i
       //[f1]real = getRange(pre ∧ c(x) ∈ [−errc, 0], f1)
       val (freshMapReal, inputs1) = getFreshVariablesWithConditionWithoutErrors(variablesOfPaths, realCondition)
       if (verbose) println("freshMapReal: " + freshMapReal + "\ninputs1:")
-      if (verbose) inputs1.foreach{ i => println(i.toString + " " + i._2.config)}
+      //if (verbose) inputs1.foreach{ i => println(i.toString + " " + i._2.config)}
 
       variables = variables ++ inputs1
       solver.clearCounts
@@ -177,7 +182,7 @@ class PathError(reporter: Reporter, solver: RangeSolver, precision: Precision, i
           // whose variables do not exist any more in the expressions
           // We should be doing this cleaning somewhere else
 
-          fl.cleanConfig - re.cleanConfig
+          fl.cleanConstraints - re.cleanConstraints
         })
       val diff: Seq[RationalInterval] = diffXFloat.map(_.interval)
       if (verbose) println("diff: " + diff)
@@ -206,7 +211,7 @@ class PathError(reporter: Reporter, solver: RangeSolver, precision: Precision, i
     }
   }
 
-  private def getFreshVariablesWithConditionWithoutErrors(vars: Set[Identifier], cond: Expr): (Map[Expr, Expr], Map[Expr, XReal]) = {
+  private def getFreshVariablesWithConditionWithoutErrors(vars: Set[Identifier], cond: Expr): (Map[Expr, Expr], Map[Expr, XNum]) = {
     var freshMap: Map[Expr, Expr] = variables.collect {
       case (v @ Variable(id), xf) if (vars.contains(id)) => (v, getFreshVarOf(id.toString))
     }
@@ -220,7 +225,11 @@ class PathError(reporter: Reporter, solver: RangeSolver, precision: Precision, i
       case (v, fresh) =>
         val xf = variables(v)
         // TODO: add condition before to improve the approx interval?
-        precision match {
+        // TODO: fix the solverPrecision
+        (fresh, XNum.removeErrors(xf.addCondition(cond).replace(buddyFreshMap)))
+
+
+        /*precision match {
           case FPPrecision(bits) =>
             (fresh, new XFixed(xf.asInstanceOf[XFixed].format, replace(buddyFreshMap, xf.tree), xf.approxInterval, new RationalForm(Rational.zero),
               xf.config.addCondition(cond).freshenUp(buddyFreshMap).updatePrecision(solverMaxIterHigh, solverPrecisionHigh)))
@@ -230,7 +239,7 @@ class PathError(reporter: Reporter, solver: RangeSolver, precision: Precision, i
             //println("xconfig: " + xf.config.addCondition(cond).freshenUp(buddyFreshMap).getCondition)
             (fresh, new XFloat(replace(buddyFreshMap, xf.tree), xf.approxInterval, new RationalForm(Rational.zero),
               xf.config.addCondition(cond).freshenUp(buddyFreshMap).updatePrecision(solverMaxIterHigh, solverPrecisionHigh), precision))
-        }
+        }*/
     }
     (freshMap, newInputs)
   }

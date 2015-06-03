@@ -224,9 +224,9 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
       val zipped = vc.variables.resultVars.zip(approx)
 
       val specs = zipped.map({
-        case (resVar: Variable, resXFloat: XReal) =>
-          SimpleSpec(resVar.id, RationalInterval(resXFloat.realInterval.xlo, resXFloat.realInterval.xhi),
-                    Some(resXFloat.maxError))
+        case (resVar: Variable, resXFloat: XNum) =>
+          SimpleSpec(resVar.id, RationalInterval(resXFloat.realRange.interval.xlo, 
+                      resXFloat.realRange.interval.xhi), Some(resXFloat.maxError))
         })
 
       val constraint = And(zipped.foldLeft(Seq[Expr]())(
@@ -262,7 +262,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
       solver.clearCounts
       //start = System.currentTimeMillis
       val approximatorNew = new AAApproximator(reporter, solver, precision, options.silent, checkPathError, false)
-      val approxs: Map[Expr, XReal] = approximatorNew.approximateEquations(body,
+      val approxs: Map[Expr, XNum] = approximatorNew.approximateEquations(body,
         And(vc.pre, path.condition), vc.variables, exactInputs = false)
       //println("new:     " + approxNew)
       //println((System.currentTimeMillis - start) + "ms")

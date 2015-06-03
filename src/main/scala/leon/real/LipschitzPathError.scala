@@ -44,7 +44,7 @@ class LipschitzPathError(reporter: Reporter, solver: RangeSolver, precision: Pre
     }
     reporter.debug("preAdditionalConstraints: " + preAdditionalConstraints)
 
-    val varsReal: Map[Expr, XReal] = approximator.approximateEquations(rPath.bodyFinite,
+    val varsReal: Map[Expr, XNum] = approximator.approximateEquations(rPath.bodyFinite,
       precondition, variables, exactInputs = false)
     reporter.debug("varsReal: " + varsReal)
 
@@ -195,7 +195,7 @@ class LipschitzPathError(reporter: Reporter, solver: RangeSolver, precision: Pre
    @return (range constraint, tightened ranges, other constraints)
            returns None if the finite path is infeasible, given the constraints
   */
-  def tightenInputs(precondition: Expr, c1: Expr, c2: Expr, vars: Map[Expr, XReal]):
+  def tightenInputs(precondition: Expr, c1: Expr, c2: Expr, vars: Map[Expr, XNum]):
     Option[(Expr, Map[Expr, RationalInterval], Expr)] = {
     def isSimpleComparison(e: Expr): Boolean = e match {
       case GreaterThan(_,_) | GreaterEquals(_,_) | LessThan(_,_) | LessEquals(_,_) => true

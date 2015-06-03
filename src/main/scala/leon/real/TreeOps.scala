@@ -48,7 +48,7 @@ object TreeOps {
     And(LessEquals(RealLiteral(i.xlo), v), LessEquals(v, RealLiteral(i.xhi)))
   }
 
-  def rangeConstraint(vars: Map[Expr, XReal]): Expr = {
+  def rangeConstraint(vars: Map[Expr, XNum]): Expr = {
     val clauses: Seq[Expr] = vars.flatMap({
       case (v, xreal) => Seq(LessEquals(RealLiteral(xreal.interval.xlo), v),
                               LessEquals(v, RealLiteral(xreal.interval.xhi)))

@@ -22,7 +22,7 @@ trait Lipschitz {
 
   implicit val debugSection: utils.DebugSection
 
-  def getPropagatedErrorLipschitz(es: Seq[Expr], vars: Map[Expr, XReal], ids: Seq[Identifier],
+  def getPropagatedErrorLipschitz(es: Seq[Expr], vars: Map[Expr, XNum], ids: Seq[Identifier],
     additionalConstraints: Expr): Option[Seq[Rational]] = {
 
     if (es.exists(e => containsIfExpr(e) || containsFunctionCalls(e)) ){

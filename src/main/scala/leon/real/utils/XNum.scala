@@ -17,15 +17,15 @@ object XNum {
     records.map({
       case Record(id, lo, up, Some(absError), aId, _) =>
         (Variable(aId) -> XNum(Variable(id), RationalInterval(lo, up), precondition,
-          additionalConstr, absError, withRoundoff, precision))
+          additionalConstr, absError, withRoundoff))
       
       case rec @ Record(id, lo, up, None, aId, None) if (rec.isInteger) =>
         (Variable(aId) -> XNum(Variable(id), RationalInterval(lo, up), precondition,
-          additionalConstr, zero, false, precision))
+          additionalConstr, zero, false))
 
       case Record(id, lo, up, None, aId, None) => 
         (Variable(aId) -> XNum(Variable(id), RationalInterval(lo, up), precondition,
-          additionalConstr, zero, true, precision))
+          additionalConstr, zero, true))
     }).toMap
   }
 
@@ -35,7 +35,7 @@ object XNum {
     records.map({
       case Record(id, lo, up, _, aId, _) =>
         (Variable(aId) -> XNum(Variable(id), RationalInterval(lo, up), precondition,
-          additionalConstr, zero, false, precision))
+          additionalConstr, zero, false))
       }).toMap
   }
 
@@ -45,25 +45,25 @@ object XNum {
       records.map({
         case rec @ Record(id, lo, up, _, aId, _) if rec.isInteger =>
           (Variable(aId) -> XNum(Variable(id), RationalInterval(lo, up), precondition,
-            additionalConstr, zero, false, precision))
+            additionalConstr, zero, false))
 
         case rec @ Record(id, lo, up, _, aId, _) =>
           (Variable(aId) -> XNum(Variable(id), RationalInterval(rec.loAct.get, rec.upAct.get),
-            precondition, additionalConstr, zero, false, precision))
+            precondition, additionalConstr, zero, false))
         }).toMap
     }
 
 
-  def apply(v: Variable, realRange: RationalInterval, precondition: Expr, 
-    additionalConstr: Set[Expr], error: Rational, withRoundoff: Boolean,
-    precision: Precision): XNum = {
+  def apply(v: Expr, realRange: RationalInterval, precondition: Expr, 
+    additionalConstr: Set[Expr], error: Rational, withRoundoff: Boolean)(
+    implicit precision: Precision): XNum = {
 
     (error, withRoundoff) match {
       // exact
       case (zero, false) =>
         XNum(RealRange(v, realRange, Set(precondition), additionalConstr), new RationalForm(zero))
 
-      // roundoff only
+      // roundoff only, TODO: fix the exactness check for fp
       case (zero, true) =>
         if(realRange.isPointRange && isExactInFloats(realRange.xlo, precision)) {
           XNum(RealRange(v, realRange, Set(precondition), additionalConstr), new RationalForm(zero))
@@ -84,11 +84,29 @@ object XNum {
           new RationalForm(zero) :+ error :+ rndoff)
     }
   }
+
+  def removeErrors(xnum: XNum): XNum = {
+    XNum(xnum.realRange, new RationalForm(zero))
+  }
+
+  def replaceError(xnum: XNum, newError: Rational): XNum = {
+    XNum(xnum.realRange, new RationalForm(newError))
+  }
 }
 
 case class XNum(realRange: RealRange, error: RationalForm) {
 
+  def addCondition(c: Expr): XNum = XNum(realRange.addCondition(c), error)
+  def replace(fresh: Map[Expr, Expr]): XNum = 
+    XNum(realRange.replace(fresh), error)
+  def cleanConstraints: XNum = XNum(realRange.cleanConstraints, error)
+
   val interval: RationalInterval = realRange.interval + error.interval
+
+  lazy val maxError: Rational = {
+    val i = error.interval
+    max(abs(i.xlo), abs(i.xhi))
+  }
 
   def unary_-(): XNum = {
     XNum(-realRange, -error)
@@ -152,7 +170,7 @@ case class XNum(realRange: RealRange, error: RationalForm) {
     XNum(newReal, propErr :+ newErr)
   }
 
-  def sqrt(implicit precision: Precision): XNum = precision match {
+  def squareRoot(implicit precision: Precision): XNum = precision match {
     case FPPrecision(_) => throw UnsupportedRealFragmentException("Sqrt not supported for fixed-points.")
 
     case _ =>

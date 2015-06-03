@@ -8,6 +8,8 @@ import real.Trees._
 import purescala.Trees.Expr
 import Rational._
 import VariableShop.getNewSqrtVariable
+import real.TreeOps.{getClauses}
+import purescala.TreeOps.{replace => replaceOps}
 
 object RealRange {
 
@@ -17,6 +19,26 @@ object RealRange {
 
 case class RealRange(tree: Expr, rangeApprox: RationalInterval, precond: Set[Expr],
   additionalConstr: Set[Expr]) {
+
+  def addCondition(c: Expr): RealRange = RealRange(tree, this.interval, precond,
+    additionalConstr + c)
+
+  def replace(fresh: Map[Expr, Expr]): RealRange = 
+    RealRange(replaceOps(fresh, tree), this.interval, precond.map(replaceOps(fresh, _ )), 
+              additionalConstr.map(replaceOps(fresh, _)))
+
+  // Removes any constraints that do not concern the variables in the tree expression
+  def cleanConstraints: RealRange = {
+    val clausesNeeded = TreeOps.removeRedundantConstraints(
+      And((precond ++ additionalConstr).toSeq), tree)
+    
+    val preClauses = precond.flatMap(getClauses(_))
+    val preNeeded = clausesNeeded.filter(cl => preClauses.contains(cl))
+    
+    val additionalNeeded = clausesNeeded -- preNeeded
+    
+    RealRange(tree, this.interval, preNeeded, additionalNeeded)
+  }
 
   lazy val interval: RationalInterval = {
     val massagedTree = TreeOps.massageArithmetic(tree)
