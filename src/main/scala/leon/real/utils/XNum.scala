@@ -56,30 +56,32 @@ object XNum {
     additionalConstr: Set[Expr], error: Rational, withRoundoff: Boolean)(
     implicit precision: Precision): XNum = {
 
-    (error, withRoundoff) match {
-      // exact
-      case (zero, false) =>
-        XNum(RealRange(v, realRange, Set(precondition), additionalConstr), new RationalForm(zero))
-
-      // roundoff only, TODO: fix the exactness check for fp
-      case (zero, true) =>
+    if (error == zero) {
+      if (withRoundoff) {
+        // roundoff only, TODO: fix the exactness check for fp
         if(realRange.isPointRange && isExactInFloats(realRange.xlo, precision)) {
           XNum(RealRange(v, realRange, Set(precondition), additionalConstr), new RationalForm(zero))
         } else {
           XNum(RealRange(v, realRange, Set(precondition), additionalConstr),
            new RationalForm(zero) :+ roundoff(realRange, precision))
-        }  
+        }
 
-      // no roundoff, but uncertainty
-      case (_, false) =>
-        XNum(RealRange(v, realRange, Set(precondition), additionalConstr),
-          new RationalForm(zero) :+ error)
-
-      // roundoff and uncertainty
-      case (_, true) =>
+      } else {
+        // exact
+        XNum(RealRange(v, realRange, Set(precondition), additionalConstr), new RationalForm(zero))
+      }
+          
+    } else {
+      if (withRoundoff) {
+        // roundoff and uncertainty
         val rndoff = roundoff(realRange + RationalInterval(-error, error), precision)
         XNum(RealRange(v, realRange, Set(precondition), additionalConstr),
           new RationalForm(zero) :+ error :+ rndoff)
+      } else {
+        // no roundoff, but uncertainty
+        XNum(RealRange(v, realRange, Set(precondition), additionalConstr),
+          new RationalForm(zero) :+ error)
+      }
     }
   }
 

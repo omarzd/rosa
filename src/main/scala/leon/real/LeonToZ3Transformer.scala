@@ -144,7 +144,7 @@ class LeonToZ3Transformer(variables: VariablePool, precision: Precision) extends
         TimesR(n, mult)
 
       case r @ FloatLiteral(v) =>
-        assert(precision.getClass != FPPrecision)
+        assert(precision.isInstanceOf[FPPrecision])
         if (isExactInFloats(v, precision)) RealLiteral(v)
         else {
           val (mult, dlt) = getFreshRndoffMultiplier

@@ -26,7 +26,7 @@ object RangeSolver {
   var solverMaxIterLow: Int         = 10
   var solverPrecisionLow: Rational  = Rational.rationalFromReal(1e-5)
   var solverMaxIterHigh: Int        = 30
-  var solverPrecisionHigh: Rational = Rational.rationalFromReal(1e-10)
+  var solverPrecisionHigh: Rational = Rational.rationalFromReal(1e-15)
 }
 
 
