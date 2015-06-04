@@ -18,8 +18,14 @@ object RealRange {
 
 }
 
-case class RealRange(tree: Expr, rangeApprox: RationalInterval, precond: Set[Expr],
-  additionalConstr: Set[Expr]) {
+case class RealRange(origTree: Expr, rangeApprox: RationalInterval, origPrecond: Set[Expr],
+  origAdditionalConstr: Set[Expr]) {
+
+  private var tree = origTree
+  private var precond = origPrecond
+  private var additionalConstr = origAdditionalConstr
+
+  def size: Int = purescala.TreeOps.formulaSize(tree)
 
   def addCondition(c: Expr): RealRange = RealRange(tree, this.interval, precond,
     additionalConstr + c)
@@ -44,10 +50,19 @@ case class RealRange(tree: Expr, rangeApprox: RationalInterval, precond: Set[Exp
   lazy val interval: RationalInterval = {
     val massagedTree = TreeOps.massageArithmetic(tree)
     val condition = And((precond ++ additionalConstr).toSeq)
+    if (tree.isInstanceOf[TimesR] || tree.isInstanceOf[DivisionR] || tree.isInstanceOf[PowerR] ||
+      tree.isInstanceOf[SqrtR]) {
     try {
       val start = System.currentTimeMillis
       val (res, timeout) = RealRange.solver.tightenRange(massagedTree, condition, rangeApprox)
       RealRange.solverTime += (System.currentTimeMillis - start)
+
+      if (timeout) { // reset tree
+        tree = VariableShop.getFreshTmp
+        precond = Set(TreeOps.rangeConstraint(tree, res))
+        additionalConstr = Set()
+      }
+
 
       //println("after tightening: " + res)
       res //, if(timeout) 1 else 0)
@@ -58,6 +73,9 @@ case class RealRange(tree: Expr, rangeApprox: RationalInterval, precond: Set[Exp
         println(e.getMessage)
         throw UnsoundBoundsException("unsound range for " + tree)
         null
+    }
+    } else {
+      rangeApprox
     }
   }
 

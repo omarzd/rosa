@@ -403,18 +403,18 @@ class RangeSolver(timeout: Long) {
       if (timeout > 1) {
         //println("skipping due to timeouts")
         (tmp, timeout)
-      } else if (leonToZ3Necessary && (depth % 10 == 0)) {
+      } else if (leonToZ3Necessary) {//} && (depth % 10 == 0)) {
         // needed for sqrt, and doing quite the duplicate work, but this is clean
         val (z3Expr, addCnstr) = leonToZ3.getZ3ExprWithCondition(e)
         val additionalConstraints = And(precond, addCnstr)
         val (res, tmOut) = tightenRange(z3Expr, additionalConstraints, tmp, maxIter, prec)
         (res, if (tmOut) timeout + 1 else timeout)
-      } else if(depth % 10 == 0) {
+      } else {//if(depth % 10 == 0) {
         val (res, tmOut) = tightenRange(e, precond, tmp, maxIter, prec)
         (res, if (tmOut) timeout + 1 else timeout)
-      } else {
+      } /*else {
         (tmp, timeout)
-      }
+      }*/
       
 
     }// end inIntervalsWithZ3

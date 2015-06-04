@@ -376,10 +376,10 @@ class AAApproximator(val reporter: Reporter, val solver: RangeSolver, prec: Prec
       throw RealArithmeticException("Denormal value detected for " + e)
     }
 
-    if (formulaSize(tmp.realRange.tree) > compactingThreshold) {
-      reporter.warning("compacting, size: " + formulaSize(tmp.realRange.tree))
+    if (tmp.size > compactingThreshold) {
+      reporter.warning("compacting, size: " + tmp.size)
       val fresh = getNewXFloatVar
-      compactXFloat(tmp, fresh)
+      XNum.compact(tmp, fresh)
     } else {
       tmp
     }
@@ -458,13 +458,13 @@ class AAApproximator(val reporter: Reporter, val solver: RangeSolver, prec: Prec
     case _ => (interval.xlo != interval.xhi && maxNegNormal < interval.xlo && interval.xhi < minPosNormal)
   }
 
-  private def compactXFloat(xreal: XNum, newTree: Expr): XNum = {
+  /*private def compactXFloat(xreal: XNum, newTree: Expr): XNum = {
     val newConfig = xreal.addCondition(rangeConstraint(newTree, xreal.realRange.interval))
     XNum(newTree, xreal.realRange.interval, initialCondition, 
       xreal.realRange.additionalConstr + rangeConstraint(newTree, xreal.realRange.interval),
       xreal.maxError, false
       )
-  }
+  }*/
 
   private def actualToIdealArithmetic(expr: Expr): Expr = {
     preMap {

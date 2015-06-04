@@ -92,6 +92,12 @@ object XNum {
   def replaceError(xnum: XNum, newError: Rational): XNum = {
     XNum(xnum.realRange, new RationalForm(newError))
   }
+
+  def compact(xnum: XNum, newTree: Expr): XNum = {
+    val precond = TreeOps.rangeConstraint(newTree, xnum.realRange.interval)
+    XNum(RealRange(newTree, xnum.realRange.interval, Set(precond), Set()),
+      new RationalForm(zero) :+ xnum.maxError)
+  }
 }
 
 case class XNum(realRange: RealRange, error: RationalForm) {
@@ -102,6 +108,8 @@ case class XNum(realRange: RealRange, error: RationalForm) {
   def cleanConstraints: XNum = XNum(realRange.cleanConstraints, error)
 
   val interval: RationalInterval = realRange.interval + error.interval
+
+  val size: Int = realRange.size
 
   lazy val maxError: Rational = {
     val i = error.interval
