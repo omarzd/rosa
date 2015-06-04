@@ -97,7 +97,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
           spec = Spec.mergeSpecs(spec, currentApprox.spec)
           postMap += (vc.funDef -> currentApprox.spec)
 
-          reporter.info("internal time: " + (System.currentTimeMillis - start))
+          //reporter.info("internal time: " + (System.currentTimeMillis - start))
           if (vc.kind == VCKind.SpecGen) true  // specGen, no need to check, only uses first approximation
           else
             checkValid(currentApprox, vc.variables, precision, vc.toString) match {
@@ -134,6 +134,9 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
           case i: java.lang.ArithmeticException =>
             reporter.warning("Something went wrong, probably insufficient accuracy during the analysis:\n")
             false
+          case DivisionByZeroException(_) =>
+            reporter.warning("Division by zero. Probably insufficient accuracy.")
+            false
           //case UnsoundBoundsException(msg) =>
           //  reporter.error(msg)
           //  return false
@@ -147,11 +150,11 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
       vc.spec += (precision -> spec)
 
       val end = System.currentTimeMillis
-      reporter.info("XNum solver time: " + RealRange.solverTime)
+      /*reporter.info("XNum solver time: " + RealRange.solverTime)
       reporter.info("RangeSolver time: " + RangeSolver.solverTime)
       reporter.info("RangeSolver waiting: " + RangeSolver.waitingTime)
       reporter.info("RangeSolver timeout time: " + RangeSolver.timeoutTime)
-      reporter.info("Total time: " + (end - start))
+      reporter.info("Total time: " + (end - start))*/
       vc.time = Some(end - start)
       spec.foreach { sp => 
         reporter.info(sp)

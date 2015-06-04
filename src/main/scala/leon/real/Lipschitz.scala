@@ -251,7 +251,7 @@ trait Lipschitz {
       //val expr = e
       val start = System.currentTimeMillis
       val rangeDerivative = solver.getRange(pre, expr, vars, leonToZ3)
-      reporter.info("Range bound one deriv: " + (System.currentTimeMillis - start))
+      //reporter.info("Range bound one deriv: " + (System.currentTimeMillis - start))
       reporter.debug("computed range for: " + e + "  --> " + maxAbs(Seq(rangeDerivative.xlo, rangeDerivative.xhi)))
       maxAbs(Seq(rangeDerivative.xlo, rangeDerivative.xhi))
     })

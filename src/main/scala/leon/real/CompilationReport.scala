@@ -74,9 +74,16 @@ object CompilationReport {
       case None => ""
     }
 
-    "║ %-25s %-47s %7s ║".format(
-      fit(vc.funDef.id.toString, 25),
-      fit(vc.spec(precision).head.absError.getOrElse(Rational.zero).toString, 47),
-      timeStr)
+    vc.spec(precision) match {
+      case Nil =>
+        "║ %-25s %-47s %7s ║".format(fit(vc.funDef.id.toString, 25), "", timeStr)
+      case x :: xs =>
+        "║ %-25s %-47s %7s ║".format(
+          fit(vc.funDef.id.toString, 25),
+          fit(x.absError.getOrElse(Rational.zero).toString, 47),
+          timeStr)    
+    }
+
+    
   }
 }

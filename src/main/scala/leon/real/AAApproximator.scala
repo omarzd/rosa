@@ -84,7 +84,7 @@ class AAApproximator(val reporter: Reporter, val solver: RangeSolver, prec: Prec
 
     val start = System.currentTimeMillis
     val (newVars, path, res) = process(e, vars, True)
-    reporter.info("approximateEquations, process: " + (System.currentTimeMillis - start))
+    //reporter.info("approximateEquations, process: " + (System.currentTimeMillis - start))
 
     //sanity check (does not hold for fixed-point code generation)
     //assert(res.length == 0, "computing xreals for equations but open expression found")
@@ -276,7 +276,7 @@ class AAApproximator(val reporter: Reporter, val solver: RangeSolver, prec: Prec
       val start = System.currentTimeMillis
       val propagatedError = getPropagatedErrorLipschitz( Seq(actualToIdealArithmetic(e)),
         varMap, ids, additionalConstraints)
-      reporter.info("Propagation error time: " + (System.currentTimeMillis - start))
+      //reporter.info("Propagation error time: " + (System.currentTimeMillis - start))
       //println("propagatedError: " + propagatedError)
 
       //println("vars before: " + vars)
@@ -284,7 +284,7 @@ class AAApproximator(val reporter: Reporter, val solver: RangeSolver, prec: Prec
       //println("varsWithoutErrors: " + varsWithoutErrors)
       val start2 = System.currentTimeMillis
       val roundoffError = approxArithm(e, varsWithoutErrors, path)
-      reporter.info("Approx arithmetic time: " + (System.currentTimeMillis - start2))
+      //reporter.info("Approx arithmetic time: " + (System.currentTimeMillis - start2))
       //println("roundoffError: " + roundoffError)
 
       val newError = roundoffError.maxError + propagatedError.get(0)

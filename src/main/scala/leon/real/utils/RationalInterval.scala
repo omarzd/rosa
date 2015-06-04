@@ -6,11 +6,12 @@ package real
 import ceres.common.Interval
 import Rational._
 
+case class DivisionByZeroException(s: String) extends Exception
 
 case class RationalInterval(xlo: Rational, xhi: Rational) {
   private val zero = Rational(0.0)
 
-  case class DivisionByZeroException(s: String) extends Exception
+  
 
   //def this(aa: RationalForm) = this(aa.interval._1, aa.interval._2)
   //def this(aa: FixedForm) = this(aa.qInterval._1, aa.qInterval._2)

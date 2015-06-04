@@ -23,10 +23,10 @@ object RangeSolver {
   var timeoutTime = 0l
 
   // this is probably not the best, but if we promise to only change this once...
-  var solverMaxIterLow: Int         = defaultSolverMaxIterLow
-  var solverPrecisionLow: Rational  = defaultSolverPrecisionLow
-  var solverMaxIterHigh: Int        = defaultSolverMaxIterHigh
-  var solverPrecisionHigh: Rational = defaultSolverPrecisionHigh
+  var solverMaxIterLow: Int         = 10
+  var solverPrecisionLow: Rational  = Rational.rationalFromReal(1e-5)
+  var solverMaxIterHigh: Int        = 30
+  var solverPrecisionHigh: Rational = Rational.rationalFromReal(1e-10)
 }
 
 
@@ -332,17 +332,6 @@ class RangeSolver(timeout: Long) {
     }
   }
 
-  /*def getRangeSubdivisions(expr: Expr, vars: Map[Expr, RationalInterval]): RationalInterval = {
-    // subdivide intervals
-    val subdivisions = vars.map((e, i) => (e, ))
-
-    // compute for each interval
-
-
-    // merge intervals
-  }*/
-
-
   /*
     Computes the range given input intervals, while tightening at each intermediate step with Z3.
     @param precond constraints on inputs, including the range constraints
@@ -414,18 +403,18 @@ class RangeSolver(timeout: Long) {
       if (timeout > 1) {
         //println("skipping due to timeouts")
         (tmp, timeout)
-      } else if (leonToZ3Necessary) {
+      } else if (leonToZ3Necessary && (depth % 10 == 0)) {
         // needed for sqrt, and doing quite the duplicate work, but this is clean
         val (z3Expr, addCnstr) = leonToZ3.getZ3ExprWithCondition(e)
         val additionalConstraints = And(precond, addCnstr)
         val (res, tmOut) = tightenRange(z3Expr, additionalConstraints, tmp, maxIter, prec)
         (res, if (tmOut) timeout + 1 else timeout)
-      } else { //if(depth % 100 == 0) {
+      } else if(depth % 10 == 0) {
         val (res, tmOut) = tightenRange(e, precond, tmp, maxIter, prec)
         (res, if (tmOut) timeout + 1 else timeout)
-      } /*else {
+      } else {
         (tmp, timeout)
-      }*/
+      }
       
 
     }// end inIntervalsWithZ3

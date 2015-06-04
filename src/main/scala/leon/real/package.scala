@@ -45,16 +45,6 @@ package object real {
     else if (f >= 0.00001) "%.12f".format(f)
     else "%.16f".format(f)
   }
-
-  
-  //import Precision._
-
-
-  val defaultSolverPrecisionHigh = Rational.rationalFromReal(1e-16)
-  val defaultSolverPrecisionLow = Rational.rationalFromReal(1e-5)
-  
-  val defaultSolverMaxIterHigh = 70
-  val defaultSolverMaxIterLow = 10
   
 
   object Sat extends Enumeration {
