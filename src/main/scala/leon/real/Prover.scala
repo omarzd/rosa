@@ -131,9 +131,9 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
           case SqrtNotImplementedException(msg) =>
             reporter.warning(msg)
             false
-          case i: java.lang.ArithmeticException =>
+          /*case i: java.lang.ArithmeticException =>
             reporter.warning("Something went wrong, probably insufficient accuracy during the analysis:\n")
-            false
+            false*/
           case DivisionByZeroException(_) =>
             reporter.warning("Division by zero. Probably insufficient accuracy.")
             false

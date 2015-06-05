@@ -27,8 +27,9 @@ object RangeSolver {
   var solverPrecisionLow: Rational  = Rational.rationalFromReal(1e-5)
   var solverMaxIterHigh: Int        = 30
   var solverPrecisionHigh: Rational = Rational.rationalFromReal(1e-15)
-}
+  var defaultDepthModuloLimit       = 10
 
+}
 
 // We don't want this to depend on anything Leon internal such as context
 class RangeSolver(timeout: Long) {
@@ -349,6 +350,8 @@ class RangeSolver(timeout: Long) {
     val leonToZ3Necessary = containsSqrt(expr)
     val rand = new scala.util.Random
     
+    var depthModuloLimit = RangeSolver.defaultDepthModuloLimit
+
     // @ return (tightened interval, whether Z3 failed, nonlinearity countdown)
     def inIntervalsWithZ3(e: Expr, depth: Int): (RationalInterval, Int) = {
       val (tmp, timeout): (RationalInterval, Int) = e match {
@@ -403,25 +406,33 @@ class RangeSolver(timeout: Long) {
       if (timeout > 1) {
         //println("skipping due to timeouts")
         (tmp, timeout)
-      } else if (leonToZ3Necessary) {//} && (depth % 10 == 0)) {
+      } else if (leonToZ3Necessary && (depth % depthModuloLimit == 0)) {
         // needed for sqrt, and doing quite the duplicate work, but this is clean
         val (z3Expr, addCnstr) = leonToZ3.getZ3ExprWithCondition(e)
         val additionalConstraints = And(precond, addCnstr)
         val (res, tmOut) = tightenRange(z3Expr, additionalConstraints, tmp, maxIter, prec)
         (res, if (tmOut) timeout + 1 else timeout)
-      } else {//if(depth % 10 == 0) {
+      } else if (depth % depthModuloLimit == 0) {
         val (res, tmOut) = tightenRange(e, precond, tmp, maxIter, prec)
         (res, if (tmOut) timeout + 1 else timeout)
-      } /*else {
+      } else {
         (tmp, timeout)
-      }*/
+      }
       
 
     }// end inIntervalsWithZ3
 
-    val res = inIntervalsWithZ3(expr, 0)._1
-    RangeSolver.solverTime += (System.currentTimeMillis - start)
-    res
+    try {
+      val res = inIntervalsWithZ3(expr, 0)._1
+      RangeSolver.solverTime += (System.currentTimeMillis - start)
+      res
+    } catch {
+      case DivisionByZeroException(_) =>
+        depthModuloLimit = 1 // apply solver at each step
+        val res = inIntervalsWithZ3(expr, 0)._1
+        RangeSolver.solverTime += (System.currentTimeMillis - start)
+        res
+    }
   }
 
   

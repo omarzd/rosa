@@ -50,8 +50,8 @@ case class RealRange(origTree: Expr, rangeApprox: RationalInterval, origPrecond:
   lazy val interval: RationalInterval = {
     val massagedTree = TreeOps.massageArithmetic(tree)
     val condition = And((precond ++ additionalConstr).toSeq)
-    if (tree.isInstanceOf[TimesR] || tree.isInstanceOf[DivisionR] || tree.isInstanceOf[PowerR] ||
-      tree.isInstanceOf[SqrtR]) {
+    //if (tree.isInstanceOf[TimesR] || tree.isInstanceOf[DivisionR] || tree.isInstanceOf[PowerR] ||
+    //  tree.isInstanceOf[SqrtR]) {
     try {
       val start = System.currentTimeMillis
       val (res, timeout) = RealRange.solver.tightenRange(massagedTree, condition, rangeApprox)
@@ -74,9 +74,9 @@ case class RealRange(origTree: Expr, rangeApprox: RationalInterval, origPrecond:
         throw UnsoundBoundsException("unsound range for " + tree)
         null
     }
-    } else {
-      rangeApprox
-    }
+//    } else {
+//      rangeApprox
+//    }
   }
 
   def unary_-(): RealRange = RealRange(UMinusR(tree), -rangeApprox, precond, additionalConstr)

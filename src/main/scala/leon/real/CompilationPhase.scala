@@ -35,7 +35,8 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
     LeonFlagOptionDef("noLipschitz", "--noLipschitz", "do not use lipschitz"),
     LeonFlagOptionDef("loud", "--loud", "print a little more than just end-results"),
     LeonValueOptionDef("solverIterations", "--solverIter=10:30", "# iterations (low and high) of range bounding with Z3."),
-    LeonValueOptionDef("solverPrecision", "--solverPrecision=1e-5:1e-10", "Threshold to stop ietrating Z3 range bounding.")
+    LeonValueOptionDef("solverPrecision", "--solverPrecision=1e-5:1e-10", "Threshold to stop ietrating Z3 range bounding."),
+    LeonValueOptionDef("depthLimit", "--depthLimit=10", "How often the solver is called during range bounding. Set it to 1 for always.")
   )
 
   def run(ctx: LeonContext)(program: Program): CompilationReport = {
@@ -71,7 +72,8 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
           RangeSolver.solverPrecisionHigh = rationalFromString(iter(1))
         }
         else reporter.warning("solverPrecision should be one or two values only")
-        
+      case LeonValueOption("depthLimit", ListValue(lim)) =>
+        RangeSolver.defaultDepthModuloLimit = lim(0).toInt  
       case LeonValueOption("precision", ListValue(ps)) => options = options.copy(precision = ps.flatMap {
         case "single" => List(Float32)
         case "double" => List(Float64)

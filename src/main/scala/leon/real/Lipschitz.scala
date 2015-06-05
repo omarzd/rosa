@@ -326,6 +326,8 @@ trait Lipschitz {
     } else {
 
       //val kn = powerBySquaring(k, num)
+      println(k.toDouble)
+
 
       val kn = Rational(powerBySquaringDouble(k.toDouble, num))
 
