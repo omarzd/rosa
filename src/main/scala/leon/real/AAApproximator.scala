@@ -82,10 +82,8 @@ class AAApproximator(val reporter: Reporter, val solver: RangeSolver, prec: Prec
     init(inputs, precond)
     val vars = getInitialVariables(inputs, exactInputs)
 
-    val start = System.currentTimeMillis
     val (newVars, path, res) = process(e, vars, True)
-    //reporter.info("approximateEquations, process: " + (System.currentTimeMillis - start))
-
+    
     //sanity check (does not hold for fixed-point code generation)
     //assert(res.length == 0, "computing xreals for equations but open expression found")
     // TODO: remove input vars?

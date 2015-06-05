@@ -18,9 +18,9 @@ import real.TreeOps._
 import real.Rational.{sqrtDown, sqrtUp}
 
 object RangeSolver {
-  var solverTime = 0l
-  var waitingTime = 0l
-  var timeoutTime = 0l
+  //var solverTime = 0l
+  //var waitingTime = 0l
+  //var timeoutTime = 0l
 
   // this is probably not the best, but if we promise to only change this once...
   var solverMaxIterLow: Int         = 10
@@ -346,7 +346,7 @@ class RangeSolver(timeout: Long) {
     leonToZ3: LeonToZ3Transformer, maxIter: Int = RangeSolver.solverMaxIterLow,
     prec: Rational = RangeSolver.solverPrecisionLow): RationalInterval = {
 
-    val start = System.currentTimeMillis
+    //val start = System.currentTimeMillis
     val leonToZ3Necessary = containsSqrt(expr)
     val rand = new scala.util.Random
     
@@ -424,13 +424,13 @@ class RangeSolver(timeout: Long) {
 
     try {
       val res = inIntervalsWithZ3(expr, 0)._1
-      RangeSolver.solverTime += (System.currentTimeMillis - start)
+      //RangeSolver.solverTime += (System.currentTimeMillis - start)
       res
     } catch {
       case DivisionByZeroException(_) =>
         depthModuloLimit = 1 // apply solver at each step
         val res = inIntervalsWithZ3(expr, 0)._1
-        RangeSolver.solverTime += (System.currentTimeMillis - start)
+        //RangeSolver.solverTime += (System.currentTimeMillis - start)
         res
     }
   }
@@ -574,10 +574,10 @@ class RangeSolver(timeout: Long) {
   }
 
   private def checkConstraint: Sat = {
-    val start = System.currentTimeMillis
+    //val start = System.currentTimeMillis
     val result = solver.check 
-    val time = (System.currentTimeMillis - start)
-    RangeSolver.waitingTime += time
+    //val time = (System.currentTimeMillis - start)
+    //RangeSolver.waitingTime += time
     result match {
       case Some(true) =>
         if (verbose) println("--> bound: SAT")
@@ -587,7 +587,7 @@ class RangeSolver(timeout: Long) {
         UNSAT
       case None =>
         if (printWarnings) println("!!! WARNING: Z3 SOLVER FAILED")
-        RangeSolver.timeoutTime += time
+        //RangeSolver.timeoutTime += time
         countTimeouts += 1
         Unknown
     }
