@@ -19,6 +19,7 @@ case class RationalInterval(xlo: Rational, xhi: Rational) {
 
   val mid: Rational = xlo/Rational(2.0) + xhi/Rational(2.0)
   val radius: Rational = abs(xhi - xlo) / Rational(2.0)
+  val width: Rational = abs(xhi - xlo)
 
   // TODO: not sound
   val toInterval: Interval = Interval(xlo.toDouble, xhi.toDouble)
