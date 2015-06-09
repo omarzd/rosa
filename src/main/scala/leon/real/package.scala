@@ -27,8 +27,6 @@ package object real {
 
   case class FixedPointOverflowException(s: String) extends Exception
   case class IncompatibleFixedPointFormatsException(s: String) extends Exception
-  case class SqrtNotImplementedException(s: String) extends Exception
-
 
   case class Fnc(pre: Expr, body: Expr, post: Expr)
 
@@ -54,11 +52,12 @@ package object real {
     val Unknown = Value("Unknown")
   }
 
-  object Valid extends Enumeration {
-    type Valid = Value
+  object Status extends Enumeration {
+    type Status = Value
     val VALID = Value("VALID")
     val INVALID = Value("INVALID")
     val UNKNOWN = Value("Unknown")
     val NothingToShow = Value("n/a")
+    val ERROR = Value("Error")
   }
 }

@@ -45,7 +45,7 @@ class CodeGenerator(val reporter: Reporter, ctx: LeonContext, options: RealOptio
       (fnc -> vcs.filter(vc => vc.funDef.id == fnc.id))).toMap
 
     val defs: Seq[Definition] = funDefs.map ( funDef => {
-      val successful = vcFncMap(funDef).forall(vc => vc.value(precision) == Valid.VALID)
+      val successful = vcFncMap(funDef).forall(vc => vc.value(precision) == Status.VALID)
 
 
       // for loops we get the specs from LoopInv!

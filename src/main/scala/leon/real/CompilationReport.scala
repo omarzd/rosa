@@ -3,7 +3,7 @@
 package leon
 package real
 
-import Valid._
+import Status._
 
 // @param precision the precision that we were able to prove stuff with (or not)
 class CompilationReport(val allVCs: Seq[VerificationCondition], precision: Precision) {

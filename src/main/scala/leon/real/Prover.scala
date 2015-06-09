@@ -13,7 +13,7 @@ import purescala.TransformerWithPC
 import real.Trees.{Noise, Roundoff, Actual, RealLiteral, RelError, WithIn, FncValue}
 import real.TreeOps._
 import Sat._
-import Valid._
+import Status._
 import Approximations._
 import FncHandling._
 import ArithmApprox._
@@ -117,21 +117,27 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
         } catch {
           case PostconditionInliningFailedException(msg) =>
             if (!options.silent) reporter.info("failed to compute approximation: " + msg)
+            vc.value += (precision -> ERROR)
             false
           case RealArithmeticException(msg) =>
             if (!options.silent) reporter.warning("Failed to compute approximation: " + msg)
+            vc.value += (precision -> ERROR)
             false
           case FixedPointOverflowException(msg) =>
             reporter.warning("Insufficient bitwidth: " + msg)
+            vc.value += (precision -> ERROR)
             false
-          case SqrtNotImplementedException(msg) =>
+          case UnsupportedRealFragmentException(msg) =>
             reporter.warning(msg)
+            vc.value += (precision -> ERROR)
             false
-          /*case i: java.lang.ArithmeticException =>
+          case i: java.lang.ArithmeticException =>
             reporter.warning("Something went wrong, probably insufficient accuracy during the analysis:\n")
-            false*/
+            vc.value += (precision -> ERROR)
+            false
           case DivisionByZeroException(_) =>
             reporter.warning("Division by zero. Probably insufficient accuracy.")
+            vc.value += (precision -> ERROR)
             false
           //case UnsoundBoundsException(msg) =>
           //  reporter.error(msg)
@@ -154,14 +160,14 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
         reporter.info("in " + (vc.time.get / 1000.0))
       }
     }
-
-    vcs.forall( vc => vc.kind == VCKind.SpecGen || vc.value(precision) != UNKNOWN )
+    vcs.forall( vc => vc.value(precision) != ERROR && 
+      (vc.kind == VCKind.SpecGen || vc.value(precision) != UNKNOWN))
   }
 
   /*
     @return (status, what we actually proved)
   */
-  def checkValid(app: Approximation, variables: VariablePool, precision: Precision, name: String): (Valid, String) = {
+  def checkValid(app: Approximation, variables: VariablePool, precision: Precision, name: String): (Status, String) = {
     reporter.debug("checking for valid: " + app.constraints.mkString("\n"))
     var str = app.kind + "\n\n"
 

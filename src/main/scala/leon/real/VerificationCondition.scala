@@ -10,7 +10,7 @@ import leon.utils.{Positioned}
 
 import real.Trees.{UpdateFunction}
 import Approximations._
-import Valid._
+import Status._
 
 
 // The condition is pre => post
@@ -37,7 +37,7 @@ class VerificationCondition(val funDef: FunDef, val kind: VCKind.Value, val pre:
   // None = still unknown
   // Some(true) = valid
   // Some(false) = invalid
-  var value: Map[Precision, Valid] = precisions.map(p => (p, UNKNOWN)).toMap
+  var value: Map[Precision, Status] = precisions.map(p => (p, UNKNOWN)).toMap
 
   def this(fD: FunDef, k:VCKind.Value, pe: Expr, b: Expr, po: Expr, fncCalls: Set[String],
     vars: VariablePool, precs: List[Precision]) = {
