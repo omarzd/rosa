@@ -32,7 +32,7 @@ trait FixedpointCodeGenerator {
     val body = if (vc.kind == VCKind.LoopPost) vc.inlinedBody.get else vc.body
 
     val ssaBody = addResultsF(idealToActual(toSSA(body, fncs), vc.variables), vc.variables.fResultVars)
-
+    
     val transformer = new AAApproximator(reporter, solver, FPPrecision(bitlength), true, checkPathError = false, collectIntervals = true)
     val approxVariables = transformer.approximateEquations(ssaBody, vc.pre, vc.variables, exactInputs = false)
     val tmpIntervals = transformer.fpIntervals ++ approxVariables.map(x => (x._1 -> x._2.interval))
@@ -140,6 +140,10 @@ trait FixedpointCodeGenerator {
         And(And(seq), EqualsF(v, tmpVar))
 
       case Equals(v, fnc: FunctionInvocation) =>
+        val (seq, tmpVar) = arithToSSA(fnc)
+        And(And(seq), EqualsF(v, tmpVar))
+
+      case Equals(v, fnc: FncValue) =>
         val (seq, tmpVar) = arithToSSA(fnc)
         And(And(seq), EqualsF(v, tmpVar))
       
