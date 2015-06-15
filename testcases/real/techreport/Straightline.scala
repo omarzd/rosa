@@ -48,7 +48,7 @@ object Straightline {
     x1 + ((2*x1*(((3*x1*x1 + 2*x2 - x1))/(x1*x1 + 1))*
     (((3*x1*x1 + 2*x2 - x1))/(x1*x1 + 1) - 3) + x1*x1*(4*(((3*x1*x1 + 2*x2 - x1))/(x1*x1 + 1))-6))*
     (x1*x1 + 1) + 3*x1*x1*(((3*x1*x1 + 2*x2 - x1))/(x1*x1 + 1)) + x1*x1*x1 + x1 +
-    3*((3*x1*x1 + 2*x2 -x1)/(x1*x1 + 1)))
+    3*((3*x1*x1 + 2*x2 - x1)/(x1*x1 + 1)))
   }
 
   def jetEngineRefactored(x1: Real, x2: Real): Real = {
@@ -59,10 +59,19 @@ object Straightline {
     x1 + ((2*x1*(t/(x1*x1 + 1))*
     (t/(x1*x1 + 1) - 3) + x1*x1*(4*(t/(x1*x1 + 1))-6))*
     (x1*x1 + 1) + 3*x1*x1*(t/(x1*x1 + 1)) + x1*x1*x1 + x1 +
-    3*((3*x1*x1 + 2*x2 -x1)/(x1*x1 + 1)))
+    3*((3*x1*x1 + 2*x2 - x1)/(x1*x1 + 1)))
   }
 
-  
+  def jetEngineRefactored2(x1: Real, x2: Real): Real = {
+    require(-5 <= x1 && x1 <= 5 && -20 <= x2 && x2 <= 5)
+
+    val t = ((3*x1*x1 + 2*x2 - x1))/(x1*x1 + 1)
+
+    x1 + ((2*x1*(t)*
+    (t - 3) + x1*x1*(4*(t)-6))*
+    (x1*x1 + 1) + 3*x1*x1*(t) + x1*x1*x1 + x1 +
+    3*((3*x1*x1 + 2*x2 - x1)/(x1*x1 + 1)))
+  }  
 
   def turbine1(v: Real, w: Real, r: Real): Real = {
     require(-4.5 <= v && v <= -0.3 && 0.4 <= w && w <= 0.9 && 3.8 <= r && r <= 7.8)

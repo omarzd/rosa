@@ -7,18 +7,18 @@ object StraightlineWithError {
    def dopplerRefactoredWithError(u: Real, v: Real, T: Real): Real = {
     require(-100.0 <= u && u <= 100 && 20 <= v && v <= 20000 && -30 <= T && T <= 50 &&
         u +/- 1e-11 && v +/- 1e-11 && T +/- 1e-11)
-    
+
     val t1 = 331.4 + 0.6 * T
     (- (t1) *v) / ((t1 + u)*(t1 + u))
 
   }
 
-  /*def rigidBodyWithError(x1: Real, x2: Real, x3: Real): Real = {
+  def rigidBodyWithError(x1: Real, x2: Real, x3: Real): Real = {
     require(-15.0 <= x1 && x1 <= 15 && -15.0 <= x2 && x2 <= 15.0 &&
       -15.0 <= x3 && x3 <= 15 && x1 +/- 1e-11 && x2 +/- 1e-11 && x3 +/- 1e-11)
 
     2*(x1*x2*x3) + (3*x3*x3) - x2*(x1*x2*x3) + (3*x3*x3) - x2
-  }*/
+  }
 
 
   def jetEngineRefactoredWithError(x1: Real, x2: Real): Real = {
@@ -31,6 +31,19 @@ object StraightlineWithError {
     (t/(x1*x1 + 1) - 3) + x1*x1*(4*(t/(x1*x1 + 1))-6))*
     (x1*x1 + 1) + 3*x1*x1*(t/(x1*x1 + 1)) + x1*x1*x1 + x1 +
     3*((3*x1*x1 + 2*x2 -x1)/(x1*x1 + 1)))
+
+  }
+
+  def jetEngineRefactoredWithError2(x1: Real, x2: Real): Real = {
+    require(-5 <= x1 && x1 <= 5 && -20 <= x2 && x2 <= 5 &&
+      x1 +/- 1e-11 && x2 +/- 1e-11)
+
+    val t = ((3*x1*x1 + 2*x2 - x1))/(x1*x1 + 1)
+
+    x1 + ((2*x1*(t)*
+    (t - 3) + x1*x1*(4*(t)-6))*
+    (x1*x1 + 1) + 3*x1*x1*(t) + x1*x1*x1 + x1 +
+    3*((3*x1*x1 + 2*x2 - x1)/(x1*x1 + 1)))
   }
 
   def turbine1RefactoredWithError(v: Real, w: Real, r: Real): Real = {
@@ -40,7 +53,7 @@ object StraightlineWithError {
     val t = w*w*r*r
 
     3 + 2/(r*r) - 0.125*(3-2*v)*(t)/(1-v) - 4.5
-    
+
   }
 
   def turbine2RefactoredWithError(v: Real, w: Real, r: Real): Real = {
@@ -49,7 +62,7 @@ object StraightlineWithError {
 
     val t = w*w*r*r
     6*v - 0.5 * v * (t) / (1-v) - 2.5
-    
+
   }
 
   def turbine3RefactoredWithError(v: Real, w: Real, r: Real): Real = {
@@ -58,8 +71,11 @@ object StraightlineWithError {
 
     val t = w*w*r*r
     3 - 2/(r*r) - 0.125 * (1+2*v) * (t) / (1-v) - 0.5
-    
+
   }
 
-
+  def sineWithError(x: Real): Real = {
+    require(x > -1.57079632679 && x < 1.57079632679 && x +/- 1e-11)
+    x - (x*x*x)/6.0 + (x*x*x*x*x)/120.0 - (x*x*x*x*x*x*x)/5040.0
+  }
 }
