@@ -64,20 +64,26 @@ sealed abstract class Spec(val id: Identifier, val realBounds: RationalInterval,
     case None =>
       println("---> SPEC without error")
       And(LessEquals(RealLiteral(realBounds.xlo), Variable(id)),
-        LessEquals(Variable(id), RealLiteral(realBounds.xhi)))  
+        LessEquals(Variable(id), RealLiteral(realBounds.xhi)))
   }
 
   def getActualRange: RationalInterval
 }
 
 case class SimpleSpec(i: Identifier, b: RationalInterval, e: Option[Rational]) extends Spec(i, b, e) {
-  
+
   def getActualRange: RationalInterval = {
     RationalInterval(realBounds.xlo - absError.get, realBounds.xhi + absError.get)
   }
 
   override def toString: String = absError match {
-    case Some(err) => id + " \u2208 " + realBounds + " \u00B1 " + err
+    case Some(err) =>
+      if (realBounds.xlo <= zero && realBounds.xhi >= zero) {
+        id + " \u2208 " + realBounds + " \u00B1 " + err
+      } else {
+        val relError = err / min(abs(realBounds.xlo), abs(realBounds.xhi))
+        s"$id \u2208 $realBounds \u00B1 $err \nrelative error: $relError"
+      }
     case None => id + " \u2208 " + realBounds + " \u00B1 -"
   }
 
