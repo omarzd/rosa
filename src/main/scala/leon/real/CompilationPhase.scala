@@ -47,7 +47,7 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
 
     var fncNamesToAnalyse = Set[String]()
     var options = RealOptions()
-    
+
     for (opt <- ctx.options) opt match {
       case LeonValueOption("functions", ListValue(fs)) => fncNamesToAnalyse = Set() ++ fs
       case LeonFlagOption("simulation", v) => options = options.copy(simulation = v)
@@ -56,7 +56,7 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
       case LeonFlagOption("noMassageArith", v) => options = options.copy(massageArithmetic = !v)
       case LeonFlagOption("noLipschitz", v) => options = options.copy(lipschitz = !v, lipschitzPathError = !v)
       case LeonValueOption("z3Timeout", ListValue(tm)) => options = options.copy(z3Timeout = tm.head.toLong)
-      case LeonValueOption("solverIterations", ListValue(iter)) => 
+      case LeonValueOption("solverIterations", ListValue(iter)) =>
         if (iter.length == 1) {
           RangeSolver.solverMaxIterLow = iter(0).toInt
         } else if (iter.length == 2) {
@@ -64,7 +64,7 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
           RangeSolver.solverMaxIterHigh = iter(1).toInt
         }
         else reporter.warning("solverIterations should be one or two values only")
-      case LeonValueOption("solverPrecision", ListValue(iter)) => 
+      case LeonValueOption("solverPrecision", ListValue(iter)) =>
         if (iter.length == 1) {
           RangeSolver.solverPrecisionLow = rationalFromString(iter(0))
         } else if (iter.length == 2) {
@@ -73,7 +73,7 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
         }
         else reporter.warning("solverPrecision should be one or two values only")
       case LeonValueOption("depthLimit", ListValue(lim)) =>
-        RangeSolver.defaultDepthModuloLimit = lim(0).toInt  
+        RangeSolver.defaultDepthModuloLimit = lim(0).toInt
       case LeonValueOption("precision", ListValue(ps)) => options = options.copy(precision = ps.flatMap {
         case "single" => List(Float32)
         case "double" => List(Float64)
@@ -93,7 +93,7 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
     // the main functions are treated first, so that the computed postcondition cannot be used...
     val fncsToAnalyse  =
       if(fncNamesToAnalyse.isEmpty) program.definedFunctions.filter(f => !excludeByDefault(f))
-  
+
       else {
         val toAnalyze = program.definedFunctions.filter(f => {
           !excludeByDefault(f) && fncNamesToAnalyse.contains(f.id.name)})
@@ -122,11 +122,12 @@ object CompilationPhase extends LeonPhase[Program,CompilationReport] {
       } else {
         reporter.info("Verification successful for precision: " + finalPrecision)
 
-        val moduleNameId = program.modules.map(m => m.id).find(id => id.toString != "RealOps").get
+        val moduleNameId = program.modules.map(m => m.id).find(id => !id.toString.contains("$")).get
         val codeGenerator = new CodeGenerator(reporter, ctx, options, program, finalPrecision, fncs)
         val models:Seq[FunDef] = fncs.filter(_._1.annotations.contains("model")).map(_._1).toSeq
         val newProgram = codeGenerator.specToCode(program.id, moduleNameId, vcs, models)
         val newProgramAsString = ScalaPrinter(newProgram)
+        println(newProgram)
         reporter.info("Generated program with %d lines.".format(newProgramAsString.lines.length))
         //reporter.info(newProgramAsString)
 

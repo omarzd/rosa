@@ -15,14 +15,14 @@ object Definitions {
   import TypeTreeOps._
 
   sealed abstract class Definition extends Tree {
-    
+
     val id: Identifier
-    
+
     def owner = id.owner
     def setOwner(owner : Definition) : this.type = { id.owner = Some(owner); this }
-    
+
     var origOwner : Option[Definition] = None // The definition/scope enclosing this definition
-    
+
     def subDefinitions : Seq[Definition]      // The enclosed scopes/definitions by this definition
     override def hashCode : Int = id.hashCode
     override def equals(that : Any) : Boolean = that match {
@@ -32,16 +32,16 @@ object Definitions {
     override def copiedFrom(o : Tree) : this.type = {
       super.copiedFrom(o)
       o match {
-        case df : Definition if df.owner.isDefined => this.setOwner(df.owner.get) 
+        case df : Definition if df.owner.isDefined => this.setOwner(df.owner.get)
         case _ => this // FIXME should this ever happen?
       }
-      
+
     }
 
     // TODO: this seems quite elegant, but make sure it works
     def setSubDefOwners() = for (df <- subDefinitions) df.setOwner(this)
-    
-     
+
+
   }
 
   /** A ValDef declares a new identifier to be of a certain type. */
@@ -55,7 +55,7 @@ object Definitions {
     override def equals(that : Any) : Boolean = that match {
       case t : ValDef => t.id == this.id
       case _ => false
-    } 
+    }
 
     def toVariable : Variable = Variable(id).setType(tpe)
     setSubDefOwners()
@@ -66,14 +66,14 @@ object Definitions {
   case class Program(id: Identifier, units: List[UnitDef]) extends Definition {
     origOwner = None
     def subDefinitions = units
-    
+
     def definedFunctions    = units.flatMap(_.definedFunctions)
     def definedClasses      = units.flatMap(_.definedClasses)
     def classHierarchyRoots = units.flatMap(_.classHierarchyRoots)
     def algebraicDataTypes  = units.flatMap(_.algebraicDataTypes).toMap
     def singleCaseClasses   = units.flatMap(_.singleCaseClasses)
     def modules             = units.flatMap(_.modules)
-    
+
     lazy val callGraph      = new CallGraph(this)
 
     def caseClassDef(name: String) = definedClasses.collect {
@@ -85,7 +85,7 @@ object Definitions {
     }
 
     lazy val library = Library(this)
-    
+
     def writeScalaFile(filename: String) {
       import java.io.FileWriter
       import java.io.BufferedWriter
@@ -109,24 +109,24 @@ object Definitions {
     val id = tp.id
     setSubDefOwners()
   }
- 
+
   /** A package as a path of names */
-  type PackageRef = List[String] 
+  type PackageRef = List[String]
 
   abstract class Import extends Definition {
     def subDefinitions = Nil
-    
+
     def importedDefs = this match {
       case PackageImport(pack) => {
         import DefOps._
         // Ignore standalone modules, assume there are extra imports for them
-        unitsInPackage(inProgram(this),pack) 
+        unitsInPackage(inProgram(this),pack)
       }
       case SingleImport(imported) => List(imported)
       case WildcardImport(imported) => imported.subDefinitions
     }
   }
-   
+
   // import pack._
   case class PackageImport(pack : PackageRef) extends Import {
     val id = FreshIdentifier("import " + (pack mkString "."))
@@ -139,18 +139,18 @@ object Definitions {
   case class WildcardImport(df : Definition) extends Import {
     val id = FreshIdentifier(s"import ${df.id.toString}._")
   }
-  
-    
+
+
   case class UnitDef(
-      id: Identifier, 
+      id: Identifier,
       modules : Seq[ModuleDef],
       pack : PackageRef,
       imports : Seq[Import],
       isMainUnit : Boolean // false for libraries/imports
   ) extends Definition {
-     
+
     def subDefinitions = modules ++ imports
-    
+
     def definedFunctions    = modules.flatMap(_.definedFunctions)
     def definedClasses      = modules.flatMap(_.definedClasses)
     def classHierarchyRoots = modules.flatMap(_.classHierarchyRoots)
@@ -160,7 +160,7 @@ object Definitions {
     def duplicate = {
       copy(modules = modules map { _.duplicate } )
     }
-    
+
     def writeScalaFile(filename: String) {
       import java.io.FileWriter
       import java.io.BufferedWriter
@@ -169,21 +169,21 @@ object Definitions {
       out.write(ScalaPrinter(this))
       out.close
     }
-    
+
     setSubDefOwners()
   }
-  
+
   object UnitDef {
-    def apply(id: Identifier, modules : Seq[ModuleDef]) : UnitDef = 
+    def apply(id: Identifier, modules : Seq[ModuleDef]) : UnitDef =
       UnitDef(id,modules, Nil,Nil,true)
   }
-  
+
   /** Objects work as containers for class definitions, functions (def's) and
    * val's. */
   case class ModuleDef(id: Identifier, defs : Seq[Definition], val isStandalone : Boolean) extends Definition {
-    
+
     def subDefinitions = defs
-    
+
     lazy val definedFunctions : Seq[FunDef] = defs.collect { case fd: FunDef => fd }
 
     lazy val definedClasses : Seq[ClassDef] = defs.collect { case ctd: ClassDef => ctd }
@@ -199,13 +199,13 @@ object Definitions {
     lazy val singleCaseClasses : Seq[CaseClassDef] = defs.collect {
       case c @ CaseClassDef(_, _, None, _) => c
     }
-    
+
     def duplicate = copy(defs = defs map { _ match {
       case f : FunDef => f.duplicate
       case cd : ClassDef => cd.duplicate
       case other => other // FIXME: huh?
     }})
-      
+
     setSubDefOwners()
 
   }
@@ -215,8 +215,8 @@ object Definitions {
   sealed trait ClassDef extends Definition {
     self =>
 
-    def subDefinitions = fields ++ methods ++ tparams 
-      
+    def subDefinitions = fields ++ methods ++ tparams
+
     val id: Identifier
     val tparams: Seq[TypeParameterDef]
     def fields: Seq[ValDef]
@@ -261,7 +261,7 @@ object Definitions {
 
     val isAbstract: Boolean
     val isCaseObject: Boolean
-    
+
     def duplicate = this match {
       case ab : AbstractClassDef => {
         val ab2 = ab.copy()
@@ -270,17 +270,17 @@ object Definitions {
         ab2
       }
       case cc : CaseClassDef => {
-        val cc2 = cc.copy() 
+        val cc2 = cc.copy()
         cc.methods foreach { m => cc2.registerMethod(m.duplicate) }
         cc2.setFields(cc.fields map { _.copy() })
         cc2
       }
     }
-    
+
     lazy val definedFunctions : Seq[FunDef] = methods
     lazy val definedClasses = Seq(this)
     lazy val classHierarchyRoots = if (this.hasParent) Seq(this) else Nil
-    
+
   }
 
   /** Abstract classes. */
@@ -291,7 +291,7 @@ object Definitions {
     val fields = Nil
     val isAbstract   = true
     val isCaseObject = false
-    
+
     lazy val singleCaseClasses : Seq[CaseClassDef] = Nil
     setSubDefOwners()
   }
@@ -322,7 +322,7 @@ object Definitions {
         scala.sys.error("Could not find '"+id+"' ("+id.uniqueName+") within "+fields.map(_.id.uniqueName).mkString(", "))
       }
     }
-    
+
     lazy val singleCaseClasses : Seq[CaseClassDef] = if (hasParent) Nil else Seq(this)
     setSubDefOwners()
   }
@@ -333,30 +333,30 @@ object Definitions {
     val MethodDef      = Value("def")
     val StrictFieldDef = Value("val")
     val LazyFieldDef   = Value("lazy val")
-  } 
+  }
   import DefType._
-  
+
   /** Functions
    *  This class represents methods or fields of objects (as specified by the defType field)
    *  that appear ONLY in the class/object's body (not the constructors)
    *  All of these are treated as functions for verification.
-   *  Under circumstances (see canBeField and canBeLazyField methods) 
+   *  Under circumstances (see canBeField and canBeLazyField methods)
    *  they can be differentiated when it comes to code generation/pretty printing.
-   *  
+   *
    *  Default type is DefDef (method)
    */
   class FunDef(
-    val id: Identifier, 
-    val tparams: Seq[TypeParameterDef], 
-    val returnType: TypeTree, 
-    val params: Seq[ValDef], 
+    val id: Identifier,
+    val tparams: Seq[TypeParameterDef],
+    val returnType: TypeTree,
+    val params: Seq[ValDef],
     val defType : DefType
   ) extends Definition {
-    
+
     // A copy of the original function before Xlang elimination
     var orig : Option[FunDef] = None
     var doc: Option[Expr] = None
-    
+
     private var fullBody_ : Expr = NoTree(returnType)
     def fullBody = fullBody_
     def fullBody_= (e : Expr) {
@@ -371,16 +371,16 @@ object Definitions {
 
     def precondition = preconditionOf(fullBody)
     def precondition_=(oe: Option[Expr]) = {
-      fullBody = withPrecondition(fullBody, oe) 
+      fullBody = withPrecondition(fullBody, oe)
     }
 
     def postcondition = postconditionOf(fullBody)
     def postcondition_=(op: Option[(Identifier, Expr)]) = {
-      fullBody = withPostcondition(fullBody, op) 
+      fullBody = withPostcondition(fullBody, op)
     }
 
     def nestedFuns = directlyNestedFunDefs(fullBody)
-    
+
     def subDefinitions = params ++ tparams ++ nestedFuns.toList
 
     def duplicate: FunDef = {
@@ -388,9 +388,9 @@ object Definitions {
       fd.copyContentFrom(this)
       fd.copiedFrom(this)
     }
-    
+
     def copyContentFrom(from : FunDef) {
-      this.fullBody  = from.fullBody 
+      this.fullBody  = from.fullBody
       this.orig    = from.orig
       this.origOwner = from.origOwner
       this.addAnnotation(from.annotations.toSeq : _*)
@@ -401,8 +401,8 @@ object Definitions {
     def hasPostcondition : Boolean  = postcondition.isDefined
 
     /**
-     * When this functions has been annotated as a (lazy) field 
-     * and has no arguments, it can be printed/compiled as a field 
+     * When this functions has been annotated as a (lazy) field
+     * and has no arguments, it can be printed/compiled as a field
      */
     def canBeLazyField   = defType == LazyFieldDef    && params.isEmpty && tparams.isEmpty
     def canBeStrictField = defType == StrictFieldDef  && params.isEmpty && tparams.isEmpty

@@ -70,11 +70,11 @@ object PrinterHelpers {
 
             case ts: Seq[Any] =>
               nary(ts).print(nctx)
-   
+
             case t: Tree =>
-              val newScope = nctx.current match { 
+              val newScope = nctx.current match {
                 case d : Definition => Some(d)
-                case _ => nctx.scope 
+                case _ => nctx.scope
               }
               nctx = nctx.copy(current = t, parent = Some(nctx.current), scope = newScope)
               printer.pp(t)(nctx)
@@ -132,10 +132,10 @@ class PrettyPrinter(opts: PrinterOptions, val sb: StringBuffer = new StringBuffe
       body
     }
   }
-  
+
   def printWithPath(df: Definition)(implicit ctx : PrinterContext) {
     ctx.scope match {
-      case Some(scope) => 
+      case Some(scope) =>
         try {
           val (pack, defPath) = pathAsVisibleFrom(scope, df)
           val toPrint = pack ++ (defPath collect { case df if !df.isInstanceOf[UnitDef] => df.id})
@@ -146,14 +146,14 @@ class PrettyPrinter(opts: PrinterOptions, val sb: StringBuffer = new StringBuffe
         }
       case None =>
         p"${df.id}"
-    } 
-    
+    }
+
   }
-  
+
   def pp(tree: Tree)(implicit ctx: PrinterContext): Unit = tree match {
-    
+
       case id: Identifier =>
-        
+
         val name = if (opts.printUniqueIds) {
           id.uniqueName
         } else {
@@ -166,9 +166,9 @@ class PrettyPrinter(opts: PrinterOptions, val sb: StringBuffer = new StringBuffe
         )
         // Replace $opname with operator symbols
         val candidate = scala.reflect.NameTransformer.decode(name)
-        
+
         if (isLegalScalaId(candidate)) p"$candidate" else p"$name"
-        
+
       case Variable(id) =>
         p"$id"
 
@@ -236,9 +236,9 @@ class PrettyPrinter(opts: PrinterOptions, val sb: StringBuffer = new StringBuffe
           case Some((tpe, elems)) =>
             val elemTps = leastUpperBound(elems.map(_.getType))
             if (elemTps == Some(tpe)) {
-              p"List($elems)"  
+              p"List($elems)"
             } else {
-              p"List[$tpe]($elems)"  
+              p"List[$tpe]($elems)"
             }
 
           case None =>
@@ -356,7 +356,7 @@ class PrettyPrinter(opts: PrinterOptions, val sb: StringBuffer = new StringBuffe
       case FiniteArray(exprs)        => p"Array($exprs)"
       case Distinct(exprs)           => p"distinct($exprs)"
       case Not(expr)                 => p"\u00AC$expr"
-      case ValDef(id, tpe)           => p"${typed(id)}"
+      case ValDef(id, tpe)           => p"$id : $tpe"  //p"${typed(id)}"
       case This(_)                   => p"this"
       case (tfd: TypedFunDef)        => p"typed def ${tfd.id}[${tfd.tps}]"
       case TypeParameterDef(tp)      => p"$tp"
@@ -399,7 +399,7 @@ class PrettyPrinter(opts: PrinterOptions, val sb: StringBuffer = new StringBuffe
         ob.foreach { b => p"$b @ " }
         // Print only the classDef because we don't want type parameters in patterns
         printWithPath(cct.classDef)
-        if (!cct.classDef.isCaseObject) p"($subps)"   
+        if (!cct.classDef.isCaseObject) p"($subps)"
 
       case InstanceOfPattern(ob, cct) =>
         if (cct.classDef.isCaseObject) {
@@ -409,7 +409,7 @@ class PrettyPrinter(opts: PrinterOptions, val sb: StringBuffer = new StringBuffe
         }
         // It's ok to print the whole type because there are no type parameters for case objects
         p"$cct"
-        
+
 
       case TuplePattern(ob, subps) =>
         ob.foreach { b => p"$b @ " }
@@ -424,7 +424,7 @@ class PrettyPrinter(opts: PrinterOptions, val sb: StringBuffer = new StringBuffe
       case UnitType              => p"Unit"
       case Int32Type             => p"Int"
       case Int64Type             => p"Long"
-      case Float64Type           => p"Double" 
+      case Float64Type           => p"Double"
       case Float32Type           => p"Float"
       case FloatDDType           => p"DoubleDouble"
       case FloatQDType           => p"QuadDouble"
@@ -446,7 +446,7 @@ class PrettyPrinter(opts: PrinterOptions, val sb: StringBuffer = new StringBuffe
       // Definitions
       case Program(id, units) =>
         p"""${nary(units filter {_.isMainUnit}, "\n\n")}"""
-      
+
       case UnitDef(id,modules,pack,imports,_) =>
         if (!pack.isEmpty){
           p"""|package ${pack mkString "."}
@@ -455,28 +455,28 @@ class PrettyPrinter(opts: PrinterOptions, val sb: StringBuffer = new StringBuffe
         p"""|${nary(imports,"\n")}
             |${nary(modules,"\n\n")}
             |"""
-        
-      case PackageImport(pack) => 
+
+      case PackageImport(pack) =>
         import DefOps._
         val newPack = ( for (
           scope <- ctx.scope;
           unit <- inUnit(scope);
           currentPack = unit.pack
-        ) yield {  
-          if (isSuperPackageOf(currentPack,pack)) 
+        ) yield {
+          if (isSuperPackageOf(currentPack,pack))
             pack drop currentPack.length
-          else 
+          else
             pack
         }).getOrElse(pack)
         p"import ${nary(newPack,".")}._"
 
-      case SingleImport(df) => 
+      case SingleImport(df) =>
         p"import "; printWithPath(df)
-         
-        
-      case WildcardImport(df) => 
+
+
+      case WildcardImport(df) =>
         p"import "; printWithPath(df); p"._"
-        
+
       case ModuleDef(id, defs, _) =>
         p"""|object $id {
             |  ${nary(defs, "\n\n")}
@@ -550,8 +550,8 @@ class PrettyPrinter(opts: PrinterOptions, val sb: StringBuffer = new StringBuffe
           p"""|def ${fd.id}(${fd.params}): ${fd.returnType} = {
               |"""
         }
-          
-        
+
+
         fd.precondition.foreach { case pre =>
           p"""|  require($pre)
               |"""
@@ -577,7 +577,7 @@ class PrettyPrinter(opts: PrinterOptions, val sb: StringBuffer = new StringBuffe
       case (tree: PrettyPrintable) => tree.printWith(ctx)
 
       case _ => sb.append("Tree? (" + tree.getClass + ")")
-    
+
   }
 
   object FcallMethodInvocation {

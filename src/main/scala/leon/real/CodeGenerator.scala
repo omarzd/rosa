@@ -34,9 +34,9 @@ class CodeGenerator(val reporter: Reporter, ctx: LeonContext, options: RealOptio
     case FPPrecision(bits) if (bits <= 16) => Int32Type
     case FPPrecision(bits) if (bits <= 32) => Int64Type
     case _ => throw new Exception("Don't know how to generate code for: " + precision)
-  } 
-  
-  
+  }
+
+
 
   def specToCode(programId: Identifier, objectId: Identifier, vcs: Seq[VC], models: Seq[FunDef]): Program = {
 
@@ -49,13 +49,13 @@ class CodeGenerator(val reporter: Reporter, ctx: LeonContext, options: RealOptio
 
 
       // for loops we get the specs from LoopInv!
-      val vcBody = vcFncMap(funDef).find(vc => (vc.kind == VCKind.Postcondition || 
+      val vcBody = vcFncMap(funDef).find(vc => (vc.kind == VCKind.Postcondition ||
         vc.kind == VCKind.SpecGen || vc.kind == VCKind.LoopPost)).get
-      val vcSpec = vcFncMap(funDef).find(vc => (vc.kind == VCKind.Postcondition || 
+      val vcSpec = vcFncMap(funDef).find(vc => (vc.kind == VCKind.Postcondition ||
         vc.kind == VCKind.SpecGen || vc.kind == VCKind.LoopInvariant)).get
 
-      
-      // function arguments 
+
+      // function arguments
       val (args, returnType) = getArgs(funDef)
 
       val fD = new FunDef(funDef.id, Seq.empty, returnType, args, DefType.MethodDef)
@@ -83,7 +83,7 @@ class CodeGenerator(val reporter: Reporter, ctx: LeonContext, options: RealOptio
             (v -> RationalInterval(lo - error, up + error))
           }
         })))
-            
+
       // generate comments
       var docLinesParam: Seq[Expr] = vcSpec.variables.getInitialErrors(precision).map({
         case (id, error) => DocLine("param " + id, Noise(Variable(id), RealLiteral(error)))
@@ -98,7 +98,7 @@ class CodeGenerator(val reporter: Reporter, ctx: LeonContext, options: RealOptio
       }
 
       val docLineReturn: Expr = DocLine("return", Tuple(vcSpec.spec(precision).map(_.toExpr)))
-       
+
       fD.doc = Some(DocComment(docLinesParam :+ docLineReturn))
       fD
     }).toSeq
@@ -155,7 +155,7 @@ class CodeGenerator(val reporter: Reporter, ctx: LeonContext, options: RealOptio
 
   /*private def specToFloatCode(programId: Identifier, objectId: Identifier, vcs: Seq[VerificationCondition], precision: Precision): Program = {
     var defs: Seq[Definition] = Seq.empty
-    
+
     for (vc <- vcs if (vc.kind == VCKind.Postcondition || vc.kind == VCKind.SpecGen || vc.kind == VCKind.LoopInvariant)) {
       val f = vc.funDef
       val id = f.id
@@ -171,7 +171,7 @@ class CodeGenerator(val reporter: Reporter, ctx: LeonContext, options: RealOptio
 
         val fD = new FunDef(id, Seq.empty, returnType, args :+ ValDef(counterId, Int32Type) :+ ValDef(maxCounterId, Int32Type))
         val loopBody = convertToFloatConstant(f.body)
-        
+
         fD.body =  loopBody.get match {
           case Iteration(ids, bd, upFncs) =>
             val cond = LessThan(Variable(counterId), Variable(maxCounterId))
@@ -194,7 +194,7 @@ class CodeGenerator(val reporter: Reporter, ctx: LeonContext, options: RealOptio
           case _ => throw new Exception("Unsupported loop! Don't know how to generate.")
         }
 
-         
+
         fD
       } else {*/
       {  val fD = new FunDef(id, Seq.empty, returnType, args)
@@ -209,8 +209,8 @@ class CodeGenerator(val reporter: Reporter, ctx: LeonContext, options: RealOptio
             val specExpr = And(specs.map( _.toExpr ))
 
             val resMap: Map[Expr, Expr] = specs.map(s => Variable(s.id)).zip(List(Variable(a), Variable(b))).toMap
-            
-            val postExpr = MatchExpr(Variable(resId), 
+
+            val postExpr = MatchExpr(Variable(resId),
               Seq(SimpleCase(TuplePattern(None, List(WildcardPattern(Some(a)), WildcardPattern(Some(b)))),
                 replace(resMap, specExpr))))
 
@@ -223,11 +223,11 @@ class CodeGenerator(val reporter: Reporter, ctx: LeonContext, options: RealOptio
         fD
       }
 
-      
+
       funDef.precondition = f.precondition
 
 
-      
+
 
       defs = defs :+ funDef
     }
@@ -242,8 +242,8 @@ class CodeGenerator(val reporter: Reporter, ctx: LeonContext, options: RealOptio
     val invariants: Seq[Expr] = Seq.empty
 
     val intType = if (bitlength <= 16) Int32Type else Int64Type
-    
-    val solver = new RangeSolver(options.z3Timeout)    
+
+    val solver = new RangeSolver(options.z3Timeout)
 
     for (vc <- vcs if (vc.kind == VCKind.Postcondition || vc.kind == VCKind.SpecGen)) {
       val f = vc.funDef

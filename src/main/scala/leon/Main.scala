@@ -80,6 +80,9 @@ object Main {
     if (!options.contains("--real")) options :+= "--real"
 
     val files = args.filterNot(_.startsWith("-")).map(new java.io.File(_))
+    if (files.length > 1) {
+      initReporter.warning("You provided several input files. Generated code will still be put into only one.")
+    }
 
     def valueToFlag(s: String) = s match {
       case "on"  | "true"  | "yes" => Some(true)

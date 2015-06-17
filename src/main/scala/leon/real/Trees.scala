@@ -452,20 +452,17 @@ object Trees {
   }
 
 
-  case class DocComment(args: Seq[Expr]) extends Expr with NAryExtractable {
+  case class DocComment(args: Seq[Expr]) extends Expr with NAryExtractable with PrettyPrintable {
     def extract: Option[(Seq[Expr], (Seq[Expr])=>Expr)] = {
       Some((args, DocComment(_)))
     }
 
-    /*def printWith(printer: PrettyPrinter)(implicit lvl: Int) {
-      printer.append("/*")
-      (args.init).foreach(e => {
-        printer.pp(e,  Some(this))
-        printer.append("\n")
-      })
-      printer.pp(args.last, Some(this))
-      printer.append("*/")
-    }*/
+    def printWith(implicit pctx: PrinterContext) {
+      p"""|/*
+          |  ${nary(args, "\n")}
+          |*/
+          |"""
+    }
   }
 
   case class DocLine(tag: String, expr: Expr) extends Expr with UnaryExtractable with PrettyPrintable {
