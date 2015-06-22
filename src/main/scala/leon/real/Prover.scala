@@ -35,32 +35,16 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
     reporter.debug("VCs: " + vcs)
     val approximations = vcs.map(vc => (vc, Approximations(options, fncs, reporter, rangeSolver, vc))).toMap
 
-    val precisions = options.precision
-
-    def findPrecision(lowerBnd: Int, upperBnd: Int): (Precision, Boolean) = {
-      if (lowerBnd > upperBnd) (precisions.last, false)
-      else {
-        val mid = lowerBnd + (upperBnd - lowerBnd) / 2// ceiling int division
-        if (!options.silent) reporter.info("Checking precision: " + precisions(mid))
-        if (checkVCsInPrecision(vcs, precisions(mid), approximations)) {
-          if (lowerBnd == mid) (precisions(lowerBnd), true)
-          else {
-            findPrecision(lowerBnd, mid)
-          }
-        }
-        else {
-          if (lowerBnd == mid && upperBnd < precisions.length - 1) (precisions(upperBnd), true)
-          else {
-            findPrecision(mid + 1, upperBnd)
-          }
-        }
-      }
-    }
+    val precisions: Seq[Precision] = options.precision
 
     reporter.debug("approximation kinds:")
     approximations.foreach(x => reporter.debug(x._1 + ": " + x._2.kinds))
 
-    findPrecision(0, precisions.length - 1)
+    precisions.find(checkVCsInPrecision(vcs, _, approximations)) match {
+      case Some(p) => (p, true)
+      case None => (precisions.last, false)
+    }
+
   }
 
   def checkVCsInPrecision(vcs: Seq[VerificationCondition], precision: Precision,
@@ -71,7 +55,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
 
     for (vc <- vcs ) {
       if (!options.silent) reporter.info("Verification condition  ==== %s (%s) ====".format(vc.fncId, vc.kind))
-      else reporter.info(vc.fncId)
+      else reporter.info(s"${vc.fncId}: $precision")
       reporter.debug("pre: " + vc.pre)
       reporter.debug("body: " + vc.body)
       reporter.debug("post: " + vc.post)
@@ -153,14 +137,14 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
 
       val end = System.currentTimeMillis
       vc.time = Some(end - start)
-      spec.foreach { sp => 
+      spec.foreach { sp =>
         reporter.info(sp)
       }
       if (!options.silent) {
         reporter.info("in " + (vc.time.get / 1000.0))
       }
     }
-    vcs.forall( vc => vc.value(precision) != ERROR && 
+    vcs.forall( vc => vc.value(precision) != ERROR &&
       (vc.kind == VCKind.SpecGen || vc.value(precision) != UNKNOWN))
   }
 
@@ -180,23 +164,23 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
       val finiteCnstr = addResultsF(cnstr.finiteComp, variables.fResultVars)
 
       str = str + "%d:\nP: %s\n\nreal: %s\n\nfin: %s\n\nQ: %s\n\n".format(index, cnstr.precondition,
-        realCnstr, finiteCnstr, transformer.getZ3Expr(cnstr.postcondition)) 
+        realCnstr, finiteCnstr, transformer.getZ3Expr(cnstr.postcondition))
 
       var sanityConstraint: Expr = And(cnstr.precondition, And(realCnstr, finiteCnstr))
       reporter.debug("\nsanityConstraint before preprocessing:")
       reporter.debug(sanityConstraint)
 
       sanityConstraint = preprocessFunctions(sanityConstraint)
-      
+
       if (options.removeRedundant) {
         var args = removeRedundantConstraints(sanityConstraint, transformer.getZ3Expr(cnstr.postcondition))
-        
+
         if (!belongsToActual(cnstr.postcondition))
           args = args.filter(x => !belongsToActual(x))
 
         sanityConstraint = And(args.toSeq)
       }
-      
+
       if (options.simplifyCnstr) {
         sanityConstraint = simplifyConstraint( sanityConstraint )
       }
@@ -211,7 +195,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
       reporter.debug("z3constraint ("+index+"): " + z3constraint)
 
       val sanityExpr = transformer.getZ3Expr(sanityConstraint)
-      
+
       if (reporter.errorCount == 0 && sanityCheck(sanityExpr, name + "-" +app.kind.toString)) {
         solver.checkSat(z3constraint) match {
           case (UNSAT, _) =>
@@ -228,7 +212,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
                 if (!options.silent) reporter.info("Nothing to prove for real-only part.")
               } else {
                 var realOnlyConstraint = And(removeErrorsAndActual(And(cnstr.precondition, realCnstr)), negate(realOnlyPost))
-                //println("realOnlyConstraint: " + realOnlyConstraint)         
+                //println("realOnlyConstraint: " + realOnlyConstraint)
                 if (options.massageArithmetic) {
                   realOnlyConstraint = massageArithmetic(realOnlyConstraint)
                 }
@@ -291,7 +275,7 @@ class Prover(ctx: LeonContext, options: RealOptions, prog: Program, fncs: Map[Fu
 
   private def preprocessFunctions(e: Expr): Expr = {
     var extra: Expr = True
-    
+
     val tmp = preMap { expr => expr match {
       case FncValue(specs, specExpr, _, _, _) =>
         val fresh = getNewXFloatVar
