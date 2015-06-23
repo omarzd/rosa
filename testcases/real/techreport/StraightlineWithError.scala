@@ -77,5 +77,5 @@ object StraightlineWithError {
   def sineWithError(x: Real): Real = {
     require(x > -1.57079632679 && x < 1.57079632679 && x +/- 1e-11)
     x - (x*x*x)/6.0 + (x*x*x*x*x)/120.0 - (x*x*x*x*x*x*x)/5040.0
-  } ensuring (res => res +/- 1.001e-11)
+  } ensuring (res => res +/- 1.001e-8)
 }
