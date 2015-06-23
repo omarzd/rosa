@@ -30,7 +30,7 @@ trait Lipschitz {
       None
     } else {
       val completePre = And(rangeConstraint(vars), additionalConstraints)
-      
+
       val lipschitzConsts: RMatrix = _getLipschitzMatrix(completePre, es, ids,
         vars.map(x => (x._1, x._2.interval)))
       if (!silent) reporter.info("K: (" + ids.mkString(", ") + ")" + lipschitzConsts)
@@ -43,7 +43,7 @@ trait Lipschitz {
       val lipschitzErrors: Seq[Rational] =
         lipschitzConsts.rows.map(dta => {
           ids.zip(dta).foldLeft(zero){
-            case (sum, (id, k)) => sum + k*initErrors(id) 
+            case (sum, (id, k)) => sum + k*initErrors(id)
           }
         })
       if (!silent) reporter.info("lipschitz errors: " + lipschitzErrors)
@@ -75,7 +75,7 @@ trait Lipschitz {
         reporter.debug("ids: " + ids)
         reporter.debug("initErrors sorted: " + initErrors)
 
-        
+
         //if (ids.length > 1) {
         if (mK.isIdentity) {
           throw new Exception("K == I and we don't handle this case...")
@@ -99,7 +99,7 @@ trait Lipschitz {
           })
         reporter.info("loop errors, after "+loopBound+" iterations: " + componentwiseErrors)
         componentwiseErrors
-          
+
     }
   }
 
@@ -111,7 +111,7 @@ trait Lipschitz {
     //println("vars: " + vars)
     reporter.debug("body: " + body)
     reporter.debug("updateFncs: " + updateFncs)
-    
+
     // Inline model inputs
     var additionalVars: Map[Expr, Record] = Map()
     val (inlinedFncs, modelConstraints) = {
@@ -125,7 +125,7 @@ trait Lipschitz {
           val (records, loopC, int) = VariablePool.collectVariables(specExpr)
           additionalVars = additionalVars + ((Variable(specs(0).id),
             records(Variable(specs(0).id))))
-          
+
           Some(Variable(specs(0).id))
 
         case FncBody(name, body, _, _) => Some(body)
@@ -141,25 +141,25 @@ trait Lipschitz {
     reporter.debug("inlinedFncs: " + inlinedFncs)
     reporter.debug("modelCnstrs: " + modelConstraints)
     reporter.debug(And(modelConstraints.toSeq))
-    
-    val cleanedAdditionalConstraints = 
-      And(getClauses(And(additionalConstraints, And(modelConstraints.toSeq))).filter(cl => 
+
+    val cleanedAdditionalConstraints =
+      And(getClauses(And(additionalConstraints, And(modelConstraints.toSeq))).filter(cl =>
         !belongsToActual(cl) && !isRangeClause(cl)))
 
     val allVars = vars ++ additionalVars.map(x => (x._1, RationalInterval(x._2.lo, x._2.up)))
-    
+
     val precondition = And(rangeConstraintFromIntervals(allVars), cleanedAdditionalConstraints)
-    
-    val mK = _getLipschitzMatrix(precondition, inlinedFncs, ids, allVars)    
+
+    val mK = _getLipschitzMatrix(precondition, inlinedFncs, ids, allVars)
     //reporter.info("sigmas: " + sigmas)
     if (!silent) reporter.info("K: " + mK)
     mK
   }
 
-  def getTaylorErrorLipschitz(expr: Expr, ids: Seq[Identifier], sigmas: Seq[Rational],
+  /*def getTaylorErrorLipschitz(expr: Expr, ids: Seq[Identifier], sigmas: Seq[Rational],
     initErrors: Map[Identifier, Rational], vars: Map[Expr, RationalInterval],
     additionalConstraints: Expr, precision: Precision): Unit = {
-    
+
     // check whether we can apply this
     // no ifs and no tuples (for now)
     if (containsIfExpr(expr) || containsFunctionCalls(expr)) {
@@ -175,9 +175,9 @@ trait Lipschitz {
       assert(sigmas.length == 1 && lipschitzConsts.rows.length == 1)
 
       //println("jacobian: " + jacobian + "   * (sigma: "+sigmas(0)+")")
-      
+
       //println("hessian: " + hessianConsts)
-      
+
       val h: Seq[Seq[Rational]] = hessianConsts.map(hc => hc.rows.zipWithIndex.flatMap({
         case (row, i) =>
           row.zipWithIndex.map ({
@@ -198,9 +198,9 @@ trait Lipschitz {
       reporter.debug("K: " + lipschitzConsts)
       val sigma = sigmas(0)
       reporter.debug("sigma: " + sigma)
-      
-    }   
-  } // end getTaylorError
+
+    }
+  }*/ // end getTaylorError
 
 
   /*
@@ -209,7 +209,7 @@ trait Lipschitz {
   */
   private def _getLipschitzMatrix(preReal: Expr, fncs: Seq[Expr], ids: Seq[Identifier],
    vars: Map[Expr, RationalInterval]): RMatrix = {
-  
+
     reporter.debug("preReal: " + preReal)
     reporter.debug("ids: " + ids)
 
@@ -218,13 +218,13 @@ trait Lipschitz {
 
     val jacobian = EMatrix.fromSeqs(fncs.map(fnc => ids.map(id => d(inlineBody(fnc), id))))
     reporter.debug("jacobian: " + jacobian)
-    
+
     val lipschitzConsts = boundRanges(preReal, jacobian, vars)
     //reporter.debug("lipschitzConsts: " + lipschitzConsts)
     lipschitzConsts
   }
 
-  
+
   private def getSigmaJacobianHessian(preReal: Expr, expr: Expr,
     ids: Seq[Identifier], precision: Precision, vars: Map[Expr, RationalInterval]):
       (EMatrix, RMatrix, Seq[RMatrix]) = {
@@ -235,7 +235,7 @@ trait Lipschitz {
 
     val hessians = getHessian(jacobian, ids)
     reporter.debug(hessians.mkString("\n"))
-    
+
     val lipschitzConsts = boundRanges(preReal, jacobian, vars)
 
     val hessianConsts = hessians.map( hessian => boundRanges(preReal, hessian, vars))
@@ -243,7 +243,7 @@ trait Lipschitz {
     reporter.debug("lipschitzConsts: " + lipschitzConsts)
     (jacobian, lipschitzConsts, hessianConsts)
   }
-  
+
   private def boundRanges(pre: Expr, m: EMatrix, vars: Map[Expr, RationalInterval]): RMatrix = {
     solver.clearCounts
     val res = m.map(e => {
@@ -261,7 +261,7 @@ trait Lipschitz {
 
   private def getHessian(jacobian: EMatrix, ids: Seq[Identifier]): Seq[EMatrix] = {
     jacobian.rows.map(row => {
-      val elems = row.map( p => 
+      val elems = row.map( p =>
         ids.map(id =>  d(p, id) )
         )
 
@@ -269,9 +269,9 @@ trait Lipschitz {
       })
   }
 
-  
 
-  
+
+
 
   // Also needs to inline the FncVal's and keep track of the additional condition
   private def inlineBody(body: Expr): Expr = {
@@ -304,7 +304,7 @@ trait Lipschitz {
     @param K Lipschitz constant
   */
   private def errorFromNIterations(num: Int, lambda: Rational, sigma: Rational, k: Rational): Rational = {
-    
+
     def powerBySquaring(x: Rational, n: Int): Rational = {
       if (n == 0) one
       else if (n == 1) x

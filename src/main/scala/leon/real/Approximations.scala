@@ -28,13 +28,13 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
 
   val silent = options.silent
   var leonToZ3: LeonToZ3Transformer = null
-  
-  val taylorError = false
+
+  //val taylorError = true
 
   val containsIfs = containsIfExpr(vc.body)
   val containsFncs = vc.allFncCalls.nonEmpty
   val checkPathError = !vc.funDef.annotations.contains("robust")
-  
+
   var kinds = allApprox
 
   if (vc.kind == VCKind.LoopPost) {
@@ -51,7 +51,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
     } else if(checkPathError) {
       kinds = kinds.filter(_.pathHandling == Merging)
     }
-    
+
     if (!containsFncs) kinds = kinds.filter(_.fncHandling == Uninterpreted)
     else kinds = kinds.filter(_.fncHandling != Uninterpreted)
   }
@@ -72,7 +72,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
           false
       }
     }
-  
+
     val precondition = vc.pre
     val preReal = removeErrorsAndActual(precondition)
     val postcondition = vc.post
@@ -104,7 +104,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
           //println(body.getClass)
           reporter.error("Unsupported loop type.")
           Set()
-      }     
+      }
 
       case (_, Pathwise) => getPaths(body).map {
         case (cond, expr) => Path(cond, filterOutActualInFncVal(expr), idealToActual(expr, vc.variables))
@@ -116,7 +116,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
       case (_, Merging) =>  Set(Path(True, filterOutActualInFncVal(body), idealToActual(body, vc.variables)))
     }
     reporter.debug("after PATH handling:\nbody: %s".format(paths.mkString("\n")))
-    
+
     kind.arithmApprox match {
       case NoApprox =>
         var constraints = Seq[Constraint]()
@@ -124,7 +124,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
           constraints :+= Constraint(And(precondition, path.condition), path.bodyReal, path.bodyFinite, postcondition)
         }
         Approximation(kind, constraints, Seq())
-        
+
       case JustFloat =>
         var constraints = Seq[Constraint]()
         var specsPerPath = Seq[SpecTuple]()
@@ -137,39 +137,39 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
             val res = getLipschitzPathError(paths.toSeq, precision)
             if (!options.silent) reporter.info("--> lipschitzPathError: " + res)
             res
-          }    
+          }
           else zero
-        
+
 
         for ( path <- paths if (isFeasible(And(precondition, path.condition))) ) {
           reporter.debug("Computing approximation for path ...")
-          //solver.clearCounts          
+          //solver.clearCounts
           if (vc.kind == VCKind.Precondition) {
             val bodyApprox = getApproximationAndSpec_AllVars(path, precision)
-            reporter.debug("body approx: " + bodyApprox)    
+            reporter.debug("body approx: " + bodyApprox)
             constraints :+= Constraint(And(precondition, path.condition), path.bodyReal, bodyApprox,
               postcondition)
 
           } else if(vc.kind == VCKind.LoopInvariant) {
             val (bodyApprox, loopSpecs) = getApproximationAndSpec_LoopInv(path, precision, preReal)
             spec = loopSpecs
-            
-            reporter.debug("body approx: " + bodyApprox)    
+
+            reporter.debug("body approx: " + bodyApprox)
             constraints :+= Constraint(And(precondition, path.condition), path.bodyReal, bodyApprox,
               postcondition)
 
           } else {
-            
+
             val (bodyApprox, nextSpecs) = getApproximationAndSpec_ResultOnly(path, precision,
               lipschitzPathError, preReal)
             reporter.debug("body approx: " + bodyApprox)
-            
+
             //println("specs: " + nextSpecs)
             spec = mergeSpecs(spec, nextSpecs) //TODO do at the end?
             //println("merged: " + spec)
             specsPerPath :+= nextSpecs
             constraints :+= Constraint(And(precondition, path.condition), path.bodyReal, bodyApprox, postcondition)
-            
+
           }
         }
 
@@ -202,7 +202,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
     }
 
   }
-  
+
   /*
     Get approximation for results of an expression.
   */
@@ -210,18 +210,18 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
     (Expr, Seq[Spec]) = path.bodyFinite match {
     case body =>
       solver.clearCounts
-      
-      val lipschitz = options.lipschitz && !containsFncs 
+
+      val lipschitz = options.lipschitz && !containsFncs
 
       val approximatorNew = new AAApproximator(reporter, solver, precision, options.silent, checkPathError, lipschitz)
       val approx = approximatorNew.approximate(body, And(vc.pre, path.condition), vc.variables, exactInputs = false)
-      
+
       if (!options.silent) reporter.info("solver counts: " + solver.getCounts)
       val zipped = vc.variables.resultVars.zip(approx)
 
       val specs = zipped.map({
         case (resVar: Variable, resXFloat: XNum) =>
-          SimpleSpec(resVar.id, RationalInterval(resXFloat.realRange.interval.xlo, 
+          SimpleSpec(resVar.id, RationalInterval(resXFloat.realRange.interval.xlo,
                       resXFloat.realRange.interval.xhi), Some(resXFloat.maxError))
         })
 
@@ -231,7 +231,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
                                 Noise(kv._1, RealLiteral( max(pathError, kv._2.maxError) )))))
 
 
-      if (taylorError) {
+      /*if (taylorError) {
         try {
           val ids = vc.variables.inputs.keys.map(k => k.asInstanceOf[Variable].id).toSeq
           val initErrors = vc.variables.getInitialErrors(precision)
@@ -242,9 +242,10 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
             And(getClauses(preReal).filter(cl => !belongsToActual(cl) && !isRangeClause(cl))), precision)
         } catch {
           case e: Exception => reporter.warning("Taylor computation failed for " + vc.fncId) ;
+            println(e)
         }
 
-      }
+      }*/
       (constraint, specs)
     }
 
@@ -259,9 +260,9 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
       val approximatorNew = new AAApproximator(reporter, solver, precision, options.silent, checkPathError, false)
       val approxs: Map[Expr, XNum] = approximatorNew.approximateEquations(body,
         And(vc.pre, path.condition), vc.variables, exactInputs = false)
-      
+
       if (!options.silent) reporter.info("solver counts: " + solver.getCounts)
-      
+
       val constraint = And(approxs.foldLeft(Seq[Expr]())(
           (seq, kv) => seq ++ Seq(LessEquals(RealLiteral(kv._2.interval.xlo), kv._1),
                                   LessEquals(kv._1, RealLiteral(kv._2.interval.xhi)),
@@ -275,18 +276,18 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
     case True => (True, Seq()) // noop
     case body =>
       solver.clearCounts
-      
+
       val (ids: Seq[Identifier], updateFncs) = vc.updateFunctions.unzip
 
       // this is trying to show that this thing is inductive
       val approximatorNew = new AAApproximator(reporter, solver, precision, options.silent, checkPathError, false)
       val approxs = approximatorNew.approximateEquations(body,
         And(vc.pre, path.condition), vc.variables, exactInputs = false)
-      
+
       //println("new:     " + approxs)
-      
+
       if (!options.silent) reporter.info("solver counts for loop invariant: " + solver.getCounts)
-      
+
       val constraint = And(approxs.foldLeft(Seq[Expr]())(
           (seq, kv) => seq ++ Seq(LessEquals(RealLiteral(kv._2.interval.xlo), kv._1),
                                   LessEquals(kv._1, RealLiteral(kv._2.interval.xhi)),
@@ -307,7 +308,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
           } else {
             (Variable(idealId), RationalInterval(rec.loAct.get, rec.upAct.get))
           }
-        
+
         })
 
       // Roundoff errors have to be computed over the entire actual range,
@@ -323,11 +324,11 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
         updateFncs.map(fnc => idealToActual(fnc, vc.variables)))
 
       if (!options.silent) reporter.info("sigmas: " + sigmas)
-      
+
       //println("actualRanges: " + actualRanges)
 
       val lipschitzCnst = getLipschitzMatrix(path.bodyReal, ids, updateFncs, actualRanges, preReal, precision)
-      
+
 
       val initialErrors = vc.variables.inputs.map({
         case (_, rec) =>
@@ -335,13 +336,13 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
           else (rec.idealId, rec.initialError.get)
       })
       //println("initial errors: " + initialErrors)
-      
+
       val loopError = vc.loopBound match {
         case Some(n) => computeErrorFromLoopBound(ids, sigmas, n, initialErrors, lipschitzCnst)
         case None =>  Seq()
       }
       reporter.info("loop error computation time: " + (System.currentTimeMillis - start) + "ms")
-                
+
 
       if(vc.loopBound.nonEmpty && options.loopUnrolling) { //if (options.loopUnrolling) {
         val start2 = System.currentTimeMillis
@@ -362,11 +363,11 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
         if (!options.silent) reporter.info("loop unrolling time: " + (System.currentTimeMillis - start2) + "ms")
       }
 
-      val loopSpecs = ids.zip(sigmas).zipWithIndex.map({               
-        case ((id, sigma), index) =>  // row in lipCnsts corresponds to one update fnc 
+      val loopSpecs = ids.zip(sigmas).zipWithIndex.map({
+        case ((id, sigma), index) =>  // row in lipCnsts corresponds to one update fnc
           LoopSpec(id, lipschitzCnst.rows(index), sigma, actualRanges(Variable(id)), Some(loopError(index)))
         })
-      
+
       //val loopSpecs = Seq()
 
       (constraint, loopSpecs)
@@ -374,7 +375,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
 
   private def unroll(updates: Seq[UpdateFunction], max: Int, varMap: Map[Expr, Expr],
     unrolled: Seq[Expr], count: Int): Seq[Expr] = {
-    
+
     if (count >= max) {
       val newUpdates = updates.map({
         case UpdateFunction(lhs, rhs) =>
@@ -396,7 +397,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
         })
       //println("newUpdates: " + newUpdates)
       //println("newVarMap: " + newVarMap)
-      //val newLoop = body  
+      //val newLoop = body
 
       unroll(updates, max, newVarMap, unrolled ++ newUpdates, count + 1)
     }
@@ -416,7 +417,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
           case Some(pError) => max( maxSoFar, pError )
           case None => maxSoFar
         }
-    }    
+    }
   }
 
   private def removeLoopCounterUpdate(e: Expr): Expr = {
@@ -437,7 +438,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
       false
   }
 
-  
+
 
   // Needed for the iteration construct we had
   /*private def inlineBodyForUpdateFncs(body: Expr, updateFncs: Seq[UpdateFunction]): Seq[UpdateFunction] = {
@@ -445,7 +446,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
     updateFncs.map( uf => UpdateFunction(uf.lhs, replace(valMap, uf.rhs)))
   }*/
 
- 
+
   /*
     Replace the function call with its specification. For translation to Z3 FncValue needs to be translated
     with a fresh variable. For approximation, translate the spec into an XFloat.
@@ -459,7 +460,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
       var error: Option[Rational] = None
       var extras = List[Expr]()
 
-      
+
       preTraversal{
         case LessEquals(RealLiteral(lwrBnd), Variable(i)) if (i == id) =>
           lwrBoundReal = Some(lwrBnd)
@@ -497,7 +498,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
             None
           }
           // if we don't have the error, we cannot convert the actual range into a real one
-        case None => 
+        case None =>
           if (lwrBoundReal.nonEmpty && upBoundReal.nonEmpty) {
             // we do assume, however, that there is a roundoff error attached
             val rndoff = roundoff(max(lwrBoundReal.get, upBoundReal.get), precision)
@@ -543,7 +544,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
       }(e)
     }
 
-    
+
     preMap {
       case FunctionInvocation(typedFunDef, args) =>
         val funDef = typedFunDef.fd
@@ -555,7 +556,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
                 bases.foldLeft[Seq[Identifier]](Seq())({
                   case (seq, next) => seq :+ getFreshTmpId
                   })
-                
+
               case _ => Seq(getFreshTmpId)
             }
             //println(s"$resFresh")
@@ -596,7 +597,7 @@ case class Approximations(options: RealOptions, fncs: Map[FunDef, Fnc], val repo
       case _ => None
     }(expr)
   }
-    
+
 }
 
 object Approximations {
@@ -617,14 +618,14 @@ object Approximations {
     }(e)
   }
 
-  
-
-  
-
-  
 
 
-  case class Constraint(precondition: Expr, realComp: Expr, finiteComp: Expr, postcondition: Expr) 
+
+
+
+
+
+  case class Constraint(precondition: Expr, realComp: Expr, finiteComp: Expr, postcondition: Expr)
 
   /*  Spec is the overall computed postcondition
     @param kind which approximation type we used
@@ -734,6 +735,6 @@ object Approximations {
     ApproxKind(Inlining, Pathwise, JustFloat),
     ApproxKind(Inlining, Pathwise, FloatNRange)
     )
-  
+
 
 }
