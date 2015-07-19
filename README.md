@@ -2,6 +2,9 @@ rosa
 ====
 The Real compiler
 
+** Check the 'opt' branch with improved running times. **
+
+
 Rosa let's you write your code in `Real`s like this (note the specification!):
 
     def rigidBodyControl1(x1: Real, x2: Real, x3: Real): Real = {
