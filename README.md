@@ -38,7 +38,7 @@ this is why this repository contains more than just Rosa code.
 Instructions for Linux and Mac OSX
 -------------------------------------
 
-### How to build ### 
+### How to build ###
 
 Rosa is set up to work with sbt (simple-build-tool).
 Once you have sbt installed on your machine, type the following in your favourite terminal
