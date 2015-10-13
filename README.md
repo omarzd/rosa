@@ -61,7 +61,15 @@ $ sbt script
 Then you can run:
 $ ./rosa [input files]
 
-### libz3 or libscalaz3 not found ###
+### Existing examples ###
+
+To run the most recent benchmarks (for example):
+
+> run testcases/real/techreport/Straightline.scala
+> run testcases/real/techreport/Discontinuity.scala
+> run testcases/real/techreport/Pendulum.scala
+
+### Troubleshooting: libz3 or libscalaz3 not found ###
 
 Depending on your system, the commands above may fail with a message that says
 that some libz3 or libscalaz3 is missing (or a variation thereof).
@@ -76,8 +84,7 @@ If you get an error saying that libscalaz3 or libz3 are not found,
 first try to extract these libraries from the .jar file and move them for instance
 to Rosa's home directory or whenever you think the JVM searches.
 
-- Libraries for OSX are included directly in the Rosa's home directory, since
-this is where my Mac searches by default. If you get an error saying that libscalaz3 
+- Libraries for OSX are included lib/. If you get an error saying that libscalaz3 
 or libz3 are not found, try to move them to whatever folder you think the JVM searches.
 
 - If Rosa should crash on one of the existing examples in testcases/reals,
@@ -88,11 +95,6 @@ as Rosa may not play well with recent versions of Z3. If not, let me know about 
 You will find the instructions on ScalaZ3's github page (https://github.com/epfl-lara/ScalaZ3).
 Do not get the most recent Z3 version, instead use the one provided in resources/.
 
-### no DirectedRounding in java.library.path ###
-
-Precompiled libraries are available in /lib.
-
-Check below for how to 
 
 Installation instructions for Windows
 -------------------------------------
@@ -114,20 +116,15 @@ Installation instructions for Windows
 11. type "run"
 
 
-### Existing examples ###
+Directed Rounding and QuadDouble
+-------------------------------------
 
-To run the most recent benchmarks (for example):
+Rosa uses two native libraries, directed rounding internally and quad doubles
+if you want to run the generated code with the QuadDouble data type.
+The DirectedRounding library comes precompiled for Linux and Max OSX in lib/.
+If you need to recompile it, or you want to compile quad doubles, here is how.
 
-> run testcases/real/techreport/Straightline.scala
-> run testcases/real/techreport/Discontinuity.scala
-> run testcases/real/techreport/Pendulum.scala
-
-
-### Native library functions ###
-Rosa itself uses two native libraries. They come pre-compiled for Mac and Linux, but in case you need re-compiling,
-here's how.
-
-The project uses JNI to access some low-level system functions that the JVM merrily ignores (e.g. directed rounding).
+## Directed rounding ##
 The source code is located in `resources/` (`ceres_common_DirectedRounding.c`, `ceres_common_DirectedRounding.h`).
 Whatever command you use, the new library MUST be named "libDirectedRounding".
 
@@ -141,10 +138,8 @@ And this worked on a Mac:
     gcc -m64 -I/System/Library/Frameworks/JavaVM.framework/Headers -c ceres_common_DirectedRounding.c
     gcc -m64 -dynamiclib -o libDirectedRounding.jnilib ceres_common_DirectedRounding.o
 
-The other dependency is Z3, which Rosa interfaces through the ScalaZ3 project. If you need to recompile
-ScalaZ3, please check the github page: https://github.com/epfl-lara/ScalaZ3.
+## Quad double ##
 
-Finally, the generated code can use the QuadDouble data type.
 The QuadDouble quadruple double precision type is based on a C++ library from
 http://crd-legacy.lbl.gov/~dhbailey/mpdist/
 
