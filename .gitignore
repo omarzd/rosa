@@ -39,7 +39,7 @@ doc/rosa.sublime-project
 doc/rosa.sublime-workspace
 doc/work-in-progress.pdf
 scalastyle-batch_2.10.jar
-lib/
+
 
 #eclipse
 .cache

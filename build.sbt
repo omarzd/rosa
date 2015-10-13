@@ -41,3 +41,5 @@ javaOptions in (Test,run) += "-Xss32M"
 parallelExecution in test := false
 
 sourcesInBase in Compile := false
+
+javaOptions in run += s"-Djava.library.path=./lib"
