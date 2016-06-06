@@ -1,4 +1,4 @@
-rosa
+Rosa
 ====
 The Real compiler
 
@@ -66,7 +66,9 @@ $ ./rosa [input files]
 To run the most recent benchmarks (for example):
 
 > run testcases/real/techreport/Straightline.scala
+
 > run testcases/real/techreport/Discontinuity.scala
+
 > run testcases/real/techreport/Pendulum.scala
 
 ### Troubleshooting: libz3 or libscalaz3 not found ###
@@ -154,4 +156,7 @@ To compile on Linux:
 
     g++ -shared -o libQuadDouble.so ceres_common_QuadDoubleInterface.o ~/share/qd/src/*.o
 
+License
+-------
 
+See [License](LICENSE) for copyright information.
